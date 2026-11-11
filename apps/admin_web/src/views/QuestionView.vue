@@ -6,9 +6,10 @@ import { ApiError } from '../api/client'
 import { handleUnauthorized } from '../api/guard'
 import type { AdminQuestionDetail, QuestionReviewState, ReviewDecisionType, Subject } from '../api/types'
 import DecisionPanel from '../components/DecisionPanel.vue'
+import QuestionEditor from '../components/QuestionEditor.vue'
 import MathText from '../components/MathText.vue'
 import StatusBadge from '../components/StatusBadge.vue'
-import { DECISION_LABEL } from '../decisions'
+import { canEdit, DECISION_LABEL, HISTORY_LABEL, PART_LABEL } from '../decisions'
 import { formatTime, MODE_LABEL, shortId, SOLUTION_LABEL, SUBJECT_LABEL } from '../labels'
 import { useSession } from '../session'
 
@@ -18,6 +19,7 @@ const detail = ref<AdminQuestionDetail | null>(null)
 const loading = ref(false)
 const error = ref<{ status: number; message: string } | null>(null)
 const done = ref<string | null>(null)
+const editing = ref(false)
 
 const id = computed(() => String(route.params.id ?? ''))
 const answerRows = computed<[string, string][]>(() => {
@@ -66,6 +68,12 @@ async function refresh(): Promise<void> {
   done.value = null
   await load()
 }
+
+function saved(next: AdminQuestionDetail): void {
+  detail.value = next
+  editing.value = false
+  done.value = `已保存为第 ${next.version} 版，状态回到待审；要由另一位审校员重新二审`
+}
 </script>
 
 <template>
@@ -74,7 +82,7 @@ async function refresh(): Promise<void> {
     <p v-if="loading && !detail" class="muted" role="status">加载中…</p>
     <p v-if="error" class="notice error" role="alert" data-testid="load-error">{{ error.message }}</p>
 
-    <div v-if="detail" class="layout">
+    <div v-if="detail" class="layout" :class="{ wide: editing }">
       <div class="main">
         <header class="card head">
           <h1>{{ detail.title }}</h1>
@@ -87,6 +95,17 @@ async function refresh(): Promise<void> {
           </p>
           <p class="notice info small" data-testid="source">
             来源：{{ detail.source.label }}（许可：{{ detail.source.source_license }}）
+          </p>
+          <p v-if="!editing" class="row">
+            <button
+              type="button"
+              data-testid="edit"
+              :disabled="!canEdit(detail.status)"
+              @click="editing = true"
+            >
+              编辑题目
+            </button>
+            <span v-if="!canEdit(detail.status)" class="muted small">已上线的题要先下线，才能修改。</span>
           </p>
           <p class="meta small">
             提交者 <span class="mono">{{ shortId(detail.created_by) }}</span> · 审校人
@@ -111,6 +130,7 @@ async function refresh(): Promise<void> {
           <p class="muted small">程序校验只能保证结构自洽，学科内容本身对不对要靠你审。</p>
         </section>
 
+        <template v-if="!editing">
         <section class="card">
           <h2>题面</h2>
           <p class="stem"><MathText :text="detail.content.stem" /></p>
@@ -223,6 +243,15 @@ async function refresh(): Promise<void> {
           </ul>
           <p v-else class="muted small">没有地区标记，按"全国通用基础题"处理。</p>
         </section>
+        </template>
+        <QuestionEditor
+          v-else
+          :key="detail.version"
+          :detail="detail"
+          @saved="saved"
+          @cancel="editing = false"
+          @refresh="refresh"
+        />
 
         <section class="card" data-testid="history">
           <h2>版本与审核历史</h2>
@@ -234,11 +263,14 @@ async function refresh(): Promise<void> {
           </p>
           <ol v-if="detail.history.length" class="history">
             <li v-for="entry in detail.history" :key="entry.id">
-              <strong>{{ DECISION_LABEL[entry.action] }}</strong>
+              <strong>{{ HISTORY_LABEL[entry.action] }}</strong>
               <span class="muted">
                 {{ entry.from_status ?? '—' }} → {{ entry.to_status ?? '—' }} · 第 {{ entry.version ?? '?' }} 版 ·
                 <span class="mono">{{ shortId(entry.actor_id) }}</span> · {{ formatTime(entry.created_at) }}
               </span>
+              <p v-if="entry.changes && entry.changes.length" class="small">
+                改动了：{{ entry.changes.map((part) => PART_LABEL[part] ?? part).join('、') }}
+              </p>
               <p v-if="entry.comment" class="comment">{{ entry.comment }}</p>
             </li>
           </ol>
@@ -246,7 +278,7 @@ async function refresh(): Promise<void> {
         </section>
       </div>
 
-      <aside class="side">
+      <aside v-if="!editing" class="side">
         <DecisionPanel :detail="detail" @decided="decided" @refresh="refresh" />
       </aside>
     </div>

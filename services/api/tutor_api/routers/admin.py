@@ -9,7 +9,13 @@ from fastapi.responses import JSONResponse
 
 from tutor_api.deps import Ctx, ok, reviewer_ctx
 from tutor_api.idempotency import run_idempotent
-from tutor_api.schemas import QuestionStatus, ReviewDecisionIn, SourceCategory, Subject
+from tutor_api.schemas import (
+    AdminQuestionEditIn,
+    QuestionStatus,
+    ReviewDecisionIn,
+    SourceCategory,
+    Subject,
+)
 from tutor_api.services import review_service
 
 router = APIRouter()
@@ -56,3 +62,20 @@ def review_question(
         )
 
     return run_idempotent(ctx, body, 200, action)
+
+
+@router.post("/admin/questions/{question_id}/versions")
+def create_question_version(
+    question_id: UUID, body: AdminQuestionEditIn, ctx: Ctx = Depends(reviewer_ctx)
+) -> JSONResponse:
+    def action(_key_digest: str):
+        return review_service.create_version(
+            ctx.db,
+            actor_id=ctx.actor_id,
+            question_id=str(question_id),
+            body=body,
+            now=ctx.now(),
+            request_id=ctx.request_id,
+        )
+
+    return run_idempotent(ctx, body, 201, action)

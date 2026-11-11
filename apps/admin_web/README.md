@@ -29,10 +29,13 @@ npm run dev          # http://127.0.0.1:5174
 演示流程：用审核员身份进入 → "待审"页签里有 3 道样题 → 打开一道 → 二审通过 → 上线；回到队列，
 "已上线"的数字加一，学生端的练习列表里也有了这道题。再去"下线"它，必须写原因。
 
+修改：打开一道待审（或已下线）的题，点"编辑题目"，改完"保存为新版本"——旧版本留着，新版本回到待审，你成为它的提交者，
+所以要换另一个身份（退出后以管理员进入）才能二审。已上线的题要先下线才能改。
+
 ## 命令
 
 ```
-npm test             # vitest：API 客户端、决策规则、公式渲染、队列页、审核页
+npm test             # vitest：API 客户端、决策规则、公式渲染、队列页、审核页、编辑器
 npm run typecheck    # vue-tsc；测试数据按契约类型写，契约改了这里先红
 npm run check:api    # schema.d.ts 是否由当前契约生成
 npm run gen:api      # 重新生成 schema.d.ts
@@ -44,14 +47,16 @@ npm run build        # 类型检查 + 打包到 dist/
 ```
 src/api/        client.ts（请求与错误信封）、admin.ts（接口函数）、guard.ts（401 与幂等键）、schema.d.ts（生成）
 src/views/      LoginView、QueueView（审核队列）、QuestionView（题目全貌 + 决策）
-src/components/ DecisionPanel（决策与错误提示）、MathText（KaTeX）、StatusBadge
+src/components/ DecisionPanel（决策与错误提示）、QuestionEditor（编辑题目）、StringList、MathText（KaTeX）、StatusBadge
+src/editing.ts  编辑表单 ↔ 修改请求的转换（纯函数，有来回测试）
 src/decisions.ts  各状态可做的决策、说明文字、错误码翻译（只是提前提示，授权在服务端）
 tests/          vitest；fixtures.ts 里的数据按契约类型写
 ```
 
 ## 已知限制
 
-- 只能审，不能改：修改题干或答案并产生新版本的编辑界面和接口还没有做（docs/07 要求改动后增加版本）。
+- 看不到旧版本的内容，也没有版本对比：旧版本留在库里，界面只列版本号（ADR-009）。
+- 编辑：小问和附件原样带过去、不能改；图解模板与参数、判定规则、评分细则要手写 JSON；每次保存都是一个新版本。
 - 地区适用标记、评分细则（rubric）只能查看，不能在这里审核。
 - 队列分页是 offset 游标，题量大了要改成数据库侧的键集分页。
 - 只在 Chrome 里看过；无障碍只做了语义标签和键盘可达，没有用读屏软件走过。

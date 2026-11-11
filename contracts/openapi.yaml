@@ -868,6 +868,53 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '422': {$ref: '#/components/responses/Unprocessable'}
 
+  /admin/questions/{question_id}/versions:
+    post:
+      operationId: createQuestionVersion
+      tags: [admin]
+      summary: 修改题目并产生新版本
+      description: |
+        整体替换可编辑的内容（题面、答案、教学辅助、解法、知识点、评分细则），产生新版本 `version + 1`，
+        旧版本原样保留（docs/07："修改题干或答案后增加版本，旧版本留痕"）。
+
+        - `draft`、`reviewed`、`withdrawn` 的题可以改；新版本回到 draft，审校人与解法确认全部清空，必须重新二审。
+          已上线的题要先下线（409 `invalid_transition`）：上线的内容不会被悄悄改掉。
+        - 没有任何改动时 422 `no_changes`，不产生空版本。
+        - 保存时不做程序校验：草稿可以是半成品。校验结果在详情的 `check_problems` 里，二审与上线之前必须清零。
+        - 做这次修改的人成为新版本的提交者，和其他提交者一样不能自己二审或上线。
+        - 学生已经开始的会话继续按开始时的版本判分与讲解，不受影响。
+
+        `expected_version` 与当前版本不一致时 409 `version_conflict`。每次修改写审计日志，同一个幂等键只生效一次。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminQuestionEdit'}
+      responses:
+        '201':
+          description: 新版本保存后的题目全貌
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/AdminQuestionDetail'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
   /admin/questions/{question_id}/review:
     post:
       operationId: reviewQuestion
@@ -1063,7 +1110,7 @@ components:
             attempt_in_progress、independent_attempt_in_progress、hints_disabled_in_retest、invalid_state、
             review_not_due、attempt_not_verified、payload_too_large、validation_error、not_implemented、
             model_unavailable；内容审核另有 self_review_forbidden、version_conflict、invalid_transition、
-            comment_required、content_checks_failed、solution_not_confirmed。
+            comment_required、content_checks_failed、solution_not_confirmed；修改题目另有 no_changes。
         message: {type: string}
         details: {$ref: '#/components/schemas/ErrorDetails'}
         request_id: {type: string}
@@ -1367,7 +1414,7 @@ components:
       required: [key, text]
       properties:
         key: {type: string, minLength: 1, maxLength: 8}
-        text: {type: string}
+        text: {type: string, maxLength: 4000}
     QuestionBlank:
       type: object
       additionalProperties: false
@@ -1391,31 +1438,37 @@ components:
       required: [key, stem, answer_mode, options, blanks]
       properties:
         key: {type: string}
-        stem: {type: string}
+        stem: {type: string, maxLength: 4000}
         answer_mode: {$ref: '#/components/schemas/AnswerMode'}
         options:
           type: array
+          maxItems: 12
           items: {$ref: '#/components/schemas/QuestionOption'}
         blanks:
           type: array
+          maxItems: 12
           items: {$ref: '#/components/schemas/QuestionBlank'}
     QuestionContent:
       type: object
       additionalProperties: false
       required: [stem, options, blanks, subquestions, attachments]
       properties:
-        stem: {type: string, description: 题干。纯文本，行内公式用 $...$ 包裹的 LaTeX。}
+        stem: {type: string, maxLength: 4000, description: 题干。纯文本，行内公式用 $...$ 包裹的 LaTeX。}
         options:
           type: array
+          maxItems: 12
           items: {$ref: '#/components/schemas/QuestionOption'}
         blanks:
           type: array
+          maxItems: 12
           items: {$ref: '#/components/schemas/QuestionBlank'}
         subquestions:
           type: array
+          maxItems: 20
           items: {$ref: '#/components/schemas/Subquestion'}
         attachments:
           type: array
+          maxItems: 20
           items: {$ref: '#/components/schemas/QuestionAttachment'}
     QuestionAssists:
       type: object
@@ -2076,21 +2129,29 @@ components:
     AdminTeaching:
       type: object
       additionalProperties: false
-      required: [concept, hints, concept_rephrase, option_analysis, visual]
+      required: [concept, hints, concept_rephrase, option_analysis, visual, leak_markers]
       properties:
-        concept: {type: [string, 'null']}
+        concept: {type: [string, 'null'], maxLength: 200}
         hints:
           type: array
-          items: {type: string}
-        concept_rephrase: {type: [string, 'null']}
+          maxItems: 8
+          items: {type: string, maxLength: 4000}
+        concept_rephrase: {type: [string, 'null'], maxLength: 4000}
         option_analysis:
           type: object
           description: 选择题每个选项的分析，键是选项键。
-          additionalProperties: {type: string}
+          additionalProperties: {type: string, maxLength: 4000}
         visual:
           oneOf:
             - {$ref: '#/components/schemas/AdminVisual'}
             - {type: 'null'}
+        leak_markers:
+          type: array
+          maxItems: 50
+          description: |
+            审校员额外补充的泄题标记（答案的写法太多、程序列不全时用，比如表达式的各种写法）。
+            系统还会自动加上由答案推出的标记，这里不包含它们。
+          items: {type: string, maxLength: 200}
     AdminSolution:
       type: object
       additionalProperties: false
@@ -2130,14 +2191,22 @@ components:
         version: {type: integer, minimum: 1}
         created_by: {type: [string, 'null'], format: uuid}
         created_at: {type: string, format: date-time}
+    AdminHistoryAction:
+      type: string
+      description: 审核决策，或者 edit（修改内容、产生新版本）。
+      enum: [approve, reject, publish, withdraw, edit]
     AdminHistoryEntry:
       type: object
       additionalProperties: false
-      required: [id, action, actor_id, from_status, to_status, version, comment, created_at]
+      required: [id, action, actor_id, from_status, to_status, version, comment, changes, created_at]
       properties:
         id: {type: string, format: uuid}
-        action: {$ref: '#/components/schemas/ReviewDecisionType'}
+        action: {$ref: '#/components/schemas/AdminHistoryAction'}
         actor_id: {type: [string, 'null'], format: uuid}
+        changes:
+          type: [array, 'null']
+          description: edit 时改动了哪些部分（title、content、answer、teaching、solutions、knowledge、rubric、difficulty、grade）；其他动作为 null。
+          items: {type: string}
         from_status:
           oneOf:
             - {$ref: '#/components/schemas/QuestionStatus'}
@@ -2149,6 +2218,58 @@ components:
         version: {type: [integer, 'null']}
         comment: {type: [string, 'null']}
         created_at: {type: string, format: date-time}
+    AdminSolutionInput:
+      type: object
+      additionalProperties: false
+      required: [kind, steps, final_answer, key_points, conditions, boundary]
+      properties:
+        kind: {$ref: '#/components/schemas/SolutionKind'}
+        steps:
+          type: array
+          maxItems: 30
+          items: {type: string, maxLength: 4000}
+        final_answer: {type: string, maxLength: 4000}
+        key_points:
+          type: array
+          maxItems: 20
+          items: {type: string, maxLength: 200}
+        conditions:
+          type: [array, 'null']
+          maxItems: 20
+          description: 快速解法的适用条件；标准解法传 null。
+          items: {type: string, maxLength: 4000}
+        boundary: {type: [string, 'null'], maxLength: 4000, description: 快速解法不适用的情形；标准解法传 null。}
+    AdminQuestionEdit:
+      type: object
+      additionalProperties: false
+      required: [expected_version, title, difficulty, grade, content, answer, teaching, solutions, knowledge, rubric]
+      description: |
+        可编辑内容的完整替换（不是补丁）：没打算改的部分原样传回。题型、学科、答题方式、来源和地区标记不在这里改。
+      properties:
+        expected_version:
+          type: integer
+          minimum: 1
+          description: 编辑者看到的题目版本；与服务端当前版本不一致时返回 409 version_conflict。
+        title: {type: string, minLength: 1, maxLength: 120}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        content: {$ref: '#/components/schemas/QuestionContent'}
+        answer: {$ref: '#/components/schemas/AdminAnswer'}
+        teaching: {$ref: '#/components/schemas/AdminTeaching'}
+        solutions:
+          type: array
+          maxItems: 2
+          items: {$ref: '#/components/schemas/AdminSolutionInput'}
+        knowledge:
+          type: array
+          maxItems: 20
+          description: 知识点 code（如 math.function.monotonicity），必须是已存在的知识点。
+          items: {type: string, maxLength: 64}
+        rubric: {type: object}
+        comment: {type: [string, 'null'], maxLength: 2000, description: 修改说明，写进审计与历史。}
     AdminQuestionDetail:
       type: object
       additionalProperties: false

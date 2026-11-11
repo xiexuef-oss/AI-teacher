@@ -216,6 +216,42 @@ MUTATIONS = [
         "        if standard is None:\n",
         ("tests/api/test_admin_review.py",),
     ),
+    # ---- 修改题目、产生新版本
+    Mutation(
+        "已上线的题也能直接修改",
+        API / "services" / "review_service.py",
+        'EDITABLE_FROM = frozenset({"draft", "reviewed", "withdrawn"})',
+        'EDITABLE_FROM = frozenset({"draft", "reviewed", "withdrawn", "published"})',
+        ("tests/api/test_admin_versions.py",),
+    ),
+    Mutation(
+        "修改之后解法的审核标记还留着",
+        API / "services" / "review_service.py",
+        "                reviewed=False,  # 新版本的解法一律重新审核\n",
+        "                reviewed=True,\n",
+        ("tests/api/test_admin_versions.py",),
+    ),
+    Mutation(
+        "改的人可以自己二审自己的修改",
+        API / "services" / "review_service.py",
+        "    question.created_by = actor_id  # 改的人成为新版本的提交者，不能自己二审\n",
+        "    pass\n",
+        ("tests/api/test_admin_versions.py",),
+    ),
+    Mutation(
+        "没有任何改动也产生新版本",
+        API / "services" / "review_service.py",
+        "    if not changes:\n",
+        "    if False:\n",
+        ("tests/api/test_admin_versions.py",),
+    ),
+    Mutation(
+        "复测列表里还列着已下线的题",
+        API / "services" / "review_scheduler.py",
+        '            Question.status == "published",\n',
+        "",
+        ("tests/api/test_admin_versions.py",),
+    ),
 ]
 
 

@@ -398,6 +398,22 @@ class TutorApiClient {
     return AdminQuestionDetail.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 修改题目并产生新版本
+  Future<AdminQuestionDetail> createQuestionVersion({
+    required String questionId,
+    required AdminQuestionEdit body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/questions/${Uri.encodeComponent(questionId)}/versions',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return AdminQuestionDetail.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 审核决策
   Future<QuestionReviewState> reviewQuestion({
     required String questionId,

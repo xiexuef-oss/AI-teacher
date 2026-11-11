@@ -2698,6 +2698,7 @@ class AdminTeaching {
     this.conceptRephrase,
     required this.optionAnalysis,
     this.visual,
+    required this.leakMarkers,
   });
 
   final String? concept;
@@ -2705,6 +2706,7 @@ class AdminTeaching {
   final String? conceptRephrase;
   final Map<String, dynamic> optionAnalysis;
   final AdminVisual? visual;
+  final List<String> leakMarkers;
 
   factory AdminTeaching.fromJson(Map<String, dynamic> json) => AdminTeaching(
         concept: json['concept'] == null ? null : json['concept'] as String,
@@ -2712,6 +2714,7 @@ class AdminTeaching {
         conceptRephrase: json['concept_rephrase'] == null ? null : json['concept_rephrase'] as String,
         optionAnalysis: Map<String, dynamic>.from(json['option_analysis'] as Map),
         visual: json['visual'] == null ? null : AdminVisual.fromJson(json['visual'] as Map<String, dynamic>),
+        leakMarkers: (json['leak_markers'] as List<dynamic>).map((e) => e as String).toList(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -2720,6 +2723,7 @@ class AdminTeaching {
         'concept_rephrase': conceptRephrase,
         'option_analysis': optionAnalysis,
         'visual': visual?.toJson(),
+        'leak_markers': leakMarkers,
       };
 }
 
@@ -2827,11 +2831,32 @@ class AdminQuestionVersion {
       };
 }
 
+/// 审核决策，或者 edit（修改内容、产生新版本）。
+enum AdminHistoryAction {
+  approve('approve'),
+  reject('reject'),
+  publish('publish'),
+  withdraw('withdraw'),
+  edit('edit'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const AdminHistoryAction(this.value);
+  final String value;
+
+  static AdminHistoryAction fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => AdminHistoryAction.$unknown);
+
+  String toJson() => value;
+}
+
 class AdminHistoryEntry {
   const AdminHistoryEntry({
     required this.id,
     required this.action,
     this.actorId,
+    this.changes,
     this.fromStatus,
     this.toStatus,
     this.version,
@@ -2840,8 +2865,9 @@ class AdminHistoryEntry {
   });
 
   final String id;
-  final ReviewDecisionType action;
+  final AdminHistoryAction action;
   final String? actorId;
+  final List<String>? changes;
   final QuestionStatus? fromStatus;
   final QuestionStatus? toStatus;
   final int? version;
@@ -2850,8 +2876,9 @@ class AdminHistoryEntry {
 
   factory AdminHistoryEntry.fromJson(Map<String, dynamic> json) => AdminHistoryEntry(
         id: json['id'] as String,
-        action: ReviewDecisionType.fromJson(json['action'] as String),
+        action: AdminHistoryAction.fromJson(json['action'] as String),
         actorId: json['actor_id'] == null ? null : json['actor_id'] as String,
+        changes: json['changes'] == null ? null : (json['changes'] as List<dynamic>).map((e) => e as String).toList(),
         fromStatus: json['from_status'] == null ? null : QuestionStatus.fromJson(json['from_status'] as String),
         toStatus: json['to_status'] == null ? null : QuestionStatus.fromJson(json['to_status'] as String),
         version: json['version'] == null ? null : (json['version'] as num).toInt(),
@@ -2863,11 +2890,105 @@ class AdminHistoryEntry {
         'id': id,
         'action': action.toJson(),
         'actor_id': actorId,
+        'changes': changes,
         'from_status': fromStatus?.toJson(),
         'to_status': toStatus?.toJson(),
         'version': version,
         'comment': comment,
         'created_at': createdAt.toUtc().toIso8601String(),
+      };
+}
+
+class AdminSolutionInput {
+  const AdminSolutionInput({
+    required this.kind,
+    required this.steps,
+    required this.finalAnswer,
+    required this.keyPoints,
+    this.conditions,
+    this.boundary,
+  });
+
+  final SolutionKind kind;
+  final List<String> steps;
+  final String finalAnswer;
+  final List<String> keyPoints;
+  final List<String>? conditions;
+  final String? boundary;
+
+  factory AdminSolutionInput.fromJson(Map<String, dynamic> json) => AdminSolutionInput(
+        kind: SolutionKind.fromJson(json['kind'] as String),
+        steps: (json['steps'] as List<dynamic>).map((e) => e as String).toList(),
+        finalAnswer: json['final_answer'] as String,
+        keyPoints: (json['key_points'] as List<dynamic>).map((e) => e as String).toList(),
+        conditions: json['conditions'] == null ? null : (json['conditions'] as List<dynamic>).map((e) => e as String).toList(),
+        boundary: json['boundary'] == null ? null : json['boundary'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind.toJson(),
+        'steps': steps,
+        'final_answer': finalAnswer,
+        'key_points': keyPoints,
+        'conditions': conditions,
+        'boundary': boundary,
+      };
+}
+
+/// 可编辑内容的完整替换（不是补丁）：没打算改的部分原样传回。题型、学科、答题方式、来源和地区标记不在这里改。
+class AdminQuestionEdit {
+  const AdminQuestionEdit({
+    required this.expectedVersion,
+    required this.title,
+    required this.difficulty,
+    this.grade,
+    required this.content,
+    required this.answer,
+    required this.teaching,
+    required this.solutions,
+    required this.knowledge,
+    required this.rubric,
+    this.comment,
+  });
+
+  final int expectedVersion;
+  final String title;
+  final int difficulty;
+  final Grade? grade;
+  final QuestionContent content;
+  final AdminAnswer answer;
+  final AdminTeaching teaching;
+  final List<AdminSolutionInput> solutions;
+  final List<String> knowledge;
+  final Map<String, dynamic> rubric;
+  final String? comment;
+
+  factory AdminQuestionEdit.fromJson(Map<String, dynamic> json) => AdminQuestionEdit(
+        expectedVersion: (json['expected_version'] as num).toInt(),
+        title: json['title'] as String,
+        difficulty: (json['difficulty'] as num).toInt(),
+        grade: json['grade'] == null ? null : Grade.fromJson(json['grade'] as String),
+        content: QuestionContent.fromJson(json['content'] as Map<String, dynamic>),
+        answer: AdminAnswer.fromJson(json['answer'] as Map<String, dynamic>),
+        teaching: AdminTeaching.fromJson(json['teaching'] as Map<String, dynamic>),
+        solutions: (json['solutions'] as List<dynamic>).map((e) => AdminSolutionInput.fromJson(e as Map<String, dynamic>)).toList(),
+        knowledge: (json['knowledge'] as List<dynamic>).map((e) => e as String).toList(),
+        rubric: Map<String, dynamic>.from(json['rubric'] as Map),
+        comment: json['comment'] == null ? null : json['comment'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_version': expectedVersion,
+        'title': title,
+        'difficulty': difficulty,
+        'grade': grade?.toJson(),
+        'content': content.toJson(),
+        'answer': answer.toJson(),
+        'teaching': teaching.toJson(),
+        'solutions': solutions.map((e) => e.toJson()).toList(),
+        'knowledge': knowledge,
+        'rubric': rubric,
+        if (comment != null) 'comment': comment,
       };
 }
 

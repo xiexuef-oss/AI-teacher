@@ -407,3 +407,74 @@ pre {
 .math .katex {
   font-size: 1.05em;
 }
+
+.layout.wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---- 题目编辑器 */
+.editor .grid {
+  display: grid;
+  grid-template-columns: 140px 140px minmax(0, 1fr);
+  gap: 0 0.8rem;
+}
+
+.editor .grid .wide {
+  grid-column: 1 / -1;
+}
+
+.editor input:not([type='checkbox']),
+.editor select {
+  width: 100%;
+  font: inherit;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.editor fieldset.group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 0.9rem 0;
+  padding: 0.6rem 0.9rem 0.9rem;
+}
+
+.editor legend {
+  font-weight: 600;
+  padding: 0 0.4rem;
+}
+
+.editor .preview {
+  background: #f7f9fb;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+}
+
+.option-row {
+  display: grid;
+  grid-template-columns: 4rem 2rem minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: start;
+  margin-bottom: 0.4rem;
+}
+
+.option-row.blank-row {
+  grid-template-columns: 4rem minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.string-row {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  align-items: start;
+  margin-bottom: 0.3rem;
+}
+
+.string-list {
+  margin: 0.6rem 0;
+}
+
+textarea.mono {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.85rem;
+}

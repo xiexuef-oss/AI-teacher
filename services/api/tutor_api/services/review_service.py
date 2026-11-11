@@ -19,11 +19,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from tutor_api.db import new_id
-from tutor_api.errors import ApiError, conflict, not_found
+from tutor_api.errors import ApiError, conflict, not_found, unprocessable
 from tutor_api.models import (
     AuditLog,
     KnowledgeNode,
@@ -31,12 +31,14 @@ from tutor_api.models import (
     QuestionKnowledge,
     QuestionRegionApplicability,
     QuestionVersion,
+    Rubric,
     Solution,
 )
 from tutor_api.schemas import (
     AdminAnswer,
     AdminHistoryEntry,
     AdminQuestionDetail,
+    AdminQuestionEditIn,
     AdminQuestionPage,
     AdminQuestionSummary,
     AdminQuestionVersion,
@@ -62,6 +64,21 @@ TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
 COMMENT_REQUIRED = frozenset({"reject", "withdraw"})
 INDEPENDENT_REVIEW = frozenset({"approve", "publish"})  # 提交者不能自己放行的两步
 AUDIT_PREFIX = "question.review."
+EDIT_ACTION = "question.edit"
+# 已上线的内容不会被悄悄改掉：要改先下线（下线之后可以改，新版本回到 draft 重新走审核）
+EDITABLE_FROM = frozenset({"draft", "reviewed", "withdrawn"})
+# 一次修改里"改动了哪些部分"的名字，也是比较的顺序
+EDIT_PARTS = (
+    "title",
+    "difficulty",
+    "grade",
+    "content",
+    "answer",
+    "teaching",
+    "solutions",
+    "knowledge",
+    "rubric",
+)
 
 
 # ---------------------------------------------------------------- 程序校验
@@ -243,26 +260,55 @@ def _history(db: Session, question_id: str) -> list[AdminHistoryEntry]:
         .where(
             AuditLog.target_type == "question",
             AuditLog.target_id == question_id,
-            AuditLog.action.like(f"{AUDIT_PREFIX}%"),
+            AuditLog.action.like("question.%"),
         )
         .order_by(AuditLog.created_at, AuditLog.id)
     )
     entries = []
     for row in rows:
         detail = row.detail_json or {}
+        is_edit = row.action == EDIT_ACTION
         entries.append(
             AdminHistoryEntry(
                 id=row.id,
-                action=row.action.removeprefix(AUDIT_PREFIX),
+                action="edit" if is_edit else row.action.removeprefix(AUDIT_PREFIX),
                 actor_id=row.actor_id,
                 from_status=detail.get("from"),
                 to_status=detail.get("to"),
                 version=detail.get("version"),
                 comment=detail.get("comment"),
+                changes=list(detail.get("changes") or []) if is_edit else None,
                 created_at=row.created_at,
             )
         )
     return entries
+
+
+# ---------------------------------------------------------------- 泄题标记
+
+
+def _full_markers(answer_mode: str, answer: dict[str, Any], extra: list[str]) -> list[str]:
+    """库里存的完整标记 = 审校员补的 + 由答案推出来的（与样题入库同一个算法）。"""
+    shaped = {
+        "answer_mode": answer_mode,
+        "answer": {
+            "value": answer.get("value"),
+            "equivalence_rules": answer.get("equivalence_rules") or {},
+        },
+        "teaching": {"leak_markers": list(extra)},
+    }
+    try:
+        markers = content_seed.leak_markers(shaped)
+    except (KeyError, TypeError, AttributeError):
+        markers = list(extra)  # 答案的形状不对：程序校验会指出来，这里不让保存失败
+    return list(dict.fromkeys(markers))
+
+
+def _custom_markers(question: Question, version: QuestionVersion) -> list[str]:
+    """审校员补充的标记：库里存的完整标记，去掉由答案自动推出的那部分。"""
+    stored = list((version.teaching_json or {}).get("leak_markers") or [])
+    automatic = set(_full_markers(question.answer_mode, version.answer_json, []))
+    return [marker for marker in dict.fromkeys(stored) if marker not in automatic]
 
 
 def _admin_solution(row: Solution) -> AdminSolution:
@@ -280,14 +326,33 @@ def _admin_solution(row: Solution) -> AdminSolution:
     )
 
 
+def _admin_teaching(question: Question, version: QuestionVersion) -> AdminTeaching:
+    teaching = version.teaching_json or {}
+    visual = teaching.get("visual")
+    return AdminTeaching(
+        concept=teaching.get("concept"),
+        hints=list(teaching.get("hints") or []),
+        concept_rephrase=teaching.get("concept_rephrase"),
+        option_analysis=dict(teaching.get("option_analysis") or {}),
+        visual=(
+            AdminVisual(
+                template_id=visual["template_id"],
+                params=visual.get("params") or {},
+                caption=visual.get("caption") or "",
+            )
+            if visual
+            else None
+        ),
+        leak_markers=_custom_markers(question, version),
+    )
+
+
 def question_detail(db: Session, question_id: str) -> AdminQuestionDetail:
     question = db.get(Question, question_id)
     if question is None:
         raise not_found()
     version = question_service.get_version(db, question.id, question.version)
     content, answer = version.content_json, version.answer_json
-    teaching = version.teaching_json or {}
-    visual = teaching.get("visual")
     solutions = _solutions(db, question.id, version.version)
     tags = db.scalars(
         select(QuestionRegionApplicability)
@@ -327,21 +392,7 @@ def question_detail(db: Session, question_id: str) -> AdminQuestionDetail:
             equivalence_rules=answer.get("equivalence_rules") or {},
             units=answer.get("units") or {},
         ),
-        teaching=AdminTeaching(
-            concept=teaching.get("concept"),
-            hints=list(teaching.get("hints") or []),
-            concept_rephrase=teaching.get("concept_rephrase"),
-            option_analysis=dict(teaching.get("option_analysis") or {}),
-            visual=(
-                AdminVisual(
-                    template_id=visual["template_id"],
-                    params=visual.get("params") or {},
-                    caption=visual.get("caption") or "",
-                )
-                if visual
-                else None
-            ),
-        ),
+        teaching=_admin_teaching(question, version),
         solutions=[
             _admin_solution(solutions[kind]) for kind in ("standard", "fast") if kind in solutions
         ],
@@ -499,3 +550,246 @@ def decide(
         reviewed_by=question.reviewed_by,
         updated_at=question.updated_at,
     )
+
+
+# ---------------------------------------------------------------- 修改题目（产生新版本）
+
+
+def _solution_view(
+    kind: str, steps, final_answer, key_points, conditions, boundary
+) -> dict[str, Any]:
+    """解法在"比较"和"保存"里的统一表示：标准解法没有适用条件，快速解法的条件缺省为空列表。"""
+    is_fast = kind == "fast"
+    return {
+        "kind": kind,
+        "steps": list(steps),
+        "final_answer": final_answer,
+        "key_points": list(key_points),
+        "conditions": list(conditions or []) if is_fast else None,
+        "boundary": boundary if is_fast else None,
+    }
+
+
+def _editable_snapshot(db: Session, question: Question, version: QuestionVersion) -> dict[str, Any]:
+    """当前版本里"可以被修改"的部分，按详情接口给出的表示整理好，用来和一次修改请求做比较。"""
+    content, answer = version.content_json, version.answer_json
+    solutions = _solutions(db, question.id, version.version)
+    return {
+        "title": content.get("title") or "",
+        "difficulty": question.difficulty,
+        "grade": question.grade,
+        "content": QuestionContent(
+            stem=content["stem"],
+            options=content.get("options") or [],
+            blanks=content.get("blanks") or [],
+            subquestions=content.get("subquestions") or [],
+            attachments=content.get("attachments") or [],
+        ).model_dump(),
+        "answer": AdminAnswer(
+            value=answer.get("value"),
+            equivalence_rules=answer.get("equivalence_rules") or {},
+            units=answer.get("units") or {},
+        ).model_dump(),
+        "teaching": _admin_teaching(question, version).model_dump(),
+        "solutions": [
+            _solution_view(
+                kind,
+                row.content_json.get("steps") or [],
+                str(row.content_json.get("final_answer") or ""),
+                row.content_json.get("key_points") or [],
+                (row.conditions_json or {}).get("conditions"),
+                (row.conditions_json or {}).get("boundary"),
+            )
+            for kind, row in sorted(solutions.items())
+        ],
+        "knowledge": sorted(
+            node.code for node in question_service.knowledge_refs(db, [question.id])[question.id]
+        ),
+        "rubric": _rubric(db, question.id, version.version),
+    }
+
+
+def _request_snapshot(body: AdminQuestionEditIn) -> dict[str, Any]:
+    return {
+        "title": body.title,
+        "difficulty": body.difficulty,
+        "grade": body.grade,
+        "content": QuestionContent(**body.content.model_dump()).model_dump(),
+        "answer": AdminAnswer(**body.answer.model_dump()).model_dump(),
+        "teaching": AdminTeaching(**body.teaching.model_dump()).model_dump(),
+        "solutions": sorted(
+            (
+                _solution_view(
+                    item.kind,
+                    item.steps,
+                    item.final_answer,
+                    item.key_points,
+                    item.conditions,
+                    item.boundary,
+                )
+                for item in body.solutions
+            ),
+            key=lambda view: view["kind"],
+        ),
+        "knowledge": sorted(set(body.knowledge)),
+        "rubric": body.rubric,
+    }
+
+
+def create_version(
+    db: Session,
+    *,
+    actor_id: str,
+    question_id: str,
+    body: AdminQuestionEditIn,
+    now: datetime,
+    request_id: str,
+) -> AdminQuestionDetail:
+    question = db.get(Question, question_id)
+    if question is None:
+        raise not_found()
+    if body.expected_version != question.version:
+        raise conflict(
+            "version_conflict",
+            f"题目已经是第 {question.version} 版，你看到的是第 {body.expected_version} 版，请刷新后再改",
+            {"current_version": question.version},
+        )
+    before_status = question.status
+    if before_status not in EDITABLE_FROM:
+        raise conflict(
+            "invalid_transition",
+            f"题目现在是 {before_status} 状态，已上线的题要先下线才能修改",
+            {"status": before_status, "decision": "edit"},
+        )
+
+    codes = list(dict.fromkeys(body.knowledge))
+    nodes = {
+        node.code: node
+        for node in db.scalars(
+            select(KnowledgeNode).where(
+                KnowledgeNode.subject == question.subject, KnowledgeNode.code.in_(codes)
+            )
+        )
+    }
+    missing = [code for code in codes if code not in nodes]
+    if missing:
+        raise unprocessable(
+            "knowledge", f"知识点不存在，或不属于这道题的学科：{'、'.join(missing)}"
+        )
+    kinds = [item.kind for item in body.solutions]
+    if len(set(kinds)) != len(kinds):
+        raise unprocessable("solutions", "同一种解法只能有一个")
+
+    previous = question_service.get_version(db, question.id, question.version)
+    before, after = _editable_snapshot(db, question, previous), _request_snapshot(body)
+    changes = [part for part in EDIT_PARTS if before[part] != after[part]]
+    if not changes:
+        raise ApiError(422, "no_changes", "没有任何改动，不产生新版本")
+
+    new_version = question.version + 1
+    content = body.content
+    answer = {
+        "value": body.answer.value,
+        "equivalence_rules": body.answer.equivalence_rules,
+        "units": body.answer.units,
+    }
+    teaching: dict[str, Any] = {"hints": list(body.teaching.hints)}
+    if body.teaching.concept is not None:
+        teaching["concept"] = body.teaching.concept
+    if body.teaching.concept_rephrase is not None:
+        teaching["concept_rephrase"] = body.teaching.concept_rephrase
+    if body.teaching.option_analysis:
+        teaching["option_analysis"] = dict(body.teaching.option_analysis)
+    if body.teaching.visual is not None:
+        teaching["visual"] = body.teaching.visual.model_dump()
+    # 标记要跟着新答案重新算：旧答案推出的标记留着，会让提示里的新答案漏过去
+    teaching["leak_markers"] = _full_markers(
+        question.answer_mode, answer, list(body.teaching.leak_markers)
+    )
+
+    db.add(
+        QuestionVersion(
+            id=new_id(),
+            question_id=question.id,
+            version=new_version,
+            content_json={
+                "title": body.title,
+                "stem": content.stem,
+                "options": [item.model_dump() for item in content.options],
+                "blanks": [item.model_dump() for item in content.blanks],
+                "subquestions": [item.model_dump() for item in content.subquestions],
+                "attachments": [item.model_dump() for item in content.attachments],
+            },
+            answer_json=answer,
+            teaching_json=teaching,
+            created_by=actor_id,
+            created_at=now,
+        )
+    )
+    for item in body.solutions:
+        is_fast = item.kind == "fast"
+        db.add(
+            Solution(
+                id=new_id(),
+                question_id=question.id,
+                version=new_version,
+                kind=item.kind,
+                content_json={
+                    "steps": list(item.steps),
+                    "final_answer": item.final_answer,
+                    "key_points": list(item.key_points),
+                },
+                conditions_json=(
+                    {"conditions": list(item.conditions or []), "boundary": item.boundary}
+                    if is_fast
+                    else None
+                ),
+                reviewed=False,  # 新版本的解法一律重新审核
+                reviewed_by=None,
+                created_at=now,
+            )
+        )
+    db.add(
+        Rubric(
+            id=new_id(),
+            question_id=question.id,
+            version=new_version,
+            rubric_json=body.rubric,
+            created_at=now,
+        )
+    )
+    db.execute(delete(QuestionKnowledge).where(QuestionKnowledge.question_id == question.id))
+    for code in codes:
+        db.add(QuestionKnowledge(question_id=question.id, knowledge_id=nodes[code].id))
+
+    question.version = new_version
+    question.status = "draft"
+    question.reviewed_by = None
+    question.published_at = None
+    question.created_by = actor_id  # 改的人成为新版本的提交者，不能自己二审
+    question.difficulty = body.difficulty
+    question.grade = body.grade
+    question.updated_at = now
+
+    comment = (body.comment or "").strip() or None
+    db.add(
+        AuditLog(
+            id=new_id(),
+            actor_id=actor_id,
+            action=EDIT_ACTION,
+            target_type="question",
+            target_id=question.id,
+            detail_json={
+                "from": before_status,
+                "to": "draft",
+                "version": new_version,
+                "previous_version": new_version - 1,
+                "comment": comment,
+                "changes": changes,
+            },
+            request_id=request_id,
+            created_at=_audit_time(db, question.id, now),
+        )
+    )
+    db.flush()
+    return question_detail(db, question.id)

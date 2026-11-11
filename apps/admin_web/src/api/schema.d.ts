@@ -507,6 +507,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/questions/{question_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 修改题目并产生新版本
+         * @description 整体替换可编辑的内容（题面、答案、教学辅助、解法、知识点、评分细则），产生新版本 `version + 1`，
+         *     旧版本原样保留（docs/07："修改题干或答案后增加版本，旧版本留痕"）。
+         *
+         *     - `draft`、`reviewed`、`withdrawn` 的题可以改；新版本回到 draft，审校人与解法确认全部清空，必须重新二审。
+         *       已上线的题要先下线（409 `invalid_transition`）：上线的内容不会被悄悄改掉。
+         *     - 没有任何改动时 422 `no_changes`，不产生空版本。
+         *     - 保存时不做程序校验：草稿可以是半成品。校验结果在详情的 `check_problems` 里，二审与上线之前必须清零。
+         *     - 做这次修改的人成为新版本的提交者，和其他提交者一样不能自己二审或上线。
+         *     - 学生已经开始的会话继续按开始时的版本判分与讲解，不受影响。
+         *
+         *     `expected_version` 与当前版本不一致时 409 `version_conflict`。每次修改写审计日志，同一个幂等键只生效一次。
+         */
+        post: operations["createQuestionVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/questions/{question_id}/review": {
         parameters: {
             query?: never;
@@ -551,7 +581,7 @@ export interface components {
              *     attempt_in_progress、independent_attempt_in_progress、hints_disabled_in_retest、invalid_state、
              *     review_not_due、attempt_not_verified、payload_too_large、validation_error、not_implemented、
              *     model_unavailable；内容审核另有 self_review_forbidden、version_conflict、invalid_transition、
-             *     comment_required、content_checks_failed、solution_not_confirmed。
+             *     comment_required、content_checks_failed、solution_not_confirmed；修改题目另有 no_changes。
              */
             code: string;
             message: string;
@@ -1274,6 +1304,11 @@ export interface components {
                 [key: string]: string;
             };
             visual: components["schemas"]["AdminVisual"] | null;
+            /**
+             * @description 审校员额外补充的泄题标记（答案的写法太多、程序列不全时用，比如表达式的各种写法）。
+             *     系统还会自动加上由答案推出的标记，这里不包含它们。
+             */
+            leak_markers: string[];
         };
         AdminSolution: {
             kind: components["schemas"]["SolutionKind"];
@@ -1304,18 +1339,52 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        /**
+         * @description 审核决策，或者 edit（修改内容、产生新版本）。
+         * @enum {string}
+         */
+        AdminHistoryAction: "approve" | "reject" | "publish" | "withdraw" | "edit";
         AdminHistoryEntry: {
             /** Format: uuid */
             id: string;
-            action: components["schemas"]["ReviewDecisionType"];
+            action: components["schemas"]["AdminHistoryAction"];
             /** Format: uuid */
             actor_id: string | null;
+            /** @description edit 时改动了哪些部分（title、content、answer、teaching、solutions、knowledge、rubric、difficulty、grade）；其他动作为 null。 */
+            changes: string[] | null;
             from_status: components["schemas"]["QuestionStatus"] | null;
             to_status: components["schemas"]["QuestionStatus"] | null;
             version: number | null;
             comment: string | null;
             /** Format: date-time */
             created_at: string;
+        };
+        AdminSolutionInput: {
+            kind: components["schemas"]["SolutionKind"];
+            steps: string[];
+            final_answer: string;
+            key_points: string[];
+            /** @description 快速解法的适用条件；标准解法传 null。 */
+            conditions: string[] | null;
+            /** @description 快速解法不适用的情形；标准解法传 null。 */
+            boundary: string | null;
+        };
+        /** @description 可编辑内容的完整替换（不是补丁）：没打算改的部分原样传回。题型、学科、答题方式、来源和地区标记不在这里改。 */
+        AdminQuestionEdit: {
+            /** @description 编辑者看到的题目版本；与服务端当前版本不一致时返回 409 version_conflict。 */
+            expected_version: number;
+            title: string;
+            difficulty: number;
+            grade: components["schemas"]["Grade"] | null;
+            content: components["schemas"]["QuestionContent"];
+            answer: components["schemas"]["AdminAnswer"];
+            teaching: components["schemas"]["AdminTeaching"];
+            solutions: components["schemas"]["AdminSolutionInput"][];
+            /** @description 知识点 code（如 math.function.monotonicity），必须是已存在的知识点。 */
+            knowledge: string[];
+            rubric: Record<string, never>;
+            /** @description 修改说明，写进审计与历史。 */
+            comment?: string | null;
         };
         AdminQuestionDetail: {
             /** Format: uuid */
@@ -2394,6 +2463,47 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    createQuestionVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                question_id: components["parameters"]["QuestionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminQuestionEdit"];
+            };
+        };
+        responses: {
+            /** @description 新版本保存后的题目全貌 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminQuestionDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             422: components["responses"]["Unprocessable"];
         };
     };

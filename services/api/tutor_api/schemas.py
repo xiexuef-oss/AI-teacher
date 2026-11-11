@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -30,6 +30,7 @@ LocalRole = Literal["student", "reviewer", "admin"]
 QuestionStatus = Literal["draft", "reviewed", "published", "withdrawn"]
 ReviewDecisionType = Literal["approve", "reject", "publish", "withdraw"]
 SolutionKind = Literal["standard", "fast"]
+HistoryAction = Literal["approve", "reject", "publish", "withdraw", "edit"]
 
 
 class _In(BaseModel):
@@ -288,6 +289,7 @@ class AdminTeaching(BaseModel):
     concept_rephrase: str | None
     option_analysis: dict[str, str]
     visual: AdminVisual | None
+    leak_markers: list[str]
 
 
 class AdminSolution(BaseModel):
@@ -318,12 +320,13 @@ class AdminQuestionVersion(BaseModel):
 
 class AdminHistoryEntry(BaseModel):
     id: str
-    action: ReviewDecisionType
+    action: HistoryAction
     actor_id: str | None
     from_status: QuestionStatus | None
     to_status: QuestionStatus | None
     version: int | None
     comment: str | None
+    changes: list[str] | None
     created_at: datetime
 
 
@@ -593,3 +596,78 @@ class ProgressSummary(BaseModel):
     by_answer_mode: list[ProgressBucket]
     by_difficulty: list[ProgressBucket]
     disclaimer: str
+
+
+# ---------------------------------------------------------------- 修改题目（产生新版本）
+# 输入模型比输出模型严格：不认识的字段一律 422，文本长度有上限。输出模型保持宽松，库里的旧数据多出字段也不会让读取失败。
+
+Text4000 = Annotated[str, Field(max_length=4000)]
+Text200 = Annotated[str, Field(max_length=200)]
+
+
+class QuestionOptionIn(_In, QuestionOption):
+    key: str = Field(min_length=1, max_length=8)
+    text: Text4000
+
+
+class QuestionBlankIn(_In, QuestionBlank):
+    key: str = Field(min_length=1, max_length=16)
+
+
+class QuestionAttachmentIn(_In, QuestionAttachment):
+    pass
+
+
+class SubquestionIn(_In, Subquestion):
+    stem: Text4000
+    options: list[QuestionOptionIn] = Field(default_factory=list, max_length=12)
+    blanks: list[QuestionBlankIn] = Field(default_factory=list, max_length=12)
+
+
+class QuestionContentIn(_In, QuestionContent):
+    stem: Text4000
+    options: list[QuestionOptionIn] = Field(default_factory=list, max_length=12)
+    blanks: list[QuestionBlankIn] = Field(default_factory=list, max_length=12)
+    subquestions: list[SubquestionIn] = Field(default_factory=list, max_length=20)
+    attachments: list[QuestionAttachmentIn] = Field(default_factory=list, max_length=20)
+
+
+class AdminAnswerIn(_In, AdminAnswer):
+    pass
+
+
+class AdminVisualIn(_In, AdminVisual):
+    template_id: str = Field(max_length=64)
+    caption: Text4000
+
+
+class AdminTeachingIn(_In, AdminTeaching):
+    concept: str | None = Field(max_length=200)
+    hints: list[Text4000] = Field(max_length=8)
+    concept_rephrase: Text4000 | None
+    option_analysis: dict[str, Text4000]
+    visual: AdminVisualIn | None
+    leak_markers: list[Text200] = Field(max_length=50)
+
+
+class AdminSolutionInput(_In):
+    kind: SolutionKind
+    steps: list[Text4000] = Field(max_length=30)
+    final_answer: Text4000
+    key_points: list[Text200] = Field(max_length=20)
+    conditions: list[Text4000] | None = Field(max_length=20)
+    boundary: Text4000 | None
+
+
+class AdminQuestionEditIn(_In):
+    expected_version: int = Field(ge=1)
+    title: str = Field(min_length=1, max_length=120)
+    difficulty: int = Field(ge=1, le=5)
+    grade: Grade | None
+    content: QuestionContentIn
+    answer: AdminAnswerIn
+    teaching: AdminTeachingIn
+    solutions: list[AdminSolutionInput] = Field(max_length=2)
+    knowledge: list[Annotated[str, Field(max_length=64)]] = Field(max_length=20)
+    rubric: dict[str, Any]
+    comment: str | None = Field(default=None, max_length=2000)

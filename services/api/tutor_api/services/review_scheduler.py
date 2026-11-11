@@ -101,8 +101,16 @@ def list_reviews(
     settings: Settings,
 ) -> ReviewPage:
     offset = question_service.decode_cursor(cursor)
-    query = select(ReviewItem).where(
-        ReviewItem.student_id == student_id, ReviewItem.status == "scheduled"
+    # 题目被下线（或改成了待审的新版本）时，复测项还留着、时间也不变，但学生开不了会话，
+    # 所以不列给他；题目重新上线后会自然回到列表里
+    query = (
+        select(ReviewItem)
+        .join(Question, Question.id == ReviewItem.question_id)
+        .where(
+            ReviewItem.student_id == student_id,
+            ReviewItem.status == "scheduled",
+            Question.status == "published",
+        )
     )
     if scope == "due":
         query = query.where(ReviewItem.due_at <= now)

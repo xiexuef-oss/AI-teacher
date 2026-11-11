@@ -1,6 +1,7 @@
 import { request } from './client'
 import type {
   AdminQuestionDetail,
+  AdminQuestionEdit,
   AdminQuestionPage,
   Health,
   LocalIdentity,
@@ -37,6 +38,19 @@ export const reviewQuestion = (
   idempotencyKey: string,
 ) =>
   request<QuestionReviewState>('POST', `/admin/questions/${id}/review`, {
+    token,
+    body,
+    idempotencyKey,
+  })
+
+/** 修改题目：整体替换可编辑的内容，产生新版本（旧版本留痕）。已上线的题要先下线。 */
+export const createQuestionVersion = (
+  token: string,
+  id: string,
+  body: AdminQuestionEdit,
+  idempotencyKey: string,
+) =>
+  request<AdminQuestionDetail>('POST', `/admin/questions/${id}/versions`, {
     token,
     body,
     idempotencyKey,

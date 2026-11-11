@@ -107,6 +107,7 @@ export function detail(overrides: Partial<AdminQuestionDetail> = {}): AdminQuest
       concept_rephrase: null,
       option_analysis: { A: '斜率为负，递减。', B: '这是递增的一段。' },
       visual: null,
+      leak_markers: [],
     },
     solutions: [solution()],
     rubric: {},

@@ -202,6 +202,7 @@ describe('题目审核页', () => {
             to_status: 'draft',
             version: 1,
             comment: '第二步缺少前提',
+            changes: null,
             created_at: '2026-11-11T09:00:00Z',
           },
         ],

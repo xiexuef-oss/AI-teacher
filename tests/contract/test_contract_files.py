@@ -46,6 +46,7 @@ IMPLEMENTED = {
     "listAdminQuestions",
     "getAdminQuestion",
     "reviewQuestion",
+    "createQuestionVersion",
 }
 PLANNED = {
     "createMediaUpload",
@@ -66,6 +67,7 @@ MUST_REQUIRE_IDEMPOTENCY_KEY = {
     "createScan",
     "confirmScan",
     "reviewQuestion",
+    "createQuestionVersion",
 }
 PUBLIC_OPERATIONS = {"getHealth", "getLaunchConfig", "createLocalIdentity"}
 DOC06_TEMPLATES = {

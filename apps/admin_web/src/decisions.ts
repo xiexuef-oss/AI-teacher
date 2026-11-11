@@ -1,10 +1,42 @@
-import type { AdminQuestionDetail, QuestionStatus, ReviewDecisionType } from './api/types'
+import type {
+  AdminHistoryAction,
+  AdminQuestionDetail,
+  QuestionStatus,
+  ReviewDecisionType,
+} from './api/types'
 
 export const STATUS_LABEL: Record<QuestionStatus, string> = {
   draft: '待审（草稿）',
   reviewed: '已二审',
   published: '已上线',
   withdrawn: '已下线',
+}
+
+/** 审核历史里的动作名：四种审核决策，加上"修改"（产生新版本）。 */
+export const HISTORY_LABEL: Record<AdminHistoryAction, string> = {
+  approve: '二审通过',
+  reject: '退回修改',
+  publish: '上线',
+  withdraw: '下线（撤回）',
+  edit: '修改（新版本）',
+}
+
+/** 一次修改里"改动了哪些部分"的中文名。 */
+export const PART_LABEL: Record<string, string> = {
+  title: '标题',
+  difficulty: '难度',
+  grade: '年级',
+  content: '题面',
+  answer: '答案',
+  teaching: '教学辅助',
+  solutions: '解法',
+  knowledge: '知识点',
+  rubric: '评分细则',
+}
+
+/** 已上线的题要先下线才能改；其余状态都可以改（改完是新版本，回到待审）。 */
+export function canEdit(status: QuestionStatus): boolean {
+  return status !== 'published'
 }
 
 export const DECISION_LABEL: Record<ReviewDecisionType, string> = {
@@ -71,6 +103,8 @@ export function explainError(code: string, message: string): string {
       return '题目的状态已经变了（可能别人刚处理过），现在不能执行这个操作。请刷新后再看。'
     case 'comment_required':
       return '这个操作必须写明原因。'
+    case 'no_changes':
+      return '没有任何改动，不会产生新版本。'
     case 'solution_not_confirmed':
       return message
     case 'content_checks_failed':

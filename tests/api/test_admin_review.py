@@ -11,48 +11,18 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from support.admin import (
+    AUTHOR,
+    FAST_KEY,
+    KEY,
+    OTHER_FAST_KEY,
+    audit_rows,
+    decide,
+    make_draft,
+)
 from support.seeds import ALL_KEYS, DRAFT_IDS, DRAFT_KEYS, qid
-from tutor_api.models import AuditLog, Question, QuestionVersion, Solution
+from tutor_api.models import Question, QuestionVersion, Solution
 from tutor_api.services.content_seed import DRAFT_AUTHOR_KEY, seed_uuid
-
-AUTHOR = str(uuid.uuid4())  # 一个"别的人"：既不是下面的 reviewer，也不是学生
-KEY = "math-mono-quadratic"  # 单选题，带地区测试标签
-FAST_KEY = "phys-incline-accel"  # 填空题，标准解法与快速解法都有
-OTHER_FAST_KEY = "chem-conservation-co2"  # 同样两种解法都有
-
-
-def make_draft(db, key: str = KEY, *, created_by: str | None = AUTHOR) -> str:
-    """把一道已发布的样题改回待审状态，模拟一份刚提交的草稿。"""
-    question = db.get(Question, qid(key))
-    question.status = "draft"
-    question.published_at = None
-    question.created_by = created_by
-    question.reviewed_by = None
-    for solution in db.scalars(select(Solution).where(Solution.question_id == question.id)):
-        solution.reviewed = False
-        solution.reviewed_by = None
-    db.commit()
-    return question.id
-
-
-def decide(who, question_id: str, decision: str, *, version: int = 1, expect: int = 200, **extra):
-    body = {"decision": decision, "expected_version": version, **extra}
-    path = f"/admin/questions/{question_id}/review"
-    if expect == 200:
-        return who.data("POST", path, json=body)
-    return who.error("POST", path, expect=expect, json=body)
-
-
-def audit_rows(db, question_id: str) -> list[AuditLog]:
-    db.expire_all()
-    return list(
-        db.scalars(
-            select(AuditLog)
-            .where(AuditLog.target_type == "question", AuditLog.target_id == question_id)
-            .order_by(AuditLog.created_at, AuditLog.id)
-        )
-    )
-
 
 # ---------------------------------------------------------------- 角色与权限
 

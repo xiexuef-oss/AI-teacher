@@ -82,6 +82,8 @@ final Map<String, RoundTrip> roundTrips = {
   'AdminRegionTag': (json) => AdminRegionTag.fromJson(json).toJson(),
   'AdminQuestionVersion': (json) => AdminQuestionVersion.fromJson(json).toJson(),
   'AdminHistoryEntry': (json) => AdminHistoryEntry.fromJson(json).toJson(),
+  'AdminSolutionInput': (json) => AdminSolutionInput.fromJson(json).toJson(),
+  'AdminQuestionEdit': (json) => AdminQuestionEdit.fromJson(json).toJson(),
   'AdminQuestionDetail': (json) => AdminQuestionDetail.fromJson(json).toJson(),
 };
 
