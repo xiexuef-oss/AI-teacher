@@ -16,6 +16,12 @@
         "--directory", "apps/flutter_student/build/web"
       ],
       "port": 8081
+    },
+    {
+      "name": "admin-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/admin_web", "run", "dev"],
+      "port": 5174
     }
   ]
 }

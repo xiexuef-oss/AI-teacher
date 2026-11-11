@@ -1,0 +1,21 @@
+// 类型全部来自契约（npm run gen:api 由 contracts/openapi.yaml 生成 schema.d.ts），这里只起别名。
+import type { components } from './schema'
+
+type S = components['schemas']
+
+export type QuestionStatus = S['QuestionStatus']
+export type ReviewDecisionType = S['ReviewDecisionType']
+export type SolutionKind = S['SolutionKind']
+export type Subject = S['Subject']
+export type LocalRole = S['LocalRole']
+export type LocalIdentity = S['LocalIdentity']
+export type Health = S['Health']
+export type ErrorBody = S['ErrorBody']
+export type ReviewDecision = S['ReviewDecision']
+export type QuestionReviewState = S['QuestionReviewState']
+export type AdminQuestionSummary = S['AdminQuestionSummary']
+export type AdminQuestionPage = S['AdminQuestionPage']
+export type AdminQuestionDetail = S['AdminQuestionDetail']
+export type AdminSolution = S['AdminSolution']
+export type AdminHistoryEntry = S['AdminHistoryEntry']
+export type AdminStatusCounts = S['AdminStatusCounts']

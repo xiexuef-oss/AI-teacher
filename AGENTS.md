@@ -12,7 +12,7 @@
 
 ## 硬规则
 
-**契约先行。** 新增或修改公开 API：先改 `contracts/openapi.yaml`，再写测试，再写实现，最后重新生成 Dart 契约包并导出新的响应样例（见下方"命令"）。客户端请求对象只用生成的类型，不手写；`*.g.dart` 不要手改。删除或重命名 JSON 字段是破坏性变更。
+**契约先行。** 新增或修改公开 API：先改 `contracts/openapi.yaml`，再写测试，再写实现，最后重新生成 Dart 契约包并导出新的响应样例、重新生成审核后台的 TypeScript 类型（见下方"命令"）。契约里不能有重复的键——YAML 默认让后写的悄悄覆盖先写的，契约测试会拦住。客户端请求对象只用生成的类型，不手写；`*.g.dart` 不要手改。删除或重命名 JSON 字段是破坏性变更。
 
 **学生的输入先落本机。** 客户端的草稿（答案、笔迹）先写本机存储、再同步云端；断网、重启、切后台都不能丢；同步冲突时不覆盖任何一方，由学生选。每个会改变服务端状态的动作带幂等键，失败后重试复用同一个键。
 
@@ -44,7 +44,7 @@
 | `services/api/` | FastAPI 服务与样题种子 |
 | `services/ai_gateway/` | 模型网关：路由、适配器、校验、熔断、预算、审计 |
 | `apps/flutter_student/` | Flutter 学生端 |
-| `apps/admin_web/` | 审核后台，尚未实现 |
+| `apps/admin_web/` | 内容审核后台（Vue 3 + Vite + TypeScript），最小审核流已实现，见 ADR-008 |
 | `migrations/` | MySQL 迁移 SQL |
 | `config/` | 模型路由示例配置 |
 | `tools/` | 本地启动脚本、迁移校验、变异检查 |
@@ -68,6 +68,13 @@ uv run python tools/export_dart_fixtures.py        # 导出真实响应样例与
 uv run --with fonttools python tools/build_cjk_font.py   # 重新生成打包的中文字体子集（出现新的汉字、测试提示缺字时运行）
 ```
 
+```
+cd apps/admin_web
+npm test                 # vitest：API 客户端、决策规则、公式渲染、队列页、审核页
+npm run typecheck        # vue-tsc；测试数据按契约类型写
+npm run check:api        # src/api/schema.d.ts 是否由当前契约生成；契约改了先 npm run gen:api
+```
+
 Flutter 已安装但没有加入系统 PATH，命令用绝对路径。在 `apps/flutter_student`（或 `packages/contracts/dart`）下执行：
 
 ```
@@ -82,5 +89,5 @@ C:\src\flutter\bin\flutter.bat build web --release # 构建 Web 版（联调用�
 - 先写会失败的测试，看它因为功能缺失而失败，再写实现。
 - `tests/support/api.py` 里的客户端会把每个响应按 `contracts/openapi.yaml` 校验一遍；响应不符合契约，测试直接失败。
 - 改了归属校验、泄题门控、判题、幂等、复测这类规则之后，跑一遍 `tools/mutation_check.py`；如果改动了被变异的代码行，要同步更新脚本里的片段。
-- 合并前全绿：`uv run pytest -q`、`uv run ruff check .`；`apps/flutter_student` 下的 `flutter test` 与 `dart analyze`；`packages/contracts/dart` 下的 `dart test`。
+- 合并前全绿：`uv run pytest -q`、`uv run ruff check .`；`apps/flutter_student` 下的 `flutter test` 与 `dart analyze`；`packages/contracts/dart` 下的 `dart test`；`apps/admin_web` 下的 `npm test`、`npm run typecheck`、`npm run check:api`。
 - 分支命名 `feat/TASK-ID-*`，提交说明列出任务 ID 和测试证明。
