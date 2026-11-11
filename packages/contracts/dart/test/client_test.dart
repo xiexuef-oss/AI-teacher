@@ -1,0 +1,200 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:test/test.dart';
+import 'package:tutor_contracts/tutor_contracts.dart';
+
+import 'runtime_test.dart' show FakeTransport, Seen, jsonResponse;
+
+Map<String, dynamic> fixture(String name) =>
+    jsonDecode(File('test/fixtures/$name.json').readAsStringSync())
+        as Map<String, dynamic>;
+
+void main() {
+  late FakeTransport transport;
+  late TutorApiClient client;
+
+  /// 让下一次请求返回某个样例里的真实响应。
+  void serve(String name) {
+    final sample = fixture(name);
+    transport.onRequest =
+        (_) => jsonResponse(sample['status'] as int, sample['body'] as Object);
+  }
+
+  setUp(() {
+    transport = FakeTransport();
+    client = TutorApiClient(
+      ApiCore(
+          baseUrl: 'http://127.0.0.1:8000',
+          transport: transport,
+          tokenProvider: () => 'tok'),
+    );
+  });
+
+  test('getProfile 解析出带类型的资料', () async {
+    serve('profile_saved');
+    final profile = await client.getProfile();
+    expect(profile.regionCode, RegionCode.cn51);
+    expect(profile.grade, Grade.g12);
+    expect(
+        profile.subjects, [Subject.math, Subject.physics, Subject.chemistry]);
+    expect(profile.examYear, 2027);
+    expect(profile.examYearSource, ExamYearSource.estimated);
+    expect(profile.curriculumVersion, isNull);
+    expect(profile.onboardingCompleted, isTrue);
+    expect(profile.notices.map((n) => n.code),
+        containsAll(['curriculum_unknown', 'exam_year_estimated']));
+    expect(transport.seen.single.method, 'GET');
+    expect(transport.seen.single.uri.path, '/api/v1/profile');
+  });
+
+  test('updateProfile 只发送设置过的可选字段', () async {
+    serve('profile_saved');
+    await client.updateProfile(
+      body: const ProfileUpdate(
+          regionCode: RegionCode.cn50, subjects: [Subject.math]),
+    );
+    final request = transport.seen.single;
+    expect(request.method, 'PUT');
+    expect(jsonDecode(request.body!), {
+      'region_code': 'CN-50',
+      'subjects': ['math']
+    });
+  });
+
+  test('需要幂等键的操作把键放进请求头，并且路径参数会编码', () async {
+    serve('submit_correct');
+    final result = await client.submitAttempt(
+      attemptId: 'a/b c',
+      body: const SubmitRequest(answer: AnswerPayload(selectedOptions: ['B'])),
+      idempotencyKey: 'submit-0001-abcd',
+    );
+    final Seen request = transport.seen.single;
+    expect(request.method, 'POST');
+    expect(request.uri.path, '/api/v1/attempts/a%2Fb%20c/submit');
+    expect(request.headers['Idempotency-Key'], 'submit-0001-abcd');
+    expect(jsonDecode(request.body!), {
+      'answer': {
+        'selected_options': ['B']
+      },
+    });
+    expect(result.evaluation.state, EvaluationState.verified);
+    expect(result.evaluation.isCorrect, isTrue);
+    expect(result.evaluation.independent, isTrue);
+    expect(result.session.state, SessionState.diagnosed);
+    expect(result.events.single.type, TutorEventType.diagnosis);
+    // 事件 payload 里的内联枚举在生成的类里是字符串
+    expect(result.events.single.diagnosis.outcome, 'correct');
+  });
+
+  test('判不出来的作答：is_correct 为空，事件是 uncertainty', () async {
+    serve('submit_uncertain');
+    final result = await client.submitAttempt(
+      attemptId: 'x',
+      body: const SubmitRequest(
+          answer: AnswerPayload(
+              blanks: [AnswerBlank(key: 'b1', value: '500 cm/s²')])),
+      idempotencyKey: 'submit-0002-abcd',
+    );
+    expect(result.evaluation.state, EvaluationState.uncertain);
+    expect(result.evaluation.isCorrect, isNull);
+    expect(result.evaluation.reviewRequired, isTrue);
+    expect(result.events.single.uncertainty.reviewRequired, isTrue);
+    expect(result.reviewItem, isNull);
+  });
+
+  test('listQuestions 把筛选条件编成查询参数', () async {
+    serve('questions_page');
+    final page = await client.listQuestions(
+      subject: Subject.math,
+      answerMode: AnswerMode.fill,
+      scope: QuestionScope.region,
+      limit: 5,
+      cursor: 'abc',
+    );
+    expect(transport.seen.single.uri.queryParameters, {
+      'subject': 'math',
+      'answer_mode': 'fill',
+      'scope': 'region',
+      'limit': '5',
+      'cursor': 'abc',
+    });
+    expect(page.items, hasLength(5));
+    expect(page.nextCursor, isNotNull);
+  });
+
+  test('题目里没有答案相关的字段', () async {
+    serve('question_single_choice');
+    final question = await client.getQuestion(questionId: 'q');
+    expect(question.content.options.map((o) => o.key), ['A', 'B', 'C', 'D']);
+    expect(question.source.isEngineeringSample, isTrue);
+    expect(question.assists.hintLevels, 3);
+    final text = jsonEncode(question.toJson());
+    for (final forbidden in [
+      '"answer"',
+      '"hints"',
+      '"solutions"',
+      '"option_analysis"',
+      '"final_answer"'
+    ]) {
+      expect(text.contains(forbidden), isFalse, reason: forbidden);
+    }
+  });
+
+  test('草稿版本冲突：异常里带着服务端的草稿', () async {
+    serve('draft_conflict');
+    await expectLater(
+      client.syncDraft(
+        attemptId: 'x',
+        body: const DraftSync(
+            baseRevision: 0, answer: AnswerPayload(selectedOptions: ['D'])),
+        idempotencyKey: 'draft-0001-abcdef',
+      ),
+      throwsA(isA<ApiException>()
+          .having((e) => e.code, 'code', 'draft_revision_conflict')
+          .having(
+              (e) => Draft.fromJson(Map<String, dynamic>.from(
+                      e.details['server_draft'] as Map))
+                  .revision,
+              'server revision',
+              1)),
+    );
+  });
+
+  test('公开接口不带 token', () async {
+    serve('launch_config');
+    final config = await client.getLaunchConfig();
+    expect(transport.seen.single.headers.containsKey('Authorization'), isFalse);
+    expect(
+        config.regions.map((r) => r.code), [RegionCode.cn51, RegionCode.cn50]);
+    expect(config.grades.map((g) => g.estimatedExamYear), [2029, 2028, 2027]);
+  });
+
+  test('教学事件按类型取 payload', () async {
+    serve('tutor_visual');
+    final step = await client.tutorNext(
+      sessionId: 's',
+      body: const TutorAction(action: TutorActionType.requestVisual),
+      idempotencyKey: 'tutor-0001-abcdef',
+    );
+    final event = step.events.single;
+    expect(event.type, TutorEventType.visual);
+    expect(event.visual.templateId, 'quadratic_graph');
+    expect(event.visual.params, {'a': 1.0, 'b': -2.0, 'c': -3.0});
+    expect(event.visual.staticFallback, isNotEmpty);
+    expect(event.meta.source, TutorEventSource.reviewedContent);
+    expect(step.session.state, SessionState.visual);
+  });
+
+  test('planned 接口得到 501 not_implemented', () async {
+    serve('error_not_implemented');
+    await expectLater(
+      client.createScan(
+          body: const ScanCreate(mediaId: 'm'),
+          idempotencyKey: 'scan-0001-abcdef'),
+      throwsA(isA<ApiException>()
+          .having((e) => e.statusCode, 'statusCode', 501)
+          .having((e) => e.code, 'code', 'not_implemented')),
+    );
+  });
+}

@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-tutor.invalid/contracts/tutor_event.schema.json",
+  "title": "TutorEvent",
+  "description": "教学事件。任何发往客户端的教学内容（审核内容、模型输出、规则降级）都必须先通过本 Schema；校验失败的模型输出不得下发。信封字段与 contracts/openapi.yaml 中的 TutorEvent 保持一致。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "session_id", "seq_no", "type", "created_at", "state_after", "payload", "meta"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "session_id": { "type": "string", "format": "uuid" },
+    "seq_no": { "type": "integer", "minimum": 1, "description": "会话内单调递增，用于断线后按序恢复。" },
+    "type": { "$ref": "#/$defs/EventType" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "state_after": { "$ref": "#/$defs/SessionState" },
+    "payload": { "type": "object" },
+    "meta": { "$ref": "#/$defs/EventMeta" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "diagnosis" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/DiagnosisPayload" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "hint" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/HintPayload" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "standard" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/StandardPayload" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "fast" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/FastPayload" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "visual" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/VisualPayload" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "ask" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/AskPayload" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "notice" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/NoticePayload" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "uncertainty" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/UncertaintyPayload" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "fallback" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/FallbackPayload" } } }
+    }
+  ],
+  "$defs": {
+    "EventType": {
+      "type": "string",
+      "enum": ["diagnosis", "hint", "standard", "fast", "visual", "ask", "notice", "uncertainty", "fallback"]
+    },
+    "SessionState": {
+      "type": "string",
+      "description": "docs/06 教学状态机。",
+      "enum": [
+        "READY",
+        "INDEPENDENT_ATTEMPT",
+        "SUBMITTED",
+        "DIAGNOSED",
+        "HINTED",
+        "STANDARD",
+        "FAST",
+        "VISUAL",
+        "VARIANT",
+        "REVIEW_SCHEDULED",
+        "DONE",
+        "FALLBACK"
+      ]
+    },
+    "Text": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "ShortText": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "EventMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "source",
+        "degraded",
+        "provider",
+        "model_id",
+        "prompt_version",
+        "question_id",
+        "question_version",
+        "trace_id",
+        "request_id"
+      ],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "source": {
+          "type": "string",
+          "enum": ["reviewed_content", "model", "rule_engine"],
+          "description": "reviewed_content：直接引用审核内容；model：经网关的模型输出；rule_engine：确定性规则或降级文案。"
+        },
+        "degraded": { "type": "boolean", "description": "true 表示本事件是模型不可用或输出被拒后的降级结果。" },
+        "provider": { "type": ["string", "null"], "maxLength": 64 },
+        "model_id": { "type": ["string", "null"], "maxLength": 128 },
+        "prompt_version": { "type": ["string", "null"], "maxLength": 64 },
+        "question_id": { "type": "string", "format": "uuid" },
+        "question_version": { "type": "integer", "minimum": 1 },
+        "trace_id": { "type": ["string", "null"], "maxLength": 64 },
+        "request_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "SuggestedAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "label", "question_id", "knowledge_id"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "request_hint",
+            "request_standard",
+            "request_fast",
+            "request_visual",
+            "retry_attempt",
+            "start_variant",
+            "review_prerequisite",
+            "pause",
+            "finish"
+          ]
+        },
+        "label": { "$ref": "#/$defs/ShortText" },
+        "question_id": { "type": ["string", "null"], "format": "uuid" },
+        "knowledge_id": { "type": ["string", "null"], "format": "uuid" }
+      }
+    },
+    "FeedbackItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "code", "message"],
+      "properties": {
+        "target": { "type": "string", "minLength": 1, "maxLength": 32, "description": "选项键、空位键或 overall。" },
+        "code": {
+          "type": "string",
+          "enum": [
+            "correct",
+            "wrong_option",
+            "missed_options",
+            "value_incorrect",
+            "unit_missing",
+            "unit_mismatch",
+            "format_unrecognized",
+            "equivalence_unconfirmed"
+          ]
+        },
+        "message": { "$ref": "#/$defs/Text" }
+      }
+    },
+    "KnowledgeRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "code", "title"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "code": { "$ref": "#/$defs/ShortText" },
+        "title": { "$ref": "#/$defs/ShortText" }
+      }
+    },
+    "SolutionStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": { "text": { "$ref": "#/$defs/Text" } }
+    },
+    "OptionAnalysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "verdict", "text"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1, "maxLength": 8 },
+        "verdict": { "type": "string", "enum": ["correct", "wrong"] },
+        "text": { "$ref": "#/$defs/Text" }
+      }
+    },
+    "DiagnosisPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "summary", "feedback", "knowledge", "suggestions"],
+      "properties": {
+        "outcome": { "type": "string", "enum": ["correct", "partially_correct", "incorrect", "undetermined"] },
+        "summary": { "$ref": "#/$defs/Text" },
+        "feedback": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/FeedbackItem" } },
+        "knowledge": { "type": "array", "maxItems": 10, "items": { "$ref": "#/$defs/KnowledgeRef" } },
+        "suggestions": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/SuggestedAction" } }
+      }
+    },
+    "HintPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "total_levels", "style", "text", "concept"],
+      "properties": {
+        "level": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "total_levels": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "style": {
+          "type": "string",
+          "enum": ["layered", "rephrase", "example"],
+          "description": "layered：分层提示的下一层；rephrase / example：学生表示没懂后的换种讲法或小例子。"
+        },
+        "text": { "$ref": "#/$defs/Text" },
+        "concept": { "type": ["string", "null"], "maxLength": 200, "description": "本轮只讲的那一个主要概念。" }
+      }
+    },
+    "StandardPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "steps", "final_answer", "option_analysis", "key_points"],
+      "properties": {
+        "title": { "$ref": "#/$defs/ShortText" },
+        "steps": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "$ref": "#/$defs/SolutionStep" } },
+        "final_answer": { "$ref": "#/$defs/Text" },
+        "option_analysis": { "type": "array", "maxItems": 10, "items": { "$ref": "#/$defs/OptionAnalysis" } },
+        "key_points": { "type": "array", "maxItems": 10, "items": { "$ref": "#/$defs/ShortText" } }
+      }
+    },
+    "FastPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "conditions", "steps", "final_answer", "boundary", "reviewed"],
+      "properties": {
+        "title": { "$ref": "#/$defs/ShortText" },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/Text" },
+          "description": "技巧的适用条件。没有适用条件的快速解法不允许下发。"
+        },
+        "steps": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "$ref": "#/$defs/SolutionStep" } },
+        "final_answer": { "$ref": "#/$defs/Text" },
+        "boundary": { "$ref": "#/$defs/Text", "description": "不适用的情形或反例。" },
+        "reviewed": { "const": true }
+      }
+    },
+    "VisualPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["template_id", "params", "caption", "static_fallback"],
+      "properties": {
+        "template_id": {
+          "type": "string",
+          "enum": ["quadratic_graph", "rectangle_area", "number_line", "force_diagram", "motion_chart", "chemical_flow"],
+          "description": "只能是 packages/visual_templates/registry.json 注册的模板；参数范围由注册表另行校验。"
+        },
+        "params": {
+          "type": "object",
+          "maxProperties": 12,
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+          "additionalProperties": { "type": "number" }
+        },
+        "caption": { "$ref": "#/$defs/Text" },
+        "static_fallback": { "$ref": "#/$defs/Text", "description": "模板不可用时展示的审核说明，保证不白屏。" }
+      }
+    },
+    "AskPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prompt", "suggestions"],
+      "properties": {
+        "prompt": { "$ref": "#/$defs/Text" },
+        "suggestions": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/SuggestedAction" } }
+      }
+    },
+    "NoticePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "text", "due_at"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "hints_exhausted",
+            "fast_not_applicable",
+            "visual_not_available",
+            "needs_human_help",
+            "review_scheduled",
+            "keep_going",
+            "session_completed"
+          ]
+        },
+        "text": { "$ref": "#/$defs/Text" },
+        "due_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "UncertaintyPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_code", "text", "review_required"],
+      "properties": {
+        "reason_code": {
+          "type": "string",
+          "enum": ["equivalence_unconfirmed", "answer_unrecognized", "verification_failed"]
+        },
+        "text": { "$ref": "#/$defs/Text" },
+        "review_required": { "const": true }
+      }
+    },
+    "FallbackPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_code", "text", "suggestions"],
+      "properties": {
+        "reason_code": {
+          "type": "string",
+          "enum": ["MODEL_UNAVAILABLE", "SCHEMA_INVALID", "BUDGET_EXCEEDED", "TIMEOUT", "CONTENT_BLOCKED"]
+        },
+        "text": { "$ref": "#/$defs/Text" },
+        "suggestions": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/SuggestedAction" } }
+      }
+    }
+  }
+}

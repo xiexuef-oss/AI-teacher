@@ -1,0 +1,27 @@
+{
+  "name": "tutor_standard_needs_confirmation",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/cf144bc2-63db-476f-abf2-55bca5e3b551/next",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "independent_attempt_in_progress",
+      "message": "还没有提交作答。查看解析会结束独立作答，需要明确确认。",
+      "details": {
+        "confirm_field": "confirm_end_independent"
+      },
+      "request_id": "bfcd967b43e3413d9e40876687b541a8"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "independent_attempt_in_progress",
+      "message": "还没有提交作答。查看解析会结束独立作答，需要明确确认。",
+      "details": {
+        "confirm_field": "confirm_end_independent"
+      },
+      "request_id": "bfcd967b43e3413d9e40876687b541a8"
+    }
+  }
+}

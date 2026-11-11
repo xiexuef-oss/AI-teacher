@@ -1,0 +1,662 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tutor_contracts/tutor_contracts.dart';
+import 'package:tutor_student/core/storage.dart';
+import 'package:tutor_student/features/solve/draft_store.dart';
+import 'package:tutor_student/features/solve/solve_controller.dart';
+
+import 'support/fake_backend.dart';
+
+const _user = 'user-1';
+
+/// 控制器用真实的短定时器（几十毫秒），测试里轮询等待条件成立。
+Future<void> until(
+  bool Function() condition, {
+  String reason = '条件没有在 3 秒内成立',
+}) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 3));
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) fail(reason);
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
+class Harness {
+  Harness({
+    String? questionId,
+    this.origin = 'practice',
+    this.reviewItemId,
+    MemoryStore? store,
+    FakeBackend? backend,
+  }) : store = store ?? MemoryStore(),
+       backend = backend ?? FakeBackend(),
+       questionId =
+           questionId ??
+           Fixtures.load().value('question_single_choice')['id'] as String {
+    if (backend == null) this.backend.installLearningFlow();
+    core = ApiCore(
+      baseUrl: 'http://127.0.0.1:8000',
+      transport: this.backend,
+      tokenProvider: () => 'tok',
+    );
+  }
+
+  final MemoryStore store;
+  final FakeBackend backend;
+  final String questionId;
+  final String origin;
+  final String? reviewItemId;
+  late final ApiCore core;
+  int unauthenticated = 0;
+  final List<SolveController> created = [];
+
+  SolveController controller() {
+    final c = SolveController(
+      api: TutorApiClient(core),
+      store: store,
+      userId: _user,
+      args: SolveArgs(
+        questionId: questionId,
+        origin: origin,
+        reviewItemId: reviewItemId,
+      ),
+      onUnauthenticated: () => unauthenticated += 1,
+      autosaveDelay: const Duration(milliseconds: 15),
+      syncDelay: const Duration(milliseconds: 40),
+      retryDelay: const Duration(milliseconds: 80),
+    );
+    created.add(c);
+    return c;
+  }
+
+  void dispose() {
+    for (final c in created) {
+      c.dispose();
+    }
+  }
+}
+
+Future<SolveController> started(Harness h) async {
+  final c = h.controller();
+  await c.start();
+  return c;
+}
+
+void main() {
+  late Harness h;
+
+  setUp(() => h = Harness());
+  tearDown(() => h.dispose());
+
+  group('开始作答', () {
+    test('取题、开会话、建作答，进入作答状态', () async {
+      final c = await started(h);
+
+      expect(c.phase, SolvePhase.answering);
+      expect(c.question!.content.options, hasLength(4));
+      expect(c.questionFromCache, isFalse);
+      expect(c.session, isNotNull);
+      expect(c.attempt!.attemptNo, 1);
+      expect(c.sync, SaveStatus.saved);
+      expect(h.backend.sessionsCreated, 1);
+      expect(h.backend.attemptsCreated, 1);
+      final created = h.backend.bodyOf(
+        h.backend.requestsTo('POST', '/sessions').single,
+      )!;
+      expect(created['origin'], 'practice');
+      expect(created.containsKey('review_item_id'), isFalse);
+    });
+
+    test('每个创建动作都带幂等键', () async {
+      await started(h);
+      for (final request in [
+        ...h.backend.requestsTo('POST', '/sessions'),
+        ...h.backend.requestsTo('POST', '/attempts'),
+      ]) {
+        expect(request.headers['Idempotency-Key'], isNotNull);
+        expect(
+          request.headers['Idempotency-Key']!.length,
+          greaterThanOrEqualTo(8),
+        );
+      }
+    });
+
+    test('题目不存在时进入失败状态，并给出能看的原因', () async {
+      final backend = FakeBackend();
+      backend.on(
+        'GET',
+        '/questions/[^/]+',
+        (_) => errorResponse(404, 'not_found'),
+      );
+      final c = await started(Harness(backend: backend));
+
+      expect(c.phase, SolvePhase.failed);
+      expect(c.failure, isNotNull);
+    });
+  });
+
+  group('答案与提交条件', () {
+    test('单选：选一个才能提交，再点另一个是换选', () async {
+      final c = await started(h);
+      expect(c.canSubmit, isFalse);
+
+      c.selectOption('A');
+      expect(c.canSubmit, isTrue);
+      c.selectOption('B');
+      expect(c.selected, {'B'});
+    });
+
+    test('多选：可以选多个，取消到一个都没有就不能提交', () async {
+      final backend = FakeBackend()
+        ..installLearningFlow(questionFixture: 'question_multiple_choice');
+      final c = await started(
+        Harness(
+          backend: backend,
+          questionId:
+              Fixtures.load().value('question_multiple_choice')['id'] as String,
+        ),
+      );
+
+      c.selectOption('A');
+      c.selectOption('C');
+      expect(c.selected, {'A', 'C'});
+      expect(c.canSubmit, isTrue);
+      c.selectOption('A');
+      c.selectOption('C');
+      expect(c.selected, isEmpty);
+      expect(c.canSubmit, isFalse);
+    });
+
+    test('填空：每个空都填了才能提交，空白不算', () async {
+      final backend = FakeBackend()
+        ..installLearningFlow(questionFixture: 'question_fill');
+      final c = await started(
+        Harness(
+          backend: backend,
+          questionId: Fixtures.load().value('question_fill')['id'] as String,
+        ),
+      );
+
+      expect(c.canSubmit, isFalse);
+      c.setBlank('b1', '   ');
+      expect(c.canSubmit, isFalse);
+      c.setBlank('b1', '5 m/s²');
+      expect(c.canSubmit, isTrue);
+    });
+  });
+
+  group('草稿：本地保存与云端同步', () {
+    test('改动后先落本地、再同步到云端，状态依次变化', () async {
+      final c = await started(h);
+
+      c.selectOption('A');
+      expect(c.sync, SaveStatus.dirty);
+      await until(
+        () => h.store.data.keys.any((k) => k.startsWith('u/$_user/draft/')),
+        reason: '没有写入本地草稿',
+      );
+      await until(() => c.sync == SaveStatus.saved);
+
+      expect(h.backend.serverRevision, 1);
+      expect(h.backend.serverAnswer, {
+        'selected_options': ['A'],
+      });
+      final saved = jsonDecode(
+        h.store.data.entries.firstWhere((e) => e.key.contains('/draft/')).value,
+      ) as Map<String, dynamic>;
+      expect(saved['dirty'], isFalse);
+      expect(saved['baseRevision'], 1);
+    });
+
+    test('笔迹和答案一起同步', () async {
+      final c = await started(h);
+
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      await until(() => c.sync == SaveStatus.saved);
+
+      final strokes = h.backend.serverStrokes!;
+      expect(strokes['version'], 1);
+      expect(
+        ((strokes['pages'] as List).single as Map)['strokes'],
+        hasLength(1),
+      );
+    });
+
+    test('每次同步都带当前的基准版本号，且幂等键随内容变化', () async {
+      final c = await started(h);
+      c.selectOption('A');
+      await until(() => c.sync == SaveStatus.saved);
+      c.selectOption('B');
+      await until(() => h.backend.serverRevision == 2);
+
+      final puts = h.backend.requestsTo('PUT', '/attempts/.+/draft').toList();
+      expect(puts.map((r) => h.backend.bodyOf(r)!['base_revision']), [0, 1]);
+      expect(
+        puts[0].headers['Idempotency-Key'],
+        isNot(puts[1].headers['Idempotency-Key']),
+      );
+    });
+
+    test('重开页面能从本机恢复答案和笔迹，并接着用原来的会话与作答', () async {
+      final first = await started(h);
+      first.selectOption('C');
+      first.ink.beginStroke(0, 20, 30);
+      first.ink.extendStroke(90, 90, t: 10);
+      first.ink.endStroke();
+      await until(() => first.sync == SaveStatus.saved);
+      first.dispose();
+
+      final second = await started(h);
+
+      expect(second.selected, {'C'});
+      expect(second.ink.hasInk, isTrue);
+      expect(h.backend.sessionsCreated, 1, reason: '不能重复开会话');
+      expect(h.backend.attemptsCreated, 1);
+      expect(second.sync, SaveStatus.saved);
+    });
+
+    test('应用被切到后台时立刻保存，不等定时器', () async {
+      final c = await started(h);
+      c.selectOption('D');
+      await c.flushNow();
+
+      final saved = jsonDecode(
+        h.store.data.entries.firstWhere((e) => e.key.contains('/draft/')).value,
+      ) as Map<String, dynamic>;
+      expect((saved['answer'] as Map)['selected'], ['D']);
+      expect(saved['dirty'], isTrue);
+    });
+
+    test('本机存储写失败时明确告诉学生，而不是装作保存成功', () async {
+      final c = await started(h);
+      h.store.failWrites = true;
+
+      c.selectOption('A');
+      await until(() => c.localSaveFailed);
+
+      expect(c.localSaveFailed, isTrue);
+      h.store.failWrites = false;
+      c.selectOption('B');
+      await until(() => !c.localSaveFailed, reason: '存储恢复后应该清除提示');
+    });
+  });
+
+  group('断网', () {
+    test('断网时草稿照常保存在本机，状态是"未同步"；网络恢复后自动补上', () async {
+      final c = await started(h);
+      h.backend.offline = true;
+
+      c.selectOption('A');
+      await until(() => c.sync == SaveStatus.offline);
+      expect(h.store.data.keys.any((k) => k.contains('/draft/')), isTrue);
+      expect(h.backend.serverRevision, 0);
+
+      h.backend.offline = false;
+      await until(() => c.sync == SaveStatus.saved, reason: '恢复网络后应该自动同步');
+      expect(h.backend.serverRevision, 1);
+    });
+
+    test('开始时就没网：用缓存的题目离线作答，恢复后才创建会话并把草稿同步上去', () async {
+      // 先在线打开一次，让题目被缓存
+      final warm = await started(h);
+      warm.dispose();
+      final fresh = FakeBackend()..installLearningFlow();
+      final harness = Harness(store: h.store, backend: fresh);
+      fresh.offline = true;
+
+      final c = await started(harness);
+
+      expect(c.phase, SolvePhase.answering);
+      expect(c.questionFromCache, isTrue);
+      c.selectOption('B');
+      await until(() => c.sync == SaveStatus.offline);
+      expect(fresh.sessionsCreated, 0);
+
+      fresh.offline = false;
+      await until(() => c.sync == SaveStatus.saved);
+      expect(fresh.sessionsCreated, 1);
+      expect(fresh.serverAnswer, {
+        'selected_options': ['B'],
+      });
+      harness.dispose();
+    });
+
+    test('开始时没网、也没有缓存的题目：说明原因，不白屏', () async {
+      final backend = FakeBackend()..offline = true;
+      final c = await started(Harness(backend: backend));
+
+      expect(c.phase, SolvePhase.failed);
+      expect((c.failure as ApiException).isNetwork, isTrue);
+    });
+
+    test('断网时不能提交，草稿保留，并说明原因', () async {
+      final c = await started(h);
+      c.selectOption('B');
+      h.backend.offline = true;
+
+      await c.submit();
+
+      expect(c.phase, SolvePhase.answering);
+      expect(c.actionError, isNotNull);
+      expect((c.actionError as ApiException).isNetwork, isTrue);
+      expect(c.selected, {'B'});
+    });
+  });
+
+  group('版本冲突（409）', () {
+    Future<SolveController> conflicted(Harness h) async {
+      final c = await started(h);
+      c.selectOption('A');
+      await until(() => c.sync == SaveStatus.saved);
+      // 别处把云端草稿改成了另一份
+      h.backend.serverRevision = 5;
+      h.backend.serverAnswer = {
+        'selected_options': ['D'],
+      };
+      c.selectOption('B');
+      await until(() => c.sync == SaveStatus.conflict);
+      return c;
+    }
+
+    test('不静默覆盖：进入冲突状态，同时保留本地稿和云端稿', () async {
+      final c = await conflicted(h);
+
+      expect(c.conflictServerDraft!.revision, 5);
+      expect(c.selected, {'B'}, reason: '本地稿原样保留');
+      expect(h.backend.serverAnswer, {
+        'selected_options': ['D'],
+      }, reason: '云端稿没有被覆盖');
+      expect(c.canSubmit, isFalse, reason: '有冲突时先解决再提交');
+    });
+
+    test('保留本地稿：以云端版本为基准重新同步，覆盖云端', () async {
+      final c = await conflicted(h);
+
+      await c.resolveConflictKeepLocal();
+      await until(() => c.sync == SaveStatus.saved);
+
+      expect(h.backend.serverAnswer, {
+        'selected_options': ['B'],
+      });
+      expect(h.backend.serverRevision, 6);
+      expect(c.conflictServerDraft, isNull);
+    });
+
+    test('使用云端稿：本地内容换成云端的', () async {
+      final c = await conflicted(h);
+
+      await c.resolveConflictUseServer();
+
+      expect(c.selected, {'D'});
+      expect(c.sync, SaveStatus.saved);
+      expect(c.conflictServerDraft, isNull);
+      expect(h.backend.serverAnswer, {
+        'selected_options': ['D'],
+      });
+    });
+
+    test('云端内容与本地一致（例如响应丢了、重启后重复同步）时静默接受，不打扰学生', () async {
+      final c = await started(h);
+      h.backend.serverRevision = 3;
+      h.backend.serverAnswer = {
+        'selected_options': ['C'],
+      };
+
+      c.selectOption('C');
+      await until(() => c.sync == SaveStatus.saved);
+
+      expect(c.conflictServerDraft, isNull);
+    });
+  });
+
+  group('提交', () {
+    test('答对：记录评估，进入已提交状态，本地草稿清掉', () async {
+      h.backend.submitFixture = 'submit_correct';
+      final c = await started(h);
+      c.selectOption('B');
+
+      await c.submit();
+
+      expect(c.phase, SolvePhase.submitted);
+      expect(c.evaluation!.state, EvaluationState.verified);
+      expect(c.evaluation!.isCorrect, isTrue);
+      expect(c.events.map((e) => e.type), contains(TutorEventType.diagnosis));
+      expect(c.session!.state, SessionState.diagnosed);
+      expect(h.store.data.keys.where((k) => k.contains('/draft/')), isEmpty);
+      final body = h.backend.bodyOf(
+        h.backend.requestsTo('POST', '/attempts/.+/submit').single,
+      )!;
+      expect(body['answer'], {
+        'selected_options': ['B'],
+      });
+    });
+
+    test('提交前会把最新的笔迹同步一遍', () async {
+      h.backend.submitFixture = 'submit_correct';
+      final c = await started(h);
+      c.selectOption('B');
+      c.ink.beginStroke(0, 5, 5);
+      c.ink.extendStroke(50, 50, t: 9);
+      c.ink.endStroke();
+
+      await c.submit();
+
+      expect(h.backend.serverStrokes, isNotNull);
+    });
+
+    test('判不出来：原样展示"待确认"，没有对错', () async {
+      h.backend.submitFixture = 'submit_uncertain';
+      final c = await started(h);
+      c.selectOption('A');
+
+      await c.submit();
+
+      expect(c.evaluation!.state, EvaluationState.uncertain);
+      expect(c.evaluation!.isCorrect, isNull);
+      expect(c.events.first.type, TutorEventType.uncertainty);
+    });
+
+    test('网络失败后重试，用的是同一个幂等键（服务端不会当成新的提交）', () async {
+      h.backend.submitFixture = 'submit_correct';
+      final c = await started(h);
+      c.selectOption('B');
+      await c.flushNow();
+      h.backend.failNextOn(r'/submit$', 503, 'internal_error');
+      await c.submit();
+      expect(c.phase, SolvePhase.answering);
+
+      await c.submit();
+
+      final keys = h.backend
+          .requestsTo('POST', '/attempts/.+/submit')
+          .map((r) => r.headers['Idempotency-Key'])
+          .toList();
+      expect(keys, hasLength(2));
+      expect(keys[0], keys[1]);
+      expect(c.phase, SolvePhase.submitted);
+    });
+
+    test('在不能提交时调用 submit 什么也不发生', () async {
+      final c = await started(h);
+      await c.submit();
+      expect(h.backend.requestsTo('POST', '/attempts/.+/submit'), isEmpty);
+    });
+
+    test('答错后可以再试一次：新建作答，清掉答案和笔迹', () async {
+      final c = await started(h);
+      c.selectOption('A');
+      c.ink.beginStroke(0, 5, 5);
+      c.ink.endStroke();
+      await c.submit();
+      expect(c.phase, SolvePhase.submitted);
+
+      await c.retry();
+
+      expect(c.phase, SolvePhase.answering);
+      expect(c.selected, isEmpty);
+      expect(c.ink.hasInk, isFalse);
+      expect(c.evaluation, isNull);
+      expect(h.backend.attemptsCreated, 2);
+    });
+  });
+
+  group('辅导动作', () {
+    test('给点提示：事件追加到时间线，会话更新', () async {
+      final c = await started(h);
+
+      final outcome = await c.tutor(TutorActionType.requestHint);
+
+      expect(outcome, TutorOutcome.ok);
+      expect(c.events.single.type, TutorEventType.hint);
+      expect(c.events.single.hint.level, 1);
+      expect(c.session!.assisted, isTrue);
+    });
+
+    test('提交前查看解析：先要求确认，没确认就不会有任何内容', () async {
+      final c = await started(h);
+
+      final outcome = await c.tutor(TutorActionType.requestStandard);
+
+      expect(outcome, TutorOutcome.needsConfirmation);
+      expect(c.events, isEmpty);
+      expect(c.session!.usedSolution, isFalse);
+    });
+
+    test('确认结束独立作答之后才给解析', () async {
+      final c = await started(h);
+
+      final outcome = await c.tutor(
+        TutorActionType.requestStandard,
+        confirmEndIndependent: true,
+      );
+
+      expect(outcome, TutorOutcome.ok);
+      expect(c.events.single.type, TutorEventType.standard);
+      final body = h.backend.bodyOf(
+        h.backend.requestsTo('POST', '/tutor/sessions/.+/next').last,
+      )!;
+      expect(body['confirm_end_independent'], isTrue);
+    });
+
+    test('提交之后看解析不需要确认', () async {
+      final c = await started(h);
+      c.selectOption('A');
+      await c.submit();
+
+      expect(await c.tutor(TutorActionType.requestStandard), TutorOutcome.ok);
+    });
+
+    test('一次点击一个动作：处理中重复点击被忽略', () async {
+      final c = await started(h);
+
+      final first = c.tutor(TutorActionType.requestHint);
+      final second = await c.tutor(TutorActionType.requestHint);
+      await first;
+
+      expect(second, TutorOutcome.busy);
+      expect(
+        h.backend.requestsTo('POST', '/tutor/sessions/.+/next'),
+        hasLength(1),
+      );
+    });
+
+    test('服务端报错时返回失败并保留错误，时间线不变', () async {
+      final c = await started(h);
+      h.backend.failNext = (503, 'model_unavailable');
+
+      final outcome = await c.tutor(TutorActionType.requestHint);
+
+      expect(outcome, TutorOutcome.failed);
+      expect(c.actionError, isNotNull);
+      expect(c.events, isEmpty);
+    });
+
+    test('时间线里的事件顺序就是服务端给的顺序', () async {
+      final c = await started(h);
+      await c.tutor(TutorActionType.requestHint);
+      await c.tutor(TutorActionType.requestVisual);
+
+      expect(c.events.map((e) => e.type), [
+        TutorEventType.hint,
+        TutorEventType.visual,
+      ]);
+    });
+  });
+
+  group('复测会话', () {
+    late Harness retest;
+    setUp(
+      () => retest = Harness(origin: 'review', reviewItemId: 'review-item-1'),
+    );
+    tearDown(() => retest.dispose());
+
+    test('提交前不提供任何辅助，界面据此隐藏按钮', () async {
+      final c = await started(retest);
+      expect(c.assistanceAllowed, isFalse);
+      expect(
+        await c.tutor(TutorActionType.requestHint),
+        TutorOutcome.notAllowed,
+      );
+      expect(
+        retest.backend.requestsTo('POST', '/tutor/sessions/.+/next'),
+        isEmpty,
+      );
+    });
+
+    test('开会话时带上复测项；提交后自动记录复测结果', () async {
+      retest.backend.submitFixture = 'submit_correct';
+      final c = await started(retest);
+      c.selectOption('B');
+
+      await c.submit();
+
+      final created = retest.backend.bodyOf(
+        retest.backend.requestsTo('POST', '/sessions').single,
+      )!;
+      expect(created['origin'], 'review');
+      expect(created['review_item_id'], 'review-item-1');
+      expect(c.assistanceAllowed, isTrue);
+      expect(c.reviewCompletion, isNotNull);
+      expect(c.reviewCompletion!.result, ReviewResult.passed);
+      final completed = retest.backend
+          .requestsTo('POST', '/reviews/.+/complete')
+          .single;
+      expect(completed.uri.path, endsWith('/review-item-1/complete'));
+    });
+  });
+
+  group('登录失效', () {
+    test('401：通知外层重新登录，未同步的草稿仍在本机', () async {
+      final c = await started(h);
+      h.backend.failNext = (401, 'unauthenticated');
+
+      c.selectOption('A');
+      await c.flushNow();
+      await until(() => h.unauthenticated > 0);
+
+      expect(c.authExpired, isTrue);
+      expect(
+        h.store.data.keys.any((k) => k.startsWith('u/$_user/draft/')),
+        isTrue,
+      );
+    });
+  });
+
+  group('本地数据按用户隔离', () {
+    test('另一个用户看不到这个用户的草稿', () async {
+      final c = await started(h);
+      c.selectOption('A');
+      await c.flushNow();
+
+      final other = DraftStore(h.store, 'user-2');
+      expect(await other.readDraft(h.questionId), isNull);
+      expect(
+        await DraftStore(h.store, _user).readDraft(h.questionId),
+        isNotNull,
+      );
+    });
+  });
+}

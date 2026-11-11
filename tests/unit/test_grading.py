@@ -1,0 +1,400 @@
+"""客观题判定（docs/01 §5、docs/06 §3）。
+
+原则：规则能确定的才给确定结论；认不出格式、认不出单位、确认不了等价的，一律 uncertain，
+不算对也不算错。
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from tutor_api.services.grading import AnswerShapeError, grade
+
+OPTIONS = [{"key": k, "text": f"选项 {k}"} for k in "ABCD"]
+ANALYSIS = {
+    "A": "A 的错因说明。",
+    "B": "B 为什么成立。",
+    "C": "C 为什么成立。",
+    "D": "D 的错因说明。",
+}
+
+
+def choice(
+    mode: str, correct: list[str], selected: list[str] | None, rule: str | None = None, **extra
+):
+    answer = {} if selected is None else {"selected_options": selected}
+    answer.update(extra)
+    return grade(
+        answer_mode=mode,
+        content={"stem": "题干", "options": OPTIONS},
+        answer_key={"value": correct},
+        rubric={"multi_choice_rule": rule} if rule else {},
+        teaching={"option_analysis": ANALYSIS},
+        answer=answer,
+    )
+
+
+def fill(raw: str | dict[str, str], rule: dict, expected: str = "4", units: dict | None = None):
+    blanks = raw if isinstance(raw, dict) else {"b1": raw}
+    keys = list(blanks)
+    expected_map = {key: expected for key in keys} if isinstance(expected, str) else expected
+    return grade(
+        answer_mode="fill",
+        content={"stem": "题干", "blanks": [{"key": key} for key in keys]},
+        answer_key={
+            "value": expected_map,
+            "equivalence_rules": {key: rule for key in keys},
+            "units": {key: units for key in keys},
+        },
+        rubric={},
+        teaching={},
+        answer={"blanks": [{"key": key, "value": value} for key, value in blanks.items()]},
+    )
+
+
+def codes(result) -> list[tuple[str, str]]:
+    return [(item.target, item.code) for item in result.feedback]
+
+
+# ---------------------------------------------------------------- 单选
+
+
+def test_single_choice_correct():
+    result = choice("single_choice", ["B"], ["B"])
+
+    assert (result.state, result.outcome, result.is_correct) == ("verified", "correct", True)
+    assert result.review_required is False
+    assert codes(result) == [("overall", "correct")]
+
+
+def test_single_choice_wrong_explains_the_chosen_option_only():
+    result = choice("single_choice", ["B"], ["A"])
+
+    assert (result.state, result.outcome, result.is_correct) == ("verified", "incorrect", False)
+    assert codes(result) == [("A", "wrong_option")]
+    assert result.feedback[0].message == ANALYSIS["A"]
+    assert ANALYSIS["B"] not in str(result), "不能顺带把正确选项的解析带出来"
+
+
+@pytest.mark.parametrize(
+    ("selected", "extra"),
+    [
+        ([], {}),
+        (["A", "B"], {}),
+        (["Z"], {}),
+        (None, {}),
+        (["A"], {"blanks": [{"key": "b1", "value": "1"}]}),
+        (["A"], {"text": "我觉得选 A"}),
+    ],
+    ids=["empty", "two-options", "unknown-key", "missing", "extra-blanks", "extra-text"],
+)
+def test_single_choice_rejects_answers_of_the_wrong_shape(selected, extra):
+    with pytest.raises(AnswerShapeError):
+        choice("single_choice", ["B"], selected, **extra)
+
+
+# ---------------------------------------------------------------- 多选：判定规则可配
+
+
+def test_multiple_choice_exact_match_is_correct():
+    result = choice("multiple_choice", ["B", "C"], ["C", "B"])
+    assert (result.outcome, result.is_correct) == ("correct", True)
+
+
+def test_subset_is_partially_correct_under_partial_rule():
+    result = choice("multiple_choice", ["B", "C"], ["B"], rule="partial_no_wrong")
+
+    assert (result.state, result.outcome, result.is_correct) == (
+        "verified",
+        "partially_correct",
+        False,
+    )
+    assert codes(result) == [("overall", "missed_options")]
+    assert "C" not in result.feedback[0].message, "不能指出漏掉的是哪一项"
+
+
+def test_subset_is_incorrect_under_all_or_nothing_rule():
+    result = choice("multiple_choice", ["B", "C"], ["B"], rule="all_or_nothing")
+
+    assert (result.outcome, result.is_correct) == ("incorrect", False)
+    assert codes(result) == [("overall", "missed_options")]
+
+
+def test_default_multiple_choice_rule_is_all_or_nothing():
+    assert choice("multiple_choice", ["B", "C"], ["B"]).outcome == "incorrect"
+
+
+@pytest.mark.parametrize("rule", ["partial_no_wrong", "all_or_nothing"])
+def test_any_wrong_option_makes_the_answer_incorrect(rule):
+    result = choice("multiple_choice", ["B", "C"], ["A", "B"], rule=rule)
+
+    assert (result.outcome, result.is_correct) == ("incorrect", False)
+    assert codes(result) == [("A", "wrong_option"), ("overall", "missed_options")]
+
+
+def test_all_correct_plus_one_wrong_reports_only_the_wrong_option():
+    result = choice("multiple_choice", ["B", "C"], ["B", "C", "D"], rule="partial_no_wrong")
+
+    assert result.outcome == "incorrect"
+    assert codes(result) == [("D", "wrong_option")]
+
+
+def test_multiple_choice_rejects_empty_and_unknown_options():
+    for selected in ([], ["B", "X"]):
+        with pytest.raises(AnswerShapeError):
+            choice("multiple_choice", ["B", "C"], selected)
+
+
+def test_unknown_rubric_rule_is_a_configuration_error():
+    with pytest.raises(ValueError, match="multi_choice_rule"):
+        choice("multiple_choice", ["B", "C"], ["B"], rule="half_points")
+
+
+# ---------------------------------------------------------------- 填空：数值
+
+NUMERIC = {"type": "numeric"}
+
+
+@pytest.mark.parametrize("raw", ["4", " 4 ", "４", "4.0", "+4", "8/2", "2^2", "2²", "√16"])
+def test_numeric_accepts_equal_values_in_any_notation(raw):
+    result = fill(raw, NUMERIC)
+    assert (result.state, result.outcome, result.is_correct) == ("verified", "correct", True)
+
+
+def test_numeric_wrong_value_is_incorrect():
+    result = fill("5", NUMERIC)
+
+    assert (result.state, result.outcome, result.is_correct) == ("verified", "incorrect", False)
+    assert codes(result) == [("b1", "value_incorrect")]
+
+
+@pytest.mark.parametrize("raw", ["四", "abc", "4 左右", "≈4", "x=4", "4 或 5"])
+def test_unrecognised_format_is_uncertain_not_wrong(raw):
+    result = fill(raw, NUMERIC)
+
+    assert (result.state, result.outcome, result.is_correct) == ("uncertain", "undetermined", None)
+    assert result.review_required is True
+    assert result.uncertainty_reason == "answer_unrecognized"
+    assert codes(result) == [("b1", "format_unrecognized")]
+
+
+def test_empty_blank_is_a_shape_error():
+    for raw in ("", "   "):
+        with pytest.raises(AnswerShapeError):
+            fill(raw, NUMERIC)
+
+
+def test_missing_or_unknown_blank_keys_are_shape_errors():
+    with pytest.raises(AnswerShapeError):
+        grade(
+            answer_mode="fill",
+            content={"stem": "题干", "blanks": [{"key": "b1"}, {"key": "b2"}]},
+            answer_key={
+                "value": {"b1": "1", "b2": "2"},
+                "equivalence_rules": {"b1": NUMERIC, "b2": NUMERIC},
+            },
+            rubric={},
+            teaching={},
+            answer={"blanks": [{"key": "b1", "value": "1"}, {"key": "zz", "value": "2"}]},
+        )
+
+
+def test_numeric_tolerance_is_configurable():
+    rule = {"type": "numeric", "rel_tol": 0.005}
+    assert fill("4.4", rule, expected="4.4").outcome == "correct"
+    assert fill("4.40", rule, expected="4.4").outcome == "correct"
+    assert fill("4.41", rule, expected="4.4").outcome == "correct"
+    assert fill("4.5", rule, expected="4.4").outcome == "incorrect"
+    assert fill("4.41", NUMERIC, expected="4.4").outcome == "incorrect", "默认要求数值相等"
+
+
+# ---------------------------------------------------------------- 填空：单位
+
+OPTIONAL_G = {"required": False, "accepted": ["g", "克"]}
+REQUIRED_ACCEL = {"required": True, "accepted": ["m/s²", "m/s^2", "m/s2", "米每二次方秒"]}
+
+
+@pytest.mark.parametrize("raw", ["4.4", "4.4g", "4.4 g", "4.4克", "4.4 G"])
+def test_optional_unit_may_be_written_or_omitted(raw):
+    assert fill(raw, NUMERIC, expected="4.4", units=OPTIONAL_G).outcome == "correct"
+
+
+@pytest.mark.parametrize(
+    "raw", ["5 m/s²", "5m/s^2", "5 m/s2", "5米每二次方秒", "5.0 M/S²", "10/2 m/s²"]
+)
+def test_required_unit_in_any_accepted_spelling(raw):
+    assert fill(raw, NUMERIC, expected="5", units=REQUIRED_ACCEL).outcome == "correct"
+
+
+def test_missing_required_unit_is_incorrect_with_a_specific_reason():
+    result = fill("5", NUMERIC, expected="5", units=REQUIRED_ACCEL)
+
+    assert (result.state, result.outcome, result.is_correct) == ("verified", "incorrect", False)
+    assert codes(result) == [("b1", "unit_missing")]
+    assert "单位" in result.feedback[0].message
+
+
+def test_wrong_value_with_correct_unit_is_incorrect():
+    result = fill("6 m/s²", NUMERIC, expected="5", units=REQUIRED_ACCEL)
+    assert codes(result) == [("b1", "value_incorrect")]
+
+
+@pytest.mark.parametrize("raw", ["5 N", "500 cm/s²", "5 m/s", "0.005 km/s²"])
+def test_unrecognised_unit_is_uncertain_never_judged_wrong(raw):
+    """换了单位的答案可能是对的（500 cm/s² 就等于 5 m/s²），规则认不出时不能判错。"""
+    result = fill(raw, NUMERIC, expected="5", units=REQUIRED_ACCEL)
+
+    assert (result.state, result.is_correct) == ("uncertain", None)
+    assert result.uncertainty_reason == "equivalence_unconfirmed"
+    assert codes(result) == [("b1", "equivalence_unconfirmed")]
+
+
+def test_trailing_text_without_any_unit_rule_is_uncertain():
+    assert fill("4 cm", NUMERIC).state == "uncertain"
+
+
+# ---------------------------------------------------------------- 填空：表达式等价
+
+EXPRESSION = {"type": "expression", "variables": ["g", "theta", "m"]}
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "g sinθ",
+        "gsinθ",
+        "sinθ·g",
+        "g*sin(theta)",
+        "g×sin θ",
+        "mg sinθ/m",
+        "gsinθ+0",
+        "(g sinθ)",
+        "g·sin(θ)",
+    ],
+)
+def test_equivalent_expressions_are_correct(raw):
+    result = fill(raw, EXPRESSION, expected="g*sin(theta)")
+    assert (result.state, result.outcome, result.is_correct) == ("verified", "correct", True)
+
+
+@pytest.mark.parametrize(
+    "raw", ["g cosθ", "g", "sinθ", "9.8 sinθ", "g sin2θ", "mg sinθ", "g tanθ", "-g sinθ"]
+)
+def test_non_equivalent_expressions_are_incorrect(raw):
+    result = fill(raw, EXPRESSION, expected="g*sin(theta)")
+
+    assert (result.state, result.outcome, result.is_correct) == ("verified", "incorrect", False)
+    assert codes(result) == [("b1", "value_incorrect")]
+
+
+@pytest.mark.parametrize("raw", ["g sinα", "g·sin", "加速度是 g sinθ", "g sinθ m/s²"])
+def test_unparseable_expressions_are_uncertain(raw):
+    result = fill(raw, EXPRESSION, expected="g*sin(theta)")
+    assert (result.state, result.is_correct) == ("uncertain", None)
+
+
+def test_polynomial_equivalence():
+    rule = {"type": "expression", "variables": ["x"]}
+    assert fill("2(x+1)", rule, expected="2*x+2").outcome == "correct"
+    assert fill("(x+1)(x-1)", rule, expected="x^2-1").outcome == "correct"
+    assert fill("x²-1", rule, expected="x^2-1").outcome == "correct"
+    assert fill("x^2+1", rule, expected="x^2-1").outcome == "incorrect"
+
+
+# ---------------------------------------------------------------- 填空：区间
+
+FLEXIBLE = {"type": "interval", "closure_flexible": True}
+STRICT = {"type": "interval", "closure_flexible": False}
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "(-∞,2]",
+        "(-∞, 2)",
+        "（－∞，2］",
+        "(负无穷,2]",
+        "(-inf,2]",
+        "(-oo, 2]",
+        "(−∞,4/2]",
+        "( -∞ , 2.0 ]",
+    ],
+)
+def test_interval_accepts_common_notations(raw):
+    result = fill(raw, FLEXIBLE, expected="(-inf,2]")
+    assert (result.state, result.outcome) == ("verified", "correct"), raw
+
+
+@pytest.mark.parametrize("raw", ["[2,+∞)", "(-∞,3]", "(-∞,-2]", "(2,+∞)", "[-∞,2]", "(0,2]"])
+def test_wrong_intervals_are_incorrect(raw):
+    result = fill(raw, FLEXIBLE, expected="(-inf,2]")
+
+    assert (result.state, result.outcome) == ("verified", "incorrect"), raw
+    assert codes(result) == [("b1", "value_incorrect")]
+
+
+@pytest.mark.parametrize("raw", ["x≤2", "x<=2", "2", "{x|x≤2}", "小于等于 2", "(-∞,2", "(-∞;2]"])
+def test_non_interval_notation_is_uncertain(raw):
+    assert fill(raw, FLEXIBLE, expected="(-inf,2]").state == "uncertain", raw
+
+
+def test_closure_matters_when_the_rule_says_so():
+    assert fill("[1,3)", STRICT, expected="[1,3)").outcome == "correct"
+    assert fill("(1,3)", STRICT, expected="[1,3)").outcome == "incorrect"
+    assert fill("(1,3)", FLEXIBLE, expected="[1,3)").outcome == "correct"
+
+
+def test_infinite_ends_expected_on_the_right():
+    assert fill("[1,+∞)", FLEXIBLE, expected="[1,+inf)").outcome == "correct"
+    assert fill("[1,∞)", FLEXIBLE, expected="[1,+inf)").outcome == "correct"
+    assert fill("(1,正无穷)", FLEXIBLE, expected="[1,+inf)").outcome == "correct"
+    assert fill("[1,+∞]", FLEXIBLE, expected="[1,+inf)").outcome == "incorrect"
+
+
+# ---------------------------------------------------------------- 多空与其他题型
+
+
+def test_all_blanks_correct():
+    result = fill({"b1": "1", "b2": "2"}, NUMERIC, expected={"b1": "1", "b2": "2"})
+    assert (result.outcome, result.is_correct) == ("correct", True)
+
+
+def test_some_blanks_wrong_is_partially_correct_but_not_correct():
+    result = fill({"b1": "1", "b2": "9"}, NUMERIC, expected={"b1": "1", "b2": "2"})
+
+    assert (result.state, result.outcome, result.is_correct) == (
+        "verified",
+        "partially_correct",
+        False,
+    )
+    assert codes(result) == [("b2", "value_incorrect")]
+
+
+def test_all_blanks_wrong_is_incorrect():
+    result = fill({"b1": "7", "b2": "9"}, NUMERIC, expected={"b1": "1", "b2": "2"})
+    assert result.outcome == "incorrect"
+
+
+def test_uncertain_blank_without_any_wrong_blank_makes_the_whole_answer_uncertain():
+    result = fill({"b1": "1", "b2": "二"}, NUMERIC, expected={"b1": "1", "b2": "2"})
+    assert (result.state, result.is_correct) == ("uncertain", None)
+
+
+def test_a_definitely_wrong_blank_decides_even_if_another_is_uncertain():
+    result = fill({"b1": "7", "b2": "二"}, NUMERIC, expected={"b1": "1", "b2": "2"})
+    assert (result.state, result.is_correct) == ("verified", False)
+
+
+@pytest.mark.parametrize("mode", ["written", "experiment"])
+def test_subjective_modes_are_pending_not_graded(mode):
+    result = grade(
+        answer_mode=mode,
+        content={"stem": "证明……"},
+        answer_key={},
+        rubric={},
+        teaching={},
+        answer={"text": "我的证明过程"},
+    )
+
+    assert (result.state, result.outcome, result.is_correct) == ("pending", "undetermined", None)
+    assert result.review_required is True

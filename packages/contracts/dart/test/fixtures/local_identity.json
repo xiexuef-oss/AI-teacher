@@ -1,0 +1,21 @@
+{
+  "name": "local_identity",
+  "method": "POST",
+  "path": "/api/v1/dev/local-identities",
+  "status": 201,
+  "schema": "LocalIdentity",
+  "value": {
+    "user_id": "1223464c-16a7-40a5-910c-7522e23fa895",
+    "role": "student",
+    "access_token": "Oxfi84n9VAQaehN-TuxSvIub_Af7Fhci-KY8Hf8eOaQ",
+    "token_type": "Bearer"
+  },
+  "body": {
+    "data": {
+      "user_id": "1223464c-16a7-40a5-910c-7522e23fa895",
+      "role": "student",
+      "access_token": "Oxfi84n9VAQaehN-TuxSvIub_Af7Fhci-KY8Hf8eOaQ",
+      "token_type": "Bearer"
+    }
+  }
+}

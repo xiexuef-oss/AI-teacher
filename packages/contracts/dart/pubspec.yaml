@@ -1,0 +1,12 @@
+name: tutor_contracts
+description: 由 contracts/openapi.yaml 生成的 API 模型与客户端。不要手改 *.g.dart。
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+dependencies:
+  http: ^1.6.0
+dev_dependencies:
+  lints: ^6.1.0
+  test: ^1.33.0

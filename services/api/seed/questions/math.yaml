@@ -1,0 +1,268 @@
+# 数学 · 自编工程样题（Q-05）。
+# 没有经过学科审校，只用于在本机跑通流程；不是真题，也不代表任何地区的命题风格。
+# region_tags 只是用来测试地区筛选逻辑的工程标签（ADR-006 Q-09）。
+
+- key: math-mono-quadratic
+  subject: math
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 2
+  grade: G10
+  title: 二次函数的单调递增区间
+  knowledge: [math.function.monotonicity, math.quadratic.graph]
+  region_tags:
+    - {region: CN-51, exam_year_from: 2027, exam_year_to: 2029}
+  content:
+    stem: '函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）'
+    options:
+      - {key: A, text: '$(-\infty,1]$'}
+      - {key: B, text: '$[1,+\infty)$'}
+      - {key: C, text: '$(-\infty,-1]$'}
+      - {key: D, text: '$[-1,+\infty)$'}
+  answer:
+    value: [B]
+  teaching:
+    concept: 函数的单调性
+    hints:
+      - '先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。'
+      - '二次函数的增减在对称轴处发生改变。用 $x=-\dfrac{b}{2a}$ 求出对称轴，注意 $b$ 的符号。'
+      - '开口向上的抛物线，在对称轴的一侧下降、另一侧上升。画个草图，看看上升的是哪一侧。'
+    concept_rephrase: '单调递增的意思是：在这个区间里任取两个数，较大的那个对应的函数值也较大。比如 $y=x^2$，在 $[0,+\infty)$ 上取 $1<2$，对应的函数值 $1<4$，一路往上走；在 $(-\infty,0]$ 上取 $-2<-1$，对应的函数值却是 $4>1$，是往下走的。所以同一个函数在不同区间上可以有不同的增减。'
+    option_analysis:
+      A: '这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。'
+      B: '对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。'
+      C: '对称轴算成了 $x=-1$。由 $x=-\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。'
+      D: '对称轴算成了 $x=-1$。由 $x=-\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。'
+    visual:
+      template_id: quadratic_graph
+      params: {a: 1, b: -2, c: -3}
+      caption: '拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。'
+  solutions:
+    standard:
+      steps:
+        - '配方：$f(x)=x^2-2x-3=(x-1)^2-4$。'
+        - '二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。'
+        - '开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\infty)$。'
+      final_answer: B
+      key_points:
+        - '配方或用 $x=-\dfrac{b}{2a}$ 求对称轴'
+        - '开口方向决定哪一侧递增'
+    fast:
+      conditions:
+        - '函数是二次函数 $y=ax^2+bx+c$（$a\ne 0$）'
+        - '定义域是全体实数，没有被限制在某个区间内'
+      steps:
+        - '对称轴 $x=-\dfrac{b}{2a}=-\dfrac{-2}{2\times 1}=1$。'
+        - '$a>0$ 时对称轴右侧递增，直接得 $[1,+\infty)$。'
+      final_answer: B
+      boundary: '如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。'
+
+- key: math-mono-quadratic-v1
+  subject: math
+  type: fill_blank
+  answer_mode: fill
+  difficulty: 2
+  grade: G10
+  title: 开口向下的二次函数的单调递增区间
+  knowledge: [math.function.monotonicity, math.quadratic.graph]
+  variant_of: math-mono-quadratic
+  content:
+    stem: '函数 $f(x)=-x^2+4x+1$ 的单调递增区间是 ____。（用区间表示）'
+    blanks:
+      - {key: b1, placeholder: '用区间表示，如 (0,1]'}
+  answer:
+    value: {b1: '(-inf,2]'}
+    equivalence_rules:
+      b1: {type: interval, closure_flexible: true}
+  teaching:
+    concept: 函数的单调性
+    leak_markers: ['(-\infty,2]', '(-\infty,2)', '(-∞,2]', '(-∞,2)', 'x\le2', 'x\leq2', 'x≤2', 'x<2']
+    hints:
+      - '和开口向上的情形比一比：二次项系数的符号变了，图像的形状有什么不同？'
+      - '先求对称轴 $x=-\dfrac{b}{2a}$，这里 $a=-1$，$b=4$，代入时注意两个负号。'
+      - '开口向下的抛物线在对称轴处达到最高点。想一想：图像是在到达最高点之前上升，还是之后上升？'
+    visual:
+      template_id: quadratic_graph
+      params: {a: -1, b: 4, c: 1}
+      caption: '把 a 从正数拖到负数，观察递增的一侧怎样从对称轴的一边换到另一边。'
+  solutions:
+    standard:
+      steps:
+        - '配方：$f(x)=-x^2+4x+1=-(x-2)^2+5$。'
+        - '$a=-1<0$，图像开口向下，对称轴为直线 $x=2$。'
+        - '开口向下时，对称轴左侧函数递增、右侧函数递减，所以单调递增区间是 $(-\infty,2]$（写成 $(-\infty,2)$ 也可以）。'
+      final_answer: '$(-\infty,2]$'
+      key_points:
+        - '开口向下时递增区间在对称轴左侧'
+        - '单调区间的有限端点开闭均可'
+
+- key: math-mono-judge
+  subject: math
+  type: multiple_choice
+  answer_mode: multiple_choice
+  difficulty: 2
+  grade: G10
+  title: 判断函数在区间上的单调性
+  knowledge: [math.function.monotonicity]
+  content:
+    stem: '下列函数中，在区间 $(0,+\infty)$ 上单调递增的有（　）'
+    options:
+      - {key: A, text: '$y=2x+1$'}
+      - {key: B, text: '$y=\dfrac{1}{x}$'}
+      - {key: C, text: '$y=x^2$'}
+      - {key: D, text: '$y=-|x|$'}
+  answer:
+    value: [A, C]
+  rubric:
+    multi_choice_rule: partial_no_wrong
+  teaching:
+    concept: 函数的单调性
+    hints:
+      - '逐个判断，不要凭印象。对每个函数，在 $(0,+\infty)$ 里取两个数，比如 $1$ 和 $2$，比较函数值的大小。'
+      - '取值只能帮助排除，不能证明。对留下来的函数，再用图像或解析式的特点确认它在整个区间上都是上升的。'
+      - '含绝对值的函数先去掉绝对值：在 $x>0$ 时，$|x|$ 等于什么？'
+    concept_rephrase: '判断单调性要盯住“在哪个区间”。同一个函数换一个区间，结论可能就变了：$y=x^2$ 在 $(-\infty,0)$ 上是下降的，在 $(0,+\infty)$ 上才是上升的。所以先看清题目指定的区间，再只看图像在这一段上的走势。'
+    option_analysis:
+      A: '一次函数，斜率 $2>0$，在整个实数范围内都递增，在 $(0,+\infty)$ 上当然递增。'
+      B: '反比例函数，在 $(0,+\infty)$ 上 $x$ 越大、$\dfrac{1}{x}$ 越小，是递减的。'
+      C: '对称轴是 $x=0$，开口向上，$(0,+\infty)$ 在对称轴右侧，递增。'
+      D: '当 $x>0$ 时 $y=-|x|=-x$，斜率为负，是递减的。'
+    visual:
+      template_id: number_line
+      params: {min: -5, max: 5, left: 0, right: 5, left_closed: 0, right_closed: 0, left_unbounded: 0, right_unbounded: 1}
+      caption: '题目只关心数轴上这一段：0 的右侧，不含 0。判断每个函数时，只看它在这一段上的走势。'
+  solutions:
+    standard:
+      steps:
+        - 'A：$y=2x+1$ 的斜率为 $2>0$，在 $\mathbf{R}$ 上递增，符合。'
+        - 'B：$y=\dfrac{1}{x}$ 在 $(0,+\infty)$ 上递减，不符合。'
+        - 'C：$y=x^2$ 开口向上、对称轴为 $x=0$，在 $(0,+\infty)$ 上递增，符合。'
+        - 'D：$x>0$ 时 $y=-|x|=-x$，递减，不符合。'
+      final_answer: AC
+      key_points:
+        - '先看清题目指定的区间'
+        - '含绝对值的函数先去绝对值'
+
+- key: math-ineq-min
+  subject: math
+  type: fill_blank
+  answer_mode: fill
+  difficulty: 2
+  grade: G10
+  title: 用基本不等式求最小值
+  knowledge: [math.inequality.basic]
+  content:
+    stem: '已知 $x>0$，则 $x+\dfrac{4}{x}$ 的最小值为 ____。'
+    blanks:
+      - {key: b1, placeholder: '填数值'}
+  answer:
+    value: {b1: '4'}
+    equivalence_rules:
+      b1: {type: numeric}
+  teaching:
+    concept: 基本不等式
+    hints:
+      - '两项 $x$ 与 $\dfrac{4}{x}$ 都是正数。把它们乘起来看看，乘积有什么特点？'
+      - '乘积是定值时，可以用基本不等式 $a+b\ge 2\sqrt{ab}$（$a>0$，$b>0$）来估计和的下界。'
+      - '用完不等式后别忘了检查等号能不能取到：令两项相等，解出的 $x$ 是否满足 $x>0$？'
+    concept_rephrase: '基本不等式说的是：两个正数的和，至少是它们乘积的平方根的两倍，而且只有两个数相等时才取到这个最小的和。可以这样想：面积固定的矩形里，正方形的周长最短。比如面积为 $9$，两边取 $3$ 和 $3$ 时两边之和是 $6$；换成 $1$ 和 $9$，和就变成了 $10$。'
+  solutions:
+    standard:
+      steps:
+        - '因为 $x>0$，所以 $x$ 与 $\dfrac{4}{x}$ 都是正数，可以用基本不等式。'
+        - '$x+\dfrac{4}{x}\ge 2\sqrt{x\cdot\dfrac{4}{x}}=2\sqrt{4}=4$。'
+        - '当且仅当 $x=\dfrac{4}{x}$，即 $x=2$ 时取等号，$x=2$ 满足 $x>0$，所以最小值是 $4$。'
+      final_answer: '$4$'
+      key_points:
+        - '一正二定三相等：两项为正、乘积为定值、等号能取到'
+
+- key: math-ineq-rect
+  subject: math
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 2
+  grade: G10
+  title: 周长一定的矩形的最大面积
+  knowledge: [math.inequality.basic]
+  region_tags:
+    - {region: CN-50, exam_year_from: 2027, exam_year_to: 2029}
+  content:
+    stem: '用一根长为 $20\ \text{m}$ 的绳子围成一个矩形，这个矩形面积的最大值是（　）'
+    options:
+      - {key: A, text: '$20\ \text{m}^2$'}
+      - {key: B, text: '$24\ \text{m}^2$'}
+      - {key: C, text: '$25\ \text{m}^2$'}
+      - {key: D, text: '$100\ \text{m}^2$'}
+  answer:
+    value: [C]
+  teaching:
+    concept: 基本不等式
+    hints:
+      - '设长为 $x$、宽为 $y$。绳长固定，$x$ 和 $y$ 之间满足什么关系？'
+      - '由周长得到 $x+y$ 是一个定值，而面积是 $xy$。和为定值时，积的大小怎样变化？'
+      - '和为定值的两个正数，什么时候乘积最大？可以代几组数试试，再用基本不等式确认。'
+    option_analysis:
+      A: '这不是上限：取长 $6$、宽 $4$，面积已经是 $24$，比它大。'
+      B: '长 $6$、宽 $4$ 时面积是 $24$，但把两边调得更接近，面积还能更大。'
+      C: '长与宽之和为 $10$，两边相等（都为 $5$）时面积最大。'
+      D: '把周长的一半 $10$ 当成了边长。长与宽的和才是 $10$，两边不可能都等于 $10$。'
+    visual:
+      template_id: rectangle_area
+      params: {sum: 10, split: 0.3}
+      caption: '长与宽的和固定为 10。拖动比例，观察面积什么时候最大。'
+  solutions:
+    standard:
+      steps:
+        - '设矩形的长为 $x\ \text{m}$、宽为 $y\ \text{m}$，则 $2(x+y)=20$，即 $x+y=10$，且 $x>0$，$y>0$。'
+        - '由基本不等式，$xy\le\left(\dfrac{x+y}{2}\right)^2=25$。'
+        - '当且仅当 $x=y=5$ 时取等号，所以面积的最大值是 $25\ \text{m}^2$。'
+      final_answer: C
+      key_points:
+        - '和为定值时积有最大值'
+        - '检查等号成立的条件'
+    fast:
+      conditions:
+        - '两个量都是正数'
+        - '它们的和是定值'
+      steps:
+        - '和为定值时，两数相等积最大：$x=y=\dfrac{10}{2}=5$。'
+        - '最大面积为 $5\times 5=25\ \text{m}^2$。'
+      final_answer: C
+      boundary: '如果题目另有限制使两边不能相等（例如一边靠墙，或规定长不小于某个值），就不能直接取相等，要回到函数或不等式重新求。'
+
+- key: math-ineq-product-v1
+  subject: math
+  type: fill_blank
+  answer_mode: fill
+  difficulty: 2
+  grade: G10
+  title: 和为定值时乘积的最大值
+  knowledge: [math.inequality.basic]
+  variant_of: math-ineq-rect
+  content:
+    stem: '已知 $x>0$，$y>0$，且 $x+y=8$，则 $xy$ 的最大值为 ____。'
+    blanks:
+      - {key: b1, placeholder: '填数值'}
+  answer:
+    value: {b1: '16'}
+    equivalence_rules:
+      b1: {type: numeric}
+  teaching:
+    concept: 基本不等式
+    hints:
+      - '题目给的是和为定值，问的是积。这和围矩形的问题是同一个结构吗？'
+      - '对两个正数用 $\sqrt{xy}\le\dfrac{x+y}{2}$，把已知的和代进去。'
+      - '两边平方得到 $xy$ 的上界后，检查等号成立时 $x$、$y$ 各是多少，是否满足题目条件。'
+    visual:
+      template_id: rectangle_area
+      params: {sum: 8, split: 0.25}
+      caption: '两数之和固定为 8，拖动比例观察乘积的变化。'
+  solutions:
+    standard:
+      steps:
+        - '$x>0$，$y>0$，由基本不等式 $\sqrt{xy}\le\dfrac{x+y}{2}=4$。'
+        - '两边平方得 $xy\le 16$。'
+        - '当且仅当 $x=y=4$ 时取等号，所以 $xy$ 的最大值是 $16$。'
+      final_answer: '$16$'
+      key_points:
+        - '和为定值时两数相等积最大'

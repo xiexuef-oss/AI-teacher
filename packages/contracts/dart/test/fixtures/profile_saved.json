@@ -1,0 +1,63 @@
+{
+  "name": "profile_saved",
+  "method": "PUT",
+  "path": "/api/v1/profile",
+  "status": 200,
+  "schema": "StudentProfile",
+  "value": {
+    "user_id": "1223464c-16a7-40a5-910c-7522e23fa895",
+    "display_name": null,
+    "region_code": "CN-51",
+    "grade": "G12",
+    "subjects": [
+      "math",
+      "physics",
+      "chemistry"
+    ],
+    "exam_year": 2027,
+    "exam_year_source": "estimated",
+    "exam_scheme_code": null,
+    "curriculum_version": null,
+    "onboarding_completed": true,
+    "notices": [
+      {
+        "code": "exam_year_estimated",
+        "message": "考试年份按年级估算为 2027 年，可以在“我的”里修改。"
+      },
+      {
+        "code": "curriculum_unknown",
+        "message": "还没有设置教材版本，目前按通用知识点推荐；确认后可以在“我的”里补充。"
+      }
+    ],
+    "updated_at": "2026-11-10T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "user_id": "1223464c-16a7-40a5-910c-7522e23fa895",
+      "display_name": null,
+      "region_code": "CN-51",
+      "grade": "G12",
+      "subjects": [
+        "math",
+        "physics",
+        "chemistry"
+      ],
+      "exam_year": 2027,
+      "exam_year_source": "estimated",
+      "exam_scheme_code": null,
+      "curriculum_version": null,
+      "onboarding_completed": true,
+      "notices": [
+        {
+          "code": "exam_year_estimated",
+          "message": "考试年份按年级估算为 2027 年，可以在“我的”里修改。"
+        },
+        {
+          "code": "curriculum_unknown",
+          "message": "还没有设置教材版本，目前按通用知识点推荐；确认后可以在“我的”里补充。"
+        }
+      ],
+      "updated_at": "2026-11-10T08:00:00Z"
+    }
+  }
+}

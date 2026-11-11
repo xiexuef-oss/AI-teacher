@@ -1,0 +1,631 @@
+{
+  "name": "session_events",
+  "method": "GET",
+  "path": "/api/v1/sessions/cf144bc2-63db-476f-abf2-55bca5e3b551/events",
+  "status": 200,
+  "schema": "TutorEventPage",
+  "value": {
+    "items": [
+      {
+        "id": "c9f167d9-0467-4eb5-a1cd-66b6461bb05b",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 1,
+        "type": "hint",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": {
+          "level": 1,
+          "total_levels": 3,
+          "style": "layered",
+          "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+          "concept": "函数的单调性"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "0b9cf44a9afc41abbc3587c1a10b5621"
+        }
+      },
+      {
+        "id": "a8b075bc-40fe-4545-b3f2-10e8db302699",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 2,
+        "type": "visual",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "VISUAL",
+        "payload": {
+          "template_id": "quadratic_graph",
+          "params": {
+            "a": 1,
+            "b": -2,
+            "c": -3
+          },
+          "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。",
+          "static_fallback": "二次函数 y = ax² + bx + c 的对称轴是 x = -b/(2a)。a > 0 时开口向上，对称轴左侧递减、右侧递增；a < 0 时相反。"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "6d5c454408414bd780e8009a149f9f44"
+        }
+      },
+      {
+        "id": "daef3c3e-d17a-494c-a8c8-3c90c1e4e465",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 3,
+        "type": "diagnosis",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "DIAGNOSED",
+        "payload": {
+          "outcome": "incorrect",
+          "summary": "这次没有答对，看看下面的分析。",
+          "feedback": [
+            {
+              "target": "A",
+              "code": "wrong_option",
+              "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+            }
+          ],
+          "knowledge": [
+            {
+              "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+              "code": "math.function.monotonicity",
+              "title": "函数的单调性"
+            },
+            {
+              "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+              "code": "math.quadratic.graph",
+              "title": "二次函数的图像与对称轴"
+            }
+          ],
+          "suggestions": [
+            {
+              "action": "request_hint",
+              "label": "给点提示",
+              "question_id": null,
+              "knowledge_id": null
+            },
+            {
+              "action": "retry_attempt",
+              "label": "再试一次",
+              "question_id": null,
+              "knowledge_id": null
+            },
+            {
+              "action": "request_standard",
+              "label": "看常规解法",
+              "question_id": null,
+              "knowledge_id": null
+            }
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "6ee8f201f27e4c699a31f5a6e8653416"
+        }
+      },
+      {
+        "id": "6eb16c8e-0ea9-4fd2-93a9-8020c023c54a",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 4,
+        "type": "standard",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "STANDARD",
+        "payload": {
+          "title": "常规解法",
+          "steps": [
+            {
+              "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+            },
+            {
+              "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+            },
+            {
+              "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+            }
+          ],
+          "final_answer": "B",
+          "option_analysis": [
+            {
+              "key": "A",
+              "verdict": "wrong",
+              "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+            },
+            {
+              "key": "B",
+              "verdict": "correct",
+              "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+            },
+            {
+              "key": "C",
+              "verdict": "wrong",
+              "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+            },
+            {
+              "key": "D",
+              "verdict": "wrong",
+              "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+            }
+          ],
+          "key_points": [
+            "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+            "开口方向决定哪一侧递增"
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "464de84428db4c7a930f83cc10de9f62"
+        }
+      },
+      {
+        "id": "7f1669f6-9148-40dc-86f2-fd3dfc7ed71a",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 5,
+        "type": "fast",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "FAST",
+        "payload": {
+          "title": "快速解法",
+          "conditions": [
+            "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+            "定义域是全体实数，没有被限制在某个区间内"
+          ],
+          "steps": [
+            {
+              "text": "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。"
+            },
+            {
+              "text": "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+            }
+          ],
+          "final_answer": "B",
+          "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。",
+          "reviewed": true
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "d193ba187d06476cb197e6a719c208a4"
+        }
+      },
+      {
+        "id": "1105ac36-b907-4807-bf3b-57855aa151bc",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 6,
+        "type": "ask",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "VARIANT",
+        "payload": {
+          "prompt": "要不要做一道变式题，检验是不是真的掌握了？",
+          "suggestions": [
+            {
+              "action": "start_variant",
+              "label": "做一道变式题",
+              "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+              "knowledge_id": null
+            },
+            {
+              "action": "finish",
+              "label": "先到这里",
+              "question_id": null,
+              "knowledge_id": null
+            }
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "d17bb1c478aa4646bcf80314a8dcbc71"
+        }
+      },
+      {
+        "id": "6ee79326-0c9f-4d13-a032-9b611914989a",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 7,
+        "type": "notice",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "REVIEW_SCHEDULED",
+        "payload": {
+          "code": "review_scheduled",
+          "text": "已经安排了复测，到时候不看提示再做一遍，确认是真的会了。",
+          "due_at": "2026-11-11T08:00:00Z"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "d17bb1c478aa4646bcf80314a8dcbc71"
+        }
+      },
+      {
+        "id": "41d2cac5-2c61-46fa-bd43-2d68766126f4",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 8,
+        "type": "notice",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "DONE",
+        "payload": {
+          "code": "session_completed",
+          "text": "这道题先到这里。",
+          "due_at": null
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "d17bb1c478aa4646bcf80314a8dcbc71"
+        }
+      }
+    ],
+    "last_seq": 8
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "id": "c9f167d9-0467-4eb5-a1cd-66b6461bb05b",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 1,
+          "type": "hint",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "HINTED",
+          "payload": {
+            "level": 1,
+            "total_levels": 3,
+            "style": "layered",
+            "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+            "concept": "函数的单调性"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "0b9cf44a9afc41abbc3587c1a10b5621"
+          }
+        },
+        {
+          "id": "a8b075bc-40fe-4545-b3f2-10e8db302699",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 2,
+          "type": "visual",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "VISUAL",
+          "payload": {
+            "template_id": "quadratic_graph",
+            "params": {
+              "a": 1,
+              "b": -2,
+              "c": -3
+            },
+            "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。",
+            "static_fallback": "二次函数 y = ax² + bx + c 的对称轴是 x = -b/(2a)。a > 0 时开口向上，对称轴左侧递减、右侧递增；a < 0 时相反。"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "6d5c454408414bd780e8009a149f9f44"
+          }
+        },
+        {
+          "id": "daef3c3e-d17a-494c-a8c8-3c90c1e4e465",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 3,
+          "type": "diagnosis",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "DIAGNOSED",
+          "payload": {
+            "outcome": "incorrect",
+            "summary": "这次没有答对，看看下面的分析。",
+            "feedback": [
+              {
+                "target": "A",
+                "code": "wrong_option",
+                "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+              }
+            ],
+            "knowledge": [
+              {
+                "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+                "code": "math.function.monotonicity",
+                "title": "函数的单调性"
+              },
+              {
+                "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+                "code": "math.quadratic.graph",
+                "title": "二次函数的图像与对称轴"
+              }
+            ],
+            "suggestions": [
+              {
+                "action": "request_hint",
+                "label": "给点提示",
+                "question_id": null,
+                "knowledge_id": null
+              },
+              {
+                "action": "retry_attempt",
+                "label": "再试一次",
+                "question_id": null,
+                "knowledge_id": null
+              },
+              {
+                "action": "request_standard",
+                "label": "看常规解法",
+                "question_id": null,
+                "knowledge_id": null
+              }
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "6ee8f201f27e4c699a31f5a6e8653416"
+          }
+        },
+        {
+          "id": "6eb16c8e-0ea9-4fd2-93a9-8020c023c54a",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 4,
+          "type": "standard",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "STANDARD",
+          "payload": {
+            "title": "常规解法",
+            "steps": [
+              {
+                "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+              },
+              {
+                "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+              },
+              {
+                "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+              }
+            ],
+            "final_answer": "B",
+            "option_analysis": [
+              {
+                "key": "A",
+                "verdict": "wrong",
+                "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+              },
+              {
+                "key": "B",
+                "verdict": "correct",
+                "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+              },
+              {
+                "key": "C",
+                "verdict": "wrong",
+                "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+              },
+              {
+                "key": "D",
+                "verdict": "wrong",
+                "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+              }
+            ],
+            "key_points": [
+              "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+              "开口方向决定哪一侧递增"
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "464de84428db4c7a930f83cc10de9f62"
+          }
+        },
+        {
+          "id": "7f1669f6-9148-40dc-86f2-fd3dfc7ed71a",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 5,
+          "type": "fast",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "FAST",
+          "payload": {
+            "title": "快速解法",
+            "conditions": [
+              "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+              "定义域是全体实数，没有被限制在某个区间内"
+            ],
+            "steps": [
+              {
+                "text": "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。"
+              },
+              {
+                "text": "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+              }
+            ],
+            "final_answer": "B",
+            "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。",
+            "reviewed": true
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "d193ba187d06476cb197e6a719c208a4"
+          }
+        },
+        {
+          "id": "1105ac36-b907-4807-bf3b-57855aa151bc",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 6,
+          "type": "ask",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "VARIANT",
+          "payload": {
+            "prompt": "要不要做一道变式题，检验是不是真的掌握了？",
+            "suggestions": [
+              {
+                "action": "start_variant",
+                "label": "做一道变式题",
+                "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+                "knowledge_id": null
+              },
+              {
+                "action": "finish",
+                "label": "先到这里",
+                "question_id": null,
+                "knowledge_id": null
+              }
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "d17bb1c478aa4646bcf80314a8dcbc71"
+          }
+        },
+        {
+          "id": "6ee79326-0c9f-4d13-a032-9b611914989a",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 7,
+          "type": "notice",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "REVIEW_SCHEDULED",
+          "payload": {
+            "code": "review_scheduled",
+            "text": "已经安排了复测，到时候不看提示再做一遍，确认是真的会了。",
+            "due_at": "2026-11-11T08:00:00Z"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "d17bb1c478aa4646bcf80314a8dcbc71"
+          }
+        },
+        {
+          "id": "41d2cac5-2c61-46fa-bd43-2d68766126f4",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 8,
+          "type": "notice",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "DONE",
+          "payload": {
+            "code": "session_completed",
+            "text": "这道题先到这里。",
+            "due_at": null
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "d17bb1c478aa4646bcf80314a8dcbc71"
+          }
+        }
+      ],
+      "last_seq": 8
+    }
+  }
+}

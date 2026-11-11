@@ -1,0 +1,145 @@
+{
+  "name": "question_multiple_choice",
+  "method": "GET",
+  "path": "/api/v1/questions/08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+    "subject": "math",
+    "type": "multiple_choice",
+    "answer_mode": "multiple_choice",
+    "difficulty": 2,
+    "title": "判断函数在区间上的单调性",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+        "code": "math.function.monotonicity",
+        "title": "函数的单调性"
+      }
+    ],
+    "variant_of": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "下列函数中，在区间 $(0,+\\infty)$ 上单调递增的有（　）",
+      "options": [
+        {
+          "key": "A",
+          "text": "$y=2x+1$"
+        },
+        {
+          "key": "B",
+          "text": "$y=\\dfrac{1}{x}$"
+        },
+        {
+          "key": "C",
+          "text": "$y=x^2$"
+        },
+        {
+          "key": "D",
+          "text": "$y=-|x|$"
+        }
+      ],
+      "blanks": [],
+      "subquestions": [],
+      "attachments": []
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": true
+    },
+    "judging_note": "多选题：全部选对才算正确；只选了部分正确选项且没有错选，记为部分正确；只要有错选就记为不正确。这是练习反馈规则，不代表任何地区的官方评分办法。"
+  },
+  "body": {
+    "data": {
+      "id": "08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+      "subject": "math",
+      "type": "multiple_choice",
+      "answer_mode": "multiple_choice",
+      "difficulty": 2,
+      "title": "判断函数在区间上的单调性",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+          "code": "math.function.monotonicity",
+          "title": "函数的单调性"
+        }
+      ],
+      "variant_of": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "下列函数中，在区间 $(0,+\\infty)$ 上单调递增的有（　）",
+        "options": [
+          {
+            "key": "A",
+            "text": "$y=2x+1$"
+          },
+          {
+            "key": "B",
+            "text": "$y=\\dfrac{1}{x}$"
+          },
+          {
+            "key": "C",
+            "text": "$y=x^2$"
+          },
+          {
+            "key": "D",
+            "text": "$y=-|x|$"
+          }
+        ],
+        "blanks": [],
+        "subquestions": [],
+        "attachments": []
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": true
+      },
+      "judging_note": "多选题：全部选对才算正确；只选了部分正确选项且没有错选，记为部分正确；只要有错选就记为不正确。这是练习反馈规则，不代表任何地区的官方评分办法。"
+    }
+  }
+}

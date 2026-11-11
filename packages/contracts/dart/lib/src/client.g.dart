@@ -1,0 +1,387 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// 由 tools/gen_dart_contracts.py 根据 contracts/openapi.yaml 生成。要改动请改契约后重新生成。
+// dart format off
+// ignore_for_file: type=lint
+
+import 'models.g.dart';
+import 'runtime.dart';
+
+/// 生成时的契约版本。
+const String contractVersion = '1.3.0-slice.1';
+
+/// 每个契约操作一个方法。请求与响应对象都是由契约生成的类型。
+class TutorApiClient {
+  TutorApiClient(this._core);
+
+  final ApiCore _core;
+
+  /// 服务健康状态与关键开关
+  Future<Health> getHealth({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/health',
+      requestId: requestId,
+      authenticated: false,
+    );
+    return Health.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 首发地区、年级、学科、教材选项与考试年份估算
+  Future<LaunchConfig> getLaunchConfig({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/meta/launch-config',
+      requestId: requestId,
+      authenticated: false,
+    );
+    return LaunchConfig.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 创建一个本地学生身份并返回随机 bearer
+  Future<LocalIdentity> createLocalIdentity({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/dev/local-identities',
+      requestId: requestId,
+      authenticated: false,
+    );
+    return LocalIdentity.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 当前学生的资料
+  Future<StudentProfile> getProfile({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/profile',
+      requestId: requestId,
+    );
+    return StudentProfile.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 保存地区、年级、学科、考试年份与教材版本
+  Future<StudentProfile> updateProfile({
+    required ProfileUpdate body,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/profile',
+      body: body.toJson(),
+      requestId: requestId,
+    );
+    return StudentProfile.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 今日任务
+  Future<TodayTasks> getTodayTasks({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/tasks/today',
+      requestId: requestId,
+    );
+    return TodayTasks.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 练习选题列表
+  Future<QuestionPage> listQuestions({
+    Subject? subject,
+    AnswerMode? answerMode,
+    SourceCategory? sourceCategory,
+    QuestionScope? scope,
+    String? cursor,
+    int? limit,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/questions',
+      query: {'subject': subject?.value, 'answer_mode': answerMode?.value, 'source_category': sourceCategory?.value, 'scope': scope?.value, 'cursor': cursor, 'limit': limit?.toString()},
+      requestId: requestId,
+    );
+    return QuestionPage.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 题目与结构
+  Future<Question> getQuestion({
+    required String questionId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/questions/${Uri.encodeComponent(questionId)}',
+      requestId: requestId,
+    );
+    return Question.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 为一道题开启学习会话
+  Future<StudySession> createSession({
+    required SessionCreate body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/sessions',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return StudySession.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 会话当前状态
+  Future<StudySession> getSession({
+    required String sessionId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/sessions/${Uri.encodeComponent(sessionId)}',
+      requestId: requestId,
+    );
+    return StudySession.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 按 seq 恢复教学事件
+  Future<TutorEventPage> listSessionEvents({
+    required String sessionId,
+    int? afterSeq,
+    int? limit,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/sessions/${Uri.encodeComponent(sessionId)}/events',
+      query: {'after_seq': afterSeq?.toString(), 'limit': limit?.toString()},
+      requestId: requestId,
+    );
+    return TutorEventPage.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 在会话中新建一次作答草稿
+  Future<Attempt> createAttempt({
+    required AttemptCreate body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/attempts',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return Attempt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 一次作答及其评估
+  Future<Attempt> getAttempt({
+    required String attemptId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/attempts/${Uri.encodeComponent(attemptId)}',
+      requestId: requestId,
+    );
+    return Attempt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 云端草稿（未提交的答案与笔迹）
+  Future<Draft> getDraft({
+    required String attemptId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/attempts/${Uri.encodeComponent(attemptId)}/draft',
+      requestId: requestId,
+    );
+    return Draft.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 同步草稿
+  Future<Draft> syncDraft({
+    required String attemptId,
+    required DraftSync body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/attempts/${Uri.encodeComponent(attemptId)}/draft',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return Draft.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 提交作答并返回评估状态
+  Future<SubmitResult> submitAttempt({
+    required String attemptId,
+    required SubmitRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/attempts/${Uri.encodeComponent(attemptId)}/submit',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return SubmitResult.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 教学下一步
+  Future<TutorStep> tutorNext({
+    required String sessionId,
+    required TutorAction body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/tutor/sessions/${Uri.encodeComponent(sessionId)}/next',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return TutorStep.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 复测队列
+  Future<ReviewPage> listDueReviews({
+    ReviewScope? scope,
+    String? cursor,
+    int? limit,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/reviews/due',
+      query: {'scope': scope?.value, 'cursor': cursor, 'limit': limit?.toString()},
+      requestId: requestId,
+    );
+    return ReviewPage.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 用一次已判定的复测作答完成复测项
+  Future<ReviewCompletion> completeReview({
+    required String reviewId,
+    required ReviewComplete body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/reviews/${Uri.encodeComponent(reviewId)}/complete',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ReviewCompletion.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 学情摘要
+  Future<ProgressSummary> getProgressSummary({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/progress/summary',
+      requestId: requestId,
+    );
+    return ProgressSummary.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 获取短期上传 URL（planned）
+  ///
+  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  Future<MediaUpload> createMediaUpload({
+    required MediaUploadRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/media/uploads',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return MediaUpload.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 对已上传的单题图片启动 OCR（planned）
+  ///
+  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  Future<Scan> createScan({
+    required ScanCreate body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/scans',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return Scan.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// OCR 状态与可编辑题干（planned）
+  ///
+  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  Future<Scan> getScan({
+    required String scanId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/scans/${Uri.encodeComponent(scanId)}',
+      requestId: requestId,
+    );
+    return Scan.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 学生确认题干后关联已有题或生成待审题草案（planned）
+  ///
+  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  Future<ScanConfirmation> confirmScan({
+    required String scanId,
+    required ScanConfirm body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/scans/${Uri.encodeComponent(scanId)}/confirm',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ScanConfirmation.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 已授权绑定学生的聚合周报（planned）
+  ///
+  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  Future<ParentWeekly> getParentWeekly({
+    required String studentId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/parents/students/${Uri.encodeComponent(studentId)}/weekly',
+      requestId: requestId,
+    );
+    return ParentWeekly.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 审核决策（planned）
+  ///
+  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  Future<QuestionReviewState> reviewQuestion({
+    required String questionId,
+    required ReviewDecision body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/questions/${Uri.encodeComponent(questionId)}/review',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return QuestionReviewState.fromJson(data as Map<String, dynamic>);
+  }
+}

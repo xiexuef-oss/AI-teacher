@@ -1,0 +1,37 @@
+{
+  "name": "profile_empty",
+  "method": "GET",
+  "path": "/api/v1/profile",
+  "status": 200,
+  "schema": "StudentProfile",
+  "value": {
+    "user_id": "1223464c-16a7-40a5-910c-7522e23fa895",
+    "display_name": null,
+    "region_code": null,
+    "grade": null,
+    "subjects": [],
+    "exam_year": null,
+    "exam_year_source": null,
+    "exam_scheme_code": null,
+    "curriculum_version": null,
+    "onboarding_completed": false,
+    "notices": [],
+    "updated_at": "2026-11-10T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "user_id": "1223464c-16a7-40a5-910c-7522e23fa895",
+      "display_name": null,
+      "region_code": null,
+      "grade": null,
+      "subjects": [],
+      "exam_year": null,
+      "exam_year_source": null,
+      "exam_scheme_code": null,
+      "curriculum_version": null,
+      "onboarding_completed": false,
+      "notices": [],
+      "updated_at": "2026-11-10T08:00:00Z"
+    }
+  }
+}

@@ -1,0 +1,87 @@
+# 知识点与前置依赖（自编工程样例，供原型演示用）。
+# 这里的划分没有对照课程标准逐条审校，正式知识图谱需要学科审校人确认。
+# summary 是"这一轮只讲的那一个主要概念"的一句话说明，换种讲法时会用到，不能包含任何题目的答案。
+nodes:
+  - code: math.function.concept
+    subject: math
+    title: 函数的概念与定义域
+    summary: 函数是定义域里每个自变量都对应唯一一个函数值的对应关系，讨论函数的任何性质都要先看定义域
+  - code: math.quadratic.graph
+    subject: math
+    title: 二次函数的图像与对称轴
+    summary: 二次函数的图像是抛物线，二次项系数的符号决定开口方向，对称轴把图像分成上升和下降的两侧
+  - code: math.function.monotonicity
+    subject: math
+    title: 函数的单调性
+    summary: 在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减
+  - code: math.inequality.properties
+    subject: math
+    title: 不等式的基本性质
+    summary: 不等式两边同时加上同一个数方向不变，同时乘以同一个正数方向不变，乘以负数方向改变
+  - code: math.inequality.basic
+    subject: math
+    title: 基本不等式
+    summary: 两个正数的算术平均数不小于它们的几何平均数，当且仅当两个数相等时取等号
+
+  - code: phys.force.decomposition
+    subject: physics
+    title: 力的合成与分解
+    summary: 一个力可以按实际作用效果分解成两个方向上的分力，分力只是用来代替原来那个力，不是额外多出来的力
+  - code: phys.friction
+    subject: physics
+    title: 摩擦力
+    summary: 静摩擦力阻碍相对运动的趋势，大小随外力变化；滑动摩擦力阻碍相对运动，大小等于动摩擦因数乘以正压力
+  - code: phys.force.analysis
+    subject: physics
+    title: 受力分析
+    summary: 受力分析就是把其他物体对研究对象施加的力一个不漏、一个不多地找出来，每个力都要说得出施力物体
+  - code: phys.newton.second
+    subject: physics
+    title: 牛顿第二定律
+    summary: 物体的加速度与它受到的合力成正比、与质量成反比，方向与合力方向相同
+  - code: phys.kinematics.uniform_accel
+    subject: physics
+    title: 匀变速直线运动
+    summary: 加速度保持不变的直线运动，速度随时间均匀变化，速度—时间图线是一条倾斜的直线
+  - code: phys.experiment.tape
+    subject: physics
+    title: 纸带数据处理
+    summary: 匀变速直线运动中，连续相等时间内的位移之差是一个定值，用它可以从纸带上求出加速度
+
+  - code: chem.mole.concept
+    subject: chemistry
+    title: 物质的量
+    summary: 物质的量把看不见的粒子数目和称得出的质量联系起来，物质的量等于质量除以摩尔质量
+  - code: chem.stoichiometry
+    subject: chemistry
+    title: 化学方程式中的计量关系
+    summary: 化学方程式里的化学计量数之比等于各物质的物质的量之比，不是质量之比
+  - code: chem.conservation.charge
+    subject: chemistry
+    title: 电荷守恒
+    summary: 溶液整体不带电，所有阳离子所带正电荷的总量等于所有阴离子所带负电荷的总量
+  - code: chem.ion.reaction
+    subject: chemistry
+    title: 离子反应
+    summary: 溶液中的反应实际发生在离子之间，生成沉淀、气体或水时反应才能进行
+  - code: chem.ion.test
+    subject: chemistry
+    title: 常见离子的检验
+    summary: 检验一种离子要用它特有的现象，并且先排除其他离子产生相同现象的可能
+  - code: chem.lab.safety
+    subject: chemistry
+    title: 实验基本操作与安全
+    summary: 实验室的每条操作规定都有理由，要么是防止伤到人，要么是防止结果不准
+
+# [前置知识点, 目标知识点]
+edges:
+  - [math.function.concept, math.function.monotonicity]
+  - [math.function.concept, math.quadratic.graph]
+  - [math.inequality.properties, math.inequality.basic]
+  - [phys.force.decomposition, phys.force.analysis]
+  - [phys.friction, phys.force.analysis]
+  - [phys.force.analysis, phys.newton.second]
+  - [phys.kinematics.uniform_accel, phys.experiment.tape]
+  - [chem.mole.concept, chem.stoichiometry]
+  - [chem.mole.concept, chem.conservation.charge]
+  - [chem.ion.reaction, chem.ion.test]

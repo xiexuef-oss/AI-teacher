@@ -1,0 +1,45 @@
+{
+  "name": "review_completed",
+  "method": "POST",
+  "path": "/api/v1/reviews/f3cc93b4-6b56-46d7-bbd6-711a08f65192/complete",
+  "status": 200,
+  "schema": "ReviewCompletion",
+  "value": {
+    "review_item": {
+      "id": "f3cc93b4-6b56-46d7-bbd6-711a08f65192",
+      "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "question_title": "二次函数的单调递增区间",
+      "subject": "math",
+      "status": "scheduled",
+      "stage": 1,
+      "total_stages": 3,
+      "due_at": "2026-11-14T08:00:00Z",
+      "is_due": false,
+      "last_result": "passed",
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "result": "passed",
+    "next_due_at": "2026-11-14T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "review_item": {
+        "id": "f3cc93b4-6b56-46d7-bbd6-711a08f65192",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_title": "二次函数的单调递增区间",
+        "subject": "math",
+        "status": "scheduled",
+        "stage": 1,
+        "total_stages": 3,
+        "due_at": "2026-11-14T08:00:00Z",
+        "is_due": false,
+        "last_result": "passed",
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "result": "passed",
+      "next_due_at": "2026-11-14T08:00:00Z"
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "name": "tutor_hint",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/cf144bc2-63db-476f-abf2-55bca5e3b551/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+      "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "question_version": 1,
+      "origin": "task",
+      "state": "HINTED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 1,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": "e111b76c-2a7e-4a52-9ba8-5ee45af012e3",
+      "submitted_attempts": 0,
+      "last_event_seq": 1,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "c9f167d9-0467-4eb5-a1cd-66b6461bb05b",
+        "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "seq_no": 1,
+        "type": "hint",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": {
+          "level": 1,
+          "total_levels": 3,
+          "style": "layered",
+          "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+          "concept": "函数的单调性"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "0b9cf44a9afc41abbc3587c1a10b5621"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_version": 1,
+        "origin": "task",
+        "state": "HINTED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": "e111b76c-2a7e-4a52-9ba8-5ee45af012e3",
+        "submitted_attempts": 0,
+        "last_event_seq": 1,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "c9f167d9-0467-4eb5-a1cd-66b6461bb05b",
+          "session_id": "cf144bc2-63db-476f-abf2-55bca5e3b551",
+          "seq_no": 1,
+          "type": "hint",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "HINTED",
+          "payload": {
+            "level": 1,
+            "total_levels": 3,
+            "style": "layered",
+            "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+            "concept": "函数的单调性"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "0b9cf44a9afc41abbc3587c1a10b5621"
+          }
+        }
+      ]
+    }
+  }
+}

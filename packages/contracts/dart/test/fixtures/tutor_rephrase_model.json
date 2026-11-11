@@ -1,0 +1,119 @@
+{
+  "name": "tutor_rephrase_model",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754",
+      "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "HINTED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 1,
+      "needs_human_help": false,
+      "active_attempt_id": "c3ecca71-13fd-4e9b-be81-672c85806343",
+      "submitted_attempts": 0,
+      "last_event_seq": 1,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "d8691273-6626-4ab4-b82b-a489a5264a78",
+        "session_id": "6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754",
+        "seq_no": 1,
+        "type": "hint",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": {
+          "level": 1,
+          "total_levels": 1,
+          "style": "rephrase",
+          "text": "换个说法：在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减。先别急着算，用自己的话把“函数的单调性”说一遍，再回到题目里找对应的量。",
+          "concept": "函数的单调性"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "model",
+          "degraded": false,
+          "provider": "mock",
+          "model_id": "mock-tutor",
+          "prompt_version": "tutor-prompt/2026-11-10.1",
+          "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+          "question_version": 1,
+          "trace_id": "7da48927b92e4964a52809b2c5424edd",
+          "request_id": "ad61de237e2b4e7ab4859b63391324b6"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754",
+        "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "HINTED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 1,
+        "needs_human_help": false,
+        "active_attempt_id": "c3ecca71-13fd-4e9b-be81-672c85806343",
+        "submitted_attempts": 0,
+        "last_event_seq": 1,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "d8691273-6626-4ab4-b82b-a489a5264a78",
+          "session_id": "6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754",
+          "seq_no": 1,
+          "type": "hint",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "HINTED",
+          "payload": {
+            "level": 1,
+            "total_levels": 1,
+            "style": "rephrase",
+            "text": "换个说法：在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减。先别急着算，用自己的话把“函数的单调性”说一遍，再回到题目里找对应的量。",
+            "concept": "函数的单调性"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "model",
+            "degraded": false,
+            "provider": "mock",
+            "model_id": "mock-tutor",
+            "prompt_version": "tutor-prompt/2026-11-10.1",
+            "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+            "question_version": 1,
+            "trace_id": "7da48927b92e4964a52809b2c5424edd",
+            "request_id": "ad61de237e2b4e7ab4859b63391324b6"
+          }
+        }
+      ]
+    }
+  }
+}

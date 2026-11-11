@@ -1,0 +1,141 @@
+{
+  "name": "tasks_today",
+  "method": "GET",
+  "path": "/api/v1/tasks/today",
+  "status": 200,
+  "schema": "TodayTasks",
+  "value": {
+    "date": "2026-11-10",
+    "items": [
+      {
+        "id": "a64d434f-1992-5309-b7ce-a94351cbea18",
+        "kind": "new_topic",
+        "title": "二次函数的单调递增区间",
+        "reason": "还没有学习记录，先从基础题开始。",
+        "subject": "math",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "review_item_id": null,
+        "applicability": {
+          "scope": "region",
+          "label": "推荐适用：四川（工程测试标签）",
+          "recommended_regions": [
+            "CN-51"
+          ],
+          "origin_region_code": null,
+          "exam_year_from": 2027,
+          "exam_year_to": 2029,
+          "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+        },
+        "estimated_minutes": 5
+      },
+      {
+        "id": "1950e109-7e94-5ff7-b5bf-a39c03a19a13",
+        "kind": "new_topic",
+        "title": "静止在粗糙斜面上的物块的受力",
+        "reason": "还没有学习记录，先从基础题开始。",
+        "subject": "physics",
+        "question_id": "a94037e8-6c0c-554f-b4e6-d19d44a753b6",
+        "review_item_id": null,
+        "applicability": {
+          "scope": "region",
+          "label": "推荐适用：四川（工程测试标签）",
+          "recommended_regions": [
+            "CN-51"
+          ],
+          "origin_region_code": null,
+          "exam_year_from": 2027,
+          "exam_year_to": 2029,
+          "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+        },
+        "estimated_minutes": 5
+      },
+      {
+        "id": "78a4c58c-a1e4-59de-97c1-9671ffcbec00",
+        "kind": "new_topic",
+        "title": "由碳酸钙质量求二氧化碳质量",
+        "reason": "还没有学习记录，先从基础题开始。",
+        "subject": "chemistry",
+        "question_id": "eb6592f7-34f3-58db-9b1f-ea832ab7fb61",
+        "review_item_id": null,
+        "applicability": {
+          "scope": "general",
+          "label": "全国通用基础题",
+          "recommended_regions": [],
+          "origin_region_code": null,
+          "exam_year_from": null,
+          "exam_year_to": null,
+          "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+        },
+        "estimated_minutes": 5
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "date": "2026-11-10",
+      "items": [
+        {
+          "id": "a64d434f-1992-5309-b7ce-a94351cbea18",
+          "kind": "new_topic",
+          "title": "二次函数的单调递增区间",
+          "reason": "还没有学习记录，先从基础题开始。",
+          "subject": "math",
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "review_item_id": null,
+          "applicability": {
+            "scope": "region",
+            "label": "推荐适用：四川（工程测试标签）",
+            "recommended_regions": [
+              "CN-51"
+            ],
+            "origin_region_code": null,
+            "exam_year_from": 2027,
+            "exam_year_to": 2029,
+            "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+          },
+          "estimated_minutes": 5
+        },
+        {
+          "id": "1950e109-7e94-5ff7-b5bf-a39c03a19a13",
+          "kind": "new_topic",
+          "title": "静止在粗糙斜面上的物块的受力",
+          "reason": "还没有学习记录，先从基础题开始。",
+          "subject": "physics",
+          "question_id": "a94037e8-6c0c-554f-b4e6-d19d44a753b6",
+          "review_item_id": null,
+          "applicability": {
+            "scope": "region",
+            "label": "推荐适用：四川（工程测试标签）",
+            "recommended_regions": [
+              "CN-51"
+            ],
+            "origin_region_code": null,
+            "exam_year_from": 2027,
+            "exam_year_to": 2029,
+            "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+          },
+          "estimated_minutes": 5
+        },
+        {
+          "id": "78a4c58c-a1e4-59de-97c1-9671ffcbec00",
+          "kind": "new_topic",
+          "title": "由碳酸钙质量求二氧化碳质量",
+          "reason": "还没有学习记录，先从基础题开始。",
+          "subject": "chemistry",
+          "question_id": "eb6592f7-34f3-58db-9b1f-ea832ab7fb61",
+          "review_item_id": null,
+          "applicability": {
+            "scope": "general",
+            "label": "全国通用基础题",
+            "recommended_regions": [],
+            "origin_region_code": null,
+            "exam_year_from": null,
+            "exam_year_to": null,
+            "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+          },
+          "estimated_minutes": 5
+        }
+      ]
+    }
+  }
+}

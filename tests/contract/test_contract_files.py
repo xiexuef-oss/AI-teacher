@@ -1,0 +1,405 @@
+"""契约文件自身的规则（CON-001）。不依赖任何服务实现。"""
+
+from __future__ import annotations
+
+import copy
+
+import pytest
+from jsonschema import Draft202012Validator
+from openapi_spec_validator import validate
+
+from support.contract import (
+    iter_operations,
+    load_event_schema,
+    load_openapi,
+    load_visual_registry,
+    operations_by_id,
+    resolve,
+    validate_event,
+)
+
+IMPLEMENTED = {
+    "getHealth",
+    "getLaunchConfig",
+    "createLocalIdentity",
+    "getProfile",
+    "updateProfile",
+    "getTodayTasks",
+    "listQuestions",
+    "getQuestion",
+    "createSession",
+    "getSession",
+    "listSessionEvents",
+    "createAttempt",
+    "getAttempt",
+    "getDraft",
+    "syncDraft",
+    "submitAttempt",
+    "tutorNext",
+    "listDueReviews",
+    "completeReview",
+    "getProgressSummary",
+}
+PLANNED = {
+    "createMediaUpload",
+    "createScan",
+    "getScan",
+    "confirmScan",
+    "getParentWeekly",
+    "reviewQuestion",
+}
+# docs/05：提交、评分触发、草稿同步、教学下一步等非幂等动作必须带 Idempotency-Key
+MUST_REQUIRE_IDEMPOTENCY_KEY = {
+    "createSession",
+    "createAttempt",
+    "syncDraft",
+    "submitAttempt",
+    "tutorNext",
+    "completeReview",
+    "createMediaUpload",
+    "createScan",
+    "confirmScan",
+    "reviewQuestion",
+}
+PUBLIC_OPERATIONS = {"getHealth", "getLaunchConfig", "createLocalIdentity"}
+DOC06_TEMPLATES = {
+    "quadratic_graph",
+    "rectangle_area",
+    "number_line",
+    "force_diagram",
+    "motion_chart",
+    "chemical_flow",
+}
+
+
+def _parameters(op: dict) -> list[dict]:
+    return [resolve(p) for p in op.get("parameters", [])]
+
+
+# ---------------------------------------------------------------- OpenAPI
+
+
+def test_openapi_is_valid_31():
+    spec = load_openapi()
+    assert spec["openapi"].startswith("3.1")
+    validate(copy.deepcopy(spec))
+
+
+def test_api_is_served_under_versioned_prefix():
+    assert load_openapi()["servers"] == [{"url": "/api/v1"}]
+
+
+def test_operation_ids_are_unique():
+    ids = [op["operationId"] for _, _, op in iter_operations()]
+    assert len(ids) == len(set(ids))
+
+
+def test_slice_and_planned_operations_are_exactly_as_agreed():
+    status = {
+        op["operationId"]: op.get("x-implementation-status") for _, _, op in iter_operations()
+    }
+    assert {k for k, v in status.items() if v == "implemented"} == IMPLEMENTED
+    assert {k for k, v in status.items() if v == "planned"} == PLANNED
+    assert set(status) == IMPLEMENTED | PLANNED
+
+
+def test_planned_operations_declare_501():
+    for op_id in PLANNED:
+        _, _, op = operations_by_id()[op_id]
+        assert "501" in op["responses"], op_id
+
+
+def test_non_idempotent_operations_require_idempotency_key():
+    for op_id in MUST_REQUIRE_IDEMPOTENCY_KEY:
+        _, _, op = operations_by_id()[op_id]
+        headers = [
+            p for p in _parameters(op) if p["in"] == "header" and p["name"] == "Idempotency-Key"
+        ]
+        assert headers and headers[0].get("required") is True, (
+            f"{op_id} 必须声明必填的 Idempotency-Key"
+        )
+
+
+def test_every_post_except_identity_requires_idempotency_key():
+    for _, method, op in iter_operations():
+        if method == "post" and op["operationId"] != "createLocalIdentity":
+            assert op["operationId"] in MUST_REQUIRE_IDEMPOTENCY_KEY, op["operationId"]
+
+
+def test_only_public_operations_skip_authentication():
+    assert load_openapi()["security"] == [{"bearerAuth": []}]
+    for _, _, op in iter_operations():
+        is_public = op.get("security") == []
+        assert is_public == (op["operationId"] in PUBLIC_OPERATIONS), op["operationId"]
+        if not is_public:
+            assert "401" in op["responses"], f"{op['operationId']} 需要声明 401"
+
+
+def test_success_bodies_use_data_envelope():
+    for _, _, op in iter_operations():
+        success = [code for code in op["responses"] if code.startswith("2")]
+        assert success, f"{op['operationId']} 没有 2xx 响应"
+        for code in success:
+            schema = resolve(op["responses"][code])["content"]["application/json"]["schema"]
+            assert schema["type"] == "object", op["operationId"]
+            assert schema["required"] == ["data"], op["operationId"]
+            assert set(schema["properties"]) == {"data"}, op["operationId"]
+
+
+def test_error_bodies_use_error_envelope():
+    for _, _, op in iter_operations():
+        for code, response in op["responses"].items():
+            if code.startswith("2"):
+                continue
+            schema = resolve(response)["content"]["application/json"]["schema"]
+            assert schema == {"$ref": "#/components/schemas/ErrorEnvelope"}, (
+                op["operationId"],
+                code,
+            )
+    error = load_openapi()["components"]["schemas"]["ErrorBody"]
+    assert set(error["required"]) == {"code", "message", "details", "request_id"}
+
+
+def test_every_response_echoes_request_id():
+    for _, _, op in iter_operations():
+        for code, response in op["responses"].items():
+            headers = resolve(response).get("headers", {})
+            assert "X-Request-Id" in headers, (op["operationId"], code)
+
+
+def test_question_schemas_cannot_carry_answers():
+    """题目接口不得带出答案、解法、提示原文或选项分析（docs/03 P04 验收）。"""
+    schemas = load_openapi()["components"]["schemas"]
+    forbidden = {"answer", "answer_json", "solutions", "hints", "option_analysis", "rubric"}
+    for name in (
+        "Question",
+        "QuestionSummary",
+        "QuestionContent",
+        "QuestionOption",
+        "QuestionBlank",
+    ):
+        assert not forbidden & set(schemas[name]["properties"]), name
+
+
+def test_response_schemas_are_closed_objects():
+    """对象 schema 一律 additionalProperties: false，服务端多发字段会被契约测试抓到。"""
+    for name, schema in load_openapi()["components"]["schemas"].items():
+        if schema.get("type") == "object" and "properties" in schema:
+            assert schema.get("additionalProperties") is False, name
+
+
+# ------------------------------------------------------------ 教学事件 Schema
+
+
+def _event(event_type: str, payload: dict, **overrides) -> dict:
+    event = {
+        "id": "7d0f3a52-6f0c-4a55-9d3e-1b2a3c4d5e6f",
+        "session_id": "0b9c7c0e-1f66-4f0a-8a55-9d3e1b2a3c4d",
+        "seq_no": 1,
+        "type": event_type,
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": payload,
+        "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": False,
+            "provider": None,
+            "model_id": None,
+            "prompt_version": None,
+            "question_id": "3f2b1c0a-9e8d-4c7b-a6f5-0e1d2c3b4a59",
+            "question_version": 1,
+            "trace_id": None,
+            "request_id": "req-test",
+        },
+    }
+    event.update(overrides)
+    return event
+
+
+VALID_PAYLOADS = {
+    "diagnosis": {
+        "outcome": "incorrect",
+        "summary": "选项 B 不成立。",
+        "feedback": [{"target": "B", "code": "wrong_option", "message": "忽略了定义域。"}],
+        "knowledge": [],
+        "suggestions": [
+            {
+                "action": "request_hint",
+                "label": "给点提示",
+                "question_id": None,
+                "knowledge_id": None,
+            }
+        ],
+    },
+    "hint": {
+        "level": 1,
+        "total_levels": 3,
+        "style": "layered",
+        "text": "先看对称轴。",
+        "concept": "单调性",
+    },
+    "standard": {
+        "title": "常规解法",
+        "steps": [{"text": "配方得 $y=(x-1)^2-4$。"}],
+        "final_answer": "B",
+        "option_analysis": [{"key": "A", "verdict": "wrong", "text": "区间方向反了。"}],
+        "key_points": ["对称轴"],
+    },
+    "fast": {
+        "title": "快速解法",
+        "conditions": ["a>0 的二次函数"],
+        "steps": [{"text": "对称轴右侧递增。"}],
+        "final_answer": "B",
+        "boundary": "a<0 时结论相反。",
+        "reviewed": True,
+    },
+    "visual": {
+        "template_id": "quadratic_graph",
+        "params": {"a": 1, "b": -2, "c": -3},
+        "caption": "拖动 a 观察开口方向。",
+        "static_fallback": "开口向上，对称轴 x=1。",
+    },
+    "ask": {
+        "prompt": "要不要试一道变式题？",
+        "suggestions": [
+            {
+                "action": "start_variant",
+                "label": "做变式",
+                "question_id": "3f2b1c0a-9e8d-4c7b-a6f5-0e1d2c3b4a59",
+                "knowledge_id": None,
+            }
+        ],
+    },
+    "notice": {
+        "code": "review_scheduled",
+        "text": "已安排复测。",
+        "due_at": "2026-11-11T08:00:00Z",
+    },
+    "uncertainty": {
+        "reason_code": "equivalence_unconfirmed",
+        "text": "暂时无法确认这个答案是否等价。",
+        "review_required": True,
+    },
+    "fallback": {
+        "reason_code": "MODEL_UNAVAILABLE",
+        "text": "讲解服务暂时不可用，可以先看审核解析。",
+        "suggestions": [],
+    },
+}
+
+
+def test_tutor_event_schema_is_valid_2020_12():
+    schema = load_event_schema()
+    assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+    Draft202012Validator.check_schema(schema)
+
+
+def test_event_types_cover_docs05_and_docs06():
+    types = set(load_event_schema()["$defs"]["EventType"]["enum"])
+    assert types == set(VALID_PAYLOADS)
+    assert {"hint", "standard", "fast", "visual", "ask"} <= types  # docs/05
+    assert {"uncertainty", "fallback"} <= types  # docs/06
+
+
+@pytest.mark.parametrize("event_type", sorted(VALID_PAYLOADS))
+def test_valid_event_passes(event_type):
+    validate_event(_event(event_type, VALID_PAYLOADS[event_type]))
+
+
+def _mutated(event_type: str, **changes) -> dict:
+    payload = copy.deepcopy(VALID_PAYLOADS[event_type])
+    for key, value in changes.items():
+        if value is ...:
+            payload.pop(key)
+        else:
+            payload[key] = value
+    return payload
+
+
+INVALID_EVENTS = {
+    "未知事件类型": _event("celebrate", {}),
+    "payload 与类型不匹配": _event("hint", VALID_PAYLOADS["visual"]),
+    "payload 带多余字段": _event("hint", _mutated("hint", script="alert(1)")),
+    "提示层级小于 1": _event("hint", _mutated("hint", level=0)),
+    "图解缺模板": _event("visual", _mutated("visual", template_id=...)),
+    "图解用未注册模板": _event("visual", _mutated("visual", template_id="free_canvas")),
+    "图解参数不是数值": _event("visual", _mutated("visual", params={"a": "1; drop table"})),
+    "图解没有静态后备": _event("visual", _mutated("visual", static_fallback=...)),
+    "快速解法没有适用条件": _event("fast", _mutated("fast", conditions=[])),
+    "快速解法未审核": _event("fast", _mutated("fast", reviewed=False)),
+    "不确定事件却不要求复核": _event("uncertainty", _mutated("uncertainty", review_required=False)),
+    "缺元数据": {k: v for k, v in _event("hint", VALID_PAYLOADS["hint"]).items() if k != "meta"},
+    "信封带多余字段": _event("hint", VALID_PAYLOADS["hint"], html="<b>x</b>"),
+    "未知会话状态": _event("hint", VALID_PAYLOADS["hint"], state_after="CHEATING"),
+    "序号从 0 开始": _event("hint", VALID_PAYLOADS["hint"], seq_no=0),
+}
+
+
+@pytest.mark.parametrize("label", sorted(INVALID_EVENTS))
+def test_invalid_event_is_rejected(label):
+    with pytest.raises(AssertionError):
+        validate_event(INVALID_EVENTS[label])
+
+
+def test_event_meta_is_traceable():
+    """docs/06 §5：模型版本、提示版本、题库版本写入事件元数据。"""
+    meta = load_event_schema()["$defs"]["EventMeta"]
+    assert {"provider", "model_id", "prompt_version", "question_id", "question_version"} <= set(
+        meta["required"]
+    )
+
+
+def test_openapi_event_envelope_matches_schema_file():
+    """OpenAPI 里的事件信封与 Schema 文件必须一致，避免两处各改各的。"""
+    schemas = load_openapi()["components"]["schemas"]
+    event_schema = load_event_schema()
+    envelope = schemas["TutorEvent"]
+    assert set(envelope["required"]) == set(event_schema["required"])
+    assert set(envelope["properties"]) == set(event_schema["properties"])
+    assert schemas["TutorEventType"]["enum"] == event_schema["$defs"]["EventType"]["enum"]
+    assert schemas["SessionState"]["enum"] == event_schema["$defs"]["SessionState"]["enum"]
+    meta = schemas["TutorEventMeta"]
+    assert set(meta["required"]) == set(event_schema["$defs"]["EventMeta"]["required"])
+    assert set(meta["properties"]) == set(event_schema["$defs"]["EventMeta"]["properties"])
+
+
+def test_session_states_follow_docs06_state_machine():
+    assert load_event_schema()["$defs"]["SessionState"]["enum"] == [
+        "READY",
+        "INDEPENDENT_ATTEMPT",
+        "SUBMITTED",
+        "DIAGNOSED",
+        "HINTED",
+        "STANDARD",
+        "FAST",
+        "VISUAL",
+        "VARIANT",
+        "REVIEW_SCHEDULED",
+        "DONE",
+        "FALLBACK",
+    ]
+
+
+# ------------------------------------------------------------ 图解模板注册表
+
+
+def test_visual_registry_matches_doc06():
+    registry = load_visual_registry()
+    assert set(registry["templates"]) == DOC06_TEMPLATES
+    schema_ids = load_event_schema()["$defs"]["VisualPayload"]["properties"]["template_id"]["enum"]
+    assert set(schema_ids) == DOC06_TEMPLATES
+
+
+def test_visual_params_have_finite_bounds():
+    for template_id, template in load_visual_registry()["templates"].items():
+        assert template["static_fallback"].strip(), template_id
+        names = [p["name"] for p in template["params"]]
+        assert names and len(names) == len(set(names)), template_id
+        for param in template["params"]:
+            lo, hi, default = param["min"], param["max"], param["default"]
+            for value in (lo, hi, default, param["step"]):
+                assert isinstance(value, (int, float)) and not isinstance(value, bool)
+                assert abs(value) < 1e6, (template_id, param["name"])
+            assert lo < hi and lo <= default <= hi, (template_id, param["name"])
+            assert param["step"] > 0, (template_id, param["name"])

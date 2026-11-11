@@ -1,0 +1,27 @@
+{
+  "name": "health",
+  "method": "GET",
+  "path": "/api/v1/health",
+  "status": 200,
+  "schema": "Health",
+  "value": {
+    "status": "ok",
+    "api_version": "v1",
+    "contract_version": "1.3.0-slice.1",
+    "environment": "local",
+    "local_identity_mock": true,
+    "external_model_calls": false,
+    "server_time": "2026-11-10T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "status": "ok",
+      "api_version": "v1",
+      "contract_version": "1.3.0-slice.1",
+      "environment": "local",
+      "local_identity_mock": true,
+      "external_model_calls": false,
+      "server_time": "2026-11-10T08:00:00Z"
+    }
+  }
+}

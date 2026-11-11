@@ -1,0 +1,115 @@
+{
+  "name": "tutor_needs_human_help",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754",
+      "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "HINTED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 3,
+      "needs_human_help": true,
+      "active_attempt_id": "c3ecca71-13fd-4e9b-be81-672c85806343",
+      "submitted_attempts": 0,
+      "last_event_seq": 3,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "a002ae42-82eb-4679-aff2-8e9a4f57d168",
+        "session_id": "6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754",
+        "seq_no": 3,
+        "type": "notice",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": {
+          "code": "needs_human_help",
+          "text": "已经换过讲法、也看过前置知识了，先停一下也没关系。这道题已记录为需要老师或家长帮忙。",
+          "due_at": null
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "a903d77dd225497f96677281566d7d51"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754",
+        "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "HINTED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 3,
+        "needs_human_help": true,
+        "active_attempt_id": "c3ecca71-13fd-4e9b-be81-672c85806343",
+        "submitted_attempts": 0,
+        "last_event_seq": 3,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "a002ae42-82eb-4679-aff2-8e9a4f57d168",
+          "session_id": "6a18d8e3-ff6d-4e45-b376-ef4d2f1b7754",
+          "seq_no": 3,
+          "type": "notice",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "HINTED",
+          "payload": {
+            "code": "needs_human_help",
+            "text": "已经换过讲法、也看过前置知识了，先停一下也没关系。这道题已记录为需要老师或家长帮忙。",
+            "due_at": null
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "a903d77dd225497f96677281566d7d51"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,445 @@
+{
+  "name": "progress_summary",
+  "method": "GET",
+  "path": "/api/v1/progress/summary",
+  "status": 200,
+  "schema": "ProgressSummary",
+  "value": {
+    "generated_at": "2026-11-11T08:00:00Z",
+    "min_samples": 5,
+    "independent": {
+      "numerator": 2,
+      "denominator": 2,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "assisted": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "hint_dependency": {
+      "numerator": 1,
+      "denominator": 3,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "retest_success": {
+      "numerator": 1,
+      "denominator": 1,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "variant_transfer": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "uncertain_attempts": 1,
+    "by_subject": [
+      {
+        "key": "math",
+        "label": "数学",
+        "independent": {
+          "numerator": 2,
+          "denominator": 2,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 1,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "physics",
+        "label": "物理",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "chemistry",
+        "label": "化学",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      }
+    ],
+    "by_answer_mode": [
+      {
+        "key": "single_choice",
+        "label": "单选题",
+        "independent": {
+          "numerator": 1,
+          "denominator": 1,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 1,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "multiple_choice",
+        "label": "多选题",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "fill",
+        "label": "填空题",
+        "independent": {
+          "numerator": 1,
+          "denominator": 1,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      }
+    ],
+    "by_difficulty": [
+      {
+        "key": "1",
+        "label": "难度 1",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "2",
+        "label": "难度 2",
+        "independent": {
+          "numerator": 2,
+          "denominator": 2,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 1,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "3",
+        "label": "难度 3",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "4",
+        "label": "难度 4",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "5",
+        "label": "难度 5",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      }
+    ],
+    "disclaimer": "这些数字来自练习反馈，不是官方成绩，也不代表短期内一定提分。样本少的时候只显示计数。"
+  },
+  "body": {
+    "data": {
+      "generated_at": "2026-11-11T08:00:00Z",
+      "min_samples": 5,
+      "independent": {
+        "numerator": 2,
+        "denominator": 2,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "assisted": {
+        "numerator": 0,
+        "denominator": 1,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "hint_dependency": {
+        "numerator": 1,
+        "denominator": 3,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "retest_success": {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "variant_transfer": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "uncertain_attempts": 1,
+      "by_subject": [
+        {
+          "key": "math",
+          "label": "数学",
+          "independent": {
+            "numerator": 2,
+            "denominator": 2,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 1,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "physics",
+          "label": "物理",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "chemistry",
+          "label": "化学",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        }
+      ],
+      "by_answer_mode": [
+        {
+          "key": "single_choice",
+          "label": "单选题",
+          "independent": {
+            "numerator": 1,
+            "denominator": 1,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 1,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "multiple_choice",
+          "label": "多选题",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "fill",
+          "label": "填空题",
+          "independent": {
+            "numerator": 1,
+            "denominator": 1,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        }
+      ],
+      "by_difficulty": [
+        {
+          "key": "1",
+          "label": "难度 1",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "2",
+          "label": "难度 2",
+          "independent": {
+            "numerator": 2,
+            "denominator": 2,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 1,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "3",
+          "label": "难度 3",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "4",
+          "label": "难度 4",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "5",
+          "label": "难度 5",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        }
+      ],
+      "disclaimer": "这些数字来自练习反馈，不是官方成绩，也不代表短期内一定提分。样本少的时候只显示计数。"
+    }
+  }
+}

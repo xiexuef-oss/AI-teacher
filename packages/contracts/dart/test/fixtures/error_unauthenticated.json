@@ -1,0 +1,23 @@
+{
+  "name": "error_unauthenticated",
+  "method": "GET",
+  "path": "/api/v1/profile",
+  "status": 401,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "unauthenticated",
+      "message": "未认证或 token 无效",
+      "details": {},
+      "request_id": "6c52b9828c3f4be89f6b1cb24a9076d1"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "unauthenticated",
+      "message": "未认证或 token 无效",
+      "details": {},
+      "request_id": "6c52b9828c3f4be89f6b1cb24a9076d1"
+    }
+  }
+}

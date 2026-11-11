@@ -1,0 +1,97 @@
+{
+  "name": "draft_conflict",
+  "method": "PUT",
+  "path": "/api/v1/attempts/e111b76c-2a7e-4a52-9ba8-5ee45af012e3/draft",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "draft_revision_conflict",
+      "message": "草稿在别处已有更新，没有覆盖",
+      "details": {
+        "server_revision": 1,
+        "server_draft": {
+          "attempt_id": "e111b76c-2a7e-4a52-9ba8-5ee45af012e3",
+          "revision": 1,
+          "answer": {
+            "selected_options": [
+              "A"
+            ]
+          },
+          "strokes": {
+            "version": 1,
+            "pages": [
+              {
+                "width": 800.0,
+                "height": 1100.0,
+                "strokes": [
+                  {
+                    "color": "#1A1A1A",
+                    "width": 2.5,
+                    "points": [
+                      10.0,
+                      20.0,
+                      0.0,
+                      0.5,
+                      14.0,
+                      26.0,
+                      16.0,
+                      0.6
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "updated_at": "2026-11-10T08:00:00Z"
+        }
+      },
+      "request_id": "34f103f486f043a186d15f6ff7c71f36"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "draft_revision_conflict",
+      "message": "草稿在别处已有更新，没有覆盖",
+      "details": {
+        "server_revision": 1,
+        "server_draft": {
+          "attempt_id": "e111b76c-2a7e-4a52-9ba8-5ee45af012e3",
+          "revision": 1,
+          "answer": {
+            "selected_options": [
+              "A"
+            ]
+          },
+          "strokes": {
+            "version": 1,
+            "pages": [
+              {
+                "width": 800.0,
+                "height": 1100.0,
+                "strokes": [
+                  {
+                    "color": "#1A1A1A",
+                    "width": 2.5,
+                    "points": [
+                      10.0,
+                      20.0,
+                      0.0,
+                      0.5,
+                      14.0,
+                      26.0,
+                      16.0,
+                      0.6
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "updated_at": "2026-11-10T08:00:00Z"
+        }
+      },
+      "request_id": "34f103f486f043a186d15f6ff7c71f36"
+    }
+  }
+}

@@ -1,0 +1,222 @@
+# 化学 · 自编工程样题（Q-05）。
+# 没有经过学科审校，只用于在本机跑通流程；不是真题，也不代表任何地区的命题风格。
+# region_tags 只是用来测试地区筛选逻辑的工程标签（ADR-006 Q-09）。
+# 实验类内容只讲安全概念和判断理由，不提供可照做的危险操作指导。
+
+- key: chem-conservation-co2
+  subject: chemistry
+  type: fill_blank
+  answer_mode: fill
+  difficulty: 2
+  grade: G10
+  title: 由碳酸钙质量求二氧化碳质量
+  knowledge: [chem.stoichiometry]
+  content:
+    stem: '$10\ \text{g}$ 碳酸钙与足量稀盐酸完全反应，生成二氧化碳的质量为 ____ $\text{g}$。（相对原子质量：$\text{C}\ 12$，$\text{O}\ 16$，$\text{Ca}\ 40$）'
+    blanks:
+      - {key: b1, placeholder: '填数值'}
+  answer:
+    value: {b1: '4.4'}
+    equivalence_rules:
+      b1: {type: numeric, rel_tol: 0.005}
+    units:
+      b1: {required: false, accepted: ['g', '克']}
+  teaching:
+    concept: 化学方程式中的计量关系
+    hints:
+      - '先写出反应的化学方程式并配平，找出碳酸钙和二氧化碳的化学计量数之比。'
+      - '质量不能直接按计量数之比换算，要先换成物质的量：$n=\dfrac{m}{M}$。算一算碳酸钙的摩尔质量。'
+      - '得到二氧化碳的物质的量后，再用 $m=nM$ 换回质量。二氧化碳的摩尔质量是多少？'
+    concept_rephrase: '化学方程式里的系数告诉我们的是“个数比”，也就是物质的量之比，而不是质量比。所以计算时要走“质量 → 物质的量 → 按系数换算 → 质量”这条路。比如氢气燃烧生成水，方程式里氢气和水的系数都是 $2$：$2\ \text{mol}$ 氢气对应 $2\ \text{mol}$ 水，但质量上是 $4\ \text{g}$ 氢气对应 $36\ \text{g}$ 水。'
+    visual:
+      template_id: chemical_flow
+      params: {mass_a: 10, molar_mass_a: 100, coef_a: 1, coef_b: 1, molar_mass_b: 44}
+      caption: '从已知物的质量出发，先换成物质的量，再按计量数之比换算，最后换回质量。'
+  solutions:
+    standard:
+      steps:
+        - '化学方程式：$\text{CaCO}_3+2\text{HCl}=\text{CaCl}_2+\text{H}_2\text{O}+\text{CO}_2\uparrow$，碳酸钙与二氧化碳的化学计量数之比为 $1:1$。'
+        - '$M(\text{CaCO}_3)=40+12+16\times 3=100\ \text{g/mol}$，$n(\text{CaCO}_3)=\dfrac{10}{100}=0.1\ \text{mol}$。'
+        - '$n(\text{CO}_2)=0.1\ \text{mol}$，$M(\text{CO}_2)=12+16\times 2=44\ \text{g/mol}$，$m(\text{CO}_2)=0.1\times 44=4.4\ \text{g}$。'
+      final_answer: '$4.4\ \text{g}$'
+      key_points:
+        - '质量先换成物质的量'
+        - '按化学计量数之比换算'
+    fast:
+      conditions:
+        - '反应按化学方程式完全进行，已知物全部参加反应（另一反应物足量）'
+        - '已知物与所求物之间的化学计量数之比已经确定'
+      steps:
+        - '碳元素守恒：$1\ \text{mol}$ 碳酸钙中的碳全部进入 $1\ \text{mol}$ 二氧化碳，即每 $100\ \text{g}$ 碳酸钙对应 $44\ \text{g}$ 二氧化碳。'
+        - '$10\ \text{g}$ 碳酸钙对应 $10\times\dfrac{44}{100}=4.4\ \text{g}$ 二氧化碳。'
+      final_answer: '$4.4\ \text{g}$'
+      boundary: '如果碳酸钙没有完全反应、样品不纯，或者生成的气体有损失，就不能直接按这个比例计算。'
+
+- key: chem-conservation-h2
+  subject: chemistry
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 2
+  grade: G10
+  title: 由锌的质量求氢气的物质的量
+  knowledge: [chem.stoichiometry]
+  variant_of: chem-conservation-co2
+  content:
+    stem: '$6.5\ \text{g}$ 锌与足量稀硫酸完全反应，生成氢气的物质的量为（　）（相对原子质量：$\text{Zn}\ 65$）'
+    options:
+      - {key: A, text: '$0.05\ \text{mol}$'}
+      - {key: B, text: '$0.1\ \text{mol}$'}
+      - {key: C, text: '$0.2\ \text{mol}$'}
+      - {key: D, text: '$6.5\ \text{mol}$'}
+  answer:
+    value: [B]
+  teaching:
+    concept: 化学方程式中的计量关系
+    hints:
+      - '写出锌与稀硫酸反应的化学方程式并配平，看锌与氢气的化学计量数之比。'
+      - '题目给的是锌的质量，要先用 $n=\dfrac{m}{M}$ 换成物质的量。'
+      - '这次问的是物质的量，换算到氢气的物质的量就可以停下，不用再乘摩尔质量。'
+    option_analysis:
+      A: '锌与氢气的化学计量数之比是 $1:1$，不需要再除以 $2$。'
+      B: '先把锌的质量换成物质的量，再按 $1:1$ 的化学计量数之比换算。'
+      C: '把计量数之比当成了 $1:2$。配平后的方程式里，$1$ 个锌原子置换出 $1$ 个氢分子。'
+      D: '把质量的数值直接当成了物质的量，没有除以摩尔质量。'
+    visual:
+      template_id: chemical_flow
+      params: {mass_a: 6.5, molar_mass_a: 65, coef_a: 1, coef_b: 1, molar_mass_b: 2}
+      caption: '同样的换算流程：质量 → 物质的量 → 按计量数之比换算。'
+  solutions:
+    standard:
+      steps:
+        - '化学方程式：$\text{Zn}+\text{H}_2\text{SO}_4=\text{ZnSO}_4+\text{H}_2\uparrow$，锌与氢气的化学计量数之比为 $1:1$。'
+        - '$n(\text{Zn})=\dfrac{6.5\ \text{g}}{65\ \text{g/mol}}=0.1\ \text{mol}$。'
+        - '$n(\text{H}_2)=n(\text{Zn})=0.1\ \text{mol}$。'
+      final_answer: B
+      key_points:
+        - '先换成物质的量，再按计量数之比换算'
+
+- key: chem-charge-conservation
+  subject: chemistry
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 3
+  grade: G11
+  title: 用电荷守恒求离子浓度
+  knowledge: [chem.conservation.charge]
+  # 故意放在 2027 届之外的年份区间，用来验证"地区标签不能跨年份误用"
+  region_tags:
+    - {region: CN-51, exam_year_from: 2030, exam_year_to: 2031}
+  content:
+    stem: '某溶液中只含有 $\text{Na}^+$、$\text{Mg}^{2+}$、$\text{Cl}^-$、$\text{SO}_4^{2-}$ 四种离子（不考虑水的电离）。已知 $c(\text{Na}^+)=0.2\ \text{mol/L}$，$c(\text{Mg}^{2+})=0.4\ \text{mol/L}$，$c(\text{Cl}^-)=0.4\ \text{mol/L}$，则 $c(\text{SO}_4^{2-})$ 为（　）'
+    options:
+      - {key: A, text: '$0.1\ \text{mol/L}$'}
+      - {key: B, text: '$0.2\ \text{mol/L}$'}
+      - {key: C, text: '$0.3\ \text{mol/L}$'}
+      - {key: D, text: '$0.6\ \text{mol/L}$'}
+  answer:
+    value: [C]
+  teaching:
+    concept: 电荷守恒
+    hints:
+      - '溶液整体不带电。这句话可以翻译成一个关于各离子浓度的等式吗？'
+      - '电荷守恒比较的是电荷总量，不是离子个数。带 $2$ 个单位电荷的离子，浓度前面要乘上什么？'
+      - '把阳离子所带正电荷的总浓度和阴离子所带负电荷的总浓度分别写出来，令两者相等，解出未知的那一项。'
+    option_analysis:
+      A: '镁离子带 $2$ 个单位正电荷，计算正电荷总量时 $c(\text{Mg}^{2+})$ 要乘以 $2$。'
+      B: '只是把离子浓度直接相加相减，没有考虑每种离子所带的电荷数。'
+      C: '按电荷守恒列式：正电荷总浓度等于负电荷总浓度，带 $2$ 个单位电荷的离子浓度都要乘以 $2$。'
+      D: '算出的是硫酸根所带负电荷的总浓度。每个硫酸根带 $2$ 个单位负电荷，还要再换算成离子浓度。'
+  solutions:
+    standard:
+      steps:
+        - '溶液呈电中性，阳离子所带正电荷总量等于阴离子所带负电荷总量。'
+        - '$c(\text{Na}^+)+2c(\text{Mg}^{2+})=c(\text{Cl}^-)+2c(\text{SO}_4^{2-})$。'
+        - '代入：$0.2+2\times 0.4=0.4+2c(\text{SO}_4^{2-})$，解得 $c(\text{SO}_4^{2-})=0.3\ \text{mol/L}$。'
+      final_answer: C
+      key_points:
+        - '电荷守恒式中离子浓度要乘以所带电荷数'
+
+- key: chem-ion-inference
+  subject: chemistry
+  type: multiple_choice
+  answer_mode: multiple_choice
+  difficulty: 3
+  grade: G10
+  title: 由沉淀现象推断溶液中的离子
+  knowledge: [chem.ion.test]
+  content:
+    stem: '向某无色溶液中滴加 $\text{BaCl}_2$ 溶液，产生白色沉淀；再加入足量稀硝酸，沉淀不溶解。下列推断合理的有（　）'
+    options:
+      - {key: A, text: '原溶液中一定含有 $\text{SO}_4^{2-}$'}
+      - {key: B, text: '原溶液中可能含有 $\text{SO}_4^{2-}$'}
+      - {key: C, text: '原溶液中可能含有 $\text{Ag}^+$'}
+      - {key: D, text: '生成的白色沉淀一定是 $\text{BaSO}_4$'}
+  answer:
+    value: [B, C]
+  rubric:
+    multi_choice_rule: partial_no_wrong
+  teaching:
+    concept: 离子检验中的干扰
+    hints:
+      - '加入的试剂 $\text{BaCl}_2$ 里有两种离子。它们各自可能和原溶液中的什么离子生成白色沉淀？'
+      - '“不溶于稀硝酸的白色沉淀”不止一种。把你学过的列出来，看看哪些能在这个实验里生成。'
+      - '区分“一定”和“可能”：只要存在另一种同样能解释全部现象的情况，就不能下“一定”的结论。'
+    concept_rephrase: '检验一种离子时，要想清楚“还有谁会产生同样的现象”。就像听到敲门声不能断定是快递员，也可能是邻居。所以规范的检验会先排除干扰：例如检验硫酸根时，先加稀盐酸，确认没有沉淀和气体之后再加氯化钡溶液，这时出现白色沉淀才能下结论。'
+    option_analysis:
+      A: '加入的 $\text{BaCl}_2$ 同时带来了 $\text{Ba}^{2+}$ 和 $\text{Cl}^-$。还有别的离子也能生成不溶于稀硝酸的白色沉淀，所以不能说“一定”。'
+      B: '$\text{SO}_4^{2-}$ 与 $\text{Ba}^{2+}$ 生成不溶于稀硝酸的 $\text{BaSO}_4$，与现象相符，是可能的情况之一。'
+      C: '$\text{Ag}^+$ 与 $\text{Cl}^-$ 生成不溶于稀硝酸的白色 $\text{AgCl}$，同样与现象相符。'
+      D: '能解释这些现象的沉淀不止一种，仅凭这些现象无法确定沉淀的成分。'
+  solutions:
+    standard:
+      steps:
+        - '$\text{BaCl}_2$ 溶液提供 $\text{Ba}^{2+}$ 和 $\text{Cl}^-$ 两种离子。'
+        - '若原溶液含 $\text{SO}_4^{2-}$：$\text{Ba}^{2+}+\text{SO}_4^{2-}=\text{BaSO}_4\downarrow$，沉淀不溶于稀硝酸，与现象相符。'
+        - '若原溶液含 $\text{Ag}^+$：$\text{Ag}^++\text{Cl}^-=\text{AgCl}\downarrow$，沉淀同样不溶于稀硝酸，也与现象相符。'
+        - '两种情况都能解释现象，所以只能说“可能含有”，不能说“一定含有”，也不能确定沉淀的成分。'
+      final_answer: BC
+      key_points:
+        - '加入的试剂本身会带入离子'
+        - '下“一定”的结论需要排除所有其他可能'
+
+- key: chem-lab-operation
+  subject: chemistry
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 1
+  grade: G10
+  title: 实验基本操作的判断
+  knowledge: [chem.lab.safety]
+  region_tags:
+    - {region: CN-50, exam_year_from: 2027, exam_year_to: 2029}
+  content:
+    stem: '下列实验操作中，正确的是（　）'
+    options:
+      - {key: A, text: '用燃着的酒精灯去点燃另一只酒精灯'}
+      - {key: B, text: '稀释浓硫酸时，将水沿烧杯内壁缓慢倒入浓硫酸中'}
+      - {key: C, text: '给试管里的液体加热时，试管口不对着自己和他人'}
+      - {key: D, text: '用手直接拿取砝码'}
+  answer:
+    value: [C]
+  teaching:
+    concept: 实验安全与基本操作
+    hints:
+      - '逐项想一想：这样操作可能带来什么危险，或者会不会影响测量结果？'
+      - '涉及明火、强腐蚀性试剂和加热的操作，课本上都有明确的安全规定，回忆一下规定的理由。'
+      - '稀释时放热很多的液体，加入的先后顺序很关键；使用精密仪器时，要想想什么会让它变得不准。'
+    concept_rephrase: '判断一个操作对不对，可以问两个问题：会不会伤到人，会不会让结果不准。实验室的每条规定背后都对应着其中一个理由。比如闻气体的气味时要用手轻轻扇动、只让少量气体飘进鼻孔，是为了避免一下子吸入过多有害气体。'
+    option_analysis:
+      A: '这样做容易使酒精洒出并引燃，酒精灯应当用火柴点燃。'
+      B: '顺序反了。水倒进浓硫酸会剧烈放热，使液体沸腾飞溅；应当把浓硫酸沿器壁缓慢注入水中并不断搅拌。'
+      C: '加热时液体可能暴沸喷出，试管口不能对着人。'
+      D: '手上的汗渍会使砝码沾污、生锈，质量发生改变，应当用镊子夹取。'
+  solutions:
+    standard:
+      steps:
+        - 'A：用燃着的酒精灯引燃另一只，酒精容易洒出起火，不正确。'
+        - 'B：稀释浓硫酸应当“酸入水”并不断搅拌；把水倒入浓硫酸会剧烈放热使液体飞溅，不正确。'
+        - 'C：加热试管中的液体时，试管口不对着自己和他人，防止液体喷出伤人，正确。'
+        - 'D：砝码要用镊子夹取，用手拿会使砝码沾污、生锈，不正确。'
+      final_answer: C
+      key_points:
+        - '每条安全规定都有对应的理由'
