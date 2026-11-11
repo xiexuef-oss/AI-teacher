@@ -72,6 +72,17 @@ final Map<String, RoundTrip> roundTrips = {
   'ParentWeekly': (json) => ParentWeekly.fromJson(json).toJson(),
   'ReviewDecision': (json) => ReviewDecision.fromJson(json).toJson(),
   'QuestionReviewState': (json) => QuestionReviewState.fromJson(json).toJson(),
+  'AdminQuestionSummary': (json) => AdminQuestionSummary.fromJson(json).toJson(),
+  'AdminStatusCounts': (json) => AdminStatusCounts.fromJson(json).toJson(),
+  'AdminQuestionPage': (json) => AdminQuestionPage.fromJson(json).toJson(),
+  'AdminAnswer': (json) => AdminAnswer.fromJson(json).toJson(),
+  'AdminVisual': (json) => AdminVisual.fromJson(json).toJson(),
+  'AdminTeaching': (json) => AdminTeaching.fromJson(json).toJson(),
+  'AdminSolution': (json) => AdminSolution.fromJson(json).toJson(),
+  'AdminRegionTag': (json) => AdminRegionTag.fromJson(json).toJson(),
+  'AdminQuestionVersion': (json) => AdminQuestionVersion.fromJson(json).toJson(),
+  'AdminHistoryEntry': (json) => AdminHistoryEntry.fromJson(json).toJson(),
+  'AdminQuestionDetail': (json) => AdminQuestionDetail.fromJson(json).toJson(),
 };
 
 /// 按事件类型把 payload 过一遍对应的类型；不认识的类型返回 null。

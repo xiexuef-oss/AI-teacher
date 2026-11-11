@@ -1,0 +1,501 @@
+"""内容审核（PRD P0 第 9 条、docs/07 §4）。
+
+题目 draft → reviewed → published，可撤回（withdrawn，终态）：
+
+- approve：draft → reviewed，由独立的审校员确认标准解法（快速解法要单独列出才算确认）；
+- reject：draft / reviewed → draft，必须写原因，已审核的标记全部撤销；
+- publish：reviewed → published，上线前再做一次程序校验；
+- withdraw：published → withdrawn，必须写原因，学生立即看不到。
+
+约束：提交内容的人不能 approve 或 publish 自己的题；用 `expected_version` 防止审核人批准了自己没看到的版本；
+approve / publish 之前先过程序校验（与样题入库同一套，`content_seed.check_question`）；
+每次决策都写审计日志（谁、从哪个状态到哪个状态、哪个版本、为什么），不含任何学生数据。
+
+学生端只认 `status == published`（question_service），所以这里改完状态，学生端的可见性立刻跟着变。
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import Any
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from tutor_api.db import new_id
+from tutor_api.errors import ApiError, conflict, not_found
+from tutor_api.models import (
+    AuditLog,
+    KnowledgeNode,
+    Question,
+    QuestionKnowledge,
+    QuestionRegionApplicability,
+    QuestionVersion,
+    Solution,
+)
+from tutor_api.schemas import (
+    AdminAnswer,
+    AdminHistoryEntry,
+    AdminQuestionDetail,
+    AdminQuestionPage,
+    AdminQuestionSummary,
+    AdminQuestionVersion,
+    AdminRegionTag,
+    AdminSolution,
+    AdminStatusCounts,
+    AdminTeaching,
+    AdminVisual,
+    QuestionContent,
+    QuestionReviewStateOut,
+    ReviewDecisionIn,
+)
+from tutor_api.services import content_seed, question_service
+
+STATUSES = ("draft", "reviewed", "published", "withdrawn")
+# 决策 → (允许从哪些状态出发, 到哪个状态)
+TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
+    "approve": (frozenset({"draft"}), "reviewed"),
+    "reject": (frozenset({"draft", "reviewed"}), "draft"),
+    "publish": (frozenset({"reviewed"}), "published"),
+    "withdraw": (frozenset({"published"}), "withdrawn"),
+}
+COMMENT_REQUIRED = frozenset({"reject", "withdraw"})
+INDEPENDENT_REVIEW = frozenset({"approve", "publish"})  # 提交者不能自己放行的两步
+AUDIT_PREFIX = "question.review."
+
+
+# ---------------------------------------------------------------- 程序校验
+
+
+def _solutions(db: Session, question_id: str, version: int) -> dict[str, Solution]:
+    rows = db.scalars(
+        select(Solution).where(Solution.question_id == question_id, Solution.version == version)
+    )
+    return {row.kind: row for row in rows}
+
+
+def _seed_shape(
+    db: Session,
+    question: Question,
+    version: QuestionVersion,
+    solutions: dict[str, Solution],
+    knowledge: list[KnowledgeNode],
+) -> dict[str, Any]:
+    """把库里的一道题还原成样题种子的形状，好让入库用的校验直接适用。"""
+    content, answer = version.content_json, version.answer_json
+    teaching = version.teaching_json or {}
+    seed_solutions: dict[str, Any] = {}
+    for kind, row in solutions.items():
+        entry = dict(row.content_json)
+        if kind == "fast":
+            entry["conditions"] = (row.conditions_json or {}).get("conditions")
+            entry["boundary"] = (row.conditions_json or {}).get("boundary")
+        seed_solutions[kind] = entry
+    tags = db.scalars(
+        select(QuestionRegionApplicability).where(
+            QuestionRegionApplicability.question_id == question.id
+        )
+    )
+    return {
+        "key": question.id,
+        "subject": question.subject,
+        "type": question.type,
+        "answer_mode": question.answer_mode,
+        "difficulty": question.difficulty,
+        "grade": question.grade,
+        "title": content.get("title"),
+        "knowledge": [node.code for node in knowledge],
+        "content": {
+            "stem": content.get("stem"),
+            "options": content.get("options") or [],
+            "blanks": content.get("blanks") or [],
+        },
+        "answer": {
+            "value": answer.get("value"),
+            "equivalence_rules": answer.get("equivalence_rules") or {},
+            "units": answer.get("units") or {},
+        },
+        "teaching": teaching,
+        "solutions": seed_solutions,
+        "rubric": _rubric(db, question.id, version.version),
+        "region_tags": [
+            {
+                "region": tag.recommended_region_code,
+                "exam_year_from": tag.exam_year_from,
+                "exam_year_to": tag.exam_year_to,
+            }
+            for tag in tags
+        ],
+    }
+
+
+def _rubric(db: Session, question_id: str, version: int) -> dict[str, Any]:
+    return question_service.get_rubric(db, question_id, version)
+
+
+def check_problems(db: Session, question: Question) -> list[str]:
+    """程序校验发现的问题；空列表表示通过。"""
+    version = db.scalar(
+        select(QuestionVersion).where(
+            QuestionVersion.question_id == question.id, QuestionVersion.version == question.version
+        )
+    )
+    if version is None:
+        return [f"{question.id}: 找不到当前版本（{question.version}）的内容"]
+    knowledge = list(
+        db.scalars(
+            select(KnowledgeNode)
+            .join(QuestionKnowledge, QuestionKnowledge.knowledge_id == KnowledgeNode.id)
+            .where(QuestionKnowledge.question_id == question.id)
+            .order_by(KnowledgeNode.code)
+        )
+    )
+    shaped = _seed_shape(
+        db, question, version, _solutions(db, question.id, version.version), knowledge
+    )
+    nodes = {node.code: {"subject": node.subject} for node in knowledge}
+    problems = content_seed.check_question(
+        shaped, nodes, {}, forbid_exam_claims=question_service.is_engineering_sample(question)
+    )
+    if question.variant_of_id is not None:
+        base = db.get(Question, question.variant_of_id)
+        if base is None:
+            problems.append(f"{question.id}: variant_of 指向不存在的题")
+        elif base.variant_of_id is not None:
+            problems.append(f"{question.id}: variant_of 指向的题本身是变式")
+        elif base.subject != question.subject:
+            problems.append(f"{question.id}: variant_of 指向的题学科不同")
+    return problems
+
+
+# ---------------------------------------------------------------- 队列与详情
+
+
+def _summaries(db: Session, questions: list[Question]) -> list[AdminQuestionSummary]:
+    versions = question_service.current_versions(db, questions)
+
+    def title_of(question: Question) -> str:
+        version = versions.get(question.id)
+        return (version.content_json.get("title") or "") if version else ""
+
+    return [
+        AdminQuestionSummary(
+            id=q.id,
+            subject=q.subject,
+            type=q.type,
+            answer_mode=q.answer_mode,
+            difficulty=q.difficulty,
+            title=title_of(q),
+            status=q.status,
+            version=q.version,
+            source=question_service.build_source(q),
+            created_by=q.created_by,
+            reviewed_by=q.reviewed_by,
+            published_at=q.published_at,
+            updated_at=q.updated_at,
+        )
+        for q in questions
+    ]
+
+
+def list_questions(
+    db: Session,
+    *,
+    status: str | None,
+    subject: str | None,
+    source_category: str | None,
+    cursor: str | None,
+    limit: int,
+) -> AdminQuestionPage:
+    offset = question_service.decode_cursor(cursor)
+    filters = []
+    if subject is not None:
+        filters.append(Question.subject == subject)
+    if source_category is not None:
+        filters.append(Question.source_category == source_category)
+
+    counts = dict.fromkeys(STATUSES, 0)
+    for state, total in db.execute(
+        select(Question.status, func.count()).where(*filters).group_by(Question.status)
+    ):
+        if state in counts:
+            counts[state] = total
+
+    query = select(Question).where(*filters)
+    if status is not None:
+        query = query.where(Question.status == status)
+    rows = list(
+        db.scalars(
+            query.order_by(Question.updated_at.desc(), Question.id).offset(offset).limit(limit + 1)
+        )
+    )
+    page = rows[:limit]
+    return AdminQuestionPage(
+        items=_summaries(db, page),
+        next_cursor=question_service.encode_cursor(offset + limit) if len(rows) > limit else None,
+        status_counts=AdminStatusCounts(**counts),
+    )
+
+
+def _history(db: Session, question_id: str) -> list[AdminHistoryEntry]:
+    rows = db.scalars(
+        select(AuditLog)
+        .where(
+            AuditLog.target_type == "question",
+            AuditLog.target_id == question_id,
+            AuditLog.action.like(f"{AUDIT_PREFIX}%"),
+        )
+        .order_by(AuditLog.created_at, AuditLog.id)
+    )
+    entries = []
+    for row in rows:
+        detail = row.detail_json or {}
+        entries.append(
+            AdminHistoryEntry(
+                id=row.id,
+                action=row.action.removeprefix(AUDIT_PREFIX),
+                actor_id=row.actor_id,
+                from_status=detail.get("from"),
+                to_status=detail.get("to"),
+                version=detail.get("version"),
+                comment=detail.get("comment"),
+                created_at=row.created_at,
+            )
+        )
+    return entries
+
+
+def _admin_solution(row: Solution) -> AdminSolution:
+    conditions = row.conditions_json or {}
+    is_fast = row.kind == "fast"
+    return AdminSolution(
+        kind=row.kind,
+        steps=list(row.content_json.get("steps") or []),
+        final_answer=str(row.content_json.get("final_answer") or ""),
+        key_points=list(row.content_json.get("key_points") or []),
+        conditions=list(conditions.get("conditions") or []) if is_fast else None,
+        boundary=conditions.get("boundary") if is_fast else None,
+        reviewed=row.reviewed,
+        reviewed_by=row.reviewed_by,
+    )
+
+
+def question_detail(db: Session, question_id: str) -> AdminQuestionDetail:
+    question = db.get(Question, question_id)
+    if question is None:
+        raise not_found()
+    version = question_service.get_version(db, question.id, question.version)
+    content, answer = version.content_json, version.answer_json
+    teaching = version.teaching_json or {}
+    visual = teaching.get("visual")
+    solutions = _solutions(db, question.id, version.version)
+    tags = db.scalars(
+        select(QuestionRegionApplicability)
+        .where(QuestionRegionApplicability.question_id == question.id)
+        .order_by(QuestionRegionApplicability.recommended_region_code)
+    )
+    all_versions = db.scalars(
+        select(QuestionVersion)
+        .where(QuestionVersion.question_id == question.id)
+        .order_by(QuestionVersion.version)
+    )
+    return AdminQuestionDetail(
+        id=question.id,
+        subject=question.subject,
+        type=question.type,
+        answer_mode=question.answer_mode,
+        difficulty=question.difficulty,
+        grade=question.grade,
+        title=content.get("title") or "",
+        status=question.status,
+        version=question.version,
+        source=question_service.build_source(question),
+        variant_of=question.variant_of_id,
+        created_by=question.created_by,
+        reviewed_by=question.reviewed_by,
+        published_at=question.published_at,
+        updated_at=question.updated_at,
+        content=QuestionContent(
+            stem=content["stem"],
+            options=content.get("options") or [],
+            blanks=content.get("blanks") or [],
+            subquestions=content.get("subquestions") or [],
+            attachments=content.get("attachments") or [],
+        ),
+        answer=AdminAnswer(
+            value=answer.get("value"),
+            equivalence_rules=answer.get("equivalence_rules") or {},
+            units=answer.get("units") or {},
+        ),
+        teaching=AdminTeaching(
+            concept=teaching.get("concept"),
+            hints=list(teaching.get("hints") or []),
+            concept_rephrase=teaching.get("concept_rephrase"),
+            option_analysis=dict(teaching.get("option_analysis") or {}),
+            visual=(
+                AdminVisual(
+                    template_id=visual["template_id"],
+                    params=visual.get("params") or {},
+                    caption=visual.get("caption") or "",
+                )
+                if visual
+                else None
+            ),
+        ),
+        solutions=[
+            _admin_solution(solutions[kind]) for kind in ("standard", "fast") if kind in solutions
+        ],
+        rubric=_rubric(db, question.id, version.version),
+        knowledge=question_service.knowledge_refs(db, [question.id])[question.id],
+        region_tags=[
+            AdminRegionTag(
+                recommended_region_code=tag.recommended_region_code,
+                origin_region_code=tag.origin_region_code,
+                exam_year_from=tag.exam_year_from,
+                exam_year_to=tag.exam_year_to,
+                review_status=tag.review_status,
+                note=tag.note,
+            )
+            for tag in tags
+        ],
+        check_problems=check_problems(db, question),
+        versions=[
+            AdminQuestionVersion(
+                version=v.version, created_by=v.created_by, created_at=v.created_at
+            )
+            for v in all_versions
+        ],
+        history=_history(db, question.id),
+    )
+
+
+# ---------------------------------------------------------------- 决策
+
+
+def _require_confirmable(available: dict[str, Solution], kinds: list[str]) -> None:
+    """approve 要确认的解法：必须包含标准解法，且每一种都真的存在。"""
+    if "standard" not in kinds:
+        raise ApiError(422, "solution_not_confirmed", "二审必须确认标准解法")
+    missing = [kind for kind in kinds if kind not in available]
+    if missing:
+        raise ApiError(
+            422,
+            "solution_not_confirmed",
+            f"这道题没有{'、'.join(missing)}解法，不能确认",
+            {"kinds": missing},
+        )
+
+
+def _audit_time(db: Session, question_id: str, now: datetime) -> datetime:
+    """同一道题的审计记录时间严格递增：审计表的 ID 是随机 UUID，时间相同就排不出先后（历史会乱序）。"""
+    last = db.scalar(
+        select(func.max(AuditLog.created_at)).where(
+            AuditLog.target_type == "question", AuditLog.target_id == question_id
+        )
+    )
+    if last is not None and last >= now:
+        return last + timedelta(milliseconds=1)
+    return now
+
+
+def decide(
+    db: Session,
+    *,
+    actor_id: str,
+    question_id: str,
+    body: ReviewDecisionIn,
+    now: datetime,
+    request_id: str,
+) -> QuestionReviewStateOut:
+    question = db.get(Question, question_id)
+    if question is None:
+        raise not_found()
+    if body.expected_version != question.version:
+        raise conflict(
+            "version_conflict",
+            f"题目已经是第 {question.version} 版，你看到的是第 {body.expected_version} 版，请刷新后再审",
+            {"current_version": question.version},
+        )
+
+    allowed_from, target = TRANSITIONS[body.decision]
+    before = question.status
+    if before not in allowed_from:
+        raise conflict(
+            "invalid_transition",
+            f"题目现在是 {before} 状态，不能执行 {body.decision}",
+            {"status": before, "decision": body.decision},
+        )
+
+    comment = (body.comment or "").strip() or None
+    if body.decision in COMMENT_REQUIRED and comment is None:
+        raise ApiError(422, "comment_required", f"{body.decision} 必须写明原因")
+
+    if (
+        body.decision in INDEPENDENT_REVIEW
+        and question.created_by is not None
+        and question.created_by == actor_id
+    ):
+        raise ApiError(
+            403, "self_review_forbidden", "提交内容的人不能审核自己的题，请换另一位审校员"
+        )
+
+    confirmed: list[str] = []
+    if body.decision in INDEPENDENT_REVIEW:
+        problems = check_problems(db, question)
+        if problems:
+            raise ApiError(
+                422,
+                "content_checks_failed",
+                f"程序校验发现 {len(problems)} 个问题，修改后才能{body.decision}",
+                {"problems": problems},
+            )
+
+    solutions = _solutions(db, question.id, question.version)
+    if body.decision == "approve":
+        confirmed = list(dict.fromkeys(body.solution_kinds or ["standard"]))
+        _require_confirmable(solutions, confirmed)
+        for kind, row in solutions.items():
+            row.reviewed = kind in confirmed
+            row.reviewed_by = actor_id if kind in confirmed else None
+        question.reviewed_by = actor_id
+    elif body.decision == "publish":
+        standard = solutions.get("standard")
+        if standard is None or not standard.reviewed:
+            raise ApiError(422, "solution_not_confirmed", "标准解法还没有经过审核确认，不能上线")
+        question.published_at = now
+    elif body.decision == "reject":
+        for row in solutions.values():
+            row.reviewed = False
+            row.reviewed_by = None
+        question.reviewed_by = None
+
+    question.status = target
+    question.updated_at = now
+    detail: dict[str, Any] = {
+        "from": before,
+        "to": target,
+        "version": question.version,
+        "comment": comment,
+    }
+    if body.decision == "approve":
+        detail["solution_kinds"] = confirmed
+    db.add(
+        AuditLog(
+            id=new_id(),
+            actor_id=actor_id,
+            action=f"{AUDIT_PREFIX}{body.decision}",
+            target_type="question",
+            target_id=question.id,
+            detail_json=detail,
+            request_id=request_id,
+            created_at=_audit_time(db, question.id, now),
+        )
+    )
+    db.flush()
+    return QuestionReviewStateOut(
+        question_id=question.id,
+        status=question.status,
+        version=question.version,
+        reviewed_by=question.reviewed_by,
+        updated_at=question.updated_at,
+    )

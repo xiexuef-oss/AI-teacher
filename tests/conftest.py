@@ -93,6 +93,34 @@ def student(new_student) -> ApiClient:
 
 
 @pytest.fixture
+def new_reviewer(client) -> Callable[..., ApiClient]:
+    """每次调用创建一个新的本地审核员（role=admin 则是管理员）。"""
+
+    def create(role: str = "reviewer") -> ApiClient:
+        identity = ApiClient(client).data(
+            "POST",
+            "/dev/local-identities",
+            expect=201,
+            auth=False,
+            key=False,
+            params={"role": role},
+        )
+        return ApiClient(client, token=identity["access_token"], user_id=identity["user_id"])
+
+    return create
+
+
+@pytest.fixture
+def reviewer(new_reviewer) -> ApiClient:
+    return new_reviewer("reviewer")
+
+
+@pytest.fixture
+def admin(new_reviewer) -> ApiClient:
+    return new_reviewer("admin")
+
+
+@pytest.fixture
 def onboarded(student) -> ApiClient:
     """已完成引导的四川高三学生，三科全选。考试年份按夹具时钟估算为 2027。"""
     student.data(

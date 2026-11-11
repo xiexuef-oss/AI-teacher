@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import copy
+import json
 
 import pytest
+import yaml
 from jsonschema import Draft202012Validator
 from openapi_spec_validator import validate
 
+from support import CONTRACTS_DIR, REPO_ROOT
 from support.contract import (
     iter_operations,
     load_event_schema,
@@ -39,6 +42,10 @@ IMPLEMENTED = {
     "listDueReviews",
     "completeReview",
     "getProgressSummary",
+    # P0 第 9 条：最小审核流
+    "listAdminQuestions",
+    "getAdminQuestion",
+    "reviewQuestion",
 }
 PLANNED = {
     "createMediaUpload",
@@ -46,7 +53,6 @@ PLANNED = {
     "getScan",
     "confirmScan",
     "getParentWeekly",
-    "reviewQuestion",
 }
 # docs/05：提交、评分触发、草稿同步、教学下一步等非幂等动作必须带 Idempotency-Key
 MUST_REQUIRE_IDEMPOTENCY_KEY = {
@@ -74,6 +80,54 @@ DOC06_TEMPLATES = {
 
 def _parameters(op: dict) -> list[dict]:
     return [resolve(p) for p in op.get("parameters", [])]
+
+
+# ---------------------------------------------------------------- 重复的键
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """YAML 默认让后出现的键悄悄覆盖先出现的；契约里这只可能是笔误（同名 schema 写了两遍），所以直接报错。"""
+
+
+def _construct_unique_mapping(loader: yaml.SafeLoader, node: yaml.MappingNode, deep: bool = False):
+    seen: set = set()
+    for key_node, _ in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in seen:
+            raise yaml.constructor.ConstructorError(
+                None, None, f"重复的键 {key!r}", key_node.start_mark
+            )
+        seen.add(key)
+    return yaml.SafeLoader.construct_mapping(loader, node, deep)
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping
+)
+
+
+def _no_duplicate_pairs(pairs: list[tuple[str, object]]) -> dict:
+    keys = [key for key, _ in pairs]
+    duplicated = sorted({key for key in keys if keys.count(key) > 1})
+    assert not duplicated, f"JSON 里有重复的键：{duplicated}"
+    return dict(pairs)
+
+
+def test_duplicate_key_detector_really_detects():
+    with pytest.raises(yaml.YAMLError, match="重复的键 'a'"):
+        yaml.load("x:\n  a: 1\n  a: 2\n", Loader=_UniqueKeyLoader)
+    with pytest.raises(AssertionError, match="重复的键"):
+        json.loads('{"a": 1, "a": 2}', object_pairs_hook=_no_duplicate_pairs)
+
+
+def test_contract_files_have_no_duplicate_keys():
+    openapi = (CONTRACTS_DIR / "openapi.yaml").read_text(encoding="utf-8")
+    yaml.load(openapi, Loader=_UniqueKeyLoader)
+    for path in (
+        CONTRACTS_DIR / "tutor_event.schema.json",
+        REPO_ROOT / "packages" / "visual_templates" / "registry.json",
+    ):
+        json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_no_duplicate_pairs)
 
 
 # ---------------------------------------------------------------- OpenAPI

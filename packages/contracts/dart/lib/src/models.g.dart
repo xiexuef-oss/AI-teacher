@@ -645,6 +645,24 @@ class CurriculumOption {
       };
 }
 
+/// 本地身份 Mock 可以发放的角色；缺省为 student。parent 要等监护授权方案冻结（Q-03）后才有。
+enum LocalRole {
+  student('student'),
+  reviewer('reviewer'),
+  admin('admin'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const LocalRole(this.value);
+  final String value;
+
+  static LocalRole fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => LocalRole.$unknown);
+
+  String toJson() => value;
+}
+
 class LocalIdentity {
   const LocalIdentity({
     required this.userId,
@@ -654,20 +672,20 @@ class LocalIdentity {
   });
 
   final String userId;
-  final String role;
+  final LocalRole role;
   final String accessToken;
   final String tokenType;
 
   factory LocalIdentity.fromJson(Map<String, dynamic> json) => LocalIdentity(
         userId: json['user_id'] as String,
-        role: json['role'] as String,
+        role: LocalRole.fromJson(json['role'] as String),
         accessToken: json['access_token'] as String,
         tokenType: json['token_type'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         'user_id': userId,
-        'role': role,
+        'role': role.toJson(),
         'access_token': accessToken,
         'token_type': tokenType,
       };
@@ -2395,27 +2413,85 @@ class ParentWeekly {
       };
 }
 
+/// docs/07 的审校状态。draft 编辑中；reviewed 已独立二审；published 已上线；withdrawn 因问题下线（终态）。
+enum QuestionStatus {
+  draft('draft'),
+  reviewed('reviewed'),
+  published('published'),
+  withdrawn('withdrawn'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const QuestionStatus(this.value);
+  final String value;
+
+  static QuestionStatus fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => QuestionStatus.$unknown);
+
+  String toJson() => value;
+}
+
+/// approve 二审通过；reject 退回修改（须写原因）；publish 上线；withdraw 下线（须写原因）。
+enum ReviewDecisionType {
+  approve('approve'),
+  reject('reject'),
+  publish('publish'),
+  withdraw('withdraw'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const ReviewDecisionType(this.value);
+  final String value;
+
+  static ReviewDecisionType fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => ReviewDecisionType.$unknown);
+
+  String toJson() => value;
+}
+
+enum SolutionKind {
+  standard('standard'),
+  fast('fast'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const SolutionKind(this.value);
+  final String value;
+
+  static SolutionKind fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => SolutionKind.$unknown);
+
+  String toJson() => value;
+}
+
 class ReviewDecision {
   const ReviewDecision({
     required this.decision,
     required this.expectedVersion,
     this.comment,
+    this.solutionKinds,
   });
 
-  final String decision;
+  final ReviewDecisionType decision;
   final int expectedVersion;
   final String? comment;
+  final List<SolutionKind>? solutionKinds;
 
   factory ReviewDecision.fromJson(Map<String, dynamic> json) => ReviewDecision(
-        decision: json['decision'] as String,
+        decision: ReviewDecisionType.fromJson(json['decision'] as String),
         expectedVersion: (json['expected_version'] as num).toInt(),
         comment: json['comment'] == null ? null : json['comment'] as String,
+        solutionKinds: json['solution_kinds'] == null ? null : (json['solution_kinds'] as List<dynamic>).map((e) => SolutionKind.fromJson(e as String)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
-        'decision': decision,
+        'decision': decision.toJson(),
         'expected_version': expectedVersion,
         if (comment != null) 'comment': comment,
+        if (solutionKinds != null) 'solution_kinds': solutionKinds?.map((e) => e.toJson()).toList(),
       };
 }
 
@@ -2429,14 +2505,14 @@ class QuestionReviewState {
   });
 
   final String questionId;
-  final String status;
+  final QuestionStatus status;
   final int version;
   final String? reviewedBy;
   final DateTime updatedAt;
 
   factory QuestionReviewState.fromJson(Map<String, dynamic> json) => QuestionReviewState(
         questionId: json['question_id'] as String,
-        status: json['status'] as String,
+        status: QuestionStatus.fromJson(json['status'] as String),
         version: (json['version'] as num).toInt(),
         reviewedBy: json['reviewed_by'] == null ? null : json['reviewed_by'] as String,
         updatedAt: DateTime.parse(json['updated_at'] as String),
@@ -2444,9 +2520,465 @@ class QuestionReviewState {
 
   Map<String, dynamic> toJson() => {
         'question_id': questionId,
-        'status': status,
+        'status': status.toJson(),
         'version': version,
         'reviewed_by': reviewedBy,
         'updated_at': updatedAt.toUtc().toIso8601String(),
+      };
+}
+
+class AdminQuestionSummary {
+  const AdminQuestionSummary({
+    required this.id,
+    required this.subject,
+    required this.type,
+    required this.answerMode,
+    required this.difficulty,
+    required this.title,
+    required this.status,
+    required this.version,
+    required this.source,
+    this.createdBy,
+    this.reviewedBy,
+    this.publishedAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final Subject subject;
+  final QuestionType type;
+  final AnswerMode answerMode;
+  final int difficulty;
+  final String title;
+  final QuestionStatus status;
+  final int version;
+  final QuestionSource source;
+  final String? createdBy;
+  final String? reviewedBy;
+  final DateTime? publishedAt;
+  final DateTime updatedAt;
+
+  factory AdminQuestionSummary.fromJson(Map<String, dynamic> json) => AdminQuestionSummary(
+        id: json['id'] as String,
+        subject: Subject.fromJson(json['subject'] as String),
+        type: QuestionType.fromJson(json['type'] as String),
+        answerMode: AnswerMode.fromJson(json['answer_mode'] as String),
+        difficulty: (json['difficulty'] as num).toInt(),
+        title: json['title'] as String,
+        status: QuestionStatus.fromJson(json['status'] as String),
+        version: (json['version'] as num).toInt(),
+        source: QuestionSource.fromJson(json['source'] as Map<String, dynamic>),
+        createdBy: json['created_by'] == null ? null : json['created_by'] as String,
+        reviewedBy: json['reviewed_by'] == null ? null : json['reviewed_by'] as String,
+        publishedAt: json['published_at'] == null ? null : DateTime.parse(json['published_at'] as String),
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'subject': subject.toJson(),
+        'type': type.toJson(),
+        'answer_mode': answerMode.toJson(),
+        'difficulty': difficulty,
+        'title': title,
+        'status': status.toJson(),
+        'version': version,
+        'source': source.toJson(),
+        'created_by': createdBy,
+        'reviewed_by': reviewedBy,
+        'published_at': publishedAt?.toUtc().toIso8601String(),
+        'updated_at': updatedAt.toUtc().toIso8601String(),
+      };
+}
+
+class AdminStatusCounts {
+  const AdminStatusCounts({
+    required this.draft,
+    required this.reviewed,
+    required this.published,
+    required this.withdrawn,
+  });
+
+  final int draft;
+  final int reviewed;
+  final int published;
+  final int withdrawn;
+
+  factory AdminStatusCounts.fromJson(Map<String, dynamic> json) => AdminStatusCounts(
+        draft: (json['draft'] as num).toInt(),
+        reviewed: (json['reviewed'] as num).toInt(),
+        published: (json['published'] as num).toInt(),
+        withdrawn: (json['withdrawn'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'draft': draft,
+        'reviewed': reviewed,
+        'published': published,
+        'withdrawn': withdrawn,
+      };
+}
+
+class AdminQuestionPage {
+  const AdminQuestionPage({
+    required this.items,
+    this.nextCursor,
+    required this.statusCounts,
+  });
+
+  final List<AdminQuestionSummary> items;
+  final String? nextCursor;
+  final AdminStatusCounts statusCounts;
+
+  factory AdminQuestionPage.fromJson(Map<String, dynamic> json) => AdminQuestionPage(
+        items: (json['items'] as List<dynamic>).map((e) => AdminQuestionSummary.fromJson(e as Map<String, dynamic>)).toList(),
+        nextCursor: json['next_cursor'] == null ? null : json['next_cursor'] as String,
+        statusCounts: AdminStatusCounts.fromJson(json['status_counts'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+        'next_cursor': nextCursor,
+        'status_counts': statusCounts.toJson(),
+      };
+}
+
+class AdminAnswer {
+  const AdminAnswer({
+    this.value,
+    required this.equivalenceRules,
+    required this.units,
+  });
+
+  final dynamic value;
+  final Map<String, dynamic> equivalenceRules;
+  final Map<String, dynamic> units;
+
+  factory AdminAnswer.fromJson(Map<String, dynamic> json) => AdminAnswer(
+        value: json['value'],
+        equivalenceRules: Map<String, dynamic>.from(json['equivalence_rules'] as Map),
+        units: Map<String, dynamic>.from(json['units'] as Map),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'value': value,
+        'equivalence_rules': equivalenceRules,
+        'units': units,
+      };
+}
+
+class AdminVisual {
+  const AdminVisual({
+    required this.templateId,
+    required this.params,
+    required this.caption,
+  });
+
+  final String templateId;
+  final Map<String, double> params;
+  final String caption;
+
+  factory AdminVisual.fromJson(Map<String, dynamic> json) => AdminVisual(
+        templateId: json['template_id'] as String,
+        params: (json['params'] as Map).map((k, e) => MapEntry(k as String, (e as num).toDouble())),
+        caption: json['caption'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'template_id': templateId,
+        'params': params,
+        'caption': caption,
+      };
+}
+
+class AdminTeaching {
+  const AdminTeaching({
+    this.concept,
+    required this.hints,
+    this.conceptRephrase,
+    required this.optionAnalysis,
+    this.visual,
+  });
+
+  final String? concept;
+  final List<String> hints;
+  final String? conceptRephrase;
+  final Map<String, dynamic> optionAnalysis;
+  final AdminVisual? visual;
+
+  factory AdminTeaching.fromJson(Map<String, dynamic> json) => AdminTeaching(
+        concept: json['concept'] == null ? null : json['concept'] as String,
+        hints: (json['hints'] as List<dynamic>).map((e) => e as String).toList(),
+        conceptRephrase: json['concept_rephrase'] == null ? null : json['concept_rephrase'] as String,
+        optionAnalysis: Map<String, dynamic>.from(json['option_analysis'] as Map),
+        visual: json['visual'] == null ? null : AdminVisual.fromJson(json['visual'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'concept': concept,
+        'hints': hints,
+        'concept_rephrase': conceptRephrase,
+        'option_analysis': optionAnalysis,
+        'visual': visual?.toJson(),
+      };
+}
+
+class AdminSolution {
+  const AdminSolution({
+    required this.kind,
+    required this.steps,
+    required this.finalAnswer,
+    required this.keyPoints,
+    this.conditions,
+    this.boundary,
+    required this.reviewed,
+    this.reviewedBy,
+  });
+
+  final SolutionKind kind;
+  final List<String> steps;
+  final String finalAnswer;
+  final List<String> keyPoints;
+  final List<String>? conditions;
+  final String? boundary;
+  final bool reviewed;
+  final String? reviewedBy;
+
+  factory AdminSolution.fromJson(Map<String, dynamic> json) => AdminSolution(
+        kind: SolutionKind.fromJson(json['kind'] as String),
+        steps: (json['steps'] as List<dynamic>).map((e) => e as String).toList(),
+        finalAnswer: json['final_answer'] as String,
+        keyPoints: (json['key_points'] as List<dynamic>).map((e) => e as String).toList(),
+        conditions: json['conditions'] == null ? null : (json['conditions'] as List<dynamic>).map((e) => e as String).toList(),
+        boundary: json['boundary'] == null ? null : json['boundary'] as String,
+        reviewed: json['reviewed'] as bool,
+        reviewedBy: json['reviewed_by'] == null ? null : json['reviewed_by'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind.toJson(),
+        'steps': steps,
+        'final_answer': finalAnswer,
+        'key_points': keyPoints,
+        'conditions': conditions,
+        'boundary': boundary,
+        'reviewed': reviewed,
+        'reviewed_by': reviewedBy,
+      };
+}
+
+class AdminRegionTag {
+  const AdminRegionTag({
+    required this.recommendedRegionCode,
+    this.originRegionCode,
+    this.examYearFrom,
+    this.examYearTo,
+    required this.reviewStatus,
+    this.note,
+  });
+
+  final String recommendedRegionCode;
+  final String? originRegionCode;
+  final int? examYearFrom;
+  final int? examYearTo;
+  final String reviewStatus;
+  final String? note;
+
+  factory AdminRegionTag.fromJson(Map<String, dynamic> json) => AdminRegionTag(
+        recommendedRegionCode: json['recommended_region_code'] as String,
+        originRegionCode: json['origin_region_code'] == null ? null : json['origin_region_code'] as String,
+        examYearFrom: json['exam_year_from'] == null ? null : (json['exam_year_from'] as num).toInt(),
+        examYearTo: json['exam_year_to'] == null ? null : (json['exam_year_to'] as num).toInt(),
+        reviewStatus: json['review_status'] as String,
+        note: json['note'] == null ? null : json['note'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'recommended_region_code': recommendedRegionCode,
+        'origin_region_code': originRegionCode,
+        'exam_year_from': examYearFrom,
+        'exam_year_to': examYearTo,
+        'review_status': reviewStatus,
+        'note': note,
+      };
+}
+
+class AdminQuestionVersion {
+  const AdminQuestionVersion({
+    required this.version,
+    this.createdBy,
+    required this.createdAt,
+  });
+
+  final int version;
+  final String? createdBy;
+  final DateTime createdAt;
+
+  factory AdminQuestionVersion.fromJson(Map<String, dynamic> json) => AdminQuestionVersion(
+        version: (json['version'] as num).toInt(),
+        createdBy: json['created_by'] == null ? null : json['created_by'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'version': version,
+        'created_by': createdBy,
+        'created_at': createdAt.toUtc().toIso8601String(),
+      };
+}
+
+class AdminHistoryEntry {
+  const AdminHistoryEntry({
+    required this.id,
+    required this.action,
+    this.actorId,
+    this.fromStatus,
+    this.toStatus,
+    this.version,
+    this.comment,
+    required this.createdAt,
+  });
+
+  final String id;
+  final ReviewDecisionType action;
+  final String? actorId;
+  final QuestionStatus? fromStatus;
+  final QuestionStatus? toStatus;
+  final int? version;
+  final String? comment;
+  final DateTime createdAt;
+
+  factory AdminHistoryEntry.fromJson(Map<String, dynamic> json) => AdminHistoryEntry(
+        id: json['id'] as String,
+        action: ReviewDecisionType.fromJson(json['action'] as String),
+        actorId: json['actor_id'] == null ? null : json['actor_id'] as String,
+        fromStatus: json['from_status'] == null ? null : QuestionStatus.fromJson(json['from_status'] as String),
+        toStatus: json['to_status'] == null ? null : QuestionStatus.fromJson(json['to_status'] as String),
+        version: json['version'] == null ? null : (json['version'] as num).toInt(),
+        comment: json['comment'] == null ? null : json['comment'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'action': action.toJson(),
+        'actor_id': actorId,
+        'from_status': fromStatus?.toJson(),
+        'to_status': toStatus?.toJson(),
+        'version': version,
+        'comment': comment,
+        'created_at': createdAt.toUtc().toIso8601String(),
+      };
+}
+
+class AdminQuestionDetail {
+  const AdminQuestionDetail({
+    required this.id,
+    required this.subject,
+    required this.type,
+    required this.answerMode,
+    required this.difficulty,
+    this.grade,
+    required this.title,
+    required this.status,
+    required this.version,
+    required this.source,
+    this.variantOf,
+    this.createdBy,
+    this.reviewedBy,
+    this.publishedAt,
+    required this.updatedAt,
+    required this.content,
+    required this.answer,
+    required this.teaching,
+    required this.solutions,
+    required this.rubric,
+    required this.knowledge,
+    required this.regionTags,
+    required this.checkProblems,
+    required this.versions,
+    required this.history,
+  });
+
+  final String id;
+  final Subject subject;
+  final QuestionType type;
+  final AnswerMode answerMode;
+  final int difficulty;
+  final Grade? grade;
+  final String title;
+  final QuestionStatus status;
+  final int version;
+  final QuestionSource source;
+  final String? variantOf;
+  final String? createdBy;
+  final String? reviewedBy;
+  final DateTime? publishedAt;
+  final DateTime updatedAt;
+  final QuestionContent content;
+  final AdminAnswer answer;
+  final AdminTeaching teaching;
+  final List<AdminSolution> solutions;
+  final Map<String, dynamic> rubric;
+  final List<KnowledgeRef> knowledge;
+  final List<AdminRegionTag> regionTags;
+  final List<String> checkProblems;
+  final List<AdminQuestionVersion> versions;
+  final List<AdminHistoryEntry> history;
+
+  factory AdminQuestionDetail.fromJson(Map<String, dynamic> json) => AdminQuestionDetail(
+        id: json['id'] as String,
+        subject: Subject.fromJson(json['subject'] as String),
+        type: QuestionType.fromJson(json['type'] as String),
+        answerMode: AnswerMode.fromJson(json['answer_mode'] as String),
+        difficulty: (json['difficulty'] as num).toInt(),
+        grade: json['grade'] == null ? null : Grade.fromJson(json['grade'] as String),
+        title: json['title'] as String,
+        status: QuestionStatus.fromJson(json['status'] as String),
+        version: (json['version'] as num).toInt(),
+        source: QuestionSource.fromJson(json['source'] as Map<String, dynamic>),
+        variantOf: json['variant_of'] == null ? null : json['variant_of'] as String,
+        createdBy: json['created_by'] == null ? null : json['created_by'] as String,
+        reviewedBy: json['reviewed_by'] == null ? null : json['reviewed_by'] as String,
+        publishedAt: json['published_at'] == null ? null : DateTime.parse(json['published_at'] as String),
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+        content: QuestionContent.fromJson(json['content'] as Map<String, dynamic>),
+        answer: AdminAnswer.fromJson(json['answer'] as Map<String, dynamic>),
+        teaching: AdminTeaching.fromJson(json['teaching'] as Map<String, dynamic>),
+        solutions: (json['solutions'] as List<dynamic>).map((e) => AdminSolution.fromJson(e as Map<String, dynamic>)).toList(),
+        rubric: Map<String, dynamic>.from(json['rubric'] as Map),
+        knowledge: (json['knowledge'] as List<dynamic>).map((e) => KnowledgeRef.fromJson(e as Map<String, dynamic>)).toList(),
+        regionTags: (json['region_tags'] as List<dynamic>).map((e) => AdminRegionTag.fromJson(e as Map<String, dynamic>)).toList(),
+        checkProblems: (json['check_problems'] as List<dynamic>).map((e) => e as String).toList(),
+        versions: (json['versions'] as List<dynamic>).map((e) => AdminQuestionVersion.fromJson(e as Map<String, dynamic>)).toList(),
+        history: (json['history'] as List<dynamic>).map((e) => AdminHistoryEntry.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'subject': subject.toJson(),
+        'type': type.toJson(),
+        'answer_mode': answerMode.toJson(),
+        'difficulty': difficulty,
+        'grade': grade?.toJson(),
+        'title': title,
+        'status': status.toJson(),
+        'version': version,
+        'source': source.toJson(),
+        'variant_of': variantOf,
+        'created_by': createdBy,
+        'reviewed_by': reviewedBy,
+        'published_at': publishedAt?.toUtc().toIso8601String(),
+        'updated_at': updatedAt.toUtc().toIso8601String(),
+        'content': content.toJson(),
+        'answer': answer.toJson(),
+        'teaching': teaching.toJson(),
+        'solutions': solutions.map((e) => e.toJson()).toList(),
+        'rubric': rubric,
+        'knowledge': knowledge.map((e) => e.toJson()).toList(),
+        'region_tags': regionTags.map((e) => e.toJson()).toList(),
+        'check_problems': checkProblems,
+        'versions': versions.map((e) => e.toJson()).toList(),
+        'history': history.map((e) => e.toJson()).toList(),
       };
 }

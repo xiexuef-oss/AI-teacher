@@ -34,3 +34,7 @@ ALL_KEYS = {
 }
 GENERAL_KEYS = ALL_KEYS - SICHUAN_TAGGED - SICHUAN_LATER_YEARS - CHONGQING_TAGGED
 KEY_BY_ID = {qid(key): key for key in ALL_KEYS}
+
+# seed/drafts/ 里的待审样题：入库为 draft，学生看不到，审核后台里才有（PRD P0 第 9 条）
+DRAFT_KEYS = {"math-abs-decreasing", "phys-friction-uniform", "chem-electrolyte-identify"}
+DRAFT_IDS = {qid(key) for key in DRAFT_KEYS}

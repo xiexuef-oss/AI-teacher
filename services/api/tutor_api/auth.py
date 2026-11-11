@@ -42,15 +42,22 @@ def _hash_token(token: str) -> str:
 
 
 class LocalMockIdentityProvider:
-    def issue_student(self, db: Session, now: datetime) -> tuple[User, str]:
-        """创建一个本地学生并返回 (用户, 明文 token)。token 只在这里出现一次。"""
-        user = User(id=new_id(), role="student", status="active", created_at=now, updated_at=now)
+    def issue_identity(self, db: Session, now: datetime, role: str = "student") -> tuple[User, str]:
+        """创建一个本地用户并返回 (用户, 明文 token)。token 只在这里出现一次。
+
+        角色只有 student、reviewer、admin：本地联调内容审核后台用；家长要等监护授权方案（Q-03）冻结。
+        """
+        user = User(id=new_id(), role=role, status="active", created_at=now, updated_at=now)
         db.add(user)
         db.flush()
-        db.add(StudentProfile(user_id=user.id, created_at=now, updated_at=now))
+        if role == "student":
+            db.add(StudentProfile(user_id=user.id, created_at=now, updated_at=now))
         token = secrets.token_urlsafe(32)
         db.add(LocalIdentity(token_hash=_hash_token(token), user_id=user.id, created_at=now))
         return user, token
+
+    def issue_student(self, db: Session, now: datetime) -> tuple[User, str]:
+        return self.issue_identity(db, now, "student")
 
     def authenticate(self, db: Session, token: str) -> Principal | None:
         user = db.scalar(

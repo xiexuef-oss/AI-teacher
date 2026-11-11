@@ -2,7 +2,8 @@
 
 样题只用于在本机跑通流程，没有经过学科审校。入库时题目状态为 published、解法 reviewed=True，
 这两个标记在这里只表示"通过了下面的工程自检"，不代表 docs/07 要求的独立二审；接口会把这些题
-明确标成"自编工程样题"。
+明确标成"自编工程样题"。seed/drafts/ 里的是待审样题：入库为 draft、解法未审核，学生看不到，
+要在审核后台二审、上线（services/review_service.py）。
 
 校验能保证的是结构自洽：答案在选项内、填空答案过得了自己的判定规则、提示和错项分析不泄题、
 快速解法带适用条件和边界、图解参数在白名单内、不冒充真题。校验不了的是学科内容本身对不对。
@@ -53,11 +54,16 @@ _MAX_TEXT = 4000
 _MAX_SHORT = 200
 
 
+DRAFT_AUTHOR_KEY = "engineering-seed"
+
+
 @dataclass
 class SeedBundle:
     nodes: list[dict[str, Any]] = field(default_factory=list)
     edges: list[list[str]] = field(default_factory=list)
     questions: list[dict[str, Any]] = field(default_factory=list)
+    # 待审样题：入库时是 draft，学生看不到，用来演示和测试内容审核流程（seed/drafts/）
+    drafts: list[dict[str, Any]] = field(default_factory=list)
 
 
 def seed_uuid(kind: str, key: str) -> str:
@@ -70,10 +76,14 @@ def load_seed(directory: Path = SEED_DIR) -> SeedBundle:
     questions: list[dict[str, Any]] = []
     for path in sorted((directory / "questions").glob("*.yaml")):
         questions.extend(yaml.safe_load(path.read_text(encoding="utf-8")) or [])
+    drafts: list[dict[str, Any]] = []
+    for path in sorted((directory / "drafts").glob("*.yaml")):
+        drafts.extend(yaml.safe_load(path.read_text(encoding="utf-8")) or [])
     return SeedBundle(
         nodes=list(knowledge.get("nodes", [])),
         edges=[list(edge) for edge in knowledge.get("edges", [])],
         questions=questions,
+        drafts=drafts,
     )
 
 
@@ -220,7 +230,11 @@ def _check_fill(key: str, question: dict[str, Any]) -> list[str]:
 
 
 def _check_question(
-    question: dict[str, Any], nodes: dict[str, dict[str, Any]], by_key: dict[str, dict[str, Any]]
+    question: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    by_key: dict[str, dict[str, Any]],
+    *,
+    forbid_exam_claims: bool = True,
 ) -> list[str]:
     key = str(question.get("key", "?"))
     problems: list[str] = []
@@ -337,11 +351,25 @@ def _check_question(
     texts = _strings(question)
     if any(contains_blocked_markup(text) for text in texts):
         problems.append(f"{key}: 文本包含不允许的标记")
-    if any(claim in text for text in texts for claim in _REAL_EXAM_CLAIMS):
+    if forbid_exam_claims and any(claim in text for text in texts for claim in _REAL_EXAM_CLAIMS):
         problems.append(f"{key}: 自编样题不得标称真题或原题")
     if any(len(text) > _MAX_TEXT for text in texts):
         problems.append(f"{key}: 单段文本超过 {_MAX_TEXT} 字")
     return problems
+
+
+def check_question(
+    question: dict[str, Any],
+    nodes: dict[str, dict[str, Any]],
+    by_key: dict[str, dict[str, Any]],
+    *,
+    forbid_exam_claims: bool = True,
+) -> list[str]:
+    """对一道（种子形状的）题做入库同款的程序校验；审核后台对库里的题也用它。
+
+    forbid_exam_claims：自编样题不得标称真题或原题；有授权来源的真题没有这条限制。
+    """
+    return _check_question(question, nodes, by_key, forbid_exam_claims=forbid_exam_claims)
 
 
 def _check_graph(bundle: SeedBundle) -> list[str]:
@@ -390,12 +418,13 @@ def validate_seed(bundle: SeedBundle) -> list[str]:
     problems = _check_graph(bundle)
     nodes = {node["code"]: node for node in bundle.nodes if "code" in node}
     by_key: dict[str, dict[str, Any]] = {}
-    for question in bundle.questions:
+    everything = [*bundle.questions, *bundle.drafts]
+    for question in everything:
         key = question.get("key")
         if key in by_key:
             problems.append(f"题目 key 重复：{key}")
         by_key[key] = question
-    for question in bundle.questions:
+    for question in everything:
         problems += _check_question(question, nodes, by_key)
     return problems
 
@@ -426,9 +455,13 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
         )
 
     # 先入母题再入变式，满足 variant_of 的外键
-    ordered = sorted(bundle.questions, key=lambda q: q.get("variant_of") is not None)
+    draft_keys = {question["key"] for question in bundle.drafts}
+    ordered = sorted(
+        [*bundle.questions, *bundle.drafts], key=lambda q: q.get("variant_of") is not None
+    )
     for question in ordered:
         key = question["key"]
+        is_draft = key in draft_keys
         question_id = seed_uuid("question", key)
         teaching = dict(question.get("teaching") or {})
         teaching["leak_markers"] = leak_markers(question)
@@ -442,7 +475,7 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
                 subject=question["subject"],
                 type=question["type"],
                 answer_mode=question["answer_mode"],
-                status="published",
+                status="draft" if is_draft else "published",
                 version=1,
                 difficulty=question["difficulty"],
                 grade=question.get("grade"),
@@ -453,7 +486,9 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
                 source_license=ENGINEERING_SAMPLE_LICENSE,
                 source_url=None,
                 variant_of_id=seed_uuid("question", variant_of) if variant_of else None,
-                published_at=now,
+                # 待审样题有"作者"（一个固定的工程占位 ID），审核后台才能执行"不能审自己的题"
+                created_by=seed_uuid("author", DRAFT_AUTHOR_KEY) if is_draft else None,
+                published_at=None if is_draft else now,
                 created_at=now,
                 updated_at=now,
             )
@@ -494,7 +529,7 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
                 version=1,
                 kind="standard",
                 content_json=solutions["standard"],
-                reviewed=True,
+                reviewed=not is_draft,
                 created_at=now,
             )
         )
@@ -511,7 +546,7 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
                         "conditions": fast["conditions"],
                         "boundary": fast["boundary"],
                     },
-                    reviewed=True,
+                    reviewed=not is_draft,
                     created_at=now,
                 )
             )
@@ -539,7 +574,7 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
                     updated_at=now,
                 )
             )
-    return len(bundle.questions)
+    return len(bundle.questions) + len(bundle.drafts)
 
 
 def seed_if_empty(db: Session, now: datetime) -> int:

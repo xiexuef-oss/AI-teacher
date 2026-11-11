@@ -39,12 +39,14 @@ class TutorApiClient {
     return LaunchConfig.fromJson(data as Map<String, dynamic>);
   }
 
-  /// 创建一个本地学生身份并返回随机 bearer
+  /// 创建一个本地身份并返回随机 bearer
   Future<LocalIdentity> createLocalIdentity({
+    LocalRole? role,
     String? requestId,
   }) async {
     final data = await _core.send(
       'POST', '/dev/local-identities',
+      query: {'role': role?.value},
       requestId: requestId,
       authenticated: false,
     );
@@ -367,9 +369,36 @@ class TutorApiClient {
     return ParentWeekly.fromJson(data as Map<String, dynamic>);
   }
 
-  /// 审核决策（planned）
-  ///
-  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  /// 审核队列：全部状态的题目
+  Future<AdminQuestionPage> listAdminQuestions({
+    QuestionStatus? status,
+    Subject? subject,
+    SourceCategory? sourceCategory,
+    String? cursor,
+    int? limit,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/questions',
+      query: {'status': status?.value, 'subject': subject?.value, 'source_category': sourceCategory?.value, 'cursor': cursor, 'limit': limit?.toString()},
+      requestId: requestId,
+    );
+    return AdminQuestionPage.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 审核用的题目全貌
+  Future<AdminQuestionDetail> getAdminQuestion({
+    required String questionId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/questions/${Uri.encodeComponent(questionId)}',
+      requestId: requestId,
+    );
+    return AdminQuestionDetail.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 审核决策
   Future<QuestionReviewState> reviewQuestion({
     required String questionId,
     required ReviewDecision body,

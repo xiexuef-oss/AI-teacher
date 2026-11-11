@@ -13,6 +13,7 @@ from sqlalchemy import update
 from support.seeds import (
     ALL_KEYS,
     CHONGQING_TAGGED,
+    DRAFT_KEYS,
     GENERAL_KEYS,
     KEY_BY_ID,
     SICHUAN_LATER_YEARS,
@@ -349,7 +350,7 @@ def test_seeding_is_idempotent(app, db, clock):
     added = seed_if_empty(db, clock.now())
     db.commit()
 
-    assert before == len(ALL_KEYS)
+    assert before == len(ALL_KEYS) + len(DRAFT_KEYS)
     assert added == 0
     assert db.scalar(select(func.count()).select_from(Question)) == before
 
@@ -378,4 +379,4 @@ def test_nothing_is_seeded_unless_explicitly_enabled(settings, clock, tmp_path):
 
 def test_startup_seeds_an_empty_database_when_enabled(settings, clock, tmp_path):
     count = _question_count_after_startup(settings, clock, tmp_path / "fresh.sqlite3", seed=True)
-    assert count == len(ALL_KEYS)
+    assert count == len(ALL_KEYS) + len(DRAFT_KEYS)

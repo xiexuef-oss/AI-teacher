@@ -44,6 +44,16 @@ def require_student(principal: Principal = Depends(get_principal)) -> Principal:
     return principal
 
 
+REVIEW_ROLES = frozenset({"reviewer", "admin"})
+
+
+def require_reviewer(principal: Principal = Depends(get_principal)) -> Principal:
+    """内容审核只给 reviewer 与 admin。角色检查先于任何资源查询：学生分不出"题不存在"和"没有权限"。"""
+    if principal.role not in REVIEW_ROLES:
+        raise ApiError(403, "forbidden", "当前角色无权访问")
+    return principal
+
+
 @dataclass
 class Ctx:
     """一次学生请求的上下文。权限只来自 principal，不来自请求体里的任何 ID。"""
@@ -58,6 +68,11 @@ class Ctx:
 
     @property
     def student_id(self) -> str:
+        return self.principal.user_id
+
+    @property
+    def actor_id(self) -> str:
+        """做这次请求的人（学生端等于 student_id；审核后台是审核人）。"""
         return self.principal.user_id
 
     @property
@@ -82,6 +97,14 @@ def student_ctx(
     request: Request,
     db: Session = Depends(get_db),
     principal: Principal = Depends(require_student),
+) -> Ctx:
+    return Ctx(request=request, db=db, principal=principal)
+
+
+def reviewer_ctx(
+    request: Request,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_reviewer),
 ) -> Ctx:
     return Ctx(request=request, db=db, principal=principal)
 

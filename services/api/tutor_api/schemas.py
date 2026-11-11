@@ -26,6 +26,10 @@ TutorActionType = Literal[
     "mark_confused",
 ]
 ReviewScope = Literal["due", "all"]
+LocalRole = Literal["student", "reviewer", "admin"]
+QuestionStatus = Literal["draft", "reviewed", "published", "withdrawn"]
+ReviewDecisionType = Literal["approve", "reject", "publish", "withdraw"]
+SolutionKind = Literal["standard", "fast"]
 
 
 class _In(BaseModel):
@@ -81,7 +85,7 @@ class LaunchConfig(BaseModel):
 
 class LocalIdentityOut(BaseModel):
     user_id: str
-    role: Literal["student"] = "student"
+    role: LocalRole = "student"
     access_token: str
     token_type: Literal["Bearer"] = "Bearer"
 
@@ -217,6 +221,138 @@ class QuestionOut(QuestionSummary):
 class QuestionPage(BaseModel):
     items: list[QuestionSummary]
     next_cursor: str | None
+
+
+# ---------------------------------------------------------------- 内容审核（reviewer / admin）
+
+
+class ReviewDecisionIn(_In):
+    decision: ReviewDecisionType
+    expected_version: int = Field(ge=1)
+    comment: str | None = Field(default=None, max_length=2000)
+    solution_kinds: list[SolutionKind] | None = None
+
+
+class QuestionReviewStateOut(BaseModel):
+    question_id: str
+    status: QuestionStatus
+    version: int
+    reviewed_by: str | None
+    updated_at: datetime
+
+
+class AdminQuestionSummary(BaseModel):
+    id: str
+    subject: str
+    type: str
+    answer_mode: str
+    difficulty: int
+    title: str
+    status: QuestionStatus
+    version: int
+    source: QuestionSource
+    created_by: str | None
+    reviewed_by: str | None
+    published_at: datetime | None
+    updated_at: datetime
+
+
+class AdminStatusCounts(BaseModel):
+    draft: int
+    reviewed: int
+    published: int
+    withdrawn: int
+
+
+class AdminQuestionPage(BaseModel):
+    items: list[AdminQuestionSummary]
+    next_cursor: str | None
+    status_counts: AdminStatusCounts
+
+
+class AdminAnswer(BaseModel):
+    value: Any
+    equivalence_rules: dict[str, Any]
+    units: dict[str, Any]
+
+
+class AdminVisual(BaseModel):
+    template_id: str
+    params: dict[str, float]
+    caption: str
+
+
+class AdminTeaching(BaseModel):
+    concept: str | None
+    hints: list[str]
+    concept_rephrase: str | None
+    option_analysis: dict[str, str]
+    visual: AdminVisual | None
+
+
+class AdminSolution(BaseModel):
+    kind: SolutionKind
+    steps: list[str]
+    final_answer: str
+    key_points: list[str]
+    conditions: list[str] | None
+    boundary: str | None
+    reviewed: bool
+    reviewed_by: str | None
+
+
+class AdminRegionTag(BaseModel):
+    recommended_region_code: str
+    origin_region_code: str | None
+    exam_year_from: int | None
+    exam_year_to: int | None
+    review_status: str
+    note: str | None
+
+
+class AdminQuestionVersion(BaseModel):
+    version: int
+    created_by: str | None
+    created_at: datetime
+
+
+class AdminHistoryEntry(BaseModel):
+    id: str
+    action: ReviewDecisionType
+    actor_id: str | None
+    from_status: QuestionStatus | None
+    to_status: QuestionStatus | None
+    version: int | None
+    comment: str | None
+    created_at: datetime
+
+
+class AdminQuestionDetail(BaseModel):
+    id: str
+    subject: str
+    type: str
+    answer_mode: str
+    difficulty: int
+    grade: str | None
+    title: str
+    status: QuestionStatus
+    version: int
+    source: QuestionSource
+    variant_of: str | None
+    created_by: str | None
+    reviewed_by: str | None
+    published_at: datetime | None
+    updated_at: datetime
+    content: QuestionContent
+    answer: AdminAnswer
+    teaching: AdminTeaching
+    solutions: list[AdminSolution]
+    rubric: dict[str, Any]
+    knowledge: list[KnowledgeRef]
+    region_tags: list[AdminRegionTag]
+    check_problems: list[str]
+    versions: list[AdminQuestionVersion]
+    history: list[AdminHistoryEntry]
 
 
 # ---------------------------------------------------------------- 任务

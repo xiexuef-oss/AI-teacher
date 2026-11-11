@@ -200,10 +200,14 @@ def test_resources_are_always_created_for_the_token_owner(alice_and_bob):
     alice.error("GET", f"/attempts/{attempt['id']}", expect=404)
 
 
-def test_student_role_cannot_reach_planned_admin_or_parent_endpoints(alice_and_bob):
+def test_student_role_cannot_reach_admin_or_parent_endpoints(alice_and_bob):
     bob = alice_and_bob["bob"]
     alice_id = alice_and_bob["alice"].user_id
 
-    # 这些接口本阶段未实现；即使将来实现，也不能凭路径里的 student_id 授权
+    # 家长周报本阶段未实现；即使将来实现，也不能凭路径里的 student_id 授权
     bob.error("GET", f"/parents/students/{alice_id}/weekly", expect=501)
-    bob.error("POST", f"/admin/questions/{qid('math-ineq-min')}/review", expect=501, json={})
+    # 审核接口已经实现，学生一律 403——角色检查在校验请求体之前，空请求体也是 403 而不是 422
+    error = bob.error(
+        "POST", f"/admin/questions/{qid('math-ineq-min')}/review", expect=403, json={}
+    )
+    assert error["code"] == "forbidden"

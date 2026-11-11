@@ -180,6 +180,42 @@ MUTATIONS = [
         '            if False:\n                return None, "not_compliance_approved"',
         ("tests/gateway/test_routing.py",),
     ),
+    # ---- 内容审核（P0 第 9 条）
+    Mutation(
+        "学生也能调用审核接口",
+        API / "deps.py",
+        "    if principal.role not in REVIEW_ROLES:\n        raise ApiError(403",
+        "    if False:\n        raise ApiError(403",
+        ("tests/api/test_admin_review.py", "tests/api/test_security.py"),
+    ),
+    Mutation(
+        "提交者可以审核自己的题",
+        API / "services" / "review_service.py",
+        "        and question.created_by == actor_id\n",
+        "        and False\n",
+        ("tests/api/test_admin_review.py",),
+    ),
+    Mutation(
+        "草稿不经二审也能直接上线",
+        API / "services" / "review_service.py",
+        '    "publish": (frozenset({"reviewed"}), "published"),',
+        '    "publish": (frozenset({"draft", "reviewed"}), "published"),',
+        ("tests/api/test_admin_review.py",),
+    ),
+    Mutation(
+        "程序校验有问题也能通过审核",
+        API / "services" / "review_service.py",
+        "        problems = check_problems(db, question)\n        if problems:\n",
+        "        problems = check_problems(db, question)\n        if False:\n",
+        ("tests/api/test_admin_review.py",),
+    ),
+    Mutation(
+        "标准解法没审核也能上线",
+        API / "services" / "review_service.py",
+        "        if standard is None or not standard.reviewed:\n",
+        "        if standard is None:\n",
+        ("tests/api/test_admin_review.py",),
+    ),
 ]
 
 

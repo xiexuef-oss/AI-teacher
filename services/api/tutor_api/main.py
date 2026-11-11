@@ -23,6 +23,7 @@ from tutor_api.errors import install_error_handlers
 from tutor_api.gateway_io import DbAuditSink, DbBudgetStore
 from tutor_api.middleware import RequestContextMiddleware
 from tutor_api.routers import (
+    admin,
     attempts,
     learning,
     planned,
@@ -103,6 +104,7 @@ def create_app(
         tutor,
         reviews,
         learning,
+        admin,
         planned,
     ):
         app.include_router(module.router, prefix=API_PREFIX)

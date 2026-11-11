@@ -13,7 +13,7 @@ from tutor_api import API_VERSION
 from tutor_api.auth import LocalMockIdentityProvider
 from tutor_api.deps import get_db, ok
 from tutor_api.errors import not_found
-from tutor_api.schemas import Health, LocalIdentityOut
+from tutor_api.schemas import Health, LocalIdentityOut, LocalRole
 from tutor_api.services.profile_service import build_launch_config
 from tutor_api.settings import OPENAPI_PATH
 
@@ -46,11 +46,13 @@ def get_launch_config(request: Request) -> JSONResponse:
 
 
 @router.post("/dev/local-identities")
-def create_local_identity(request: Request, db: Session = Depends(get_db)) -> JSONResponse:
+def create_local_identity(
+    request: Request, role: LocalRole = "student", db: Session = Depends(get_db)
+) -> JSONResponse:
     provider = request.app.state.identity_provider
     if not isinstance(provider, LocalMockIdentityProvider):
         # 未开启时与不存在的路径表现一致
         raise not_found()
-    user, token = provider.issue_student(db, request.app.state.clock())
+    user, token = provider.issue_identity(db, request.app.state.clock(), role)
     db.commit()
-    return ok(LocalIdentityOut(user_id=user.id, access_token=token), status_code=201)
+    return ok(LocalIdentityOut(user_id=user.id, role=role, access_token=token), status_code=201)
