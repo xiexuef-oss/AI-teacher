@@ -414,6 +414,19 @@ class TutorApiClient {
     return AdminQuestionDetail.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 题目某一个版本的完整内容
+  Future<AdminVersionSnapshot> getQuestionVersion({
+    required String questionId,
+    required String version,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/questions/${Uri.encodeComponent(questionId)}/versions/${Uri.encodeComponent(version)}',
+      requestId: requestId,
+    );
+    return AdminVersionSnapshot.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 审核决策
   Future<QuestionReviewState> reviewQuestion({
     required String questionId,

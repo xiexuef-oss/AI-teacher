@@ -252,6 +252,21 @@ MUTATIONS = [
         "",
         ("tests/api/test_admin_versions.py",),
     ),
+    # ---- 回看与对比旧版本
+    Mutation(
+        "修改时没有把旧版本的难度、年级、知识点记下来",
+        API / "services" / "review_service.py",
+        "    previous.content_json = {**snapshot_keys, **previous.content_json}\n",
+        "    pass\n",
+        ("tests/api/test_admin_version_snapshots.py",),
+    ),
+    Mutation(
+        "取某一版时总是返回当前版本",
+        API / "services" / "review_service.py",
+        "            QuestionVersion.question_id == question.id, QuestionVersion.version == version_no\n",
+        "            QuestionVersion.question_id == question.id, QuestionVersion.version == question.version\n",
+        ("tests/api/test_admin_version_snapshots.py",),
+    ),
 ]
 
 

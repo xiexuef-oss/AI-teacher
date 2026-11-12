@@ -2992,6 +2992,75 @@ class AdminQuestionEdit {
       };
 }
 
+/// 题目某一个版本里"可以被修改"的全部内容，对比两个版本用。
+class AdminVersionSnapshot {
+  const AdminVersionSnapshot({
+    required this.questionId,
+    required this.version,
+    required this.isCurrent,
+    this.createdBy,
+    required this.createdAt,
+    required this.title,
+    required this.difficulty,
+    this.grade,
+    required this.content,
+    required this.answer,
+    required this.teaching,
+    required this.solutions,
+    required this.knowledge,
+    required this.rubric,
+  });
+
+  final String questionId;
+  final int version;
+  final bool isCurrent;
+  final String? createdBy;
+  final DateTime createdAt;
+  final String title;
+  final int difficulty;
+  final Grade? grade;
+  final QuestionContent content;
+  final AdminAnswer answer;
+  final AdminTeaching teaching;
+  final List<AdminSolution> solutions;
+  final List<String> knowledge;
+  final Map<String, dynamic> rubric;
+
+  factory AdminVersionSnapshot.fromJson(Map<String, dynamic> json) => AdminVersionSnapshot(
+        questionId: json['question_id'] as String,
+        version: (json['version'] as num).toInt(),
+        isCurrent: json['is_current'] as bool,
+        createdBy: json['created_by'] == null ? null : json['created_by'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        title: json['title'] as String,
+        difficulty: (json['difficulty'] as num).toInt(),
+        grade: json['grade'] == null ? null : Grade.fromJson(json['grade'] as String),
+        content: QuestionContent.fromJson(json['content'] as Map<String, dynamic>),
+        answer: AdminAnswer.fromJson(json['answer'] as Map<String, dynamic>),
+        teaching: AdminTeaching.fromJson(json['teaching'] as Map<String, dynamic>),
+        solutions: (json['solutions'] as List<dynamic>).map((e) => AdminSolution.fromJson(e as Map<String, dynamic>)).toList(),
+        knowledge: (json['knowledge'] as List<dynamic>).map((e) => e as String).toList(),
+        rubric: Map<String, dynamic>.from(json['rubric'] as Map),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'question_id': questionId,
+        'version': version,
+        'is_current': isCurrent,
+        'created_by': createdBy,
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'title': title,
+        'difficulty': difficulty,
+        'grade': grade?.toJson(),
+        'content': content.toJson(),
+        'answer': answer.toJson(),
+        'teaching': teaching.toJson(),
+        'solutions': solutions.map((e) => e.toJson()).toList(),
+        'knowledge': knowledge,
+        'rubric': rubric,
+      };
+}
+
 class AdminQuestionDetail {
   const AdminQuestionDetail({
     required this.id,

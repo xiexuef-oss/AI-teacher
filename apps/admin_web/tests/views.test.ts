@@ -26,6 +26,7 @@ function makeRouter() {
       { path: '/login', name: 'login', component: LoginView },
       { path: '/', name: 'queue', component: QueueView },
       { path: '/questions/:id', name: 'question', component: QuestionView },
+      { path: '/questions/:id/compare', name: 'compare', component: { template: '<div />' } },
     ],
   })
 }

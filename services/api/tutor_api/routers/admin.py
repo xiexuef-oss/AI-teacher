@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import JSONResponse
 
 from tutor_api.deps import Ctx, ok, reviewer_ctx
@@ -79,3 +79,10 @@ def create_question_version(
         )
 
     return run_idempotent(ctx, body, 201, action)
+
+
+@router.get("/admin/questions/{question_id}/versions/{version}")
+def get_question_version(
+    question_id: UUID, version: int = Path(ge=1), ctx: Ctx = Depends(reviewer_ctx)
+) -> JSONResponse:
+    return ok(review_service.version_snapshot(ctx.db, str(question_id), version))

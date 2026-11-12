@@ -915,6 +915,37 @@ paths:
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/Unprocessable'}
 
+  /admin/questions/{question_id}/versions/{version}:
+    get:
+      operationId: getQuestionVersion
+      tags: [admin]
+      summary: 题目某一个版本的完整内容
+      description: |
+        回看或对比旧版本用：返回这个版本在保存时的内容（题面、答案、教学辅助、解法及当时的审核标记、评分细则），
+        以及保存时的难度、年级、知识点。当前版本以题目现在的状态为准（二者一致）。
+        在"修改题目会同时记下旧版本的难度、年级、知识点"之前产生的旧版本没有这几项快照，返回的是题目现在的值。
+        只有 reviewer 与 admin 可用；题目或版本不存在返回 404。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+        - {$ref: '#/components/parameters/VersionNo'}
+      responses:
+        '200':
+          description: 这个版本的内容
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/AdminVersionSnapshot'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
   /admin/questions/{question_id}/review:
     post:
       operationId: reviewQuestion
@@ -998,6 +1029,12 @@ components:
       in: path
       required: true
       schema: {type: string, format: uuid}
+    VersionNo:
+      name: version
+      in: path
+      required: true
+      description: 题目的版本号，从 1 开始。
+      schema: {type: integer, minimum: 1}
     SessionId:
       name: session_id
       in: path
@@ -2270,6 +2307,49 @@ components:
           items: {type: string, maxLength: 64}
         rubric: {type: object}
         comment: {type: [string, 'null'], maxLength: 2000, description: 修改说明，写进审计与历史。}
+    AdminVersionSnapshot:
+      type: object
+      additionalProperties: false
+      description: 题目某一个版本里"可以被修改"的全部内容，对比两个版本用。
+      required:
+        - question_id
+        - version
+        - is_current
+        - created_by
+        - created_at
+        - title
+        - difficulty
+        - grade
+        - content
+        - answer
+        - teaching
+        - solutions
+        - knowledge
+        - rubric
+      properties:
+        question_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1}
+        is_current: {type: boolean, description: 是不是题目现在的版本。}
+        created_by: {type: [string, 'null'], format: uuid, description: 这个版本的提交者。}
+        created_at: {type: string, format: date-time}
+        title: {type: string}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        content: {$ref: '#/components/schemas/QuestionContent'}
+        answer: {$ref: '#/components/schemas/AdminAnswer'}
+        teaching: {$ref: '#/components/schemas/AdminTeaching'}
+        solutions:
+          type: array
+          description: 这个版本的解法，审核标记是这个版本当时的。
+          items: {$ref: '#/components/schemas/AdminSolution'}
+        knowledge:
+          type: array
+          description: 知识点 code，按字母顺序。
+          items: {type: string}
+        rubric: {type: object}
     AdminQuestionDetail:
       type: object
       additionalProperties: false

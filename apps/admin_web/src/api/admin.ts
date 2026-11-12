@@ -3,6 +3,7 @@ import type {
   AdminQuestionDetail,
   AdminQuestionEdit,
   AdminQuestionPage,
+  AdminVersionSnapshot,
   Health,
   LocalIdentity,
   LocalRole,
@@ -55,3 +56,7 @@ export const createQuestionVersion = (
     body,
     idempotencyKey,
   })
+
+/** 题目某一个版本的完整内容（回看、对比用）。 */
+export const getQuestionVersion = (token: string, id: string, version: number) =>
+  request<AdminVersionSnapshot>('GET', `/admin/questions/${id}/versions/${version}`, { token })

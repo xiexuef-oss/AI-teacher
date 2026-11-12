@@ -78,3 +78,29 @@ def edit(who, question_id: str, body: dict[str, Any], *, expect: int = 201, **kw
     if expect == 201:
         return who.data("POST", path, expect=201, json=body, **kwargs)
     return who.error("POST", path, expect=expect, json=body, **kwargs)
+
+
+def detail_of(who, question_id: str) -> dict[str, Any]:
+    return who.data("GET", f"/admin/questions/{question_id}")
+
+
+def snapshot(who, question_id: str, version: int, *, expect: int = 200, **kwargs: Any):
+    path = f"/admin/questions/{question_id}/versions/{version}"
+    if expect == 200:
+        return who.data("GET", path, **kwargs)
+    return who.error("GET", path, expect=expect, **kwargs)
+
+
+def editable_parts(detail: dict[str, Any]) -> dict[str, Any]:
+    """题目详情里"可以被修改"的部分，按版本快照的表示整理，用来和某个版本的快照直接比较。"""
+    return {
+        "title": detail["title"],
+        "difficulty": detail["difficulty"],
+        "grade": detail["grade"],
+        "content": detail["content"],
+        "answer": detail["answer"],
+        "teaching": detail["teaching"],
+        "solutions": detail["solutions"],
+        "knowledge": sorted(node["code"] for node in detail["knowledge"]),
+        "rubric": detail["rubric"],
+    }

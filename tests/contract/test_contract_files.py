@@ -47,6 +47,7 @@ IMPLEMENTED = {
     "getAdminQuestion",
     "reviewQuestion",
     "createQuestionVersion",
+    "getQuestionVersion",
 }
 PLANNED = {
     "createMediaUpload",

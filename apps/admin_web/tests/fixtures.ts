@@ -4,6 +4,7 @@ import type {
   AdminQuestionPage,
   AdminQuestionSummary,
   AdminSolution,
+  AdminVersionSnapshot,
 } from '../src/api/types'
 
 export const ME = '11111111-1111-4111-8111-111111111111'
@@ -116,6 +117,28 @@ export function detail(overrides: Partial<AdminQuestionDetail> = {}): AdminQuest
     check_problems: [],
     versions: [{ version: 1, created_by: AUTHOR, created_at: '2026-11-11T08:00:00Z' }],
     history: [],
+    ...overrides,
+  }
+}
+
+/** 一个版本的快照；默认就是 detail() 的第 1 版内容。 */
+export function snapshot(overrides: Partial<AdminVersionSnapshot> = {}): AdminVersionSnapshot {
+  const base = detail()
+  return {
+    question_id: QUESTION_ID,
+    version: 1,
+    is_current: true,
+    created_by: AUTHOR,
+    created_at: '2026-11-11T08:00:00Z',
+    title: base.title,
+    difficulty: base.difficulty,
+    grade: base.grade,
+    content: base.content,
+    answer: base.answer,
+    teaching: base.teaching,
+    solutions: base.solutions,
+    knowledge: base.knowledge.map((node) => node.code),
+    rubric: base.rubric,
     ...overrides,
   }
 }

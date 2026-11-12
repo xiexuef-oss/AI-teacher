@@ -330,6 +330,23 @@ class AdminHistoryEntry(BaseModel):
     created_at: datetime
 
 
+class AdminVersionSnapshot(BaseModel):
+    question_id: str
+    version: int
+    is_current: bool
+    created_by: str | None
+    created_at: datetime
+    title: str
+    difficulty: int
+    grade: str | None
+    content: QuestionContent
+    answer: AdminAnswer
+    teaching: AdminTeaching
+    solutions: list[AdminSolution]
+    knowledge: list[str]
+    rubric: dict[str, Any]
+
+
 class AdminQuestionDetail(BaseModel):
     id: str
     subject: str

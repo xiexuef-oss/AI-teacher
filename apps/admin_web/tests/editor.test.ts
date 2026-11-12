@@ -24,6 +24,7 @@ async function openPage() {
     routes: [
       { path: '/', name: 'queue', component: { template: '<div />' } },
       { path: '/questions/:id', name: 'question', component: QuestionView },
+      { path: '/questions/:id/compare', name: 'compare', component: { template: '<div />' } },
     ],
   })
   await router.push(`/questions/${QUESTION_ID}`)

@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useSession } from './session'
 import LoginView from './views/LoginView.vue'
+import QuestionCompareView from './views/QuestionCompareView.vue'
 import QueueView from './views/QueueView.vue'
 import QuestionView from './views/QuestionView.vue'
 
@@ -11,6 +12,7 @@ export const router = createRouter({
     { path: '/login', name: 'login', component: LoginView },
     { path: '/', name: 'queue', component: QueueView },
     { path: '/questions/:id', name: 'question', component: QuestionView },
+    { path: '/questions/:id/compare', name: 'compare', component: QuestionCompareView },
   ],
 })
 

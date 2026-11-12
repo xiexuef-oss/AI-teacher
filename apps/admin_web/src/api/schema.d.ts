@@ -537,6 +537,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/questions/{question_id}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 题目某一个版本的完整内容
+         * @description 回看或对比旧版本用：返回这个版本在保存时的内容（题面、答案、教学辅助、解法及当时的审核标记、评分细则），
+         *     以及保存时的难度、年级、知识点。当前版本以题目现在的状态为准（二者一致）。
+         *     在"修改题目会同时记下旧版本的难度、年级、知识点"之前产生的旧版本没有这几项快照，返回的是题目现在的值。
+         *     只有 reviewer 与 admin 可用；题目或版本不存在返回 404。
+         */
+        get: operations["getQuestionVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/questions/{question_id}/review": {
         parameters: {
             query?: never;
@@ -1386,6 +1409,32 @@ export interface components {
             /** @description 修改说明，写进审计与历史。 */
             comment?: string | null;
         };
+        /** @description 题目某一个版本里"可以被修改"的全部内容，对比两个版本用。 */
+        AdminVersionSnapshot: {
+            /** Format: uuid */
+            question_id: string;
+            version: number;
+            /** @description 是不是题目现在的版本。 */
+            is_current: boolean;
+            /**
+             * Format: uuid
+             * @description 这个版本的提交者。
+             */
+            created_by: string | null;
+            /** Format: date-time */
+            created_at: string;
+            title: string;
+            difficulty: number;
+            grade: components["schemas"]["Grade"] | null;
+            content: components["schemas"]["QuestionContent"];
+            answer: components["schemas"]["AdminAnswer"];
+            teaching: components["schemas"]["AdminTeaching"];
+            /** @description 这个版本的解法，审核标记是这个版本当时的。 */
+            solutions: components["schemas"]["AdminSolution"][];
+            /** @description 知识点 code，按字母顺序。 */
+            knowledge: string[];
+            rubric: Record<string, never>;
+        };
         AdminQuestionDetail: {
             /** Format: uuid */
             id: string;
@@ -1523,6 +1572,8 @@ export interface components {
         Cursor: string;
         Limit: number;
         QuestionId: string;
+        /** @description 题目的版本号，从 1 开始。 */
+        VersionNo: number;
         SessionId: string;
         AttemptId: string;
         ReviewId: string;
@@ -2504,6 +2555,40 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    getQuestionVersion: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                question_id: components["parameters"]["QuestionId"];
+                /** @description 题目的版本号，从 1 开始。 */
+                version: components["parameters"]["VersionNo"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 这个版本的内容 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminVersionSnapshot"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             422: components["responses"]["Unprocessable"];
         };
     };

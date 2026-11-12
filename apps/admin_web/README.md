@@ -32,10 +32,13 @@ npm run dev          # http://127.0.0.1:5174
 修改：打开一道待审（或已下线）的题，点"编辑题目"，改完"保存为新版本"——旧版本留着，新版本回到待审，你成为它的提交者，
 所以要换另一个身份（退出后以管理员进入）才能二审。已上线的题要先下线才能改。
 
+对比：保存之后点"查看这次改了什么"，或者在题目页的"版本与审核历史"里点"对比最近两个版本"、点某个版本徽章回看那一版的完整内容。
+对比页左右并排，删掉的片段红底划线、新加的绿底；默认只显示有改动的部分，勾选"显示没有改动的部分"看全部。
+
 ## 命令
 
 ```
-npm test             # vitest：API 客户端、决策规则、公式渲染、队列页、审核页、编辑器
+npm test             # vitest：API 客户端、决策规则、公式渲染、队列页、审核页、编辑器、版本对比
 npm run typecheck    # vue-tsc；测试数据按契约类型写，契约改了这里先红
 npm run check:api    # schema.d.ts 是否由当前契约生成
 npm run gen:api      # 重新生成 schema.d.ts
@@ -46,16 +49,17 @@ npm run build        # 类型检查 + 打包到 dist/
 
 ```
 src/api/        client.ts（请求与错误信封）、admin.ts（接口函数）、guard.ts（401 与幂等键）、schema.d.ts（生成）
-src/views/      LoginView、QueueView（审核队列）、QuestionView（题目全貌 + 决策）
+src/views/      LoginView、QueueView（审核队列）、QuestionView（题目全貌 + 决策）、QuestionCompareView（版本对比）
 src/components/ DecisionPanel（决策与错误提示）、QuestionEditor（编辑题目）、StringList、MathText（KaTeX）、StatusBadge
 src/editing.ts  编辑表单 ↔ 修改请求的转换（纯函数，有来回测试）
+src/diff.ts、src/compare.ts  文本与列表的差异、两个版本快照的对比（纯函数）
 src/decisions.ts  各状态可做的决策、说明文字、错误码翻译（只是提前提示，授权在服务端）
 tests/          vitest；fixtures.ts 里的数据按契约类型写
 ```
 
 ## 已知限制
 
-- 看不到旧版本的内容，也没有版本对比：旧版本留在库里，界面只列版本号（ADR-009）。
+- 版本对比只能两两对比，不能导出；文本对比是字/词级的，挪动整段会显示成删一段、加一段（ADR-010）。
 - 编辑：小问和附件原样带过去、不能改；图解模板与参数、判定规则、评分细则要手写 JSON；每次保存都是一个新版本。
 - 地区适用标记、评分细则（rubric）只能查看，不能在这里审核。
 - 队列分页是 offset 游标，题量大了要改成数据库侧的键集分页。

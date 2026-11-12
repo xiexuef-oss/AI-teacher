@@ -478,3 +478,92 @@ textarea.mono {
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   font-size: 0.85rem;
 }
+
+/* ---- 版本对比 */
+.controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.controls select {
+  font: inherit;
+  padding: 0.3rem;
+  max-width: 28rem;
+}
+
+.field-diff {
+  margin-bottom: 1.1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px dashed var(--line);
+}
+
+.field-diff h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.3rem;
+}
+
+.field-diff .columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.field-diff .columns.head {
+  margin-bottom: 0.2rem;
+}
+
+.field-diff .cell {
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.field-diff .cell.del,
+.field-diff .row-removed .cell:first-child {
+  background: #fdf0f0;
+}
+
+.field-diff .cell.add,
+.field-diff .row-added .cell:last-child {
+  background: #eef9f1;
+}
+
+.field-diff .row-changed .cell {
+  background: #fffaf0;
+}
+
+.field-diff .rendered {
+  margin-top: 0.2rem;
+  padding-top: 0.2rem;
+  border-top: 1px dotted var(--line);
+  color: var(--muted);
+  font-size: 0.92rem;
+  white-space: normal;
+}
+
+.seg-del {
+  background: #f8c9c9;
+  text-decoration: line-through;
+}
+
+.seg-add {
+  background: #bfe8cb;
+}
+
+@media (max-width: 760px) {
+  .field-diff .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+a.badge {
+  text-decoration: none;
+  color: var(--primary);
+}
+
+a.badge:hover {
+  background: #dfeee9;
+}

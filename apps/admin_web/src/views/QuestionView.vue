@@ -19,6 +19,7 @@ const detail = ref<AdminQuestionDetail | null>(null)
 const loading = ref(false)
 const error = ref<{ status: number; message: string } | null>(null)
 const done = ref<string | null>(null)
+const savedVersion = ref<number | null>(null)
 const editing = ref(false)
 
 const id = computed(() => String(route.params.id ?? ''))
@@ -61,11 +62,13 @@ watch(id, () => void load(), { immediate: true })
 
 async function decided(_state: QuestionReviewState, decision: ReviewDecisionType): Promise<void> {
   done.value = `已执行：${DECISION_LABEL[decision]}`
+  savedVersion.value = null
   await load()
 }
 
 async function refresh(): Promise<void> {
   done.value = null
+  savedVersion.value = null
   await load()
 }
 
@@ -73,6 +76,7 @@ function saved(next: AdminQuestionDetail): void {
   detail.value = next
   editing.value = false
   done.value = `已保存为第 ${next.version} 版，状态回到待审；要由另一位审校员重新二审`
+  savedVersion.value = next.version
 }
 </script>
 
@@ -114,7 +118,20 @@ function saved(next: AdminQuestionDetail): void {
           </p>
         </header>
 
-        <p v-if="done" class="notice success" role="status" data-testid="done">{{ done }}</p>
+        <p v-if="done" class="notice success" role="status" data-testid="done">
+          {{ done }}
+          <RouterLink
+            v-if="savedVersion !== null && savedVersion > 1"
+            data-testid="saved-compare"
+            :to="{
+              name: 'compare',
+              params: { id: detail.id },
+              query: { from: String(savedVersion - 1), to: String(savedVersion) },
+            }"
+          >
+            查看这次改了什么
+          </RouterLink>
+        </p>
 
         <section class="card" data-testid="checks">
           <h2>程序校验</h2>
@@ -257,9 +274,32 @@ function saved(next: AdminQuestionDetail): void {
           <h2>版本与审核历史</h2>
           <p class="small">
             版本：
-            <span v-for="version in detail.versions" :key="version.version" class="badge">
+            <RouterLink
+              v-for="version in detail.versions"
+              :key="version.version"
+              class="badge"
+              :data-testid="`version-${version.version}`"
+              :title="`查看第 ${version.version} 版的完整内容`"
+              :to="{
+                name: 'compare',
+                params: { id: detail.id },
+                query: { from: String(version.version), to: String(version.version), all: '1' },
+              }"
+            >
               v{{ version.version }} · {{ formatTime(version.created_at) }}
-            </span>
+            </RouterLink>
+          </p>
+          <p v-if="detail.versions.length > 1" class="small">
+            <RouterLink
+              data-testid="compare-latest"
+              :to="{
+                name: 'compare',
+                params: { id: detail.id },
+                query: { from: String(detail.version - 1), to: String(detail.version) },
+              }"
+            >
+              对比最近两个版本
+            </RouterLink>
           </p>
           <ol v-if="detail.history.length" class="history">
             <li v-for="entry in detail.history" :key="entry.id">
@@ -270,6 +310,17 @@ function saved(next: AdminQuestionDetail): void {
               </span>
               <p v-if="entry.changes && entry.changes.length" class="small">
                 改动了：{{ entry.changes.map((part) => PART_LABEL[part] ?? part).join('、') }}
+                <RouterLink
+                  v-if="entry.version !== null && entry.version > 1"
+                  :data-testid="`compare-entry-${entry.version}`"
+                  :to="{
+                    name: 'compare',
+                    params: { id: detail.id },
+                    query: { from: String(entry.version - 1), to: String(entry.version) },
+                  }"
+                >
+                  与上一版对比
+                </RouterLink>
               </p>
               <p v-if="entry.comment" class="comment">{{ entry.comment }}</p>
             </li>

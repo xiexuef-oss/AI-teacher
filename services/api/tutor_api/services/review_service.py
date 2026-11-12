@@ -46,6 +46,7 @@ from tutor_api.schemas import (
     AdminSolution,
     AdminStatusCounts,
     AdminTeaching,
+    AdminVersionSnapshot,
     AdminVisual,
     QuestionContent,
     QuestionReviewStateOut,
@@ -344,6 +345,70 @@ def _admin_teaching(question: Question, version: QuestionVersion) -> AdminTeachi
             else None
         ),
         leak_markers=_custom_markers(question, version),
+    )
+
+
+def _knowledge_codes(db: Session, question_id: str) -> list[str]:
+    return sorted(
+        node.code for node in question_service.knowledge_refs(db, [question_id])[question_id]
+    )
+
+
+def version_snapshot(db: Session, question_id: str, version_no: int) -> AdminVersionSnapshot:
+    """某一个版本的完整内容，回看和对比用。
+
+    题面、答案、教学辅助、解法、评分细则本来就按版本存。难度、年级、知识点原来只在题目行和关联表里，
+    修改题目会覆盖它们，所以修改时把它们记进旧版本、新值记进新版本（content_json 里）：
+    当前版本以题目现在的状态为准（二者一致）；旧版本用当时记下的值，早于这个改动的版本没有，回退到现在的值。
+    """
+    question = db.get(Question, question_id)
+    if question is None:
+        raise not_found()
+    version = db.scalar(
+        select(QuestionVersion).where(
+            QuestionVersion.question_id == question.id, QuestionVersion.version == version_no
+        )
+    )
+    if version is None:
+        raise not_found()
+    current = version.version == question.version
+    content, answer = version.content_json, version.answer_json
+    solutions = _solutions(db, question.id, version.version)
+
+    def stored(key: str, fallback):
+        return fallback if current or key not in content else content[key]
+
+    return AdminVersionSnapshot(
+        question_id=question.id,
+        version=version.version,
+        is_current=current,
+        created_by=version.created_by,
+        created_at=version.created_at,
+        title=content.get("title") or "",
+        difficulty=stored("difficulty", question.difficulty),
+        grade=stored("grade", question.grade),
+        content=QuestionContent(
+            stem=content["stem"],
+            options=content.get("options") or [],
+            blanks=content.get("blanks") or [],
+            subquestions=content.get("subquestions") or [],
+            attachments=content.get("attachments") or [],
+        ),
+        answer=AdminAnswer(
+            value=answer.get("value"),
+            equivalence_rules=answer.get("equivalence_rules") or {},
+            units=answer.get("units") or {},
+        ),
+        teaching=_admin_teaching(question, version),
+        solutions=[
+            _admin_solution(solutions[kind]) for kind in ("standard", "fast") if kind in solutions
+        ],
+        knowledge=list(
+            stored("knowledge", None)
+            if not current and "knowledge" in content
+            else _knowledge_codes(db, question.id)
+        ),
+        rubric=_rubric(db, question.id, version.version),
     )
 
 
@@ -686,6 +751,10 @@ def create_version(
     if not changes:
         raise ApiError(422, "no_changes", "没有任何改动，不产生新版本")
 
+    # 难度、年级、知识点原来只在题目行和关联表里，下面会把它们覆盖掉：先记进旧版本，回看和对比才不会丢
+    snapshot_keys = {key: before[key] for key in ("difficulty", "grade", "knowledge")}
+    previous.content_json = {**snapshot_keys, **previous.content_json}
+
     new_version = question.version + 1
     content = body.content
     answer = {
@@ -719,6 +788,9 @@ def create_version(
                 "blanks": [item.model_dump() for item in content.blanks],
                 "subquestions": [item.model_dump() for item in content.subquestions],
                 "attachments": [item.model_dump() for item in content.attachments],
+                "difficulty": body.difficulty,
+                "grade": body.grade,
+                "knowledge": sorted(codes),
             },
             answer_json=answer,
             teaching_json=teaching,
