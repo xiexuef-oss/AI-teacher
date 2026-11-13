@@ -51,13 +51,19 @@ IMPLEMENTED = {
     # P0 第 3、4 条：解答题（主观题）提交后的对照自查
     "getSelfCheck",
     "saveSelfCheck",
+    # P0 第 8 条：家长周报与学生明确授权的绑定
+    "createParentInvite",
+    "listParentLinks",
+    "revokeParentLink",
+    "redeemParentInvite",
+    "listParentStudents",
+    "getParentWeekly",
 }
 PLANNED = {
     "createMediaUpload",
     "createScan",
     "getScan",
     "confirmScan",
-    "getParentWeekly",
 }
 # docs/05：提交、评分触发、草稿同步、教学下一步等非幂等动作必须带 Idempotency-Key
 MUST_REQUIRE_IDEMPOTENCY_KEY = {
@@ -73,6 +79,9 @@ MUST_REQUIRE_IDEMPOTENCY_KEY = {
     "reviewQuestion",
     "createQuestionVersion",
     "saveSelfCheck",
+    "createParentInvite",
+    "redeemParentInvite",
+    "revokeParentLink",
 }
 PUBLIC_OPERATIONS = {"getHealth", "getLaunchConfig", "createLocalIdentity"}
 DOC06_TEMPLATES = {
@@ -309,6 +318,83 @@ def test_progress_reports_subjective_work_apart_from_accuracy():
     assert "subjective" in schemas["ProgressSummary"]["required"]
     subjective = schemas["SubjectiveProgress"]
     assert not {"rate", "accuracy", "score"} & set(subjective["properties"])
+
+
+PARENT_VIEW_SCHEMAS = ("ParentWeekly", "ParentStudent", "ParentStudents", "PreviousWeek")
+
+
+def test_what_a_parent_can_see_never_reaches_questions_answers_or_drafts():
+    """家长只看汇总（PRD §3、US-06）：周报与学生列表沿 $ref 走不到题目、作答、草稿笔迹和教学事件。"""
+    forbidden = {
+        "Question",
+        "QuestionOut",
+        "QuestionSummary",
+        "QuestionContent",
+        "Attempt",
+        "AnswerPayload",
+        "AnswerPart",
+        "Draft",
+        "DraftSync",
+        "Stroke",
+        "StrokeDoc",
+        "StrokePage",
+        "TutorEvent",
+        "TutorEventPayload",
+        "SelfCheck",
+        "SelfCheckPoint",
+        "StudySession",
+        "ReviewItem",
+    }
+    for name in PARENT_VIEW_SCHEMAS:
+        assert not forbidden & _reachable_schemas(name), name
+
+
+def test_the_weekly_report_has_no_per_interaction_ranking_or_streak_fields():
+    properties = set(load_openapi()["components"]["schemas"]["ParentWeekly"]["properties"])
+    banned = {
+        "question_id",
+        "question_ids",
+        "title",
+        "answer",
+        "answers",
+        "strokes",
+        "draft",
+        "hints",
+        "submitted_at",
+        "events",
+        "rank",
+        "ranking",
+        "percentile",
+        "streak",
+        "consecutive_days",
+        "score",
+    }
+    assert not banned & properties
+    # 比例和计数分开，比例样本不足时是 null（RateStat 已经这样约定）
+    assert {"independent", "assisted", "hint_dependency", "retest_success"} <= properties
+
+
+def test_the_invite_code_is_only_in_the_create_response():
+    """邀请码只在创建时出现一次：授权列表、待用邀请、家长看到的学生里都没有 code 字段。"""
+    schemas = load_openapi()["components"]["schemas"]
+    assert "code" in schemas["ParentInvite"]["properties"]
+    for name in (
+        "ParentLink",
+        "ParentLinks",
+        "PendingParentInvite",
+        "ParentStudent",
+        "ParentStudents",
+    ):
+        assert "code" not in schemas[name]["properties"], name
+
+
+def test_a_parent_is_a_local_mock_role_and_revocation_is_part_of_the_contract():
+    schemas = load_openapi()["components"]["schemas"]
+    assert "parent" in schemas["LocalRole"]["enum"]
+    assert "revoked_at" in schemas["ParentLink"]["required"]
+    _, _, weekly = operations_by_id()["getParentWeekly"]
+    assert "501" not in weekly["responses"]
+    assert {"401", "403", "404", "422"} <= set(weekly["responses"])
 
 
 def test_response_schemas_are_closed_objects():

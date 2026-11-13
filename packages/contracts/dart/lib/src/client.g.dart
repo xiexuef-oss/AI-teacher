@@ -383,15 +383,79 @@ class TutorApiClient {
     return ScanConfirmation.fromJson(data as Map<String, dynamic>);
   }
 
-  /// 已授权绑定学生的聚合周报（planned）
-  ///
-  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  /// 学生生成一次性的家长邀请码（学生明确授权的第一步）
+  Future<ParentInvite> createParentInvite({
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/me/parent-invites',
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ParentInvite.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 学生看自己授权过哪些家长，以及有没有还没被使用的邀请码
+  Future<ParentLinks> listParentLinks({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/me/parent-links',
+      requestId: requestId,
+    );
+    return ParentLinks.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 学生撤销对一位家长的授权
+  Future<ParentLink> revokeParentLink({
+    required String linkId,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/me/parent-links/${Uri.encodeComponent(linkId)}/revoke',
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ParentLink.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 家长输入学生给的邀请码，建立绑定
+  Future<ParentStudent> redeemParentInvite({
+    required ParentInviteRedeem body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/parents/links',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ParentStudent.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 这位家长现在能看的学生
+  Future<ParentStudents> listParentStudents({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/parents/students',
+      requestId: requestId,
+    );
+    return ParentStudents.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 已授权绑定学生某一周的汇总
   Future<ParentWeekly> getParentWeekly({
     required String studentId,
+    String? weekStart,
     String? requestId,
   }) async {
     final data = await _core.send(
       'GET', '/parents/students/${Uri.encodeComponent(studentId)}/weekly',
+      query: {'week_start': weekStart},
       requestId: requestId,
     );
     return ParentWeekly.fromJson(data as Map<String, dynamic>);

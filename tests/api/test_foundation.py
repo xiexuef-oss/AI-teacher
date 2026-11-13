@@ -246,7 +246,6 @@ PLANNED_CALLS = [
     ("POST", "/scans"),
     ("GET", f"/scans/{uuid.uuid4()}"),
     ("POST", f"/scans/{uuid.uuid4()}/confirm"),
-    ("GET", f"/parents/students/{uuid.uuid4()}/weekly"),
 ]
 
 

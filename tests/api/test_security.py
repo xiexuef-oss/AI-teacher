@@ -204,8 +204,14 @@ def test_student_role_cannot_reach_admin_or_parent_endpoints(alice_and_bob):
     bob = alice_and_bob["bob"]
     alice_id = alice_and_bob["alice"].user_id
 
-    # 家长周报本阶段未实现；即使将来实现，也不能凭路径里的 student_id 授权
-    bob.error("GET", f"/parents/students/{alice_id}/weekly", expect=501)
+    # 家长接口只给家长：学生一律 403，也不能凭路径里的 student_id 授权
+    assert (
+        bob.error("GET", f"/parents/students/{alice_id}/weekly", expect=403)["code"] == "forbidden"
+    )
+    assert bob.error("GET", "/parents/students", expect=403)["code"] == "forbidden"
+    assert bob.error("POST", "/parents/links", expect=403, json={"code": "ABCDE23456"})["code"] == (
+        "forbidden"
+    )
     # 审核接口已经实现，学生一律 403——角色检查在校验请求体之前，空请求体也是 403 而不是 422
     error = bob.error(
         "POST", f"/admin/questions/{qid('math-ineq-min')}/review", expect=403, json={}

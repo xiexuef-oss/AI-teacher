@@ -1,11 +1,11 @@
 {
   "name": "self_check_saved",
   "method": "PUT",
-  "path": "/api/v1/attempts/b241fe64-8ee1-4db4-bdf4-28bd9c856187/self-check",
+  "path": "/api/v1/attempts/2cc1f99f-22a4-47a9-a2d2-d7b11a69f494/self-check",
   "status": 200,
   "schema": "SelfCheck",
   "value": {
-    "attempt_id": "b241fe64-8ee1-4db4-bdf4-28bd9c856187",
+    "attempt_id": "2cc1f99f-22a4-47a9-a2d2-d7b11a69f494",
     "points": [
       {
         "key": "p1",
@@ -84,7 +84,7 @@
   },
   "body": {
     "data": {
-      "attempt_id": "b241fe64-8ee1-4db4-bdf4-28bd9c856187",
+      "attempt_id": "2cc1f99f-22a4-47a9-a2d2-d7b11a69f494",
       "points": [
         {
           "key": "p1",

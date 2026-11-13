@@ -45,7 +45,8 @@ class LocalMockIdentityProvider:
     def issue_identity(self, db: Session, now: datetime, role: str = "student") -> tuple[User, str]:
         """创建一个本地用户并返回 (用户, 明文 token)。token 只在这里出现一次。
 
-        角色只有 student、reviewer、admin：本地联调内容审核后台用；家长要等监护授权方案（Q-03）冻结。
+        角色 student、parent、reviewer、admin。parent 只是本地联调用的 Mock：家长看学生要学生自己授权、
+        可以撤销，但这不代表监护人核验——真实登录与监护授权方案（Q-03）冻结之前，这是唯一的家长身份来源。
         """
         user = User(id=new_id(), role=role, status="active", created_at=now, updated_at=now)
         db.add(user)

@@ -1,6 +1,6 @@
-"""ORM 模型。表名、列名、长度与 migrations/001、002 保持一致（tests/migrations 对照）。
+"""ORM 模型。表名、列名、长度与 migrations/001 ~ 004 保持一致（tests/migrations 对照）。
 
-只为本切片用到的表建了模型；parent_student_links、media_assets、question_curriculum_mappings、
+只为本切片用到的表建了模型；media_assets、question_curriculum_mappings、
 model_routes 在迁移里已有结构，等对应功能实现时再加模型。
 """
 
@@ -237,6 +237,43 @@ class AttemptSelfCheck(Base):
     marks_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ParentStudentLink(Base):
+    """家长与学生的绑定（docs/04：仅明确授权、可撤销；PRD P0 第 8 条，migrations/001）。
+
+    授权是学生做的（生成邀请码），家长输入之后才有这一行。撤销后立即失去访问权限：所有读取都要带
+    `revoked_at IS NULL`。同一对家长和学生只有一行——重新授权时重新打开它，`consent_at`、`created_at` 都换成这一次的。
+    """
+
+    __tablename__ = "parent_student_links"
+    __table_args__ = (UniqueConstraint("parent_id", "student_id", name="uq_parent_student"),)
+
+    id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    parent_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    student_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    consent_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ParentInvite(Base):
+    """学生生成的一次性家长邀请码（PRD P0 第 8 条，migrations/004）。只存哈希，明文只在创建时返回一次。"""
+
+    __tablename__ = "parent_invites"
+    __table_args__ = (
+        UniqueConstraint("code_hash", name="uq_parent_invite_code"),
+        Index("ix_parent_invites_student", "student_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    student_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    code_hash: Mapped[str] = mapped_column(CHAR(64))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    redeemed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    redeemed_by: Mapped[str | None] = mapped_column(_ID, ForeignKey("users.id"))
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
 class TutorEventRow(Base):

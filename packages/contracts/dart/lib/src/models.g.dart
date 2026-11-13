@@ -645,9 +645,10 @@ class CurriculumOption {
       };
 }
 
-/// 本地身份 Mock 可以发放的角色；缺省为 student。parent 要等监护授权方案冻结（Q-03）后才有。
+/// 本地身份 Mock 可以发放的角色；缺省为 student。parent 只是本地联调用的 Mock 角色：学生自己授权、可以撤销， 不代表任何监护人核验——真实登录与监护授权方案（Q-03）冻结之前，这是唯一的家长身份来源。
 enum LocalRole {
   student('student'),
+  parent('parent'),
   reviewer('reviewer'),
   admin('admin'),
 
@@ -2583,39 +2584,304 @@ class ScanConfirmation {
       };
 }
 
-class ParentWeekly {
-  const ParentWeekly({
+/// 学生生成的一次性邀请码。`code` 只在创建时出现这一次，之后任何接口都不会再返回它。
+class ParentInvite {
+  const ParentInvite({
+    required this.id,
+    required this.code,
+    required this.createdAt,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final String code;
+  final DateTime createdAt;
+  final DateTime expiresAt;
+
+  factory ParentInvite.fromJson(Map<String, dynamic> json) => ParentInvite(
+        id: json['id'] as String,
+        code: json['code'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+      };
+}
+
+class ParentInviteRedeem {
+  const ParentInviteRedeem({
+    required this.code,
+  });
+
+  final String code;
+
+  factory ParentInviteRedeem.fromJson(Map<String, dynamic> json) => ParentInviteRedeem(
+        code: json['code'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+      };
+}
+
+/// 一个还没被使用、也没过期的邀请码。这里看不到码本身。
+class PendingParentInvite {
+  const PendingParentInvite({
+    required this.id,
+    required this.createdAt,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final DateTime createdAt;
+  final DateTime expiresAt;
+
+  factory PendingParentInvite.fromJson(Map<String, dynamic> json) => PendingParentInvite(
+        id: json['id'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+      };
+}
+
+/// 学生对一位家长的授权。
+class ParentLink {
+  const ParentLink({
+    required this.id,
+    required this.parentId,
+    this.parentLabel,
+    required this.consentAt,
+    required this.linkedAt,
+    this.revokedAt,
+  });
+
+  final String id;
+  final String parentId;
+  final String? parentLabel;
+  final DateTime consentAt;
+  final DateTime linkedAt;
+  final DateTime? revokedAt;
+
+  factory ParentLink.fromJson(Map<String, dynamic> json) => ParentLink(
+        id: json['id'] as String,
+        parentId: json['parent_id'] as String,
+        parentLabel: json['parent_label'] == null ? null : json['parent_label'] as String,
+        consentAt: DateTime.parse(json['consent_at'] as String),
+        linkedAt: DateTime.parse(json['linked_at'] as String),
+        revokedAt: json['revoked_at'] == null ? null : DateTime.parse(json['revoked_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'parent_id': parentId,
+        'parent_label': parentLabel,
+        'consent_at': consentAt.toUtc().toIso8601String(),
+        'linked_at': linkedAt.toUtc().toIso8601String(),
+        'revoked_at': revokedAt?.toUtc().toIso8601String(),
+      };
+}
+
+class ParentLinks {
+  const ParentLinks({
+    required this.links,
+    this.pendingInvite,
+  });
+
+  final List<ParentLink> links;
+  final PendingParentInvite? pendingInvite;
+
+  factory ParentLinks.fromJson(Map<String, dynamic> json) => ParentLinks(
+        links: (json['links'] as List<dynamic>).map((e) => ParentLink.fromJson(e as Map<String, dynamic>)).toList(),
+        pendingInvite: json['pending_invite'] == null ? null : PendingParentInvite.fromJson(json['pending_invite'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'links': links.map((e) => e.toJson()).toList(),
+        'pending_invite': pendingInvite?.toJson(),
+      };
+}
+
+/// 家长能看的一位学生。
+class ParentStudent {
+  const ParentStudent({
     required this.studentId,
-    required this.weekStart,
-    required this.sessionsCount,
-    required this.independent,
-    required this.assisted,
-    required this.bySubject,
+    this.displayName,
+    required this.linkedAt,
   });
 
   final String studentId;
-  final String weekStart;
-  final int sessionsCount;
-  final RateStat independent;
-  final RateStat assisted;
-  final List<ProgressBucket> bySubject;
+  final String? displayName;
+  final DateTime linkedAt;
 
-  factory ParentWeekly.fromJson(Map<String, dynamic> json) => ParentWeekly(
+  factory ParentStudent.fromJson(Map<String, dynamic> json) => ParentStudent(
         studentId: json['student_id'] as String,
-        weekStart: json['week_start'] as String,
-        sessionsCount: (json['sessions_count'] as num).toInt(),
-        independent: RateStat.fromJson(json['independent'] as Map<String, dynamic>),
-        assisted: RateStat.fromJson(json['assisted'] as Map<String, dynamic>),
-        bySubject: (json['by_subject'] as List<dynamic>).map((e) => ProgressBucket.fromJson(e as Map<String, dynamic>)).toList(),
+        displayName: json['display_name'] == null ? null : json['display_name'] as String,
+        linkedAt: DateTime.parse(json['linked_at'] as String),
       );
 
   Map<String, dynamic> toJson() => {
         'student_id': studentId,
+        'display_name': displayName,
+        'linked_at': linkedAt.toUtc().toIso8601String(),
+      };
+}
+
+class ParentStudents {
+  const ParentStudents({
+    required this.items,
+  });
+
+  final List<ParentStudent> items;
+
+  factory ParentStudents.fromJson(Map<String, dynamic> json) => ParentStudents(
+        items: (json['items'] as List<dynamic>).map((e) => ParentStudent.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+/// 独立正确率和上一周比：up 高了，down 低了，flat 差不多（差距不到 5 个百分点），unknown 两周里有一周样本不足。
+enum WeeklyTrend {
+  up('up'),
+  down('down'),
+  flat('flat'),
+  unknown('unknown'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const WeeklyTrend(this.value);
+  final String value;
+
+  static WeeklyTrend fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => WeeklyTrend.$unknown);
+
+  String toJson() => value;
+}
+
+/// 上一周的几个数，用来看趋势。
+class PreviousWeek {
+  const PreviousWeek({
+    required this.weekStart,
+    required this.attemptsCount,
+    required this.independent,
+  });
+
+  final String weekStart;
+  final int attemptsCount;
+  final RateStat independent;
+
+  factory PreviousWeek.fromJson(Map<String, dynamic> json) => PreviousWeek(
+        weekStart: json['week_start'] as String,
+        attemptsCount: (json['attempts_count'] as num).toInt(),
+        independent: RateStat.fromJson(json['independent'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
         'week_start': weekStart,
+        'attempts_count': attemptsCount,
+        'independent': independent.toJson(),
+      };
+}
+
+/// 一位已授权学生某一周的汇总。只有计数和比例：没有具体题目、作答内容、提示原文、草稿和笔迹， 也没有每次练习的时间。周从周一到周日，按服务端配置的时区划分。样本少于 `min_samples` 的比例是 null，只给计数。 不是官方成绩，没有排名，也没有连续天数。
+class ParentWeekly {
+  const ParentWeekly({
+    required this.studentId,
+    this.studentDisplayName,
+    required this.weekStart,
+    required this.weekEnd,
+    required this.isComplete,
+    required this.generatedAt,
+    required this.minSamples,
+    required this.sessionsCount,
+    required this.attemptsCount,
+    required this.activeDays,
+    required this.independent,
+    required this.assisted,
+    required this.hintDependency,
+    required this.retestSuccess,
+    required this.writtenAttempts,
+    required this.independentTrend,
+    required this.previousWeek,
+    required this.bySubject,
+    required this.disclaimer,
+  });
+
+  final String studentId;
+  final String? studentDisplayName;
+  final String weekStart;
+  final String weekEnd;
+  final bool isComplete;
+  final DateTime generatedAt;
+  final int minSamples;
+  final int sessionsCount;
+  final int attemptsCount;
+  final int activeDays;
+  final RateStat independent;
+  final RateStat assisted;
+  final RateStat hintDependency;
+  final RateStat retestSuccess;
+  final int writtenAttempts;
+  final WeeklyTrend independentTrend;
+  final PreviousWeek previousWeek;
+  final List<ProgressBucket> bySubject;
+  final String disclaimer;
+
+  factory ParentWeekly.fromJson(Map<String, dynamic> json) => ParentWeekly(
+        studentId: json['student_id'] as String,
+        studentDisplayName: json['student_display_name'] == null ? null : json['student_display_name'] as String,
+        weekStart: json['week_start'] as String,
+        weekEnd: json['week_end'] as String,
+        isComplete: json['is_complete'] as bool,
+        generatedAt: DateTime.parse(json['generated_at'] as String),
+        minSamples: (json['min_samples'] as num).toInt(),
+        sessionsCount: (json['sessions_count'] as num).toInt(),
+        attemptsCount: (json['attempts_count'] as num).toInt(),
+        activeDays: (json['active_days'] as num).toInt(),
+        independent: RateStat.fromJson(json['independent'] as Map<String, dynamic>),
+        assisted: RateStat.fromJson(json['assisted'] as Map<String, dynamic>),
+        hintDependency: RateStat.fromJson(json['hint_dependency'] as Map<String, dynamic>),
+        retestSuccess: RateStat.fromJson(json['retest_success'] as Map<String, dynamic>),
+        writtenAttempts: (json['written_attempts'] as num).toInt(),
+        independentTrend: WeeklyTrend.fromJson(json['independent_trend'] as String),
+        previousWeek: PreviousWeek.fromJson(json['previous_week'] as Map<String, dynamic>),
+        bySubject: (json['by_subject'] as List<dynamic>).map((e) => ProgressBucket.fromJson(e as Map<String, dynamic>)).toList(),
+        disclaimer: json['disclaimer'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'student_id': studentId,
+        'student_display_name': studentDisplayName,
+        'week_start': weekStart,
+        'week_end': weekEnd,
+        'is_complete': isComplete,
+        'generated_at': generatedAt.toUtc().toIso8601String(),
+        'min_samples': minSamples,
         'sessions_count': sessionsCount,
+        'attempts_count': attemptsCount,
+        'active_days': activeDays,
         'independent': independent.toJson(),
         'assisted': assisted.toJson(),
+        'hint_dependency': hintDependency.toJson(),
+        'retest_success': retestSuccess.toJson(),
+        'written_attempts': writtenAttempts,
+        'independent_trend': independentTrend.toJson(),
+        'previous_week': previousWeek.toJson(),
         'by_subject': bySubject.map((e) => e.toJson()).toList(),
+        'disclaimer': disclaimer,
       };
 }
 

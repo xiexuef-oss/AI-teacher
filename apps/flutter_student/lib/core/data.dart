@@ -27,7 +27,8 @@ class ProfileController extends AsyncNotifier<StudentProfile> {
 
   @override
   Future<StudentProfile> build() async {
-    final auth = await ref.watch(authProvider.future);
+    // 学生资料是学生身份的：本机演示切到家长身份之后不拿家长的凭据去请求，切回来时按学生的凭据重新加载
+    final auth = await ref.watch(studentSessionProvider.future);
     try {
       final profile = await ref.read(apiClientProvider).getProfile();
       await _remember(auth.userId, profile);
@@ -76,7 +77,7 @@ class TasksResult {
 }
 
 final todayTasksProvider = FutureProvider.autoDispose<TasksResult>((ref) async {
-  final auth = await ref.watch(authProvider.future);
+  final auth = await ref.watch(studentSessionProvider.future);
   final store = ref.read(keyValueStoreProvider);
   final key = 'u/${auth.userId}/tasks';
   try {
@@ -142,7 +143,7 @@ final skippedTasksProvider = FutureProvider.autoDispose
 
 /// 复测队列（含未到期的）。
 final reviewsProvider = FutureProvider.autoDispose<ReviewPage>((ref) async {
-  await ref.watch(authProvider.future);
+  await ref.watch(studentSessionProvider.future);
   return ref
       .watch(apiClientProvider)
       .listDueReviews(scope: ReviewScope.all, limit: 50);
@@ -151,16 +152,48 @@ final reviewsProvider = FutureProvider.autoDispose<ReviewPage>((ref) async {
 final progressProvider = FutureProvider.autoDispose<ProgressSummary>((
   ref,
 ) async {
-  await ref.watch(authProvider.future);
+  await ref.watch(studentSessionProvider.future);
   return ref.watch(apiClientProvider).getProgressSummary();
 });
 
 /// 某个会话已有的教学事件（只读回看）。
 final sessionEventsProvider = FutureProvider.autoDispose
     .family<List<TutorEvent>, String>((ref, sessionId) async {
-      await ref.watch(authProvider.future);
+      await ref.watch(studentSessionProvider.future);
       final page = await ref
           .watch(apiClientProvider)
           .listSessionEvents(sessionId: sessionId, afterSeq: 0, limit: 200);
       return page.items;
     });
+
+// ---------------------------------------------------------------- 家长周报与授权（PRD P0 第 8 条）
+
+/// 家长：现在能看的学生（学生撤销授权之后，这里就没有他了）。
+final parentStudentsProvider = FutureProvider.autoDispose<ParentStudents>((
+  ref,
+) async {
+  await ref.watch(parentSessionProvider.future);
+  return ref.watch(apiClientProvider).listParentStudents();
+});
+
+/// 某位学生的某一周。[weekStart] 是那一周的周一（`2026-11-09`）；null 是当前这一周。
+typedef WeeklyQuery = ({String studentId, String? weekStart});
+
+final parentWeeklyProvider = FutureProvider.autoDispose
+    .family<ParentWeekly, WeeklyQuery>((ref, query) async {
+      await ref.watch(parentSessionProvider.future);
+      return ref
+          .watch(apiClientProvider)
+          .getParentWeekly(
+            studentId: query.studentId,
+            weekStart: query.weekStart,
+          );
+    });
+
+/// 学生：自己授权过哪些家长，以及有没有还没被用掉的邀请码。
+final parentLinksProvider = FutureProvider.autoDispose<ParentLinks>((
+  ref,
+) async {
+  await ref.watch(studentSessionProvider.future);
+  return ref.watch(apiClientProvider).listParentLinks();
+});

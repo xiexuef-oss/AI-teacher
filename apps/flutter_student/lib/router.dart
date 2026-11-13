@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tutor_contracts/tutor_contracts.dart' show LocalRole;
 
 import 'core/widgets.dart';
 import 'features/home/home_page.dart';
 import 'features/misc/misc_pages.dart';
 import 'features/onboarding/onboarding_page.dart';
+import 'features/parent/parent_home_page.dart';
+import 'features/parent/parent_weekly_page.dart';
 import 'features/practice/practice_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/progress/progress_page.dart';
@@ -14,9 +17,12 @@ import 'features/solve/solve_controller.dart';
 import 'features/solve/solve_page.dart';
 import 'features/startup/startup_gate.dart';
 
-/// 页面清单（docs/03 §2）。除了入口 `/`，所有页面都要等登录状态就绪。
+/// 页面清单（docs/03 §2）。除了入口 `/`，所有页面都要等登录状态就绪；
+/// 学生的页面只给学生身份用，家长的页面（`/parent` 开头）只给家长身份用。
 final routerProvider = Provider<GoRouter>((ref) {
   Widget guarded(Widget child) => RequireAuth(child: child);
+  Widget guardedParent(Widget child) =>
+      RequireAuth(role: LocalRole.parent, child: child);
 
   return GoRouter(
     initialLocation: '/',
@@ -101,6 +107,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/visual/:templateId',
         builder: (context, state) => guarded(
           VisualPage(templateId: state.pathParameters['templateId']!),
+        ),
+      ),
+      GoRoute(
+        path: '/parent',
+        builder: (context, state) => guardedParent(const ParentHomePage()),
+      ),
+      GoRoute(
+        path: '/parent/weekly/:studentId',
+        builder: (context, state) => guardedParent(
+          ParentWeeklyPage(
+            // key 带上学生：换了学生要整个重建（翻到哪一周是页面自己的状态）
+            key: ValueKey('parent.weekly.${state.pathParameters['studentId']}'),
+            studentId: state.pathParameters['studentId']!,
+          ),
         ),
       ),
     ],

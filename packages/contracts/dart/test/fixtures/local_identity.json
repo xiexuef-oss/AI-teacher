@@ -5,16 +5,16 @@
   "status": 201,
   "schema": "LocalIdentity",
   "value": {
-    "user_id": "54f9a352-3c01-48a5-abe3-5ae450766187",
+    "user_id": "a8cde7a7-18b2-47aa-a6b2-446d1811d350",
     "role": "student",
-    "access_token": "ZXw8ObWpcV6BqehEVehsNpnwTzN1jaORnoE6sjJjbXw",
+    "access_token": "eN_zuAZ4RJX2-3i1UNdYK1DmkQDdJ5eOvSZQ10m8Ztk",
     "token_type": "Bearer"
   },
   "body": {
     "data": {
-      "user_id": "54f9a352-3c01-48a5-abe3-5ae450766187",
+      "user_id": "a8cde7a7-18b2-47aa-a6b2-446d1811d350",
       "role": "student",
-      "access_token": "ZXw8ObWpcV6BqehEVehsNpnwTzN1jaORnoE6sjJjbXw",
+      "access_token": "eN_zuAZ4RJX2-3i1UNdYK1DmkQDdJ5eOvSZQ10m8Ztk",
       "token_type": "Bearer"
     }
   }

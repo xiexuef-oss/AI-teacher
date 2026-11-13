@@ -121,6 +121,45 @@ def admin(new_reviewer) -> ApiClient:
 
 
 @pytest.fixture
+def custom_app(settings, clock) -> Iterator[Callable[..., TestClient]]:
+    """用自定义设置另起一个应用（共用这个测试的库副本和时钟）。"""
+    from contextlib import ExitStack
+
+    from tutor_api.main import create_app
+
+    with ExitStack() as stack:
+
+        def factory(**overrides) -> TestClient:
+            app = create_app(settings.model_copy(update=overrides), clock=clock.now)
+            return stack.enter_context(TestClient(app, client=LOOPBACK))
+
+        yield factory
+
+
+@pytest.fixture
+def new_parent(client) -> Callable[[], ApiClient]:
+    """每次调用创建一个新的本地家长身份（Mock：真实的监护授权方案是 Q-03，还没有冻结）。"""
+
+    def create() -> ApiClient:
+        identity = ApiClient(client).data(
+            "POST",
+            "/dev/local-identities",
+            expect=201,
+            auth=False,
+            key=False,
+            params={"role": "parent"},
+        )
+        return ApiClient(client, token=identity["access_token"], user_id=identity["user_id"])
+
+    return create
+
+
+@pytest.fixture
+def parent(new_parent) -> ApiClient:
+    return new_parent()
+
+
+@pytest.fixture
 def onboarded(student) -> ApiClient:
     """已完成引导的四川高三学生，三科全选。考试年份按夹具时钟估算为 2027。"""
     student.data(

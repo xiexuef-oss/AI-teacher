@@ -26,6 +26,7 @@ from tutor_api.routers import (
     admin,
     attempts,
     learning,
+    parents,
     planned,
     profile,
     questions,
@@ -105,6 +106,7 @@ def create_app(
         reviews,
         learning,
         admin,
+        parents,
         planned,
     ):
         app.include_router(module.router, prefix=API_PREFIX)

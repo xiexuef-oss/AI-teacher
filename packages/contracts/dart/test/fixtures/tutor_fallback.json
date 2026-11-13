@@ -1,12 +1,12 @@
 {
   "name": "tutor_fallback",
   "method": "POST",
-  "path": "/api/v1/tutor/sessions/632aa09a-a496-4d7a-8b83-8dee169c7654/next",
+  "path": "/api/v1/tutor/sessions/1cf4cb55-f166-42dd-958d-4d8aadc16876/next",
   "status": 200,
   "schema": "TutorStep",
   "value": {
     "session": {
-      "id": "632aa09a-a496-4d7a-8b83-8dee169c7654",
+      "id": "1cf4cb55-f166-42dd-958d-4d8aadc16876",
       "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
       "question_version": 1,
       "origin": "practice",
@@ -23,7 +23,7 @@
       "hint_levels_total": 3,
       "confused_streak": 1,
       "needs_human_help": false,
-      "active_attempt_id": "84d0a0a7-639f-42f7-a023-5c5fb4bc3958",
+      "active_attempt_id": "4fbaaec0-2576-405d-a991-a8ada790b858",
       "submitted_attempts": 0,
       "last_event_seq": 1,
       "created_at": "2026-11-11T08:00:00Z",
@@ -31,8 +31,8 @@
     },
     "events": [
       {
-        "id": "f05dff1e-25ad-45bf-b35e-e1d00323b475",
-        "session_id": "632aa09a-a496-4d7a-8b83-8dee169c7654",
+        "id": "59073a1e-a8ac-42d4-a310-ff5f1e296691",
+        "session_id": "1cf4cb55-f166-42dd-958d-4d8aadc16876",
         "seq_no": 1,
         "type": "fallback",
         "created_at": "2026-11-11T08:00:00Z",
@@ -70,8 +70,8 @@
           "prompt_version": null,
           "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
           "question_version": 1,
-          "trace_id": "daab8cf5619c4849a65f8dcc8643855f",
-          "request_id": "f19910673df0416f9a5e7ff2ac392d87"
+          "trace_id": "1423a911222e4c87b8ad1434f08298a4",
+          "request_id": "5cdaf3af69064017904b0da8d1ee090b"
         }
       }
     ]
@@ -79,7 +79,7 @@
   "body": {
     "data": {
       "session": {
-        "id": "632aa09a-a496-4d7a-8b83-8dee169c7654",
+        "id": "1cf4cb55-f166-42dd-958d-4d8aadc16876",
         "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
         "question_version": 1,
         "origin": "practice",
@@ -96,7 +96,7 @@
         "hint_levels_total": 3,
         "confused_streak": 1,
         "needs_human_help": false,
-        "active_attempt_id": "84d0a0a7-639f-42f7-a023-5c5fb4bc3958",
+        "active_attempt_id": "4fbaaec0-2576-405d-a991-a8ada790b858",
         "submitted_attempts": 0,
         "last_event_seq": 1,
         "created_at": "2026-11-11T08:00:00Z",
@@ -104,8 +104,8 @@
       },
       "events": [
         {
-          "id": "f05dff1e-25ad-45bf-b35e-e1d00323b475",
-          "session_id": "632aa09a-a496-4d7a-8b83-8dee169c7654",
+          "id": "59073a1e-a8ac-42d4-a310-ff5f1e296691",
+          "session_id": "1cf4cb55-f166-42dd-958d-4d8aadc16876",
           "seq_no": 1,
           "type": "fallback",
           "created_at": "2026-11-11T08:00:00Z",
@@ -143,8 +143,8 @@
             "prompt_version": null,
             "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
             "question_version": 1,
-            "trace_id": "daab8cf5619c4849a65f8dcc8643855f",
-            "request_id": "f19910673df0416f9a5e7ff2ac392d87"
+            "trace_id": "1423a911222e4c87b8ad1434f08298a4",
+            "request_id": "5cdaf3af69064017904b0da8d1ee090b"
           }
         }
       ]

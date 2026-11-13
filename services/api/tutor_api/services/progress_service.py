@@ -16,6 +16,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,7 +41,7 @@ class _Row:
     difficulty: int
 
 
-def _stat(rows: Iterable[_Row], hit: Callable[[_Row], bool], min_samples: int) -> RateStat:
+def rate_stat(rows: Iterable[_Row], hit: Callable[[_Row], bool], min_samples: int) -> RateStat:
     rows = list(rows)
     numerator = sum(1 for row in rows if hit(row))
     denominator = len(rows)
@@ -51,6 +52,74 @@ def _stat(rows: Iterable[_Row], hit: Callable[[_Row], bool], min_samples: int) -
         rate=round(numerator / denominator, 4) if enough else None,
         insufficient_data=not enough,
     )
+
+
+def is_correct(row: _Row) -> bool:
+    return row.correct
+
+
+def unaided_success(row: _Row) -> bool:
+    return row.correct and row.independent
+
+
+def load_records(
+    db: Session,
+    student_id: str,
+    *,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> list[Any]:
+    """这名学生已提交的作答（附会话来源、题目的学科/题型/难度）。since 含、until 不含，按提交时间；都不给就是全部。"""
+    query = (
+        select(
+            Attempt,
+            StudySession.origin,
+            Question.subject,
+            Question.answer_mode,
+            Question.difficulty,
+        )
+        .join(StudySession, StudySession.id == Attempt.session_id)
+        .join(Question, Question.id == StudySession.question_id)
+        .where(StudySession.student_id == student_id, Attempt.status == "submitted")
+    )
+    if since is not None:
+        query = query.where(Attempt.submitted_at >= since)
+    if until is not None:
+        query = query.where(Attempt.submitted_at < until)
+    return list(db.execute(query).all())
+
+
+def verified_rows(records: Iterable[Any]) -> list[_Row]:
+    """只有确定判定的作答进比例；判不出来的、解答题都不算。"""
+    return [
+        _Row(
+            attempt_no=attempt.attempt_no,
+            correct=bool(attempt.is_correct),
+            independent=bool(attempt.independent),
+            origin=origin,
+            subject=subject,
+            answer_mode=answer_mode,
+            difficulty=difficulty,
+        )
+        for attempt, origin, subject, answer_mode, difficulty in records
+        if attempt.evaluation_state == "verified"
+    ]
+
+
+def bucket(key: str, label: str, rows: list[_Row], min_samples: int) -> ProgressBucket:
+    return ProgressBucket(
+        key=key,
+        label=label,
+        independent=rate_stat((r for r in rows if r.independent), is_correct, min_samples),
+        assisted=rate_stat((r for r in rows if not r.independent), is_correct, min_samples),
+    )
+
+
+def subject_buckets(rows: list[_Row], min_samples: int) -> list[ProgressBucket]:
+    return [
+        bucket(code, name, [r for r in rows if r.subject == code], min_samples)
+        for code, name in launch.SUBJECTS
+    ]
 
 
 def _subjective(db: Session, attempt_ids: list[str]) -> SubjectiveProgress:
@@ -79,32 +148,8 @@ def summarize(
     db: Session, settings: Settings, student_id: str, *, now: datetime
 ) -> ProgressSummary:
     min_samples = settings.progress_min_samples
-    records = db.execute(
-        select(
-            Attempt,
-            StudySession.origin,
-            Question.subject,
-            Question.answer_mode,
-            Question.difficulty,
-        )
-        .join(StudySession, StudySession.id == Attempt.session_id)
-        .join(Question, Question.id == StudySession.question_id)
-        .where(StudySession.student_id == student_id, Attempt.status == "submitted")
-    ).all()
-
-    verified = [
-        _Row(
-            attempt_no=attempt.attempt_no,
-            correct=bool(attempt.is_correct),
-            independent=bool(attempt.independent),
-            origin=origin,
-            subject=subject,
-            answer_mode=answer_mode,
-            difficulty=difficulty,
-        )
-        for attempt, origin, subject, answer_mode, difficulty in records
-        if attempt.evaluation_state == "verified"
-    ]
+    records = load_records(db, student_id)
+    verified = verified_rows(records)
     first = [row for row in verified if row.attempt_no == 1]
     written = [attempt for attempt, _, _, mode, _ in records if mode == "written"]
     uncertain = [
@@ -113,46 +158,37 @@ def summarize(
         if mode != "written" and attempt.evaluation_state != "verified"
     ]
 
-    def is_correct(row: _Row) -> bool:
-        return row.correct
-
-    def unaided_success(row: _Row) -> bool:
-        return row.correct and row.independent
-
-    def bucket(key: str, label: str, rows: list[_Row]) -> ProgressBucket:
-        return ProgressBucket(
-            key=key,
-            label=label,
-            independent=_stat((r for r in rows if r.independent), is_correct, min_samples),
-            assisted=_stat((r for r in rows if not r.independent), is_correct, min_samples),
-        )
-
     return ProgressSummary(
         generated_at=now,
         min_samples=min_samples,
-        independent=_stat((r for r in verified if r.independent), is_correct, min_samples),
-        assisted=_stat((r for r in verified if not r.independent), is_correct, min_samples),
-        hint_dependency=_stat(first, lambda r: not r.independent, min_samples),
-        retest_success=_stat(
+        independent=rate_stat((r for r in verified if r.independent), is_correct, min_samples),
+        assisted=rate_stat((r for r in verified if not r.independent), is_correct, min_samples),
+        hint_dependency=rate_stat(first, lambda r: not r.independent, min_samples),
+        retest_success=rate_stat(
             (r for r in first if r.origin == "review"), unaided_success, min_samples
         ),
-        variant_transfer=_stat(
+        variant_transfer=rate_stat(
             (r for r in first if r.origin == "variant"), unaided_success, min_samples
         ),
         uncertain_attempts=len(uncertain),
         subjective=_subjective(db, [attempt.id for attempt in written]),
-        by_subject=[
-            bucket(code, name, [r for r in verified if r.subject == code])
-            for code, name in launch.SUBJECTS
-        ],
+        by_subject=subject_buckets(verified, min_samples),
         by_answer_mode=[
             bucket(
-                mode, launch.ANSWER_MODE_NAMES[mode], [r for r in verified if r.answer_mode == mode]
+                mode,
+                launch.ANSWER_MODE_NAMES[mode],
+                [r for r in verified if r.answer_mode == mode],
+                min_samples,
             )
             for mode in _OBJECTIVE_MODES
         ],
         by_difficulty=[
-            bucket(str(level), f"难度 {level}", [r for r in verified if r.difficulty == level])
+            bucket(
+                str(level),
+                f"难度 {level}",
+                [r for r in verified if r.difficulty == level],
+                min_samples,
+            )
             for level in range(1, 6)
         ],
         disclaimer=DISCLAIMER,

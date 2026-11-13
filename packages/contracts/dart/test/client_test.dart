@@ -295,4 +295,122 @@ void main() {
           .having((e) => e.code, 'code', 'not_implemented')),
     );
   });
+
+  group('家长周报与授权', () {
+    test('学生生成邀请码：十位、带幂等键；授权列表里不会再出现码', () async {
+      serve('parent_invite');
+      final invite = await client.createParentInvite(
+        idempotencyKey: 'invite-0001-abcd',
+      );
+      final request = transport.seen.single;
+      expect(request.method, 'POST');
+      expect(request.uri.path, '/api/v1/me/parent-invites');
+      expect(request.headers['Idempotency-Key'], 'invite-0001-abcd');
+      expect(invite.code, hasLength(10));
+      expect(invite.expiresAt.isAfter(invite.createdAt), isTrue);
+
+      serve('parent_links_pending');
+      final links = await client.listParentLinks();
+      expect(links.links, isEmpty);
+      expect(links.pendingInvite, isNotNull);
+      expect(jsonEncode(links.toJson()).contains('"code"'), isFalse);
+      expect(jsonEncode(links.toJson()).contains(invite.code), isFalse);
+    });
+
+    test('家长输入邀请码：请求体只有 code；不对的码是 404 invite_invalid', () async {
+      serve('parent_link_created');
+      final linked = await client.redeemParentInvite(
+        body: const ParentInviteRedeem(code: 'abcde-23456'),
+        idempotencyKey: 'redeem-0001-abcd',
+      );
+      final request = transport.seen.single;
+      expect(request.uri.path, '/api/v1/parents/links');
+      expect(jsonDecode(request.body!), {'code': 'abcde-23456'});
+      expect(request.headers['Idempotency-Key'], 'redeem-0001-abcd');
+      expect(linked.studentId, isNotEmpty);
+
+      serve('error_invite_invalid');
+      await expectLater(
+        client.redeemParentInvite(
+          body: const ParentInviteRedeem(code: 'ZZZZZZZZZZ'),
+          idempotencyKey: 'redeem-0002-abcd',
+        ),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 404)
+              .having((e) => e.code, 'code', 'invite_invalid'),
+        ),
+      );
+    });
+
+    test('家长看学生列表和某一周的汇总：week_start 编成查询参数', () async {
+      serve('parent_students');
+      final students = await client.listParentStudents();
+      expect(students.items, hasLength(1));
+      final studentId = students.items.single.studentId;
+
+      serve('parent_weekly');
+      final weekly = await client.getParentWeekly(
+        studentId: studentId,
+        weekStart: '2026-11-09',
+      );
+      final request = transport.seen.last;
+      expect(request.uri.path, '/api/v1/parents/students/$studentId/weekly');
+      expect(request.uri.queryParameters, {'week_start': '2026-11-09'});
+      expect(weekly.studentId, studentId);
+      expect(weekly.attemptsCount, greaterThan(0));
+      expect(weekly.bySubject, hasLength(3));
+      expect(weekly.independentTrend, isA<WeeklyTrend>());
+      expect(weekly.disclaimer, contains('不是官方成绩'));
+      // 只有汇总：没有题目、作答、草稿
+      final text = jsonEncode(weekly.toJson());
+      for (final forbidden in ['question', 'strokes', 'answer', 'hints']) {
+        expect(text.contains('"$forbidden'), isFalse, reason: forbidden);
+      }
+    });
+
+    test('没授权、授权撤销后是 404；日期不是周一是 422', () async {
+      serve('error_weekly_not_linked');
+      await expectLater(
+        client.getParentWeekly(studentId: 'x'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 404)
+              .having((e) => e.code, 'code', 'not_found'),
+        ),
+      );
+      serve('error_weekly_revoked');
+      await expectLater(
+        client.getParentWeekly(studentId: 'x'),
+        throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', 404),
+        ),
+      );
+      serve('error_weekly_not_a_monday');
+      await expectLater(
+        client.getParentWeekly(studentId: 'x', weekStart: '2026-11-10'),
+        throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', 422),
+        ),
+      );
+    });
+
+    test('学生撤销授权：路径带授权 ID，带幂等键，返回撤销时间', () async {
+      serve('parent_link_revoked');
+      final link = await client.revokeParentLink(
+        linkId: 'a/b',
+        idempotencyKey: 'revoke-0001-abcd',
+      );
+      final request = transport.seen.single;
+      expect(request.uri.path, '/api/v1/me/parent-links/a%2Fb/revoke');
+      expect(request.headers['Idempotency-Key'], 'revoke-0001-abcd');
+      expect(link.revokedAt, isNotNull);
+    });
+
+    test('本地身份 Mock 可以领家长角色', () async {
+      serve('local_identity');
+      await client.createLocalIdentity(role: LocalRole.parent);
+      expect(transport.seen.single.uri.queryParameters, {'role': 'parent'});
+    });
+  });
 }

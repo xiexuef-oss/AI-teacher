@@ -9,7 +9,7 @@
       "code": "idempotency_key_required",
       "message": "这个操作需要 Idempotency-Key 请求头",
       "details": {},
-      "request_id": "9131585922d04c5b800079eff926dd84"
+      "request_id": "bcd370c3342140f4a708c2bb415f3993"
     }
   },
   "body": {
@@ -17,7 +17,7 @@
       "code": "idempotency_key_required",
       "message": "这个操作需要 Idempotency-Key 请求头",
       "details": {},
-      "request_id": "9131585922d04c5b800079eff926dd84"
+      "request_id": "bcd370c3342140f4a708c2bb415f3993"
     }
   }
 }

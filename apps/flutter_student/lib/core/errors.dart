@@ -15,6 +15,9 @@ String describeError(Object error) {
       'review_not_due' => '这道题还没有到复测时间。',
       'attempt_not_submitted' => '提交之后才能对照要点自查。',
       'self_check_not_applicable' => '这道题不需要对照要点自查。',
+      // 不区分是写错、过期还是已经用过：服务端也不区分，免得被人拿来试码
+      'invite_invalid' => '邀请码不对，或者已经过期、已经被用过。',
+      'already_linked' => '已经绑定着这位学生了，不用再输入邀请码。',
       _ => error.message,
     };
   }
@@ -25,3 +28,7 @@ bool isNetworkError(Object error) => error is ApiException && error.isNetwork;
 
 bool isAuthError(Object error) =>
     error is ApiException && error.statusCode == 401;
+
+/// 404：资源不存在，或者没有权限看（服务端不区分，防止被人用来探测）。
+bool isNotFoundError(Object error) =>
+    error is ApiException && error.statusCode == 404;

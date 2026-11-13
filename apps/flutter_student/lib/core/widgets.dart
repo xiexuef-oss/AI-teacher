@@ -223,11 +223,16 @@ class Callout extends StatelessWidget {
     required this.child,
     this.tone = Tone.info,
     this.icon,
+    this.announce = false,
   });
 
   final Widget child;
   final Tone tone;
   final IconData? icon;
+
+  /// 操作之后才出现的反馈（成功、失败）：让读屏软件在它出现时读出来，并且作为单独的一块，
+  /// 不被并进旁边输入框的朗读文字里。
+  final bool announce;
 
   @override
   Widget build(BuildContext context) {
@@ -240,7 +245,7 @@ class Callout extends StatelessWidget {
       Tone.info => (scheme.primary, Icons.info_outline),
       Tone.neutral => (scheme.outline, Icons.info_outline),
     };
-    return DecoratedBox(
+    final box = DecoratedBox(
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(12),
@@ -258,5 +263,8 @@ class Callout extends StatelessWidget {
         ),
       ),
     );
+    return announce
+        ? Semantics(container: true, liveRegion: true, child: box)
+        : box;
   }
 }

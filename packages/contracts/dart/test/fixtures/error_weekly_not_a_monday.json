@@ -1,0 +1,39 @@
+{
+  "name": "error_weekly_not_a_monday",
+  "method": "GET",
+  "path": "/api/v1/parents/students/a8cde7a7-18b2-47aa-a6b2-446d1811d350/weekly",
+  "status": 422,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "validation_error",
+      "message": "请求字段不合法",
+      "details": {
+        "errors": [
+          {
+            "field": "week_start",
+            "message": "week_start 必须是周一",
+            "type": "value_error"
+          }
+        ]
+      },
+      "request_id": "cf8c7683f12e46b98498990f13f1b4c1"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "validation_error",
+      "message": "请求字段不合法",
+      "details": {
+        "errors": [
+          {
+            "field": "week_start",
+            "message": "week_start 必须是周一",
+            "type": "value_error"
+          }
+        ]
+      },
+      "request_id": "cf8c7683f12e46b98498990f13f1b4c1"
+    }
+  }
+}

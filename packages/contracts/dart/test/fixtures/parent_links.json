@@ -1,0 +1,35 @@
+{
+  "name": "parent_links",
+  "method": "GET",
+  "path": "/api/v1/me/parent-links",
+  "status": 200,
+  "schema": "ParentLinks",
+  "value": {
+    "links": [
+      {
+        "id": "1b942573-0fb3-44e4-a194-2dea1c674fe1",
+        "parent_id": "59f708a6-7cf2-4a9c-84c7-bb35a3e31a9b",
+        "parent_label": null,
+        "consent_at": "2026-11-11T08:00:00Z",
+        "linked_at": "2026-11-11T08:00:00Z",
+        "revoked_at": null
+      }
+    ],
+    "pending_invite": null
+  },
+  "body": {
+    "data": {
+      "links": [
+        {
+          "id": "1b942573-0fb3-44e4-a194-2dea1c674fe1",
+          "parent_id": "59f708a6-7cf2-4a9c-84c7-bb35a3e31a9b",
+          "parent_label": null,
+          "consent_at": "2026-11-11T08:00:00Z",
+          "linked_at": "2026-11-11T08:00:00Z",
+          "revoked_at": null
+        }
+      ],
+      "pending_invite": null
+    }
+  }
+}

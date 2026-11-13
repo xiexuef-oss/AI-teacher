@@ -1,0 +1,23 @@
+{
+  "name": "error_weekly_revoked",
+  "method": "GET",
+  "path": "/api/v1/parents/students/a8cde7a7-18b2-47aa-a6b2-446d1811d350/weekly",
+  "status": 404,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "not_found",
+      "message": "资源不存在",
+      "details": {},
+      "request_id": "4f7700cb4b0c429a9cae9b6ac6b5d1bb"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "not_found",
+      "message": "资源不存在",
+      "details": {},
+      "request_id": "4f7700cb4b0c429a9cae9b6ac6b5d1bb"
+    }
+  }
+}

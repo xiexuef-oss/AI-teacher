@@ -365,6 +365,80 @@ def export(directory: Path = OUTPUT_DIR) -> int:
             rec("progress_summary", student, "GET", "/progress/summary")
             rec("tasks_today_next_day", student, "GET", "/tasks/today")
 
+            # 家长：学生明确授权（生成邀请码）→ 家长输入 → 看周报 → 学生撤销
+            # 本地身份 Mock 的家长角色：监护授权方案（Q-03）没有冻结，这不是真实的家长账号
+            parent_identity = ApiClient(raw).data(
+                "POST",
+                "/dev/local-identities",
+                expect=201,
+                auth=False,
+                key=False,
+                params={"role": "parent"},
+            )
+            parent = ApiClient(
+                raw,
+                token=parent_identity["access_token"],
+                user_id=parent_identity["user_id"],
+            )
+            rec("parent_links_none", student, "GET", "/me/parent-links")
+            rec("parent_students_none", parent, "GET", "/parents/students")
+            invite = rec("parent_invite", student, "POST", "/me/parent-invites", expect=201)
+            rec("parent_links_pending", student, "GET", "/me/parent-links")
+            rec(
+                "error_invite_invalid",
+                parent,
+                "POST",
+                "/parents/links",
+                expect=404,
+                json={"code": "ZZZZZZZZZZ"},
+            )
+            rec(
+                "parent_link_created",
+                parent,
+                "POST",
+                "/parents/links",
+                expect=201,
+                json={"code": invite["code"]},
+            )
+            rec("parent_students", parent, "GET", "/parents/students")
+            links = rec("parent_links", student, "GET", "/me/parent-links")
+            rec("parent_weekly", parent, "GET", f"/parents/students/{student.user_id}/weekly")
+            rec(
+                "parent_weekly_last_week",
+                parent,
+                "GET",
+                f"/parents/students/{student.user_id}/weekly",
+                params={"week_start": "2026-11-02"},
+            )
+            rec(
+                "error_weekly_not_a_monday",
+                parent,
+                "GET",
+                f"/parents/students/{student.user_id}/weekly",
+                expect=422,
+                params={"week_start": "2026-11-10"},
+            )
+            rec(
+                "error_weekly_not_linked",
+                parent,
+                "GET",
+                f"/parents/students/{fresh.user_id}/weekly",
+                expect=404,
+            )
+            rec(
+                "parent_link_revoked",
+                student,
+                "POST",
+                f"/me/parent-links/{links['links'][0]['id']}/revoke",
+            )
+            rec(
+                "error_weekly_revoked",
+                parent,
+                "GET",
+                f"/parents/students/{student.user_id}/weekly",
+                expect=404,
+            )
+
             # 错误
             rec("error_not_implemented", student, "POST", "/scans", expect=501, json={})
             rec("error_unauthenticated", ApiClient(raw), "GET", "/profile", expect=401)

@@ -24,6 +24,28 @@ String formatWhen(DateTime when, DateTime now) {
 /// 0.6234 → "62%"
 String percent(double rate) => '${(rate * 100).round()}%';
 
+/// 用户 ID 的前 8 位：没有称呼时拿它当名字（不显示完整的 ID）。
+String shortId(String id) => id.length < 8 ? id : id.substring(0, 8);
+
+/// "11月9日"（按本地时间）。
+String monthDay(DateTime when) {
+  final local = when.toLocal();
+  return '${local.month}月${local.day}日';
+}
+
+/// "2026-11-09" → "11月9日"。日期没有时区，不做任何换算。
+String monthDayOfIso(String date) {
+  final parts = date.split('-');
+  if (parts.length != 3) return date;
+  return '${int.tryParse(parts[1]) ?? parts[1]}月${int.tryParse(parts[2]) ?? parts[2]}日';
+}
+
+/// "2026-11-09" 加上若干天，仍然是 "YYYY-MM-DD"。用 UTC 算，不受夏令时影响。
+String addDaysToIso(String date, int days) {
+  final base = DateTime.parse('${date}T00:00:00Z').add(Duration(days: days));
+  return base.toIso8601String().substring(0, 10);
+}
+
 String difficultyLabel(int level) => '难度 $level';
 
 /// 两个 JSON 值是否相等。数字按值比较（1 与 1.0 相同），所以在 Web 与 VM 上结论一致。

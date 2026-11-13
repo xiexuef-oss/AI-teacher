@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tutor_contracts/tutor_contracts.dart';
 
 import '../../core/data.dart';
 import '../../core/errors.dart';
+import '../../core/format.dart';
 import '../../core/labels.dart';
 import '../../core/providers.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
+import 'parent_access_section.dart';
 
 /// P09 我的：地区、年级、学科、考试年份、教材版本都可以改；考试年份和它的来源在这里看得见。
 class ProfilePage extends ConsumerWidget {
@@ -66,12 +69,22 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
       ? widget.profile.examYear
       : null;
   late String? _curriculum = widget.profile.curriculumVersion;
+  // 称呼：只有家长看周报时会看到；留空表示不改（接口没有"清除"这个动作）
+  late final TextEditingController _name = TextEditingController(
+    text: widget.profile.displayName ?? '',
+  );
   bool _saving = false;
   bool _saved = false;
   Object? _error;
 
   bool get _manualYear => widget.profile.examYearSource == ExamYearSource.user;
   bool get _valid => _region != null && _subjects.isNotEmpty;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
 
   Future<void> _save() async {
     setState(() {
@@ -80,6 +93,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
       _saved = false;
     });
     try {
+      final name = _name.text.trim();
       await ref
           .read(profileProvider.notifier)
           .save(
@@ -89,6 +103,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               grade: _grade,
               examYear: _examYear,
               curriculumVersion: _curriculum,
+              displayName: name.isEmpty ? null : name,
             ),
           );
       if (mounted) setState(() => _saved = true);
@@ -140,6 +155,26 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Callout(tone: Tone.info, child: Text(notice.message)),
               ),
+            Section(
+              title: '称呼',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    key: const ValueKey('profile.displayName'),
+                    controller: _name,
+                    inputFormatters: [LengthLimitingTextInputFormatter(40)],
+                    decoration: const InputDecoration(labelText: '你的称呼（可以不填）'),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '只有你授权的家长看周报时会看到。起个名字就行，不用真名；留空表示不改。',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: kGap),
             Section(
               title: '地区与年级',
               child: Column(
@@ -307,6 +342,8 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                   : const Text('保存'),
             ),
             const SizedBox(height: 28),
+            const ParentAccessSection(),
+            const SizedBox(height: kGap),
             Section(
               title: '隐私与数据',
               child: Column(
@@ -314,13 +351,13 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                 children: [
                   const Text(
                     '• 草稿和笔迹先保存在这台设备上，联网后才同步。\n'
-                    '• 家长以后只能看到你授权的、汇总后的每周趋势，看不到你每一笔的草稿。\n'
+                    '• 家长只能看到你授权的、汇总后的每周趋势，看不到你每一笔的草稿，你可以随时撤销授权。\n'
                     '• AI 给的是练习反馈，不是官方阅卷分数。\n'
                     '• 查看、导出、删除你的数据的功能会在正式上线前提供，现在还没有。',
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '本机演示身份（原型阶段，不是真实账号）：${userId == null ? '—' : userId.substring(0, userId.length < 8 ? userId.length : 8)}',
+                    '本机演示身份（原型阶段，不是真实账号）：${userId == null ? '—' : shortId(userId)}',
                     style: theme.textTheme.bodySmall,
                   ),
                 ],

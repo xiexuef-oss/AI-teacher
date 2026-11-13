@@ -29,12 +29,24 @@ class AppHarness {
     if (backend == null) {
       this.backend
         ..installAppBasics()
+        ..installParentFlow()
         ..installLearningFlow();
     }
   }
 
   final FakeBackend backend;
   final MemoryStore store;
+
+  /// 让应用启动时已经是某个身份：本机存着它的凭据，不会再去领新的。
+  void signInAs({
+    required String role,
+    String userId = FakeBackend.parentUserId,
+    String token = 'parent-token-for-tests-0000000000000000',
+  }) {
+    store.data['auth.token'] = token;
+    store.data['auth.userId'] = userId;
+    store.data['auth.role'] = role;
+  }
 
   List<Override> get overrides => [
     keyValueStoreProvider.overrideWithValue(store),
@@ -48,6 +60,22 @@ class AppHarness {
     overrides: overrides,
     child: const TutorApp(),
   );
+
+  /// 单独放一个页面（不带路由），用来测字体放大和各种屏幕尺寸。页面里的跳转在这里不工作。
+  Widget page(Widget child, {double textScale = 1, ThemeData? theme}) =>
+      ProviderScope(
+        retry: (count, error) => null,
+        overrides: overrides,
+        child: MaterialApp(
+          theme: theme ?? AppTheme.light(),
+          builder: (context, app) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(textScale)),
+            child: app!,
+          ),
+          home: child,
+        ),
+      );
 
   /// 只放作答页，省掉路由。
   Widget solvePage({

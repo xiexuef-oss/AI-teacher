@@ -653,9 +653,11 @@ void main() {
       expect(key('profile.page'), findsOneWidget);
       expect(find.textContaining('还没有设置教材版本'), findsOneWidget);
       expect(find.textContaining('按年级估算为 2027 年'), findsOneWidget);
+      // 页面里有输入框（称呼），输入框自己也带一个 Scrollable：指明要滚的是页面那一个
       await tester.scrollUntilVisible(
         find.textContaining('草稿和笔迹先保存在这台设备上'),
         300,
+        scrollable: find.byType(Scrollable).first,
       );
       expect(find.textContaining('草稿和笔迹先保存在这台设备上'), findsOneWidget);
       expect(find.textContaining('现在还没有'), findsOneWidget);

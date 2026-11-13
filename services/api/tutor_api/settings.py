@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     review_intervals_minutes: str = "1440,4320,10080"
     # 学情统计的最小样本数，低于它显示"信息不足"
     progress_min_samples: int = Field(default=5, ge=1)
+    # 家长邀请码的有效期（分钟）。邀请码是学生明确授权的第一步，用一次就作废
+    parent_invite_ttl_minutes: int = Field(default=1440, ge=1)
+    # 周报按哪个时区划分"一周"（相对 UTC 的分钟数）。首发地区四川、重庆都是 UTC+8；不查时区数据库，Windows 上没有
+    report_utc_offset_minutes: int = Field(default=480, ge=-720, le=840)
     # 草稿同步请求体上限（字节）
     max_draft_bytes: int = Field(default=2_000_000, ge=1024)
 

@@ -42,6 +42,7 @@ V13_TABLES = {
     "model_budget_usage",
 }
 V14_TABLES = {"attempt_self_checks"}  # 解答题提交后的对照自查（PRD P0 第 3、4 条）
+V15_TABLES = {"parent_invites"}  # 家长邀请码：学生明确授权的第一步（PRD P0 第 8 条）
 TASK_TYPES = {
     "ocr_extract",
     "handwriting_understand",
@@ -66,6 +67,7 @@ def test_migration_files_are_numbered_and_ordered():
         "001_init.sql",
         "002_region_model_governance.sql",
         "003_subjective_self_check.sql",
+        "004_parent_invites.sql",
     ]
 
 
@@ -94,7 +96,7 @@ def test_doc04_tables_exist(schema):
 
 
 def test_ids_are_char36_and_times_are_datetime3(schema):
-    for table in DOC04_TABLES | V13_TABLES | V14_TABLES:
+    for table in DOC04_TABLES | V13_TABLES | V14_TABLES | V15_TABLES:
         columns = schema[table]
         if "id" in columns:
             assert columns["id"] == "CHAR(36)", table
@@ -144,7 +146,7 @@ def test_self_checks_are_appended_without_touching_the_earlier_migrations(schema
     earlier = load_migration_schema(
         MIGRATIONS_DIR, only=["001_init.sql", "002_region_model_governance.sql"]
     )
-    assert set(schema) - set(earlier) == V14_TABLES
+    assert set(schema) - set(earlier) == V14_TABLES | V15_TABLES
     assert {name: schema[name] for name in earlier} == earlier
 
     columns = schema["attempt_self_checks"]
@@ -152,6 +154,36 @@ def test_self_checks_are_appended_without_touching_the_earlier_migrations(schema
     assert columns["marks_json"] == "JSON"
     # 只存"每个要点做到没有"，不存分数
     assert not {"score", "points", "grade"} & set(columns)
+
+
+def test_parent_invites_are_appended_and_never_store_the_code_itself(schema):
+    """迁移只追加：004 只新建 parent_invites；绑定表（001 里就有）的结构不变。邀请码明文不落库，只存哈希。"""
+    earlier = load_migration_schema(
+        MIGRATIONS_DIR,
+        only=[
+            "001_init.sql",
+            "002_region_model_governance.sql",
+            "003_subjective_self_check.sql",
+        ],
+    )
+    assert set(schema) - set(earlier) == V15_TABLES
+    assert {name: schema[name] for name in earlier} == earlier
+
+    columns = schema["parent_invites"]
+    assert set(columns) == {
+        "id",
+        "student_id",
+        "code_hash",
+        "expires_at",
+        "redeemed_at",
+        "redeemed_by",
+        "revoked_at",
+        "created_at",
+    }
+    assert columns["code_hash"] == "CHAR(64)"
+    assert "code" not in columns
+    # 绑定表：明确授权的时间、可撤销、撤销后立即失去访问权限（docs/04）
+    assert {"consent_at", "revoked_at"} <= set(schema["parent_student_links"])
 
 
 def test_questions_track_source_and_license_separately(schema):

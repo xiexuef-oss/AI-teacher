@@ -36,7 +36,7 @@ tags:
   - {name: reviews, description: 间隔复测}
   - {name: progress, description: 学情}
   - {name: media, description: 媒体上传与拍题（planned）}
-  - {name: parents, description: 家长周报（planned）}
+  - {name: parents, description: 家长周报与绑定授权：学生明确授权、可撤销；家长只看汇总}
   - {name: admin, description: 内容审核（reviewer / admin）：题目 draft → reviewed → published，可撤回}
 security:
   - bearerAuth: []
@@ -843,16 +843,167 @@ paths:
         '422': {$ref: '#/components/responses/Unprocessable'}
         '501': {$ref: '#/components/responses/NotImplemented'}
 
+  /me/parent-invites:
+    post:
+      operationId: createParentInvite
+      tags: [parents]
+      summary: 学生生成一次性的家长邀请码（学生明确授权的第一步）
+      description: |
+        只有学生能调用。邀请码只在这个响应里出现一次，库里只存哈希；有效期见 `expires_at`（可配置，默认 24 小时），
+        用过一次就作废。再生成一个，会让这个学生之前还没被使用的邀请码立刻失效。
+        授权是学生自己做的、可以随时撤销（见 `revokeParentLink`）。这是原型阶段的授权方式：监护授权方案（Q-03）
+        冻结之前，它不代表任何法定的监护人核验。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '201':
+          description: 新的邀请码
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentInvite'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /me/parent-links:
+    get:
+      operationId: listParentLinks
+      tags: [parents]
+      summary: 学生看自己授权过哪些家长，以及有没有还没被使用的邀请码
+      description: 只列现在仍有效的授权；已经撤销的不再出现。不会再返回邀请码本身（它只在创建时出现一次）。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 授权列表
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentLinks'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /me/parent-links/{link_id}/revoke:
+    post:
+      operationId: revokeParentLink
+      tags: [parents]
+      summary: 学生撤销对一位家长的授权
+      description: |
+        撤销立刻生效：这位家长马上看不到这个学生，周报返回 404。只能撤销自己的授权；别人的、不存在的、
+        已经撤销过的都返回 404。之后想再让这位家长看，要重新生成邀请码、重新授权。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/LinkId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200':
+          description: 撤销后的授权记录
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentLink'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /parents/links:
+    post:
+      operationId: redeemParentInvite
+      tags: [parents]
+      summary: 家长输入学生给的邀请码，建立绑定
+      description: |
+        只有家长能调用。邀请码不对、已过期、已经被用过、已经被新的邀请码顶替，一律返回 404 `invite_invalid`，
+        不区分原因。已经绑定着这位学生时返回 409 `already_linked`（邀请码保持未使用）。
+        输入时的空格、短横线和大小写会被忽略。这一步没有做防暴力尝试的限流（docs/05 §5），真实上线前要补。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ParentInviteRedeem'}
+      responses:
+        '201':
+          description: 已建立的绑定
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentStudent'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /parents/students:
+    get:
+      operationId: listParentStudents
+      tags: [parents]
+      summary: 这位家长现在能看的学生
+      description: 只列授权仍然有效的学生，按绑定时间排序。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 学生列表
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentStudents'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
   /parents/students/{student_id}/weekly:
     get:
       operationId: getParentWeekly
       tags: [parents]
-      summary: 已授权绑定学生的聚合周报（planned）
-      description: 只返回聚合趋势，不含草稿与逐笔交互。未绑定或授权已撤销返回 404。
-      x-implementation-status: planned
+      summary: 已授权绑定学生某一周的汇总
+      description: |
+        只有家长能调用，并且这位学生已经明确授权、授权没有被撤销。否则一律返回 404——和学生不存在的响应完全一样。
+        只返回汇总：计数和比例，没有具体题目、作答内容、提示原文、草稿和笔迹，也没有每次练习的时间。
+        不是官方成绩，没有排名。`week_start` 不带时是当前这一周（周一到周日，按服务端配置的时区划分，默认 UTC+8）；
+        带的话必须是周一，并且这一周已经开始。
+      x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/StudentId'}
+        - {$ref: '#/components/parameters/WeekStart'}
       responses:
         '200':
           description: 周报
@@ -867,7 +1018,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
-        '501': {$ref: '#/components/responses/NotImplemented'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
 
   /admin/questions:
     get:
@@ -1132,6 +1283,18 @@ components:
       required: true
       description: 仅作为资源关联；是否可访问由 token 与绑定关系决定。
       schema: {type: string, format: uuid}
+    LinkId:
+      name: link_id
+      in: path
+      required: true
+      description: 家长授权记录的 ID；只能撤销自己的。
+      schema: {type: string, format: uuid}
+    WeekStart:
+      name: week_start
+      in: query
+      required: false
+      description: 周报从哪一天开始；必须是周一，并且这一周已经开始。不带时是当前这一周。
+      schema: {type: string, format: date}
 
   headers:
     RequestId:
@@ -1376,8 +1539,10 @@ components:
     # ------------------------------------------------------------ 身份与资料
     LocalRole:
       type: string
-      description: 本地身份 Mock 可以发放的角色；缺省为 student。parent 要等监护授权方案冻结（Q-03）后才有。
-      enum: [student, reviewer, admin]
+      description: |
+        本地身份 Mock 可以发放的角色；缺省为 student。parent 只是本地联调用的 Mock 角色：学生自己授权、可以撤销，
+        不代表任何监护人核验——真实登录与监护授权方案（Q-03）冻结之前，这是唯一的家长身份来源。
+      enum: [student, parent, reviewer, admin]
       default: student
     LocalIdentity:
       type: object
@@ -2218,20 +2383,137 @@ components:
         question_id: {type: [string, 'null'], format: uuid, description: 匹配到的已发布题。}
         draft_question_id: {type: [string, 'null'], format: uuid, description: 新建的待审题草案。}
 
-    # ------------------------------------------------------------ planned：家长与审核
+    # ------------------------------------------------------------ 家长：授权绑定与周报
+    ParentInvite:
+      type: object
+      additionalProperties: false
+      description: 学生生成的一次性邀请码。`code` 只在创建时出现这一次，之后任何接口都不会再返回它。
+      required: [id, code, created_at, expires_at]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string, minLength: 10, maxLength: 10, description: 十位，字母和数字；念给家长或写给家长看，不分大小写。}
+        created_at: {type: string, format: date-time, description: 学生明确授权的时间。}
+        expires_at: {type: string, format: date-time}
+    ParentInviteRedeem:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 40, description: 学生给的邀请码；空格、短横线和大小写会被忽略。}
+    PendingParentInvite:
+      type: object
+      additionalProperties: false
+      description: 一个还没被使用、也没过期的邀请码。这里看不到码本身。
+      required: [id, created_at, expires_at]
+      properties:
+        id: {type: string, format: uuid}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+    ParentLink:
+      type: object
+      additionalProperties: false
+      description: 学生对一位家长的授权。
+      required: [id, parent_id, parent_label, consent_at, linked_at, revoked_at]
+      properties:
+        id: {type: string, format: uuid}
+        parent_id: {type: string, format: uuid}
+        parent_label: {type: [string, 'null'], description: 家长的称呼；没有设置时为 null。}
+        consent_at: {type: string, format: date-time, description: 学生明确授权的时间（生成这个邀请码的时间）。}
+        linked_at: {type: string, format: date-time, description: 家长输入邀请码、绑定完成的时间。}
+        revoked_at: {type: [string, 'null'], format: date-time, description: 撤销的时间；仍然有效时为 null。}
+    ParentLinks:
+      type: object
+      additionalProperties: false
+      required: [links, pending_invite]
+      properties:
+        links:
+          type: array
+          description: 现在仍然有效的授权。
+          items: {$ref: '#/components/schemas/ParentLink'}
+        pending_invite:
+          description: 还没被使用、也没过期的邀请码；没有时为 null。
+          oneOf:
+            - {$ref: '#/components/schemas/PendingParentInvite'}
+            - {type: 'null'}
+    ParentStudent:
+      type: object
+      additionalProperties: false
+      description: 家长能看的一位学生。
+      required: [student_id, display_name, linked_at]
+      properties:
+        student_id: {type: string, format: uuid}
+        display_name: {type: [string, 'null'], description: 学生自己设置的称呼；没有设置时为 null。}
+        linked_at: {type: string, format: date-time}
+    ParentStudents:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ParentStudent'}
+    WeeklyTrend:
+      type: string
+      description: 独立正确率和上一周比：up 高了，down 低了，flat 差不多（差距不到 5 个百分点），unknown 两周里有一周样本不足。
+      enum: [up, down, flat, unknown]
+    PreviousWeek:
+      type: object
+      additionalProperties: false
+      description: 上一周的几个数，用来看趋势。
+      required: [week_start, attempts_count, independent]
+      properties:
+        week_start: {type: string, format: date}
+        attempts_count: {type: integer, minimum: 0}
+        independent: {$ref: '#/components/schemas/RateStat'}
     ParentWeekly:
       type: object
       additionalProperties: false
-      required: [student_id, week_start, sessions_count, independent, assisted, by_subject]
+      description: |
+        一位已授权学生某一周的汇总。只有计数和比例：没有具体题目、作答内容、提示原文、草稿和笔迹，
+        也没有每次练习的时间。周从周一到周日，按服务端配置的时区划分。样本少于 `min_samples` 的比例是 null，只给计数。
+        不是官方成绩，没有排名，也没有连续天数。
+      required:
+        - student_id
+        - student_display_name
+        - week_start
+        - week_end
+        - is_complete
+        - generated_at
+        - min_samples
+        - sessions_count
+        - attempts_count
+        - active_days
+        - independent
+        - assisted
+        - hint_dependency
+        - retest_success
+        - written_attempts
+        - independent_trend
+        - previous_week
+        - by_subject
+        - disclaimer
       properties:
         student_id: {type: string, format: uuid}
-        week_start: {type: string, format: date}
-        sessions_count: {type: integer, minimum: 0}
+        student_display_name: {type: [string, 'null']}
+        week_start: {type: string, format: date, description: 这一周的周一。}
+        week_end: {type: string, format: date, description: 这一周的周日。}
+        is_complete: {type: boolean, description: 这一周已经结束；当前这一周是 false。}
+        generated_at: {type: string, format: date-time}
+        min_samples: {type: integer, minimum: 1}
+        sessions_count: {type: integer, minimum: 0, description: 这一周开始的练习次数。}
+        attempts_count: {type: integer, minimum: 0, description: 这一周提交的作答数（含解答题）。}
+        active_days: {type: integer, minimum: 0, maximum: 7, description: 这一周有几天提交过作答。只是个数，没有连续天数。}
         independent: {$ref: '#/components/schemas/RateStat'}
         assisted: {$ref: '#/components/schemas/RateStat'}
+        hint_dependency: {$ref: '#/components/schemas/RateStat'}
+        retest_success: {$ref: '#/components/schemas/RateStat'}
+        written_attempts: {type: integer, minimum: 0, description: 这一周提交的解答题数。解答题不自动评分，不进上面任何一个比例。}
+        independent_trend: {$ref: '#/components/schemas/WeeklyTrend'}
+        previous_week: {$ref: '#/components/schemas/PreviousWeek'}
         by_subject:
           type: array
           items: {$ref: '#/components/schemas/ProgressBucket'}
+        disclaimer: {type: string}
     QuestionStatus:
       type: string
       description: docs/07 的审校状态。draft 编辑中；reviewed 已独立二审；published 已上线；withdrawn 因问题下线（终态）。

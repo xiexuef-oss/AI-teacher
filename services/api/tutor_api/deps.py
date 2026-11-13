@@ -54,6 +54,13 @@ def require_reviewer(principal: Principal = Depends(get_principal)) -> Principal
     return principal
 
 
+def require_parent(principal: Principal = Depends(get_principal)) -> Principal:
+    """家长接口只给家长。角色检查先于任何资源查询：没授权的家长问不出"这个学生存在不存在"。"""
+    if principal.role != "parent":
+        raise ApiError(403, "forbidden", "当前角色无权访问")
+    return principal
+
+
 @dataclass
 class Ctx:
     """一次学生请求的上下文。权限只来自 principal，不来自请求体里的任何 ID。"""
@@ -97,6 +104,14 @@ def student_ctx(
     request: Request,
     db: Session = Depends(get_db),
     principal: Principal = Depends(require_student),
+) -> Ctx:
+    return Ctx(request=request, db=db, principal=principal)
+
+
+def parent_ctx(
+    request: Request,
+    db: Session = Depends(get_db),
+    principal: Principal = Depends(require_parent),
 ) -> Ctx:
     return Ctx(request=request, db=db, principal=principal)
 

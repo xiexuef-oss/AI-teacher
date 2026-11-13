@@ -1,7 +1,7 @@
 """契约里已规划、本阶段未实现的操作：鉴权照常进行，之后统一返回 501。
 
-拍题 OCR、媒体上传、家长周报不在 ADR-006 切片内。这里不做任何"看起来能用"的假实现。
-（内容审核已经在 routers/admin.py 实现。）
+拍题 OCR、媒体上传不在 ADR-006 切片内。这里不做任何"看起来能用"的假实现。
+（内容审核在 routers/admin.py，家长周报在 routers/parents.py。）
 """
 
 from __future__ import annotations
@@ -37,8 +37,3 @@ def get_scan(scan_id: str, _: Principal = Depends(get_principal)) -> None:
 @router.post("/scans/{scan_id}/confirm")
 def confirm_scan(scan_id: str, _: Principal = Depends(get_principal)) -> None:
     raise _not_implemented("confirmScan")
-
-
-@router.get("/parents/students/{student_id}/weekly")
-def get_parent_weekly(student_id: str, _: Principal = Depends(get_principal)) -> None:
-    raise _not_implemented("getParentWeekly")

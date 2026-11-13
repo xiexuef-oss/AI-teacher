@@ -26,7 +26,7 @@ TutorActionType = Literal[
     "mark_confused",
 ]
 ReviewScope = Literal["due", "all"]
-LocalRole = Literal["student", "reviewer", "admin"]
+LocalRole = Literal["student", "parent", "reviewer", "admin"]
 QuestionStatus = Literal["draft", "reviewed", "published", "withdrawn"]
 ReviewDecisionType = Literal["approve", "reject", "publish", "withdraw"]
 SolutionKind = Literal["standard", "fast"]
@@ -670,6 +670,81 @@ class ProgressSummary(BaseModel):
     by_subject: list[ProgressBucket]
     by_answer_mode: list[ProgressBucket]
     by_difficulty: list[ProgressBucket]
+    disclaimer: str
+
+
+# ---------------------------------------------------------------- 家长：授权绑定与周报
+
+
+class ParentInviteOut(BaseModel):
+    id: str
+    code: str
+    created_at: datetime
+    expires_at: datetime
+
+
+class ParentInviteRedeemIn(_In):
+    code: str = Field(min_length=1, max_length=40)
+
+
+class PendingParentInviteOut(BaseModel):
+    id: str
+    created_at: datetime
+    expires_at: datetime
+
+
+class ParentLinkOut(BaseModel):
+    id: str
+    parent_id: str
+    parent_label: str | None
+    consent_at: datetime
+    linked_at: datetime
+    revoked_at: datetime | None
+
+
+class ParentLinksOut(BaseModel):
+    links: list[ParentLinkOut]
+    pending_invite: PendingParentInviteOut | None
+
+
+class ParentStudentOut(BaseModel):
+    student_id: str
+    display_name: str | None
+    linked_at: datetime
+
+
+class ParentStudentsOut(BaseModel):
+    items: list[ParentStudentOut]
+
+
+WeeklyTrend = Literal["up", "down", "flat", "unknown"]
+
+
+class PreviousWeekOut(BaseModel):
+    week_start: date
+    attempts_count: int
+    independent: RateStat
+
+
+class ParentWeeklyOut(BaseModel):
+    student_id: str
+    student_display_name: str | None
+    week_start: date
+    week_end: date
+    is_complete: bool
+    generated_at: datetime
+    min_samples: int
+    sessions_count: int
+    attempts_count: int
+    active_days: int
+    independent: RateStat
+    assisted: RateStat
+    hint_dependency: RateStat
+    retest_success: RateStat
+    written_attempts: int
+    independent_trend: WeeklyTrend
+    previous_week: PreviousWeekOut
+    by_subject: list[ProgressBucket]
     disclaimer: str
 
 

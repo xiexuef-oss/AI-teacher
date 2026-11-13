@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tutor_contracts/tutor_contracts.dart';
 
 import '../../core/data.dart';
-import '../../core/format.dart';
+import '../../core/rate_widgets.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
@@ -34,7 +34,7 @@ class ProgressPage extends ConsumerWidget {
                     spacing: kGap,
                     runSpacing: kGap,
                     children: [
-                      _RateCard(
+                      RateCard(
                         keyName: 'independent',
                         title: '独立正确率',
                         stat: p.independent,
@@ -42,28 +42,28 @@ class ProgressPage extends ConsumerWidget {
                         help: '不看提示、不看解析，一次做对的比例。这是最能说明真实水平的数字。',
                         emphasized: true,
                       ),
-                      _RateCard(
+                      RateCard(
                         keyName: 'assisted',
                         title: '辅助正确率',
                         stat: p.assisted,
                         minSamples: p.minSamples,
                         help: '看过提示或解析之后做对的比例，单独计算，不和独立正确率混在一起。',
                       ),
-                      _RateCard(
+                      RateCard(
                         keyName: 'hint',
                         title: '提示依赖率',
                         stat: p.hintDependency,
                         minSamples: p.minSamples,
                         help: '第一次作答前用了提示或解析的比例，越低越好。',
                       ),
-                      _RateCard(
+                      RateCard(
                         keyName: 'retest',
                         title: '复测成功率',
                         stat: p.retestSuccess,
                         minSamples: p.minSamples,
                         help: '隔了一段时间、不看提示的复测里做对的比例。',
                       ),
-                      _RateCard(
+                      RateCard(
                         keyName: 'variant',
                         title: '变式迁移率',
                         stat: p.variantTransfer,
@@ -88,19 +88,19 @@ class ProgressPage extends ConsumerWidget {
                     _SubjectiveCard(stats: p.subjective),
                   ],
                   const SizedBox(height: 20),
-                  _Buckets(
+                  RateBuckets(
                     title: '按科目',
                     buckets: p.bySubject,
                     minSamples: p.minSamples,
                   ),
                   const SizedBox(height: kGap),
-                  _Buckets(
+                  RateBuckets(
                     title: '按题型',
                     buckets: p.byAnswerMode,
                     minSamples: p.minSamples,
                   ),
                   const SizedBox(height: kGap),
-                  _Buckets(
+                  RateBuckets(
                     title: '按难度',
                     buckets: p.byDifficulty,
                     minSamples: p.minSamples,
@@ -119,8 +119,6 @@ class ProgressPage extends ConsumerWidget {
     );
   }
 }
-
-String _count(RateStat stat) => '${stat.numerator}/${stat.denominator}';
 
 /// 解答题不自动评分，不进任何正确率：这里只有计数，都是学生自己对照要点标的。
 class _SubjectiveCard extends StatelessWidget {
@@ -158,143 +156,6 @@ class _SubjectiveCard extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RateCard extends StatelessWidget {
-  const _RateCard({
-    required this.keyName,
-    required this.title,
-    required this.stat,
-    required this.minSamples,
-    required this.help,
-    this.emphasized = false,
-  });
-
-  final String keyName;
-  final String title;
-  final RateStat stat;
-  final int minSamples;
-  final String help;
-  final bool emphasized;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final value = stat.rate == null ? '信息不足' : percent(stat.rate!);
-    final detail = stat.denominator == 0
-        ? '还没有数据'
-        : (stat.insufficientData
-              ? '目前 ${_count(stat)}，至少 $minSamples 次有效作答才显示比例'
-              : '${_count(stat)} 次有效作答');
-    return SizedBox(
-      width: emphasized ? 304 : 244,
-      child: Card(
-        key: ValueKey('progress.$keyName'),
-        color: emphasized ? scheme.primaryContainer : null,
-        child: Padding(
-          padding: const EdgeInsets.all(kPad),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: theme.textTheme.titleSmall),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style:
-                    (stat.rate == null
-                            ? theme.textTheme.titleLarge
-                            : theme.textTheme.headlineMedium)
-                        ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 2),
-              Text(detail, style: theme.textTheme.bodySmall),
-              const SizedBox(height: 8),
-              Text(
-                help,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Buckets extends StatelessWidget {
-  const _Buckets({
-    required this.title,
-    required this.buckets,
-    required this.minSamples,
-  });
-
-  final String title;
-  final List<ProgressBucket> buckets;
-  final int minSamples;
-
-  String _cell(RateStat stat) {
-    if (stat.denominator == 0) return '—';
-    final rate = stat.rate == null ? '' : '  ${percent(stat.rate!)}';
-    return '${_count(stat)}$rate';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Section(
-      title: title,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Expanded(flex: 2, child: SizedBox.shrink()),
-              Expanded(
-                flex: 3,
-                child: Text('独立（对/总）', style: theme.textTheme.labelMedium),
-              ),
-              Expanded(
-                flex: 3,
-                child: Text('辅助（对/总）', style: theme.textTheme.labelMedium),
-              ),
-            ],
-          ),
-          const Divider(),
-          for (final bucket in buckets)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      bucket.label,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      _cell(bucket.independent),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      _cell(bucket.assisted),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

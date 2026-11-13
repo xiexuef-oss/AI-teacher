@@ -8,7 +8,7 @@
     "date": "2026-11-11",
     "items": [
       {
-        "id": "6e4aefb7-32d3-54e9-9e30-8959ccca1e4f",
+        "id": "ffd10473-fa63-5203-952d-9d7d349490de",
         "kind": "variant",
         "title": "变式：开口向下的二次函数的单调递增区间",
         "reason": "你做过它的母题，换个问法检验一下是不是真的掌握了。",
@@ -27,7 +27,7 @@
         "estimated_minutes": 5
       },
       {
-        "id": "7eac0351-4fdd-5d9a-83eb-1928a0dca558",
+        "id": "287ece8c-9e74-5433-a0e0-47f599edc200",
         "kind": "new_topic",
         "title": "判断函数在区间上的单调性",
         "reason": "按你选择的学科继续练习。",
@@ -46,7 +46,7 @@
         "estimated_minutes": 5
       },
       {
-        "id": "517e6e24-82b1-5086-a8f3-158a97ffbd23",
+        "id": "f5b2edda-72d4-5875-ab49-cd45455e6b8f",
         "kind": "new_topic",
         "title": "静止在粗糙斜面上的物块的受力",
         "reason": "按你选择的学科继续练习。",
@@ -67,7 +67,7 @@
         "estimated_minutes": 5
       },
       {
-        "id": "c78e8f3f-b77f-5733-96b0-40ac3f59be62",
+        "id": "8d8dc6b6-4eb2-5c3f-8810-ac19d7801d61",
         "kind": "new_topic",
         "title": "由碳酸钙质量求二氧化碳质量",
         "reason": "按你选择的学科继续练习。",
@@ -92,7 +92,7 @@
       "date": "2026-11-11",
       "items": [
         {
-          "id": "6e4aefb7-32d3-54e9-9e30-8959ccca1e4f",
+          "id": "ffd10473-fa63-5203-952d-9d7d349490de",
           "kind": "variant",
           "title": "变式：开口向下的二次函数的单调递增区间",
           "reason": "你做过它的母题，换个问法检验一下是不是真的掌握了。",
@@ -111,7 +111,7 @@
           "estimated_minutes": 5
         },
         {
-          "id": "7eac0351-4fdd-5d9a-83eb-1928a0dca558",
+          "id": "287ece8c-9e74-5433-a0e0-47f599edc200",
           "kind": "new_topic",
           "title": "判断函数在区间上的单调性",
           "reason": "按你选择的学科继续练习。",
@@ -130,7 +130,7 @@
           "estimated_minutes": 5
         },
         {
-          "id": "517e6e24-82b1-5086-a8f3-158a97ffbd23",
+          "id": "f5b2edda-72d4-5875-ab49-cd45455e6b8f",
           "kind": "new_topic",
           "title": "静止在粗糙斜面上的物块的受力",
           "reason": "按你选择的学科继续练习。",
@@ -151,7 +151,7 @@
           "estimated_minutes": 5
         },
         {
-          "id": "c78e8f3f-b77f-5733-96b0-40ac3f59be62",
+          "id": "8d8dc6b6-4eb2-5c3f-8810-ac19d7801d61",
           "kind": "new_topic",
           "title": "由碳酸钙质量求二氧化碳质量",
           "reason": "按你选择的学科继续练习。",

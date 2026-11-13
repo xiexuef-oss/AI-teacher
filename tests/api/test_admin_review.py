@@ -52,7 +52,7 @@ def test_local_identity_can_be_a_reviewer_or_admin_but_defaults_to_student(clien
         expect=422,
         auth=False,
         key=False,
-        params={"role": "parent"},
+        params={"role": "superuser"},
     )
 
 

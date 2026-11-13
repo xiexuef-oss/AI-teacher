@@ -1,0 +1,15 @@
+{
+  "name": "parent_students_none",
+  "method": "GET",
+  "path": "/api/v1/parents/students",
+  "status": 200,
+  "schema": "ParentStudents",
+  "value": {
+    "items": []
+  },
+  "body": {
+    "data": {
+      "items": []
+    }
+  }
+}

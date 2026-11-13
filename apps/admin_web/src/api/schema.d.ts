@@ -476,6 +476,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/parent-invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生生成一次性的家长邀请码（学生明确授权的第一步）
+         * @description 只有学生能调用。邀请码只在这个响应里出现一次，库里只存哈希；有效期见 `expires_at`（可配置，默认 24 小时），
+         *     用过一次就作废。再生成一个，会让这个学生之前还没被使用的邀请码立刻失效。
+         *     授权是学生自己做的、可以随时撤销（见 `revokeParentLink`）。这是原型阶段的授权方式：监护授权方案（Q-03）
+         *     冻结之前，它不代表任何法定的监护人核验。
+         */
+        post: operations["createParentInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/parent-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 学生看自己授权过哪些家长，以及有没有还没被使用的邀请码
+         * @description 只列现在仍有效的授权；已经撤销的不再出现。不会再返回邀请码本身（它只在创建时出现一次）。
+         */
+        get: operations["listParentLinks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/parent-links/{link_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生撤销对一位家长的授权
+         * @description 撤销立刻生效：这位家长马上看不到这个学生，周报返回 404。只能撤销自己的授权；别人的、不存在的、
+         *     已经撤销过的都返回 404。之后想再让这位家长看，要重新生成邀请码、重新授权。
+         */
+        post: operations["revokeParentLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/parents/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 家长输入学生给的邀请码，建立绑定
+         * @description 只有家长能调用。邀请码不对、已过期、已经被用过、已经被新的邀请码顶替，一律返回 404 `invite_invalid`，
+         *     不区分原因。已经绑定着这位学生时返回 409 `already_linked`（邀请码保持未使用）。
+         *     输入时的空格、短横线和大小写会被忽略。这一步没有做防暴力尝试的限流（docs/05 §5），真实上线前要补。
+         */
+        post: operations["redeemParentInvite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/parents/students": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 这位家长现在能看的学生
+         * @description 只列授权仍然有效的学生，按绑定时间排序。
+         */
+        get: operations["listParentStudents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/parents/students/{student_id}/weekly": {
         parameters: {
             query?: never;
@@ -484,8 +590,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 已授权绑定学生的聚合周报（planned）
-         * @description 只返回聚合趋势，不含草稿与逐笔交互。未绑定或授权已撤销返回 404。
+         * 已授权绑定学生某一周的汇总
+         * @description 只有家长能调用，并且这位学生已经明确授权、授权没有被撤销。否则一律返回 404——和学生不存在的响应完全一样。
+         *     只返回汇总：计数和比例，没有具体题目、作答内容、提示原文、草稿和笔迹，也没有每次练习的时间。
+         *     不是官方成绩，没有排名。`week_start` 不带时是当前这一周（周一到周日，按服务端配置的时区划分，默认 UTC+8）；
+         *     带的话必须是周一，并且这一周已经开始。
          */
         get: operations["getParentWeekly"];
         put?: never;
@@ -766,11 +875,12 @@ export interface components {
             name: string;
         };
         /**
-         * @description 本地身份 Mock 可以发放的角色；缺省为 student。parent 要等监护授权方案冻结（Q-03）后才有。
+         * @description 本地身份 Mock 可以发放的角色；缺省为 student。parent 只是本地联调用的 Mock 角色：学生自己授权、可以撤销，
+         *     不代表任何监护人核验——真实登录与监护授权方案（Q-03）冻结之前，这是唯一的家长身份来源。
          * @default student
          * @enum {string}
          */
-        LocalRole: "student" | "reviewer" | "admin";
+        LocalRole: "student" | "parent" | "reviewer" | "admin";
         LocalIdentity: {
             /** Format: uuid */
             user_id: string;
@@ -1328,15 +1438,127 @@ export interface components {
              */
             draft_question_id: string | null;
         };
+        /** @description 学生生成的一次性邀请码。`code` 只在创建时出现这一次，之后任何接口都不会再返回它。 */
+        ParentInvite: {
+            /** Format: uuid */
+            id: string;
+            /** @description 十位，字母和数字；念给家长或写给家长看，不分大小写。 */
+            code: string;
+            /**
+             * Format: date-time
+             * @description 学生明确授权的时间。
+             */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        ParentInviteRedeem: {
+            /** @description 学生给的邀请码；空格、短横线和大小写会被忽略。 */
+            code: string;
+        };
+        /** @description 一个还没被使用、也没过期的邀请码。这里看不到码本身。 */
+        PendingParentInvite: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        /** @description 学生对一位家长的授权。 */
+        ParentLink: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            parent_id: string;
+            /** @description 家长的称呼；没有设置时为 null。 */
+            parent_label: string | null;
+            /**
+             * Format: date-time
+             * @description 学生明确授权的时间（生成这个邀请码的时间）。
+             */
+            consent_at: string;
+            /**
+             * Format: date-time
+             * @description 家长输入邀请码、绑定完成的时间。
+             */
+            linked_at: string;
+            /**
+             * Format: date-time
+             * @description 撤销的时间；仍然有效时为 null。
+             */
+            revoked_at: string | null;
+        };
+        ParentLinks: {
+            /** @description 现在仍然有效的授权。 */
+            links: components["schemas"]["ParentLink"][];
+            /** @description 还没被使用、也没过期的邀请码；没有时为 null。 */
+            pending_invite: components["schemas"]["PendingParentInvite"] | null;
+        };
+        /** @description 家长能看的一位学生。 */
+        ParentStudent: {
+            /** Format: uuid */
+            student_id: string;
+            /** @description 学生自己设置的称呼；没有设置时为 null。 */
+            display_name: string | null;
+            /** Format: date-time */
+            linked_at: string;
+        };
+        ParentStudents: {
+            items: components["schemas"]["ParentStudent"][];
+        };
+        /**
+         * @description 独立正确率和上一周比：up 高了，down 低了，flat 差不多（差距不到 5 个百分点），unknown 两周里有一周样本不足。
+         * @enum {string}
+         */
+        WeeklyTrend: "up" | "down" | "flat" | "unknown";
+        /** @description 上一周的几个数，用来看趋势。 */
+        PreviousWeek: {
+            /** Format: date */
+            week_start: string;
+            attempts_count: number;
+            independent: components["schemas"]["RateStat"];
+        };
+        /**
+         * @description 一位已授权学生某一周的汇总。只有计数和比例：没有具体题目、作答内容、提示原文、草稿和笔迹，
+         *     也没有每次练习的时间。周从周一到周日，按服务端配置的时区划分。样本少于 `min_samples` 的比例是 null，只给计数。
+         *     不是官方成绩，没有排名，也没有连续天数。
+         */
         ParentWeekly: {
             /** Format: uuid */
             student_id: string;
-            /** Format: date */
+            student_display_name: string | null;
+            /**
+             * Format: date
+             * @description 这一周的周一。
+             */
             week_start: string;
+            /**
+             * Format: date
+             * @description 这一周的周日。
+             */
+            week_end: string;
+            /** @description 这一周已经结束；当前这一周是 false。 */
+            is_complete: boolean;
+            /** Format: date-time */
+            generated_at: string;
+            min_samples: number;
+            /** @description 这一周开始的练习次数。 */
             sessions_count: number;
+            /** @description 这一周提交的作答数（含解答题）。 */
+            attempts_count: number;
+            /** @description 这一周有几天提交过作答。只是个数，没有连续天数。 */
+            active_days: number;
             independent: components["schemas"]["RateStat"];
             assisted: components["schemas"]["RateStat"];
+            hint_dependency: components["schemas"]["RateStat"];
+            retest_success: components["schemas"]["RateStat"];
+            /** @description 这一周提交的解答题数。解答题不自动评分，不进上面任何一个比例。 */
+            written_attempts: number;
+            independent_trend: components["schemas"]["WeeklyTrend"];
+            previous_week: components["schemas"]["PreviousWeek"];
             by_subject: components["schemas"]["ProgressBucket"][];
+            disclaimer: string;
         };
         /**
          * @description docs/07 的审校状态。draft 编辑中；reviewed 已独立二审；published 已上线；withdrawn 因问题下线（终态）。
@@ -1676,6 +1898,10 @@ export interface components {
         ScanId: string;
         /** @description 仅作为资源关联；是否可访问由 token 与绑定关系决定。 */
         StudentId: string;
+        /** @description 家长授权记录的 ID；只能撤销自己的。 */
+        LinkId: string;
+        /** @description 周报从哪一天开始；必须是周一，并且这一周已经开始。不带时是当前这一周。 */
+        WeekStart: string;
     };
     requestBodies: never;
     headers: {
@@ -2585,9 +2811,175 @@ export interface operations {
             501: components["responses"]["NotImplemented"];
         };
     };
-    getParentWeekly: {
+    createParentInvite: {
         parameters: {
             query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 新的邀请码 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParentInvite"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listParentLinks: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 授权列表 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParentLinks"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    revokeParentLink: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                /** @description 家长授权记录的 ID；只能撤销自己的。 */
+                link_id: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 撤销后的授权记录 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParentLink"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    redeemParentInvite: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParentInviteRedeem"];
+            };
+        };
+        responses: {
+            /** @description 已建立的绑定 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParentStudent"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    listParentStudents: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 学生列表 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParentStudents"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getParentWeekly: {
+        parameters: {
+            query?: {
+                /** @description 周报从哪一天开始；必须是周一，并且这一周已经开始。不带时是当前这一周。 */
+                week_start?: components["parameters"]["WeekStart"];
+            };
             header?: {
                 /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
                 "X-Request-Id"?: components["parameters"]["RequestId"];
@@ -2615,7 +3007,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            501: components["responses"]["NotImplemented"];
+            422: components["responses"]["Unprocessable"];
         };
     };
     listAdminQuestions: {

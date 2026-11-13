@@ -9,7 +9,7 @@
       "code": "unauthenticated",
       "message": "未认证或 token 无效",
       "details": {},
-      "request_id": "a73a9be2187944f2be870406f100f247"
+      "request_id": "3a6e2e1abb904639bb74d14a005c4217"
     }
   },
   "body": {
@@ -17,7 +17,7 @@
       "code": "unauthenticated",
       "message": "未认证或 token 无效",
       "details": {},
-      "request_id": "a73a9be2187944f2be870406f100f247"
+      "request_id": "3a6e2e1abb904639bb74d14a005c4217"
     }
   }
 }

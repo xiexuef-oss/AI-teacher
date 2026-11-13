@@ -1,0 +1,27 @@
+{
+  "name": "parent_students",
+  "method": "GET",
+  "path": "/api/v1/parents/students",
+  "status": 200,
+  "schema": "ParentStudents",
+  "value": {
+    "items": [
+      {
+        "student_id": "a8cde7a7-18b2-47aa-a6b2-446d1811d350",
+        "display_name": null,
+        "linked_at": "2026-11-11T08:00:00Z"
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "student_id": "a8cde7a7-18b2-47aa-a6b2-446d1811d350",
+          "display_name": null,
+          "linked_at": "2026-11-11T08:00:00Z"
+        }
+      ]
+    }
+  }
+}

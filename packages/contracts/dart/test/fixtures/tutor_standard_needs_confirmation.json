@@ -1,7 +1,7 @@
 {
   "name": "tutor_standard_needs_confirmation",
   "method": "POST",
-  "path": "/api/v1/tutor/sessions/a32adf4b-9633-47c6-af51-b9be85f7b06b/next",
+  "path": "/api/v1/tutor/sessions/b139a884-6b8e-4118-8cd4-f149be7c580e/next",
   "status": 409,
   "schema": "ErrorEnvelope",
   "value": {
@@ -11,7 +11,7 @@
       "details": {
         "confirm_field": "confirm_end_independent"
       },
-      "request_id": "16ed5aea46e24220a977d275ea887583"
+      "request_id": "5294bc04640d4509bfc62318b78f2305"
     }
   },
   "body": {
@@ -21,7 +21,7 @@
       "details": {
         "confirm_field": "confirm_end_independent"
       },
-      "request_id": "16ed5aea46e24220a977d275ea887583"
+      "request_id": "5294bc04640d4509bfc62318b78f2305"
     }
   }
 }

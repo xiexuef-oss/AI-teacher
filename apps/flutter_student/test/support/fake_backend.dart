@@ -94,6 +94,17 @@ class FakeBackend implements ApiTransport {
     if (offline) throw const SocketException('模拟断网');
     final seen = (method: method, uri: uri, headers: headers, body: body);
     requests.add(seen);
+    // 和真服务端一样：幂等键只能是 8~128 位的字母、数字和 . _ : -。
+    // 浏览器联调里发现过客户端把用户输入（带空格的邀请码）拼进了键，服务端 400；假后端不检查就看不出来
+    final idempotencyKey = headers['Idempotency-Key'];
+    if (idempotencyKey != null &&
+        !RegExp(r'^[A-Za-z0-9._:-]{8,128}$').hasMatch(idempotencyKey)) {
+      return errorResponse(
+        400,
+        'invalid_idempotency_key',
+        message: 'Idempotency-Key 应为 8~128 位的字母、数字或 . _ : -',
+      );
+    }
     final fail = failNext;
     if (fail != null) {
       failNext = null;
@@ -142,13 +153,26 @@ class FakeBackend implements ApiTransport {
   /// 在 [installAppBasics] 之后，PUT /profile 收到的最后一份请求体。
   Map<String, dynamic>? lastProfileUpdate;
 
+  /// 本地身份 Mock 被调用了几次（每次都是领一个新身份）。
+  int identitiesCreated = 0;
+
+  /// 测试里本地身份 Mock 发给家长的用户 ID。
+  static const parentUserId = '99999999-9999-4999-8999-999999999999';
+
   /// 身份、资料、启动配置、今日任务、题目列表、复测、学情。
   void installAppBasics() {
-    on(
-      'POST',
-      '/dev/local-identities',
-      (_) => okResponse(fixtures.value('local_identity'), status: 201),
-    );
+    on('POST', '/dev/local-identities', (request) {
+      identitiesCreated += 1;
+      if (request.uri.queryParameters['role'] == 'parent') {
+        return okResponse({
+          ...fixtures.value('local_identity'),
+          'user_id': parentUserId,
+          'role': 'parent',
+          'access_token': 'parent-token-for-tests-0000000000000000',
+        }, status: 201);
+      }
+      return okResponse(fixtures.value('local_identity'), status: 201);
+    });
     on(
       'GET',
       '/meta/launch-config',
@@ -164,6 +188,84 @@ class FakeBackend implements ApiTransport {
     onFixture('GET', '/questions', 'questions_page');
     onFixture('GET', '/reviews/due', 'reviews_all');
     onFixture('GET', '/progress/summary', 'progress_summary');
+  }
+
+  // ---------------------------------------------------------------- 家长周报与授权
+
+  /// 家长是否已经绑定了学生（决定 GET /parents/students 返回什么）。
+  bool parentLinked = true;
+
+  /// 家长周报用哪个样例；[weeklyTweak] 可以在返回之前改动它（造样本够了、趋势不同等情形）。
+  String weeklyFixture = 'parent_weekly';
+  Map<String, dynamic> Function(Map<String, dynamic> weekly)? weeklyTweak;
+
+  /// 让周报返回某个错误（状态码, 错误码）。
+  (int, String)? weeklyError;
+
+  /// 每次请求周报时带的 week_start（没带是 null）。
+  final List<String?> weeklyWeeks = [];
+
+  /// 学生一侧：现在有效的授权、还没被使用的邀请码，以及各个动作被调用了几次。
+  List<Map<String, dynamic>> parentLinks = [];
+  Map<String, dynamic>? pendingInvite;
+  int invitesCreated = 0;
+  int revokes = 0;
+  int redeems = 0;
+
+  /// 家长与学生两侧的接口。响应取自真实样例。邀请码 ZZZZZZZZZZ 永远是错的。
+  void installParentFlow() {
+    on(
+      'GET',
+      '/parents/students',
+      (_) => okResponse(
+        fixtures.value(
+          parentLinked ? 'parent_students' : 'parent_students_none',
+        ),
+      ),
+    );
+    on('POST', '/parents/links', (request) {
+      redeems += 1;
+      final code = (bodyOf(request)!['code'] as String)
+          .replaceAll(RegExp(r'[\s-]'), '')
+          .toUpperCase();
+      if (code == 'ZZZZZZZZZZ' || code.length != 10) {
+        return errorResponse(404, 'invite_invalid', message: '邀请码不对');
+      }
+      if (parentLinked) return errorResponse(409, 'already_linked');
+      parentLinked = true;
+      return okResponse(fixtures.value('parent_link_created'), status: 201);
+    });
+    on('GET', '/parents/students/[^/]+/weekly', (request) {
+      weeklyWeeks.add(request.uri.queryParameters['week_start']);
+      final error = weeklyError;
+      if (error != null) return errorResponse(error.$1, error.$2);
+      final value = fixtures.value(weeklyFixture);
+      return okResponse(weeklyTweak == null ? value : weeklyTweak!(value));
+    });
+    on(
+      'GET',
+      '/me/parent-links',
+      (_) =>
+          okResponse({'links': parentLinks, 'pending_invite': pendingInvite}),
+    );
+    on('POST', '/me/parent-invites', (_) {
+      invitesCreated += 1;
+      final invite = fixtures.value('parent_invite');
+      pendingInvite = {
+        'id': invite['id'],
+        'created_at': invite['created_at'],
+        'expires_at': invite['expires_at'],
+      };
+      return okResponse(invite, status: 201);
+    });
+    on('POST', '/me/parent-links/[^/]+/revoke', (request) {
+      revokes += 1;
+      final segments = request.uri.pathSegments;
+      final id = segments[segments.length - 2];
+      final link = parentLinks.firstWhere((l) => l['id'] == id);
+      parentLinks = parentLinks.where((l) => l['id'] != id).toList();
+      return okResponse({...link, 'revoked_at': '2026-11-10T08:00:00Z'});
+    });
   }
 
   // ---------------------------------------------------------------- 学习流程
