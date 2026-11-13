@@ -84,6 +84,52 @@ WRITTEN: dict[str, dict[str, Any]] = {
     ),
 }
 
+
+def cells(*items: tuple[str, str, str, str]) -> dict[str, Any]:
+    """实验题的作答：数据表里学生填的格子 (表键, 行键, 列键, 值)。"""
+    return {
+        "cells": [
+            {"table": table, "row": row, "col": col, "value": value}
+            for table, row, col, value in items
+        ]
+    }
+
+
+# 每道实验题样题的一份作答：数据表里的数和文字（内容对不对不重要：实验题不自动评分）
+EXPERIMENT: dict[str, dict[str, Any]] = {
+    "phys-tape-experiment": {
+        **cells(
+            ("t1", "r1", "v", "0.400"),
+            ("t1", "r2", "v", "0.600"),
+            ("t1", "r3", "v", "0.800"),
+            ("t1", "r4", "v", "1.00"),
+            ("t2", "r1", "val", "2.00"),
+        ),
+        **parts({"1": "T 等于 0.10 秒", "2": "逐差法", "3": "摩擦；读数误差"}),
+    },
+    "phys-ohm-experiment": {
+        **cells(
+            ("t1", "r1", "r", "50.0"),
+            ("t1", "r2", "r", "49.8"),
+            ("t1", "r3", "r", "50.2"),
+            ("t1", "r4", "r", "49.8"),
+            ("t1", "r5", "r", "50.2"),
+            ("t2", "r1", "val", "50.0"),
+        ),
+        **parts({"1": "内接", "2": "偏大，因为电压表测到了电流表两端的电压"}),
+    },
+    "chem-titration-experiment": {
+        **cells(
+            ("t1", "r1", "dv", "20.05"),
+            ("t1", "r2", "dv", "20.10"),
+            ("t1", "r3", "dv", "20.09"),
+            ("t2", "r1", "val", "20.08"),
+            ("t2", "r2", "val", "0.1004"),
+        ),
+        **parts({"1": "无色变浅红色，半分钟不褪色", "2": "偏高"}),
+    },
+}
+
 # 一页、一笔的最小手写稿
 INK: dict[str, Any] = {
     "version": 1,

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide DataTable;
 import 'package:tutor_contracts/tutor_contracts.dart';
 
 import '../../core/errors.dart';
@@ -8,9 +8,10 @@ import '../../core/math_text.dart';
 import '../../core/widgets.dart';
 import 'solve_controller.dart';
 
-/// 解答题提交之后的对照自查。
+/// 解答题、实验题提交之后的对照自查。
 ///
-/// 解答题不自动评分：系统不给对错，也不打分。学生对照每一个要点，自己标"做到了 / 做到一部分 / 没做到"。
+/// 解答题和实验题不自动评分：系统不给对错，也不打分。学生对照每一个要点，自己标"做到了 / 做到一部分 / 没做到"。
+/// 实验题还给数据表里留空格子的参考数据，让学生把自己填的数和它并排对照——只是并排，不判对错。
 /// 这是学生自己的记录，不是官方阅卷分数，也不会计入正确率；这里只显示各档的个数，不折算成分数。
 class SelfCheckCard extends StatelessWidget {
   const SelfCheckCard({super.key, required this.controller});
@@ -27,6 +28,7 @@ class SelfCheckCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final check = c.selfCheck;
+    final experiment = c.question?.answerMode == AnswerMode.experiment;
     return Section(
       key: const ValueKey('selfcheck.card'),
       title: '对照要点自查',
@@ -34,8 +36,11 @@ class SelfCheckCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '解答题不自动评分。对照下面每一条，自己检查一遍，标出做到了没有。'
-            '这是你自己的记录，不是官方阅卷分数，也不会计入正确率。',
+            experiment
+                ? '实验题不自动评分。先把你填的数和参考数据并排看一遍，再对照下面每一条，自己检查，标出做到了没有。'
+                      '这是你自己的记录，不是官方阅卷分数，也不会计入正确率。'
+                : '解答题不自动评分。对照下面每一条，自己检查一遍，标出做到了没有。'
+                      '这是你自己的记录，不是官方阅卷分数，也不会计入正确率。',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 12),
@@ -94,10 +99,15 @@ class SelfCheckCard extends StatelessWidget {
       groups.putIfAbsent(point.part$, () => []).add(point);
     }
     final subquestions = c.question?.content.subquestions ?? const [];
+    final tables = c.question?.content.dataTables ?? const <DataTable>[];
+    final experiment = c.question?.answerMode == AnswerMode.experiment;
     String heading(String? part) {
-      if (part == null) return '整份解答';
+      if (part == null) return experiment ? '整份作答' : '整份解答';
       final index = subquestions.indexWhere((s) => s.key == part);
-      return index < 0 ? '第 $part 问' : '第 ${index + 1} 问';
+      if (index >= 0) return '第 ${index + 1} 问';
+      final table = tables.where((t) => t.key == part);
+      if (table.isNotEmpty) return '数据表：${table.first.title}';
+      return '第 $part 问';
     }
 
     final marked = check.points.where((p) => c.marks.containsKey(p.key)).length;
@@ -106,6 +116,17 @@ class SelfCheckCard extends StatelessWidget {
     final summary = check.summary;
 
     return [
+      if (check.referenceCells.isNotEmpty) ...[
+        _ReferenceTable(
+          tables: tables,
+          mine: c.cells,
+          reference: {
+            for (final cell in check.referenceCells)
+              '${cell.table}.${cell.row}.${cell.col}': cell.value,
+          },
+        ),
+        const SizedBox(height: 16),
+      ],
       for (final entry in groups.entries) ...[
         if (groups.length > 1)
           Padding(
@@ -198,5 +219,133 @@ class SelfCheckCard extends StatelessWidget {
         ),
       ),
     ];
+  }
+}
+
+/// 实验题数据表里留空的格子：你填的和参考数据并排，没填的也列出来。
+/// 只是并排，不判对错——不用对勾和红绿色，也不说"对了"或"错了"。
+class _ReferenceTable extends StatelessWidget {
+  const _ReferenceTable({
+    required this.tables,
+    required this.mine,
+    required this.reference,
+  });
+
+  final List<DataTable> tables;
+
+  /// 学生填的，键是 "表键.行键.列键"。
+  final Map<String, String> mine;
+  final Map<String, String> reference;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final head = theme.textTheme.labelLarge;
+    Text value(String text, {bool strong = false}) => Text(
+      text,
+      style: theme.textTheme.bodyLarge?.copyWith(
+        fontWeight: strong ? FontWeight.w700 : null,
+      ),
+    );
+
+    final sections = <Widget>[];
+    for (final table in tables) {
+      final lines = <Widget>[];
+      for (var r = 0; r < table.rows.length; r++) {
+        final row = table.rows[r];
+        for (final cell in row.cells) {
+          final key = '${table.key}.${row.key}.${cell.col}';
+          if (cell.text != null || !reference.containsKey(key)) continue;
+          final column = table.columns.where((c) => c.key == cell.col);
+          final label = column.isEmpty ? cell.col : column.first.label;
+          final unit = column.isEmpty || column.first.unit == null
+              ? ''
+              : '（${column.first.unit}）';
+          final rowName = (row.label ?? '').isNotEmpty
+              ? row.label!
+              : '第 ${r + 1} 行';
+          final filled = (mine[key] ?? '').trim();
+          lines.add(
+            _RefLine(
+              key: ValueKey('selfcheck.ref.$key'),
+              label: '$rowName · $label$unit',
+              mine: value(filled.isEmpty ? '没填' : filled),
+              reference: value(reference[key]!, strong: true),
+            ),
+          );
+        }
+      }
+      if (lines.isEmpty) continue;
+      sections.addAll([
+        Padding(
+          padding: const EdgeInsets.only(top: 6, bottom: 2),
+          child: Text(table.title, style: head),
+        ),
+        _RefLine(
+          label: '格子',
+          mine: Text('你填的', style: head),
+          reference: Text('参考数据', style: head),
+          heading: true,
+        ),
+        const Divider(height: 1),
+        ...lines,
+      ]);
+    }
+
+    return Column(
+      key: const ValueKey('selfcheck.reference'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('对照参考数据', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          '参考数据只是让你对照的，不是评分：数不一样，先看是哪一步不同，再去标下面的要点。',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...sections,
+      ],
+    );
+  }
+}
+
+class _RefLine extends StatelessWidget {
+  const _RefLine({
+    super.key,
+    required this.label,
+    required this.mine,
+    required this.reference,
+    this.heading = false,
+  });
+
+  final String label;
+  final Widget mine;
+  final Widget reference;
+  final bool heading;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 5,
+            child: Text(
+              label,
+              style: heading
+                  ? theme.textTheme.labelLarge
+                  : theme.textTheme.bodyMedium,
+            ),
+          ),
+          Expanded(flex: 3, child: mine),
+          Expanded(flex: 3, child: reference),
+        ],
+      ),
+    );
   }
 }

@@ -6,7 +6,7 @@ import {
   isUnchanged,
   requestFromForm,
 } from '../src/editing'
-import { detail, FAST, solution, writtenDetail } from './fixtures'
+import { detail, experimentDetail, FAST, solution, writtenDetail } from './fixtures'
 import type { AdminQuestionDetail } from '../src/api/types'
 
 /** 契约里 type: object 且没有 properties 的字段，生成的类型是 Record<string, never>。 */
@@ -24,6 +24,8 @@ export function fillDetail(): AdminQuestionDetail {
       blanks: [{ key: 'b1', label: null, unit_hint: '需要写单位', placeholder: '数值和单位' }],
       subquestions: [],
       attachments: [],
+      data_tables: [],
+      safety: null,
     },
     answer: {
       value: { b1: '5' },
@@ -48,6 +50,7 @@ describe('表单与修改请求', () => {
     ['选择题', detail()],
     ['填空题（带规则、单位、图解、快速解法、额外标记）', fillDetail()],
     ['解答题（小问、参考答案、自查要点）', writtenDetail()],
+    ['实验题（数据表、安全提示、格子的参考值、小问、自查要点）', experimentDetail()],
   ])('%s：原样放进表单再取出，和"题目详情原样还原"完全一致', (_name, source) => {
     const built = requestFromForm(formFromDetail(source), source)
 
@@ -90,6 +93,8 @@ describe('表单与修改请求', () => {
         blanks: [],
         subquestions: [],
         attachments: [],
+        data_tables: [],
+        safety: null,
       },
       answer: { value: ['C', 'A'], equivalence_rules: {}, units: {} },
     })
@@ -295,5 +300,140 @@ describe('解答题的表单', () => {
 
     expect(built.ok && built.body.content.subquestions).toEqual(source.content.subquestions)
     expect(built.ok && 'points' in built.body.rubric).toBe(false)
+  })
+})
+
+describe('实验题的表单', () => {
+  const built = (source: AdminQuestionDetail, change: (form: ReturnType<typeof formFromDetail>) => void) => {
+    const form = formFromDetail(source)
+    change(form)
+    return requestFromForm(form, source)
+  }
+
+  it('安全提示、数据表、留空格子的参考值、小问各是表单里的一块', () => {
+    const source = experimentDetail()
+    const form = formFromDetail(source)
+
+    expect(form.safetyOn).toBe(true)
+    expect(form.safetyLevel).toBe('low')
+    expect(form.safetyNotes).toEqual(source.content.safety!.notes)
+    expect(JSON.parse(form.dataTablesJson)).toEqual(source.content.data_tables)
+    // 键带点的是留空格子的参考值；小问的参考答案在小问那一行里
+    expect(JSON.parse(form.referenceCellsJson)).toEqual({ 't1.r1.v': '0.400', 't1.r2.v': '0.600' })
+    expect(form.subquestions).toEqual([
+      { key: '1', stem: '写出算平均速度的方法；', answer: '平均速度等于距离除以时间间隔' },
+    ])
+    expect(form.points.map((row) => [row.key, row.part])).toEqual([
+      ['p1', 't1'],
+      ['p2', '1'],
+      ['p3', ''],
+    ])
+  })
+
+  it('改一条安全提示：请求里只有安全提示变了，数据表和参考值原样带回', () => {
+    const source = experimentDetail()
+
+    const result = built(source, (form) => {
+      form.safetyNotes[1] = '（改）这是纸面练习，不是操作指导。'
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.body.content.safety).toEqual({
+      level: 'low',
+      notes: [source.content.safety!.notes[0], '（改）这是纸面练习，不是操作指导。'],
+    })
+    expect(result.body.content.data_tables).toEqual(source.content.data_tables)
+    expect(result.body.answer.value).toEqual(source.answer.value)
+    expect(isUnchanged(result.body, source)).toBe(false)
+  })
+
+  it('取消"安全提示"：请求里 safety 就是 null（程序校验会拦住它，不能上线）', () => {
+    const result = built(experimentDetail(), (form) => {
+      form.safetyOn = false
+    })
+
+    expect(result.ok && result.body.content.safety).toBeNull()
+  })
+
+  it('改风险等级；空的安全提示行会被丢掉', () => {
+    const result = built(experimentDetail(), (form) => {
+      form.safetyLevel = 'high'
+      form.safetyNotes.push('   ')
+    })
+
+    expect(result.ok && result.body.content.safety).toEqual({
+      level: 'high',
+      notes: experimentDetail().content.safety!.notes,
+    })
+  })
+
+  it('改数据表里一个给定的格子：请求里的表跟着变', () => {
+    const source = experimentDetail()
+    const tables = JSON.parse(formFromDetail(source).dataTablesJson)
+    tables[0].rows[0].cells[1].text = '4.10'
+
+    const result = built(source, (form) => {
+      form.dataTablesJson = JSON.stringify(tables)
+    })
+
+    expect(result.ok && result.body.content.data_tables[0]!.rows[0]!.cells[1]!.text).toBe('4.10')
+  })
+
+  it('小问的参考答案和格子的参考值合在 answer.value 一个对象里', () => {
+    const result = built(experimentDetail(), (form) => {
+      form.subquestions[0]!.answer = '（改）除以时间间隔'
+      form.referenceCellsJson = JSON.stringify({ 't1.r1.v': '0.410', 't1.r2.v': '0.600' })
+    })
+
+    expect(result.ok && result.body.answer.value).toEqual({
+      '1': '（改）除以时间间隔',
+      't1.r1.v': '0.410',
+      't1.r2.v': '0.600',
+    })
+  })
+
+  it('自查要点可以针对一张数据表：part 就是表的键', () => {
+    const result = built(experimentDetail(), (form) => {
+      form.points[0]!.text = '（改）先换算单位'
+    })
+
+    const points = (result.ok && (result.body.rubric as unknown as { points: { part: string | null }[] }).points) || []
+    expect(points.map((point) => point.part)).toEqual(['t1', '1', null])
+    for (const point of points) expect(Object.keys(point).sort()).toEqual(['key', 'part', 'text'])
+  })
+
+  it('不能保存的输入给出具体的原因', () => {
+    const result = built(experimentDetail(), (form) => {
+      form.dataTablesJson = '[{坏了'
+      form.referenceCellsJson = '[1, 2]'
+    })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.errors).toEqual(
+      expect.arrayContaining(['数据表不是合法的 JSON', '留空格子的参考值必须是 JSON 对象（花括号包起来的）']),
+    )
+  })
+
+  it('数据表不是数组、参考值不是字符串，也给出原因', () => {
+    const result = built(experimentDetail(), (form) => {
+      form.dataTablesJson = '{"key": "t1"}'
+      form.referenceCellsJson = JSON.stringify({ 't1.r1.v': 0.4 })
+    })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.errors).toEqual(
+      expect.arrayContaining(['数据表必须是 JSON 数组（方括号包起来的）', '留空格子 t1.r1.v 的参考值必须是字符串']),
+    )
+  })
+
+  it('选择题、填空题、解答题的数据表和安全提示不经过表单：原样带回（一直是空和 null）', () => {
+    for (const source of [detail(), fillDetail(), writtenDetail()]) {
+      const result = built(source, () => {})
+      expect(result.ok && result.body.content.data_tables).toEqual([])
+      expect(result.ok && result.body.content.safety).toBeNull()
+    }
   })
 })

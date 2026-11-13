@@ -22,8 +22,24 @@ let pending: { fingerprint: string; key: string } | null = null
 const isChoice = computed(() => ['single_choice', 'multiple_choice'].includes(props.detail.answer_mode))
 const isFill = computed(() => props.detail.answer_mode === 'fill')
 const isWritten = computed(() => props.detail.answer_mode === 'written')
+const isExperiment = computed(() => props.detail.answer_mode === 'experiment')
+// 解答题和实验题：分小问作答，不自动评分，提交后对照要点自查
+const isSubjective = computed(() => isWritten.value || isExperiment.value)
 // "所属小问"只能选已经有键的小问
 const partChoices = computed(() => form.subquestions.filter((row) => row.key.trim() !== ''))
+// 实验题的要点也可以针对某张数据表：从数据表那段 JSON 里读出表的键（JSON 写到一半时先当没有）
+const tableChoices = computed<{ key: string; title: string }[]>(() => {
+  if (!isExperiment.value) return []
+  try {
+    const parsed: unknown = JSON.parse(form.dataTablesJson)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((item): item is { key: string; title?: unknown } => !!item && typeof item.key === 'string' && item.key !== '')
+      .map((item) => ({ key: item.key, title: typeof item.title === 'string' ? item.title : '' }))
+  } catch {
+    return []
+  }
+})
 const built = computed(() => requestFromForm(form, props.detail))
 const unchanged = computed(() => built.value.ok && isUnchanged(built.value.body, props.detail))
 const canSave = computed(() => !saving.value && built.value.ok && !unchanged.value)
@@ -157,9 +173,51 @@ async function save(): Promise<void> {
       </label>
     </fieldset>
 
-    <fieldset v-if="isWritten" class="group" data-testid="subquestions">
+    <fieldset v-if="isExperiment" class="group" data-testid="safety">
+      <legend>
+        <label>
+          <input v-model="form.safetyOn" type="checkbox" data-testid="safety-on" />
+          安全提示（每道实验题必须有，上线前要你逐条确认）
+        </label>
+      </legend>
+      <template v-if="form.safetyOn">
+        <label class="field">
+          <span>风险等级</span>
+          <select v-model="form.safetyLevel" data-testid="safety-level">
+            <option value="low">low：只涉及常规的低风险操作</option>
+            <option value="medium">medium：需要提醒防护措施</option>
+            <option value="high">high：高风险——现在不收录，程序校验会拦住</option>
+          </select>
+        </label>
+        <StringList v-model="form.safetyNotes" label="安全提示（一条一行）" add-label="添加一条" :rows="2" />
+      </template>
+      <p class="muted small">
+        这是纸面练习，不是操作指导：题目、提示和解法里都不要给现实操作的步骤诱导。高风险的实验现在不收录。
+      </p>
+    </fieldset>
+
+    <fieldset v-if="isExperiment" class="group" data-testid="data-tables">
+      <legend>数据表与留空格子的参考值</legend>
+      <p class="muted small">
+        数据表是一个 JSON 数组。每张表有 key、title、columns（key、label、unit）和 rows（key、label、cells）；
+        cells 里每一列恰好一个格子 {"col": 列键, "text": 给定的数据}，<strong>text 为 null 的格子由学生填写</strong>。
+        表、行、列的键只用字母、数字、下划线。留空格子的参考值写在下面，键是"表键.行键.列键"；学生提交之后才看得到它。
+      </p>
+      <label class="field">
+        <span>数据表（JSON 数组）</span>
+        <textarea v-model="form.dataTablesJson" rows="14" class="mono" data-testid="data-tables-json" />
+      </label>
+      <label class="field">
+        <span>留空格子的参考值（JSON 对象，值是字符串）</span>
+        <textarea v-model="form.referenceCellsJson" rows="6" class="mono" data-testid="reference-cells-json" />
+      </label>
+    </fieldset>
+
+    <fieldset v-if="isSubjective" class="group" data-testid="subquestions">
       <legend>小问与参考答案</legend>
-      <p class="muted small">解答题分小问作答。参考答案只用来给学生对照，不参与任何自动判定。</p>
+      <p class="muted small">
+        {{ isExperiment ? '实验题的文字小问（可以没有，只填数据表）' : '解答题分小问作答' }}。参考答案只用来给学生对照，不参与任何自动判定。
+      </p>
       <div v-for="(row, index) in form.subquestions" :key="index" class="option-row sub-row">
         <input v-model="row.key" class="key" aria-label="小问键" maxlength="16" :data-testid="`subquestion-key-${index}`" />
         <textarea
@@ -183,16 +241,19 @@ async function save(): Promise<void> {
       <button type="button" data-testid="add-subquestion" @click="addSubquestion">添加小问</button>
     </fieldset>
 
-    <fieldset v-if="isWritten" class="group" data-testid="points">
+    <fieldset v-if="isSubjective" class="group" data-testid="points">
       <legend>自查要点（提交之后给学生对照）</legend>
       <p class="muted small">
-        这是一张清单，不是评分标准：不带分值，也不会折算成分数。每个小问至少要有一条；"整份解答"是对全部作答的要求。
+        这是一张清单，不是评分标准：不带分值，也不会折算成分数。每个小问{{ isExperiment ? '、每张有留空格子的数据表' : '' }}至少要有一条；"整份解答"是对全部作答的要求。
       </p>
       <div v-for="(row, index) in form.points" :key="index" class="option-row point-row">
         <input v-model="row.key" class="key" aria-label="要点键" maxlength="16" :data-testid="`point-key-${index}`" />
         <select v-model="row.part" aria-label="所属小问" :data-testid="`point-part-${index}`">
           <option value="">整份解答</option>
           <option v-for="sub in partChoices" :key="sub.key" :value="sub.key">第 {{ sub.key }} 问</option>
+          <option v-for="table in tableChoices" :key="`table-${table.key}`" :value="table.key">
+            数据表 {{ table.key }}{{ table.title ? `（${table.title}）` : '' }}
+          </option>
         </select>
         <textarea v-model="row.text" rows="2" placeholder="要做到什么（公式写在 $…$ 里）" aria-label="要点" :data-testid="`point-text-${index}`" />
         <button type="button" class="link" :data-testid="`point-delete-${index}`" @click="form.points.splice(index, 1)">删除</button>
@@ -261,7 +322,7 @@ async function save(): Promise<void> {
         <span>知识点（code，用逗号分隔）</span>
         <input v-model="form.knowledge" data-testid="knowledge" />
       </label>
-      <label v-if="!isWritten" class="field">
+      <label v-if="!isSubjective" class="field">
         <span>评分细则（JSON）</span>
         <textarea v-model="form.rubricJson" rows="3" class="mono" data-testid="rubric-json" />
       </label>

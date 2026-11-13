@@ -188,6 +188,151 @@ void main() {
     expect(jsonEncode(saved.toJson()).contains('score'), isFalse);
   });
 
+  group('实验题', () {
+    test('题面带数据表和安全提示；留空的格子没有值，也没有任何答案相关的字段', () async {
+      serve('question_experiment');
+      final question = await client.getQuestion(questionId: 'q');
+
+      expect(question.answerMode, AnswerMode.experiment);
+      expect(question.type, QuestionType.experiment);
+      final content = question.content;
+      expect(content.safety, isNotNull);
+      expect(content.safety!.level, ExperimentSafetyLevel.low);
+      expect(content.safety!.notes, isNotEmpty);
+      expect(content.dataTables.map((t) => t.key), ['t1', 't2']);
+      expect(content.dataTables.first.columns.map((c) => c.key),
+          ['seg', 'x', 'v']);
+      expect(content.dataTables.first.columns[1].unit, 'cm');
+      final cells = [
+        for (final table in content.dataTables)
+          for (final row in table.rows) ...row.cells,
+      ];
+      expect(cells.where((c) => c.text == null), isNotEmpty, reason: '留空的格子');
+      expect(cells.where((c) => c.text != null), isNotEmpty, reason: '给定的数据');
+      expect(question.judgingNote, contains('不自动评分'));
+      expect(question.judgingNote, contains('不是操作指导'));
+      expect(question.assists.hintLevels, 3);
+      final text = jsonEncode(question.toJson());
+      for (final forbidden in [
+        '"rubric"',
+        '"points"',
+        '"final_answer"',
+        '"reference_cells"',
+        '"value"',
+        '"answer"',
+      ]) {
+        expect(text.contains(forbidden), isFalse, reason: forbidden);
+      }
+    });
+
+    test('化学实验的表可以只有一列，行有标签', () async {
+      serve('question_experiment_titration');
+      final question = await client.getQuestion(questionId: 'q');
+
+      final table = question.content.dataTables.last;
+      expect(table.columns, hasLength(1));
+      expect(table.rows.map((r) => r.label), everyElement(isNotNull));
+      expect(question.content.safety!.notes.length, greaterThanOrEqualTo(1));
+    });
+
+    test('按格子和小问提交，不自动评分，事件说明"请自查"', () async {
+      serve('submit_experiment');
+      final result = await client.submitAttempt(
+        attemptId: 'x',
+        body: const SubmitRequest(
+          answer: AnswerPayload(
+            cells: [
+              AnswerCell(table: 't1', row: 'r1', col: 'v', value: '0.400'),
+              AnswerCell(table: 't2', row: 'r1', col: 'val', value: '2.00'),
+            ],
+            parts: [AnswerPart(key: '1', text: 'T 等于 0.10 秒')],
+          ),
+        ),
+        idempotencyKey: 'submit-0004-abcd',
+      );
+
+      expect(jsonDecode(transport.seen.single.body!), {
+        'answer': {
+          'parts': [
+            {'key': '1', 'text': 'T 等于 0.10 秒'},
+          ],
+          'cells': [
+            {'table': 't1', 'row': 'r1', 'col': 'v', 'value': '0.400'},
+            {'table': 't2', 'row': 'r1', 'col': 'val', 'value': '2.00'},
+          ],
+        },
+      });
+      expect(result.evaluation.state, EvaluationState.pending);
+      expect(result.evaluation.outcome, EvaluationOutcome.undetermined);
+      expect(result.evaluation.isCorrect, isNull);
+      expect(result.reviewItem, isNull);
+      expect(
+          result.events.single.uncertainty.reasonCode, 'subjective_self_check');
+      expect(result.attempt.answer!.cells, isNotEmpty);
+    });
+
+    test('草稿可以带格子：往返不丢', () async {
+      serve('draft_synced_experiment');
+      final draft = await client.syncDraft(
+        attemptId: 'x',
+        body: const DraftSync(
+          baseRevision: 0,
+          answer: AnswerPayload(
+            cells: [AnswerCell(table: 't1', row: 'r1', col: 'v', value: '0.4')],
+          ),
+        ),
+        idempotencyKey: 'draft-0002-abcdef',
+      );
+
+      expect(draft.revision, 1);
+      final cells = draft.answer!.cells!;
+      expect(cells, isNotEmpty);
+      expect(cells.first.table, 't1');
+      expect(cells.first.value, isNotEmpty);
+    });
+
+    test('对照自查：提交后有要点和留空格子的参考值，没有分数', () async {
+      serve('self_check_experiment_before_submit');
+      await expectLater(
+        client.getSelfCheck(attemptId: 'x'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.statusCode, 'statusCode', 409)
+            .having((e) => e.code, 'code', 'attempt_not_submitted')),
+      );
+
+      serve('self_check_experiment_pending');
+      final pending = await client.getSelfCheck(attemptId: 'x');
+      expect(pending.points, isNotEmpty);
+      expect(pending.referenceCells, isNotEmpty);
+      expect(pending.referenceCells.first.table, 't1');
+      expect(pending.referenceCells.map((c) => c.value),
+          containsAll(['0.400', '2.00']));
+      expect(pending.marks, isEmpty);
+      expect(pending.savedAt, isNull);
+      expect(jsonEncode(pending.toJson()).contains('score'), isFalse);
+
+      serve('self_check_experiment_saved');
+      final saved = await client.saveSelfCheck(
+        attemptId: 'x',
+        body: SelfCheckSave(marks: [
+          for (final point in pending.points)
+            SelfCheckMark(pointKey: point.key, level: SelfCheckLevel.done),
+        ]),
+        idempotencyKey: 'self-check-0002',
+      );
+      expect(saved.referenceCells, hasLength(pending.referenceCells.length));
+      expect(saved.summary.total, pending.points.length);
+      expect(saved.savedAt, isNotNull);
+    });
+
+    test('解答题的自查没有参考格子', () async {
+      serve('self_check_pending');
+      final pending = await client.getSelfCheck(attemptId: 'x');
+
+      expect(pending.referenceCells, isEmpty);
+    });
+  });
+
   test('学情里解答题只有计数，没有正确率', () async {
     serve('progress_summary');
     final progress = await client.getProgressSummary();

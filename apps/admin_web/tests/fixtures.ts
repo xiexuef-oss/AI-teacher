@@ -100,6 +100,8 @@ export function detail(overrides: Partial<AdminQuestionDetail> = {}): AdminQuest
       blanks: [],
       subquestions: [],
       attachments: [],
+      data_tables: [],
+      safety: null,
     },
     answer: { value: ['A'], equivalence_rules: {}, units: {} },
     teaching: {
@@ -173,6 +175,8 @@ export function writtenDetail(overrides: Partial<AdminQuestionDetail> = {}): Adm
         },
       ],
       attachments: [],
+      data_tables: [],
+      safety: null,
     },
     answer: {
       value: { '1': '$a\\le 1$', '2': '最大值 $3$，最小值 $-1$' },
@@ -194,6 +198,82 @@ export function writtenDetail(overrides: Partial<AdminQuestionDetail> = {}): Adm
         { key: 'p2', part: '1', text: '列出关于 $a$ 的不等式并得出范围' },
         { key: 'p3', part: '2', text: '求出最小值，并写明在哪一点取得' },
         { key: 'p4', part: null, text: '每一步写出依据，书写清楚' },
+      ],
+    }),
+    ...overrides,
+  })
+}
+
+/**
+ * 一道实验题：安全提示、两张数据表（一张有留空的格子）、一个文字小问；
+ * 留空格子的参考值和小问的参考答案放在同一个对象里，键是"表键.行键.列键"。
+ */
+export function experimentDetail(overrides: Partial<AdminQuestionDetail> = {}): AdminQuestionDetail {
+  return detail({
+    type: 'experiment',
+    answer_mode: 'experiment',
+    subject: 'physics',
+    title: '用纸带数据测小车的加速度',
+    content: {
+      stem: '纸带上依次取 $A$、$B$、$C$ 三个计数点，相邻计数点间的时间间隔为 $T=0.10\\ \\text{s}$。',
+      options: [],
+      blanks: [],
+      subquestions: [
+        { key: '1', stem: '写出算平均速度的方法；', answer_mode: 'written', options: [], blanks: [] },
+      ],
+      attachments: [],
+      data_tables: [
+        {
+          key: 't1',
+          title: '表 1  相邻计数点间的距离与平均速度',
+          columns: [
+            { key: 'seg', label: '计数点间', unit: null },
+            { key: 'x', label: '距离 x', unit: 'cm' },
+            { key: 'v', label: '平均速度', unit: 'm/s' },
+          ],
+          rows: [
+            {
+              key: 'r1',
+              label: null,
+              cells: [
+                { col: 'seg', text: 'AB' },
+                { col: 'x', text: '4.00' },
+                { col: 'v', text: null },
+              ],
+            },
+            {
+              key: 'r2',
+              label: null,
+              cells: [
+                { col: 'seg', text: 'BC' },
+                { col: 'x', text: '6.00' },
+                { col: 'v', text: null },
+              ],
+            },
+          ],
+        },
+      ],
+      safety: { level: 'low', notes: ['本题只处理已经得到的纸带数据，不需要动手操作。', '这是纸面练习，不是操作指导。'] },
+    },
+    answer: {
+      value: { '1': '平均速度等于距离除以时间间隔', 't1.r1.v': '0.400', 't1.r2.v': '0.600' },
+      equivalence_rules: {},
+      units: {},
+    },
+    teaching: {
+      concept: '纸带数据的处理',
+      hints: ['先弄清时间间隔。', '注意单位。'],
+      concept_rephrase: null,
+      option_analysis: {},
+      visual: null,
+      leak_markers: ['T=0.10'],
+    },
+    solutions: [solution({ final_answer: '$0.400\\ \\text{m/s}$，$0.600\\ \\text{m/s}$' })],
+    rubric: obj({
+      points: [
+        { key: 'p1', part: 't1', text: '把距离从 cm 换算成 m 之后再除以时间' },
+        { key: 'p2', part: '1', text: '说明平均速度 = 距离 ÷ 时间间隔' },
+        { key: 'p3', part: null, text: '数据表填得完整，单位不漏' },
       ],
     }),
     ...overrides,

@@ -1,7 +1,7 @@
 {
   "name": "error_weekly_not_a_monday",
   "method": "GET",
-  "path": "/api/v1/parents/students/a8cde7a7-18b2-47aa-a6b2-446d1811d350/weekly",
+  "path": "/api/v1/parents/students/c3162028-1e6c-4226-8e96-e799621a75dd/weekly",
   "status": 422,
   "schema": "ErrorEnvelope",
   "value": {
@@ -17,7 +17,7 @@
           }
         ]
       },
-      "request_id": "cf8c7683f12e46b98498990f13f1b4c1"
+      "request_id": "ee9e500f379645018fcfd10b7bfe98e5"
     }
   },
   "body": {
@@ -33,7 +33,7 @@
           }
         ]
       },
-      "request_id": "cf8c7683f12e46b98498990f13f1b4c1"
+      "request_id": "ee9e500f379645018fcfd10b7bfe98e5"
     }
   }
 }

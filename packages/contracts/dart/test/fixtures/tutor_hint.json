@@ -1,12 +1,12 @@
 {
   "name": "tutor_hint",
   "method": "POST",
-  "path": "/api/v1/tutor/sessions/b139a884-6b8e-4118-8cd4-f149be7c580e/next",
+  "path": "/api/v1/tutor/sessions/3832e58a-7114-4e0b-a71c-0fab056f68fc/next",
   "status": 200,
   "schema": "TutorStep",
   "value": {
     "session": {
-      "id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+      "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
       "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
       "question_version": 1,
       "origin": "task",
@@ -23,7 +23,7 @@
       "hint_levels_total": 3,
       "confused_streak": 0,
       "needs_human_help": false,
-      "active_attempt_id": "598a8e98-f2ca-4238-853a-c544a314d322",
+      "active_attempt_id": "7acb86c8-336d-42a0-8a51-882195b6d41b",
       "submitted_attempts": 0,
       "last_event_seq": 1,
       "created_at": "2026-11-10T08:00:00Z",
@@ -31,8 +31,8 @@
     },
     "events": [
       {
-        "id": "29861c46-c6c9-4973-81e9-da4d6acee481",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "9bb25d9b-f41f-4d95-a4de-5bcd203168bf",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 1,
         "type": "hint",
         "created_at": "2026-11-10T08:00:00Z",
@@ -54,7 +54,7 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "4f2b668f710c4dc3bfb78c70a6a42ea2"
+          "request_id": "8fea5579ce0e41168a36fb90a502993a"
         }
       }
     ]
@@ -62,7 +62,7 @@
   "body": {
     "data": {
       "session": {
-        "id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
         "question_version": 1,
         "origin": "task",
@@ -79,7 +79,7 @@
         "hint_levels_total": 3,
         "confused_streak": 0,
         "needs_human_help": false,
-        "active_attempt_id": "598a8e98-f2ca-4238-853a-c544a314d322",
+        "active_attempt_id": "7acb86c8-336d-42a0-8a51-882195b6d41b",
         "submitted_attempts": 0,
         "last_event_seq": 1,
         "created_at": "2026-11-10T08:00:00Z",
@@ -87,8 +87,8 @@
       },
       "events": [
         {
-          "id": "29861c46-c6c9-4973-81e9-da4d6acee481",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "9bb25d9b-f41f-4d95-a4de-5bcd203168bf",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 1,
           "type": "hint",
           "created_at": "2026-11-10T08:00:00Z",
@@ -110,7 +110,7 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "4f2b668f710c4dc3bfb78c70a6a42ea2"
+            "request_id": "8fea5579ce0e41168a36fb90a502993a"
           }
         }
       ]

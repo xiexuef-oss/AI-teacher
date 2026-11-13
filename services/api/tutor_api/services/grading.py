@@ -1,10 +1,11 @@
-"""客观题的确定性判定（单选、多选、填空），以及解答题的作答校验。
+"""客观题的确定性判定（单选、多选、填空），以及解答题、实验题的作答校验。
 
 三种结论：
 - verified：规则能确定对错；
 - uncertain：格式认不出、单位认不出、或确认不了等价——不算对也不算错，标记待复核；
-- pending：解答题（和还没开放的实验题）不自动评分。解答题只校验作答的形状，永远不给对错：
-  哪怕和参考答案一字不差也不判对——系统不冒充阅卷，学生提交后对照要点自查（Q-06）。
+- pending：解答题和实验题不自动评分。它们只校验作答的形状，永远不给对错：
+  哪怕和参考答案一字不差（实验题哪怕每个格子都和参考数据一样）也不判对——
+  系统不冒充阅卷，学生提交后对照要点和参考数据自查（Q-06）。
 
 这里给出的是练习反馈，不是官方阅卷分数。多选题的判定方式来自每道题自己的 rubric，
 不写死任何地区的评分办法。
@@ -21,6 +22,8 @@ from typing import Any, Literal
 from tutor_api.services import mathparse
 
 MULTI_CHOICE_RULES = ("all_or_nothing", "partial_no_wrong")
+# 不自动评分、提交后由学生对照要点自查的作答方式（Q-06）：不进任何正确率，也不据此安排复测
+SUBJECTIVE_MODES = ("written", "experiment")
 RULE_TYPES = ("numeric", "expression", "interval")
 
 _SAMPLES = 6
@@ -90,6 +93,7 @@ def _grade_choice(
         answer.get("blanks") is not None
         or answer.get("text") is not None
         or answer.get("parts") is not None
+        or answer.get("cells") is not None
     ):
         raise AnswerShapeError("answer", "选择题只需要提交 selected_options")
     if not selected:
@@ -319,6 +323,7 @@ def _grade_fill(
         answer.get("selected_options") is not None
         or answer.get("text") is not None
         or answer.get("parts") is not None
+        or answer.get("cells") is not None
     ):
         raise AnswerShapeError("answer", "填空题只需要提交 blanks")
     if not submitted:
@@ -376,14 +381,8 @@ def _grade_fill(
 # ---------------------------------------------------------------- 解答题
 
 
-def _grade_written(content: dict[str, Any], answer: dict[str, Any], has_ink: bool) -> GradeResult:
-    """解答题不评分：只确认作答的形状站得住，然后如实说"没有判定，请自查"。"""
-    if (
-        answer.get("selected_options") is not None
-        or answer.get("blanks") is not None
-        or answer.get("text") is not None
-    ):
-        raise AnswerShapeError("answer", "解答题只需要按小问提交 parts")
+def _checked_parts(content: dict[str, Any], answer: dict[str, Any]) -> list[dict[str, Any]]:
+    """按小问提交的文字：小问要属于这道题、每个小问只能提交一份。"""
     submitted = answer.get("parts") or []
     keys = [sub["key"] for sub in content.get("subquestions") or []]
     seen = [part["key"] for part in submitted]
@@ -391,6 +390,19 @@ def _grade_written(content: dict[str, Any], answer: dict[str, Any], has_ink: boo
         raise AnswerShapeError("answer.parts", "同一个小问只能提交一份")
     if not set(seen) <= set(keys):
         raise AnswerShapeError("answer.parts", "包含题目中不存在的小问")
+    return submitted
+
+
+def _grade_written(content: dict[str, Any], answer: dict[str, Any], has_ink: bool) -> GradeResult:
+    """解答题不评分：只确认作答的形状站得住，然后如实说"没有判定，请自查"。"""
+    if (
+        answer.get("selected_options") is not None
+        or answer.get("blanks") is not None
+        or answer.get("text") is not None
+        or answer.get("cells") is not None
+    ):
+        raise AnswerShapeError("answer", "解答题只需要按小问提交 parts")
+    submitted = _checked_parts(content, answer)
     if not any(part["text"].strip() for part in submitted) and not has_ink:
         raise AnswerShapeError("answer", "还没有写下解答：可以在作答区打字，也可以手写，写完再提交")
     return GradeResult(
@@ -399,6 +411,52 @@ def _grade_written(content: dict[str, Any], answer: dict[str, Any], has_ink: boo
         None,
         (),
         "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+        review_required=True,
+        uncertainty_reason="subjective_self_check",
+    )
+
+
+# ---------------------------------------------------------------- 实验题
+
+
+def blank_cell_keys(content: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """题目里留空、由学生填写的格子：(表键, 行键, 列键)，按表、行、列的顺序。"""
+    return [
+        (table["key"], row["key"], cell["col"])
+        for table in content.get("data_tables") or []
+        for row in table["rows"]
+        for cell in row["cells"]
+        if cell["text"] is None
+    ]
+
+
+def _grade_experiment(
+    content: dict[str, Any], answer: dict[str, Any], has_ink: bool
+) -> GradeResult:
+    """实验题不评分：数据表里的格子和文字小问只校验形状，哪怕和参考数据一模一样也不判对。"""
+    if (
+        answer.get("selected_options") is not None
+        or answer.get("blanks") is not None
+        or answer.get("text") is not None
+    ):
+        raise AnswerShapeError("answer", "实验题只需要提交 cells（数据表）和 parts（文字小问）")
+    cells = answer.get("cells") or []
+    seen = [(cell["table"], cell["row"], cell["col"]) for cell in cells]
+    if len(set(seen)) != len(seen):
+        raise AnswerShapeError("answer.cells", "同一个格子只能填一次")
+    if not set(seen) <= set(blank_cell_keys(content)):
+        raise AnswerShapeError("answer.cells", "只能填写题目留空的格子")
+    submitted = _checked_parts(content, answer)
+    filled = any(cell["value"].strip() for cell in cells)
+    written = any(part["text"].strip() for part in submitted)
+    if not filled and not written and not has_ink:
+        raise AnswerShapeError("answer", "还没有填写：可以填数据表、写文字，也可以手写，填好再提交")
+    return GradeResult(
+        "pending",
+        "undetermined",
+        None,
+        (),
+        "实验题不自动评分，作答已保存。请对照参考数据和要点自己检查一遍；这次不算对，也不算错。",
         review_required=True,
         uncertainty_reason="subjective_self_check",
     )
@@ -414,19 +472,13 @@ def grade(
     answer: dict[str, Any],
     has_ink: bool = False,
 ) -> GradeResult:
-    """has_ink：这份作答的草稿里有没有笔迹。只对解答题有意义——可以只手写、不打字。"""
+    """has_ink：这份作答的草稿里有没有笔迹。只对解答题和实验题有意义——可以只手写、不打字。"""
     if answer_mode in {"single_choice", "multiple_choice"}:
         return _grade_choice(answer_mode, content, answer_key, rubric, teaching, answer)
     if answer_mode == "fill":
         return _grade_fill(content, answer_key, answer)
     if answer_mode == "written":
         return _grade_written(content, answer, has_ink)
-    # 实验题：还没有开放，只保存作答，不给任何判定
-    return GradeResult(
-        "pending",
-        "undetermined",
-        None,
-        (),
-        "这类题目的评分还没有开放，作答已保存。",
-        review_required=True,
-    )
+    if answer_mode == "experiment":
+        return _grade_experiment(content, answer, has_ink)
+    raise ValueError(f"未知的作答方式：{answer_mode!r}")

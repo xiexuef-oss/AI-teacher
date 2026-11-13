@@ -1,0 +1,437 @@
+{
+  "name": "question_experiment",
+  "method": "GET",
+  "path": "/api/v1/questions/2e43664d-943a-588a-9378-24094140fda1",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "2e43664d-943a-588a-9378-24094140fda1",
+    "subject": "physics",
+    "type": "experiment",
+    "answer_mode": "experiment",
+    "difficulty": 3,
+    "title": "用纸带数据测小车的加速度",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "0630d76b-6757-5dcb-a7f1-130b2ec1a771",
+        "code": "phys.experiment.tape",
+        "title": "纸带数据处理"
+      },
+      {
+        "id": "2053fee1-4138-5652-a77f-cb54d445d82f",
+        "code": "phys.kinematics.uniform_accel",
+        "title": "匀变速直线运动"
+      }
+    ],
+    "variant_of": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "用打点计时器研究小车沿斜面做匀加速直线运动。实验得到一条清晰的纸带，在纸带上依次取 $A$、$B$、$C$、$D$、$E$ 五个计数点，相邻两个计数点之间还有 $4$ 个点没有画出。打点计时器所用交流电的频率为 $50\\ \\text{Hz}$。用刻度尺量出相邻计数点间的距离，列在表 1 中。",
+      "options": [],
+      "blanks": [],
+      "subquestions": [
+        {
+          "key": "1",
+          "stem": "求相邻计数点之间的时间间隔 $T$，并说明表 1 中\"平均速度\"是怎样算出来的，把四段的平均速度填入表 1；",
+          "answer_mode": "written",
+          "options": [],
+          "blanks": []
+        },
+        {
+          "key": "2",
+          "stem": "用逐差法求小车的加速度 $a$（结果保留三位有效数字），写出算式，并把结果填入表 2；",
+          "answer_mode": "written",
+          "options": [],
+          "blanks": []
+        },
+        {
+          "key": "3",
+          "stem": "写出这个实验中产生误差的两个原因。",
+          "answer_mode": "written",
+          "options": [],
+          "blanks": []
+        }
+      ],
+      "attachments": [],
+      "data_tables": [
+        {
+          "key": "t1",
+          "title": "表 1  相邻计数点间的距离与平均速度",
+          "columns": [
+            {
+              "key": "seg",
+              "label": "计数点间",
+              "unit": null
+            },
+            {
+              "key": "x",
+              "label": "距离 x",
+              "unit": "cm"
+            },
+            {
+              "key": "v",
+              "label": "平均速度",
+              "unit": "m/s"
+            }
+          ],
+          "rows": [
+            {
+              "key": "r1",
+              "label": null,
+              "cells": [
+                {
+                  "col": "seg",
+                  "text": "AB"
+                },
+                {
+                  "col": "x",
+                  "text": "4.00"
+                },
+                {
+                  "col": "v",
+                  "text": null
+                }
+              ]
+            },
+            {
+              "key": "r2",
+              "label": null,
+              "cells": [
+                {
+                  "col": "seg",
+                  "text": "BC"
+                },
+                {
+                  "col": "x",
+                  "text": "6.00"
+                },
+                {
+                  "col": "v",
+                  "text": null
+                }
+              ]
+            },
+            {
+              "key": "r3",
+              "label": null,
+              "cells": [
+                {
+                  "col": "seg",
+                  "text": "CD"
+                },
+                {
+                  "col": "x",
+                  "text": "8.00"
+                },
+                {
+                  "col": "v",
+                  "text": null
+                }
+              ]
+            },
+            {
+              "key": "r4",
+              "label": null,
+              "cells": [
+                {
+                  "col": "seg",
+                  "text": "DE"
+                },
+                {
+                  "col": "x",
+                  "text": "10.00"
+                },
+                {
+                  "col": "v",
+                  "text": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "t2",
+          "title": "表 2  小车的加速度",
+          "columns": [
+            {
+              "key": "name",
+              "label": "物理量",
+              "unit": null
+            },
+            {
+              "key": "val",
+              "label": "数值",
+              "unit": "m/s²"
+            }
+          ],
+          "rows": [
+            {
+              "key": "r1",
+              "label": null,
+              "cells": [
+                {
+                  "col": "name",
+                  "text": "加速度 a"
+                },
+                {
+                  "col": "val",
+                  "text": null
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "safety": {
+        "level": "low",
+        "notes": [
+          "本题只处理已经得到的纸带数据，不需要动手操作。",
+          "这是纸面练习，不是操作指导。真实做这个实验时，要听从老师的安排，通电后不要触碰仪器的运动部件。"
+        ]
+      }
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": false
+    },
+    "judging_note": "实验题不自动评分：数据表里的数和文字作答提交后，对照参考数据和要点自己检查一遍。这是练习用的自查，不是官方阅卷分数，也不会计入正确率；题目是纸面练习，不是操作指导。"
+  },
+  "body": {
+    "data": {
+      "id": "2e43664d-943a-588a-9378-24094140fda1",
+      "subject": "physics",
+      "type": "experiment",
+      "answer_mode": "experiment",
+      "difficulty": 3,
+      "title": "用纸带数据测小车的加速度",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "0630d76b-6757-5dcb-a7f1-130b2ec1a771",
+          "code": "phys.experiment.tape",
+          "title": "纸带数据处理"
+        },
+        {
+          "id": "2053fee1-4138-5652-a77f-cb54d445d82f",
+          "code": "phys.kinematics.uniform_accel",
+          "title": "匀变速直线运动"
+        }
+      ],
+      "variant_of": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "用打点计时器研究小车沿斜面做匀加速直线运动。实验得到一条清晰的纸带，在纸带上依次取 $A$、$B$、$C$、$D$、$E$ 五个计数点，相邻两个计数点之间还有 $4$ 个点没有画出。打点计时器所用交流电的频率为 $50\\ \\text{Hz}$。用刻度尺量出相邻计数点间的距离，列在表 1 中。",
+        "options": [],
+        "blanks": [],
+        "subquestions": [
+          {
+            "key": "1",
+            "stem": "求相邻计数点之间的时间间隔 $T$，并说明表 1 中\"平均速度\"是怎样算出来的，把四段的平均速度填入表 1；",
+            "answer_mode": "written",
+            "options": [],
+            "blanks": []
+          },
+          {
+            "key": "2",
+            "stem": "用逐差法求小车的加速度 $a$（结果保留三位有效数字），写出算式，并把结果填入表 2；",
+            "answer_mode": "written",
+            "options": [],
+            "blanks": []
+          },
+          {
+            "key": "3",
+            "stem": "写出这个实验中产生误差的两个原因。",
+            "answer_mode": "written",
+            "options": [],
+            "blanks": []
+          }
+        ],
+        "attachments": [],
+        "data_tables": [
+          {
+            "key": "t1",
+            "title": "表 1  相邻计数点间的距离与平均速度",
+            "columns": [
+              {
+                "key": "seg",
+                "label": "计数点间",
+                "unit": null
+              },
+              {
+                "key": "x",
+                "label": "距离 x",
+                "unit": "cm"
+              },
+              {
+                "key": "v",
+                "label": "平均速度",
+                "unit": "m/s"
+              }
+            ],
+            "rows": [
+              {
+                "key": "r1",
+                "label": null,
+                "cells": [
+                  {
+                    "col": "seg",
+                    "text": "AB"
+                  },
+                  {
+                    "col": "x",
+                    "text": "4.00"
+                  },
+                  {
+                    "col": "v",
+                    "text": null
+                  }
+                ]
+              },
+              {
+                "key": "r2",
+                "label": null,
+                "cells": [
+                  {
+                    "col": "seg",
+                    "text": "BC"
+                  },
+                  {
+                    "col": "x",
+                    "text": "6.00"
+                  },
+                  {
+                    "col": "v",
+                    "text": null
+                  }
+                ]
+              },
+              {
+                "key": "r3",
+                "label": null,
+                "cells": [
+                  {
+                    "col": "seg",
+                    "text": "CD"
+                  },
+                  {
+                    "col": "x",
+                    "text": "8.00"
+                  },
+                  {
+                    "col": "v",
+                    "text": null
+                  }
+                ]
+              },
+              {
+                "key": "r4",
+                "label": null,
+                "cells": [
+                  {
+                    "col": "seg",
+                    "text": "DE"
+                  },
+                  {
+                    "col": "x",
+                    "text": "10.00"
+                  },
+                  {
+                    "col": "v",
+                    "text": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "t2",
+            "title": "表 2  小车的加速度",
+            "columns": [
+              {
+                "key": "name",
+                "label": "物理量",
+                "unit": null
+              },
+              {
+                "key": "val",
+                "label": "数值",
+                "unit": "m/s²"
+              }
+            ],
+            "rows": [
+              {
+                "key": "r1",
+                "label": null,
+                "cells": [
+                  {
+                    "col": "name",
+                    "text": "加速度 a"
+                  },
+                  {
+                    "col": "val",
+                    "text": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "safety": {
+          "level": "low",
+          "notes": [
+            "本题只处理已经得到的纸带数据，不需要动手操作。",
+            "这是纸面练习，不是操作指导。真实做这个实验时，要听从老师的安排，通电后不要触碰仪器的运动部件。"
+          ]
+        }
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": false
+      },
+      "judging_note": "实验题不自动评分：数据表里的数和文字作答提交后，对照参考数据和要点自己检查一遍。这是练习用的自查，不是官方阅卷分数，也不会计入正确率；题目是纸面练习，不是操作指导。"
+    }
+  }
+}

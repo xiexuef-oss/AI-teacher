@@ -783,6 +783,263 @@ void main() {
     });
   });
 
+  group('实验题', () {
+    late AppHarness w;
+    late String experimentId;
+    late Map<String, dynamic> content;
+
+    setUp(() {
+      final backend = FakeBackend()
+        ..submitFixture = 'submit_experiment'
+        ..selfCheckFixture = 'self_check_experiment_pending'
+        ..installAppBasics()
+        ..installLearningFlow(questionFixture: 'question_experiment');
+      w = AppHarness(backend: backend);
+      final question = Fixtures.load().value('question_experiment');
+      experimentId = question['id'] as String;
+      content = question['content'] as Map<String, dynamic>;
+    });
+
+    Future<void> openExperiment(
+      WidgetTester tester, {
+      Size size = tabletLandscape,
+      double textScale = 1,
+    }) => open(
+      tester,
+      w,
+      size: size,
+      questionId: experimentId,
+      textScale: textScale,
+    );
+
+    /// 题面是按需建出来的列表：目标还没建出来时，先把列表拖到它出现（up 为往回拖），再对准它。
+    Future<void> reveal(
+      WidgetTester tester,
+      String name, {
+      bool up = false,
+    }) async {
+      if (key(name).evaluate().isEmpty) {
+        await tester.dragUntilVisible(
+          key(name),
+          key('solve.questionPane'),
+          Offset(0, up ? 300 : -300),
+        );
+      }
+      await tester.ensureVisible(key(name));
+      await tester.pump();
+    }
+
+    Future<void> fill(WidgetTester tester, String cell, String text) async {
+      await reveal(tester, 'cell.$cell');
+      await tester.enterText(key('cell.$cell'), text);
+      await tester.pump();
+    }
+
+    Future<void> submit(WidgetTester tester) async {
+      await tester.ensureVisible(key('action.submit'));
+      await tester.pump();
+      await tester.tap(key('action.submit'));
+      await settle(tester, frames: 12);
+    }
+
+    testWidgets('题面：安全提示和数据表；留空的格子是输入框，给定的数据只是文字', (tester) async {
+      await openExperiment(tester);
+
+      final safety = content['safety'] as Map<String, dynamic>;
+      expect(key('experiment.safety'), findsOneWidget);
+      for (final note in (safety['notes'] as List).cast<String>()) {
+        expect(find.text('• $note'), findsOneWidget);
+      }
+      expect(find.textContaining('不是操作指导'), findsWidgets);
+      expect(key('experiment.table.t1'), findsOneWidget);
+      expect(key('experiment.table.t2'), findsOneWidget);
+      expect(find.text('表 1  相邻计数点间的距离与平均速度'), findsOneWidget);
+      // 列标题带单位；给定的数据是文字
+      expect(find.text('距离 x（cm）'), findsOneWidget);
+      expect(find.text('平均速度（m/s）'), findsOneWidget);
+      expect(find.text('4.00'), findsOneWidget);
+      expect(find.text('AB'), findsOneWidget);
+      // 留空的格子才有输入框
+      for (final cell in [
+        't1.r1.v',
+        't1.r2.v',
+        't1.r3.v',
+        't1.r4.v',
+        't2.r1.val',
+      ]) {
+        expect(key('cell.$cell'), findsOneWidget, reason: cell);
+      }
+      expect(key('cell.t1.r1.x'), findsNothing, reason: '给定的数据不能改');
+      expect(key('cell.t1.r1.seg'), findsNothing);
+      // 文字小问
+      expect(key('part.1'), findsOneWidget);
+      expect(key('part.3'), findsOneWidget);
+      // 提交之前不给要点和参考数据，也不去要
+      expect(key('selfcheck.card'), findsNothing);
+      expect(key('selfcheck.reference'), findsNothing);
+      expect(w.backend.requestsTo('GET', '/self-check'), isEmpty);
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNull,
+        reason: '什么都没填',
+      );
+      expect(
+        find.textContaining('评分还没有开放'),
+        findsNothing,
+        reason: '不再是"还没开放"的说明',
+      );
+      await teardownTree(tester);
+    });
+
+    testWidgets('填格子、写文字：能提交；提交请求里是格子和小问，页面上出现对照自查', (tester) async {
+      await openExperiment(tester);
+
+      await fill(tester, 't1.r1.v', '0.400');
+      await fill(tester, 't1.r2.v', '0.6');
+      await fill(tester, 't2.r1.val', '2.00');
+      await tester.ensureVisible(key('part.1'));
+      await tester.pump();
+      await tester.enterText(key('part.1'), 'T 等于 0.10 秒');
+      await tester.pump();
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNotNull,
+      );
+      await submit(tester);
+
+      final body = w.backend.bodyOf(
+        w.backend.requestsTo('POST', '/submit').single,
+      )!;
+      expect(body['answer'], {
+        'cells': [
+          {'table': 't1', 'row': 'r1', 'col': 'v', 'value': '0.400'},
+          {'table': 't1', 'row': 'r2', 'col': 'v', 'value': '0.6'},
+          {'table': 't2', 'row': 'r1', 'col': 'val', 'value': '2.00'},
+        ],
+        'parts': [
+          {'key': '1', 'text': 'T 等于 0.10 秒'},
+        ],
+      });
+      expect(key('selfcheck.card'), findsOneWidget);
+      expect(find.text('这道题不自动评分'), findsOneWidget);
+      // 提交之后格子变成只读，填的内容还在（页面已经滚到自查卡片，要往回拖才看得到）
+      await reveal(tester, 'cell.t1.r1.v', up: true);
+      final field = tester.widget<TextField>(key('cell.t1.r1.v'));
+      expect(field.enabled, isFalse);
+      expect(field.controller!.text, '0.400');
+      await teardownTree(tester);
+    });
+
+    testWidgets('对照自查：每个留空的格子并排显示"你填的"和"参考数据"，参考数据只在提交之后才有', (tester) async {
+      await openExperiment(tester);
+      await fill(tester, 't1.r1.v', '0.41');
+      await fill(tester, 't2.r1.val', '2.00');
+      await submit(tester);
+      await tester.ensureVisible(key('selfcheck.reference'));
+      await tester.pump();
+
+      expect(key('selfcheck.reference'), findsOneWidget);
+      expect(find.text('你填的'), findsWidgets);
+      expect(find.text('参考数据'), findsWidgets);
+      // 填了的格子：你的值和参考值
+      final first = key('selfcheck.ref.t1.r1.v');
+      expect(
+        find.descendant(of: first, matching: find.text('0.41')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: first, matching: find.text('0.400')),
+        findsOneWidget,
+      );
+      // 没填的格子也列出来，明说"没填"，参考值照给
+      final blank = key('selfcheck.ref.t1.r2.v');
+      expect(
+        find.descendant(of: blank, matching: find.text('没填')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: blank, matching: find.text('0.600')),
+        findsOneWidget,
+      );
+      // 说明这只是对照用的，不是评分
+      expect(find.textContaining('不是评分'), findsWidgets);
+      await teardownTree(tester);
+    });
+
+    testWidgets('自查要点按小问和数据表分组，标完才能保存，保存后只有计数', (tester) async {
+      await openExperiment(tester);
+      await fill(tester, 't1.r1.v', '0.4');
+      await submit(tester);
+
+      final points =
+          (Fixtures.load().value('self_check_experiment_pending')['points']
+                  as List)
+              .cast<Map<String, dynamic>>();
+      for (final point in points) {
+        await tester.ensureVisible(key('selfcheck.point.${point['key']}'));
+        await tester.pump();
+      }
+      expect(find.text('数据表：表 1  相邻计数点间的距离与平均速度'), findsOneWidget);
+      expect(find.text('第 1 问'), findsOneWidget);
+      expect(find.text('第 3 问'), findsOneWidget);
+      expect(find.text('整份作答'), findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(key('selfcheck.save')).onPressed,
+        isNull,
+        reason: '还没标完',
+      );
+      for (final point in points) {
+        await tester.ensureVisible(key('selfcheck.${point['key']}.done'));
+        await tester.pump();
+        await tester.tap(key('selfcheck.${point['key']}.done'));
+        await tester.pump();
+      }
+      await tester.ensureVisible(key('selfcheck.save'));
+      await tester.pump();
+      await tester.tap(key('selfcheck.save'));
+      await settle(tester, frames: 12);
+
+      final saved = w.backend.requestsTo('PUT', '/self-check').single;
+      expect((w.backend.bodyOf(saved)!['marks'] as List).length, points.length);
+      expect(find.textContaining('做到了 ${points.length}'), findsWidgets);
+      expect(find.textContaining('得分'), findsNothing, reason: '只有计数，没有分数');
+      await teardownTree(tester);
+    });
+
+    for (final size in [tabletLandscape, tabletPortrait, phone]) {
+      testWidgets(
+        '字体放大 1.5 倍不溢出：${size.width.toInt()}×${size.height.toInt()}',
+        (tester) async {
+          await openExperiment(tester, size: size, textScale: 1.5);
+          expect(tester.takeException(), isNull);
+          await fill(tester, 't1.r1.v', '0.400');
+          await reveal(tester, 'part.3');
+          expect(tester.takeException(), isNull);
+
+          await submit(tester);
+          await tester.ensureVisible(key('selfcheck.reference'));
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+          await teardownTree(tester);
+        },
+      );
+    }
+
+    testWidgets('触控目标：格子的输入框不小于 48', (tester) async {
+      await openExperiment(tester);
+
+      for (final cell in ['t1.r1.v', 't2.r1.val']) {
+        await reveal(tester, 'cell.$cell');
+        expect(
+          tester.getSize(key('cell.$cell')).height,
+          greaterThanOrEqualTo(48),
+          reason: cell,
+        );
+      }
+      await teardownTree(tester);
+    });
+  });
+
   group('解答题', () {
     late AppHarness w;
     late String writtenId;

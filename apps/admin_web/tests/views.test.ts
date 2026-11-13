@@ -7,7 +7,18 @@ import { clearSession, setSession } from '../src/session'
 import LoginView from '../src/views/LoginView.vue'
 import QueueView from '../src/views/QueueView.vue'
 import QuestionView from '../src/views/QuestionView.vue'
-import { AUTHOR, detail, FAST, ME, page, QUESTION_ID, solution, summary, writtenDetail } from './fixtures'
+import {
+  AUTHOR,
+  detail,
+  experimentDetail,
+  FAST,
+  ME,
+  page,
+  QUESTION_ID,
+  solution,
+  summary,
+  writtenDetail,
+} from './fixtures'
 
 vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
@@ -246,6 +257,57 @@ describe('题目审核页', () => {
     expect(points.text()).toContain('整份解答')
     expect(points.text()).toContain('提交后给学生对照自查')
     expect(points.text()).toContain('不是评分')
+  })
+
+  it('实验题：安全提示、数据表（留空的格子标出"学生填写"和参考值）、自查要点按小问和数据表分组', async () => {
+    mocked.getQuestion.mockResolvedValue(experimentDetail())
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    expect(wrapper.text()).toContain('实验题')
+    const safety = wrapper.get('[data-testid="safety-view"]')
+    expect(safety.text()).toContain('风险等级 low')
+    expect(safety.text()).toContain('不是操作指导')
+    const table = wrapper.get('[data-testid="table-t1"]')
+    expect(table.text()).toContain('表 1  相邻计数点间的距离与平均速度')
+    expect(table.findAll('thead th').map((th) => th.text())).toEqual(['计数点间', '距离 x（cm）', '平均速度（m/s）'])
+    expect(table.findAll('tbody tr')).toHaveLength(2)
+    expect(table.text()).toContain('4.00')
+    const blank = wrapper.get('[data-testid="blank-t1-r1-v"]')
+    expect(blank.text()).toContain('学生填写')
+    expect(blank.text()).toContain('0.400')
+    const answers = wrapper.get('dl.kv')
+    expect(answers.text()).toContain('第 1 问')
+    expect(answers.text()).toContain('格子 t1.r1.v')
+    const points = wrapper.get('[data-testid="rubric-points"]')
+    expect(points.text()).toContain('数据表 t1')
+    expect(points.text()).toContain('第 1 问')
+    expect(points.text()).toContain('整份解答')
+    expect(points.text()).toContain('实验题不自动评分')
+  })
+
+  it('实验题没有安全提示：审核页上没有那一块，程序校验的问题照样列出', async () => {
+    const source = experimentDetail()
+    mocked.getQuestion.mockResolvedValue(
+      experimentDetail({
+        content: { ...source.content, safety: null },
+        check_problems: ['phys-tape: content.safety 必须有 level 和 notes'],
+      }),
+    )
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    expect(wrapper.find('[data-testid="safety-view"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="checks"]').text()).toContain('content.safety')
+  })
+
+  it('选择题的审核页里没有数据表和安全提示', async () => {
+    mocked.getQuestion.mockResolvedValue(detail())
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    expect(wrapper.find('[data-testid="safety-view"]').exists()).toBe(false)
+    expect(wrapper.find('.data-table').exists()).toBe(false)
   })
 
   it('选择题的审核页里没有小问和自查要点这两块', async () => {

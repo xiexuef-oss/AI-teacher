@@ -48,6 +48,11 @@ export interface SolutionForm {
   boundary: string
 }
 
+/** 实验题的风险分级。high（高风险）现在不收录：程序校验会拦住，这里只是让审校员能看到、能改。 */
+export type SafetyLevel = 'low' | 'medium' | 'high'
+
+type DataTables = AdminQuestionEdit['content']['data_tables']
+
 export interface EditorForm {
   title: string
   difficulty: number
@@ -57,6 +62,14 @@ export interface EditorForm {
   blanks: BlankRow[]
   subquestions: SubquestionRow[]
   points: PointRow[]
+  /** 实验题的安全提示（每道实验题必须有，上线前要审校员确认）。 */
+  safetyOn: boolean
+  safetyLevel: SafetyLevel
+  safetyNotes: string[]
+  /** 实验题的数据表（JSON 数组）：value 为 null 的格子由学生填写。 */
+  dataTablesJson: string
+  /** 实验题留空格子的参考值（JSON 对象，键是"表键.行键.列键"）；小问的参考答案在小问那几行里。 */
+  referenceCellsJson: string
   rulesJson: string
   unitsJson: string
   concept: string
@@ -79,6 +92,7 @@ export type Built = { ok: true; body: AdminQuestionEdit } | { ok: false; errors:
 const CHOICE_MODES = new Set(['single_choice', 'multiple_choice'])
 const FILL_MODES = new Set(['fill'])
 const WRITTEN_MODES = new Set(['written'])
+const EXPERIMENT_MODES = new Set(['experiment'])
 
 const pretty = (value: unknown): string => JSON.stringify(value ?? {}, null, 2)
 const orNull = (text: string): string | null => (text === '' ? null : text)
@@ -117,6 +131,9 @@ function rubricPoints(rubric: unknown): RubricPoint[] {
 
 const isBlankRow = (...texts: string[]): boolean => texts.every((text) => text.trim() === '')
 
+/** 留空格子的参考值的键是"表键.行键.列键"（表、行、列的键里不会有点）；小问的键没有点。 */
+const isCellKey = (key: string): boolean => key.split('.').length === 3
+
 function solutionForm(detail: AdminQuestionDetail, kind: SolutionKind): SolutionForm {
   const found = detail.solutions.find((solution) => solution.kind === kind)
   return {
@@ -136,6 +153,8 @@ export function formFromDetail(detail: AdminQuestionDetail): EditorForm {
       ? (detail.answer.value as Record<string, unknown>)
       : {}
   const visual = detail.teaching.visual
+  const safety = detail.content.safety
+  const cellReferences = Object.fromEntries(Object.entries(answers).filter(([key]) => isCellKey(key)))
   return {
     title: detail.title,
     difficulty: detail.difficulty,
@@ -164,6 +183,11 @@ export function formFromDetail(detail: AdminQuestionDetail): EditorForm {
       part: point.part ?? '',
       text: point.text,
     })),
+    safetyOn: safety !== null,
+    safetyLevel: safety?.level ?? 'low',
+    safetyNotes: [...(safety?.notes ?? [])],
+    dataTablesJson: JSON.stringify(detail.content.data_tables, null, 2),
+    referenceCellsJson: pretty(cellReferences),
     rulesJson: pretty(detail.answer.equivalence_rules),
     unitsJson: pretty(detail.answer.units),
     concept: detail.teaching.concept ?? '',
@@ -235,6 +259,28 @@ function parseObject(label: string, text: string, errors: string[]): Obj {
   return {}
 }
 
+function parseTables(text: string, errors: string[]): DataTables {
+  if (text.trim() === '') return []
+  try {
+    const parsed: unknown = JSON.parse(text)
+    if (Array.isArray(parsed)) return parsed as DataTables
+    errors.push('数据表必须是 JSON 数组（方括号包起来的）')
+  } catch {
+    errors.push('数据表不是合法的 JSON')
+  }
+  return []
+}
+
+function parseReferenceCells(text: string, errors: string[]): Record<string, string> {
+  const parsed = parseObject('留空格子的参考值', text, errors) as unknown as Record<string, unknown>
+  const cells: Record<string, string> = {}
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value === 'string') cells[key] = value
+    else errors.push(`留空格子 ${key} 的参考值必须是字符串`)
+  }
+  return cells
+}
+
 export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): Built {
   const errors: string[] = []
   const keep = (items: string[]) => items.filter((item) => item.trim() !== '')
@@ -245,8 +291,10 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
   const rules = parseObject('判定规则', form.rulesJson, errors)
   const units = parseObject('单位规则', form.unitsJson, errors)
   const written = WRITTEN_MODES.has(detail.answer_mode)
-  // 解答题的评分细则由"自查要点"那几行生成；其余题型是一段 JSON
-  const rubric = written ? ({} as Obj) : parseObject('评分细则', form.rubricJson, errors)
+  const experiment = EXPERIMENT_MODES.has(detail.answer_mode)
+  // 解答题和实验题都分小问、有自查要点；它们的评分细则由"自查要点"那几行生成，其余题型是一段 JSON
+  const subjective = written || experiment
+  const rubric = subjective ? ({} as Obj) : parseObject('评分细则', form.rubricJson, errors)
 
   let visual: AdminQuestionEdit['teaching']['visual'] = null
   if (form.visualOn) {
@@ -275,9 +323,9 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
     value = Object.fromEntries(form.blanks.map((row) => [row.key, row.answer]))
   }
 
-  // 解答题：小问和它们的参考答案是同一批行；整行都是空的就是没填，丢掉
+  // 解答题、实验题：小问和它们的参考答案是同一批行；整行都是空的就是没填，丢掉
   const subquestionRows = form.subquestions.filter((row) => !isBlankRow(row.key, row.stem, row.answer))
-  const subquestions = written
+  const subquestions = subjective
     ? subquestionRows.map((row) => ({
         key: row.key,
         stem: row.stem,
@@ -286,10 +334,19 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
         blanks: [],
       }))
     : detail.content.subquestions
-  if (written) value = Object.fromEntries(subquestionRows.map((row) => [row.key, row.answer]))
+  if (subjective) value = Object.fromEntries(subquestionRows.map((row) => [row.key, row.answer]))
+
+  // 实验题：数据表、安全提示，以及留空格子的参考值（和小问的参考答案放在同一个对象里）
+  let dataTables = detail.content.data_tables
+  let safety = detail.content.safety
+  if (experiment) {
+    dataTables = parseTables(form.dataTablesJson, errors)
+    safety = form.safetyOn ? { level: form.safetyLevel, notes: keep(form.safetyNotes) } : null
+    value = { ...(value as Record<string, string>), ...parseReferenceCells(form.referenceCellsJson, errors) }
+  }
 
   let writtenRubric: Obj = rubric
-  if (written) {
+  if (subjective) {
     const { points: _previous, ...others } = detail.rubric as unknown as Record<string, unknown>
     const points = form.points
       .filter((row) => !isBlankRow(row.key, row.text))
@@ -325,6 +382,8 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
         })),
         subquestions,
         attachments: detail.content.attachments,
+        data_tables: dataTables,
+        safety,
       },
       answer: { value, equivalence_rules: rules, units },
       teaching: {

@@ -439,6 +439,73 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 expect=404,
             )
 
+            # 实验题：带数据表和安全提示，不自动评分，提交之后对照要点和参考数据自查。
+            # 放在家长周报之后导出：它们不能改变前面那些样例里的计数
+            tape_id = qid("phys-tape-experiment")
+            rec("question_experiment", student, "GET", f"/questions/{tape_id}")
+            rec(
+                "question_experiment_titration",
+                student,
+                "GET",
+                f"/questions/{qid('chem-titration-experiment')}",
+            )
+            s9 = student.data(
+                "POST",
+                "/sessions",
+                expect=201,
+                json={"question_id": tape_id, "origin": "practice"},
+            )
+            a9 = student.data("POST", "/attempts", expect=201, json={"session_id": s9["id"]})
+            experiment = {
+                "cells": [
+                    {"table": "t1", "row": "r1", "col": "v", "value": "0.400"},
+                    {"table": "t1", "row": "r2", "col": "v", "value": "0.600"},
+                    {"table": "t1", "row": "r3", "col": "v", "value": "0.800"},
+                    {"table": "t1", "row": "r4", "col": "v", "value": "1.00"},
+                    {"table": "t2", "row": "r1", "col": "val", "value": "2.00"},
+                ],
+                "parts": [
+                    {"key": "1", "text": "$T=0.10\\ \\text{s}$，平均速度等于距离除以 $T$。"},
+                    {"key": "2", "text": "用逐差法，$a=2.00\\ \\text{m/s}^2$。"},
+                ],
+            }
+            rec(
+                "self_check_experiment_before_submit",
+                student,
+                "GET",
+                f"/attempts/{a9['id']}/self-check",
+                expect=409,
+            )
+            rec(
+                "draft_synced_experiment",
+                student,
+                "PUT",
+                f"/attempts/{a9['id']}/draft",
+                json={"base_revision": 0, "answer": experiment, "strokes": STROKES},
+            )
+            rec(
+                "submit_experiment",
+                student,
+                "POST",
+                f"/attempts/{a9['id']}/submit",
+                json={"answer": experiment},
+            )
+            checklist = rec(
+                "self_check_experiment_pending", student, "GET", f"/attempts/{a9['id']}/self-check"
+            )
+            levels = ["done", "partial", "missed"]
+            marks = [
+                {"point_key": point["key"], "level": levels[index % 3]}
+                for index, point in enumerate(checklist["points"])
+            ]
+            rec(
+                "self_check_experiment_saved",
+                student,
+                "PUT",
+                f"/attempts/{a9['id']}/self-check",
+                json={"marks": marks},
+            )
+
             # 错误
             rec("error_not_implemented", student, "POST", "/scans", expect=501, json={})
             rec("error_unauthenticated", ApiClient(raw), "GET", "/profile", expect=401)

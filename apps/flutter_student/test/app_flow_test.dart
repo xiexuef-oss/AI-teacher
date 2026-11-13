@@ -423,6 +423,24 @@ void main() {
       await teardownTree(tester);
     });
 
+    testWidgets('题型筛选里有"实验题"，选了之后请求带 experiment', (tester) async {
+      await launch(tester, h);
+      await tapAndSettle(tester, key('home.practice'), frames: 10);
+
+      await tapAndSettle(tester, key('filter.mode.experiment'));
+
+      expect(find.text('实验题'), findsWidgets);
+      expect(
+        h.backend
+            .requestsTo('GET', '/questions')
+            .last
+            .uri
+            .queryParameters['answer_mode'],
+        'experiment',
+      );
+      await teardownTree(tester);
+    });
+
     testWidgets('还有下一页就显示"加载更多"，点了带上游标', (tester) async {
       await launch(tester, h);
       await tapAndSettle(tester, key('home.practice'), frames: 10);
@@ -551,11 +569,11 @@ void main() {
       await teardownTree(tester);
     });
 
-    testWidgets('解答题只有计数：提交几份、自查几份、各档要点几条，没有比例和分数', (tester) async {
+    testWidgets('解答题和实验题只有计数：提交几份、自查几份、各档要点几条，没有比例和分数', (tester) async {
       await openProgress(tester);
 
       final card = tester.widget<Section>(key('progress.subjective'));
-      expect(card.title, '解答题');
+      expect(card.title, '解答题和实验题');
       expect(find.textContaining('提交了 1 份，其中 1 份做了对照自查'), findsOneWidget);
       final points = tester
           .widget<Text>(key('progress.subjective.points'))
@@ -567,7 +585,7 @@ void main() {
       await teardownTree(tester);
     });
 
-    testWidgets('没做过解答题就不显示解答题那一块', (tester) async {
+    testWidgets('没做过解答题和实验题就不显示这一块', (tester) async {
       h.backend.onFixture('GET', '/progress/summary', 'progress_empty');
       await openProgress(tester);
 

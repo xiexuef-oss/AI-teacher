@@ -15,6 +15,7 @@ class LocalDraft {
     this.selected = const [],
     this.blanks = const {},
     this.parts = const {},
+    this.cells = const {},
     this.strokes,
     required this.savedAt,
   });
@@ -34,8 +35,11 @@ class LocalDraft {
   final List<String> selected;
   final Map<String, String> blanks;
 
-  /// 解答题各小问的文字，键是小问的 key。
+  /// 解答题、实验题各小问的文字，键是小问的 key。
   final Map<String, String> parts;
+
+  /// 实验题数据表里学生填的格子，键是 "表键.行键.列键"。
+  final Map<String, String> cells;
   final StrokeDoc? strokes;
   final DateTime savedAt;
 
@@ -43,6 +47,7 @@ class LocalDraft {
       selected.isNotEmpty ||
       blanks.values.any((v) => v.trim().isNotEmpty) ||
       parts.values.any((v) => v.trim().isNotEmpty) ||
+      cells.values.any((v) => v.trim().isNotEmpty) ||
       (strokes?.pages.any((p) => p.strokes.isNotEmpty) ?? false);
 
   Map<String, dynamic> toJson() => {
@@ -52,7 +57,12 @@ class LocalDraft {
     'attemptId': attemptId,
     'baseRevision': baseRevision,
     'dirty': dirty,
-    'answer': {'selected': selected, 'blanks': blanks, 'parts': parts},
+    'answer': {
+      'selected': selected,
+      'blanks': blanks,
+      'parts': parts,
+      'cells': cells,
+    },
     'strokes': strokes?.toJson(),
     'savedAt': savedAt.toUtc().toIso8601String(),
   };
@@ -71,6 +81,10 @@ class LocalDraft {
       parts: answer['parts'] == null
           ? const {}
           : Map<String, String>.from(answer['parts'] as Map),
+      // 实验题加入之前存下的草稿没有这一项
+      cells: answer['cells'] == null
+          ? const {}
+          : Map<String, String>.from(answer['cells'] as Map),
       strokes: json['strokes'] == null
           ? null
           : StrokeDoc.fromJson(json['strokes'] as Map<String, dynamic>),

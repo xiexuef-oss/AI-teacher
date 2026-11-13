@@ -6,7 +6,7 @@
 - "正确"只指完全正确，多选的部分正确不算；
 - 提示依赖率、复测成功率、变式迁移率只看每次会话的第一份作答；
 - 分母小于 min_samples 时只给计数，rate 为 null，并标记 insufficient_data；
-- 解答题不自动评分，不进任何正确率，也不算"没能判定"。它单独数：提交了几份、自查了几份、
+- 解答题和实验题不自动评分，不进任何正确率，也不算"没能判定"。它们单独数：提交了几份、自查了几份、
   自查里各档要点各有几个——这些是学生自己的记录，不折算成分数。
 """
 
@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from tutor_api import launch
 from tutor_api.models import Attempt, AttemptSelfCheck, Question, StudySession
 from tutor_api.schemas import ProgressBucket, ProgressSummary, RateStat, SubjectiveProgress
+from tutor_api.services import grading
 from tutor_api.settings import Settings
 
 DISCLAIMER = "这些数字来自练习反馈，不是官方成绩，也不代表短期内一定提分。样本少的时候只显示计数。"
@@ -90,7 +91,7 @@ def load_records(
 
 
 def verified_rows(records: Iterable[Any]) -> list[_Row]:
-    """只有确定判定的作答进比例；判不出来的、解答题都不算。"""
+    """只有确定判定的作答进比例；判不出来的、解答题和实验题都不算。"""
     return [
         _Row(
             attempt_no=attempt.attempt_no,
@@ -123,7 +124,7 @@ def subject_buckets(rows: list[_Row], min_samples: int) -> list[ProgressBucket]:
 
 
 def _subjective(db: Session, attempt_ids: list[str]) -> SubjectiveProgress:
-    """解答题只数不评：提交几份、自查几份、自查里各档要点各有几个。"""
+    """解答题和实验题只数不评：提交几份、自查几份、自查里各档要点各有几个。"""
     marks = (
         [
             row.marks_json
@@ -151,11 +152,11 @@ def summarize(
     records = load_records(db, student_id)
     verified = verified_rows(records)
     first = [row for row in verified if row.attempt_no == 1]
-    written = [attempt for attempt, _, _, mode, _ in records if mode == "written"]
+    written = [attempt for attempt, _, _, mode, _ in records if mode in grading.SUBJECTIVE_MODES]
     uncertain = [
         attempt
         for attempt, _, _, mode, _ in records
-        if mode != "written" and attempt.evaluation_state != "verified"
+        if mode not in grading.SUBJECTIVE_MODES and attempt.evaluation_state != "verified"
     ]
 
     return ProgressSummary(

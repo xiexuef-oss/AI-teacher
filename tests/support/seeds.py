@@ -39,7 +39,14 @@ WRITTEN_KEYS = {
     "phys-pull-friction-written",
     "chem-ion-equation-written",
 }
-ALL_KEYS = OBJECTIVE_KEYS | WRITTEN_KEYS  # 所有已发布的样题
+# 实验题：带数据表和安全提示的主观题，同样不自动评分，作答后对照参考数据和要点自查。都是通用题
+EXPERIMENT_KEYS = {
+    "phys-tape-experiment",
+    "phys-ohm-experiment",
+    "chem-titration-experiment",
+}
+SUBJECTIVE_KEYS = WRITTEN_KEYS | EXPERIMENT_KEYS  # 不自动评分的题
+ALL_KEYS = OBJECTIVE_KEYS | WRITTEN_KEYS | EXPERIMENT_KEYS  # 所有已发布的样题
 GENERAL_KEYS = ALL_KEYS - SICHUAN_TAGGED - SICHUAN_LATER_YEARS - CHONGQING_TAGGED
 KEY_BY_ID = {qid(key): key for key in ALL_KEYS}
 

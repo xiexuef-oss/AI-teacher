@@ -128,6 +128,8 @@ def _seed_shape(
             "options": content.get("options") or [],
             "blanks": content.get("blanks") or [],
             "subquestions": content.get("subquestions") or [],
+            "data_tables": content.get("data_tables") or [],
+            "safety": content.get("safety"),
         },
         "answer": {
             "value": answer.get("value"),
@@ -388,13 +390,7 @@ def version_snapshot(db: Session, question_id: str, version_no: int) -> AdminVer
         title=content.get("title") or "",
         difficulty=stored("difficulty", question.difficulty),
         grade=stored("grade", question.grade),
-        content=QuestionContent(
-            stem=content["stem"],
-            options=content.get("options") or [],
-            blanks=content.get("blanks") or [],
-            subquestions=content.get("subquestions") or [],
-            attachments=content.get("attachments") or [],
-        ),
+        content=question_service.content_from_json(content),
         answer=AdminAnswer(
             value=answer.get("value"),
             equivalence_rules=answer.get("equivalence_rules") or {},
@@ -446,13 +442,7 @@ def question_detail(db: Session, question_id: str) -> AdminQuestionDetail:
         reviewed_by=question.reviewed_by,
         published_at=question.published_at,
         updated_at=question.updated_at,
-        content=QuestionContent(
-            stem=content["stem"],
-            options=content.get("options") or [],
-            blanks=content.get("blanks") or [],
-            subquestions=content.get("subquestions") or [],
-            attachments=content.get("attachments") or [],
-        ),
+        content=question_service.content_from_json(content),
         answer=AdminAnswer(
             value=answer.get("value"),
             equivalence_rules=answer.get("equivalence_rules") or {},
@@ -644,13 +634,7 @@ def _editable_snapshot(db: Session, question: Question, version: QuestionVersion
         "title": content.get("title") or "",
         "difficulty": question.difficulty,
         "grade": question.grade,
-        "content": QuestionContent(
-            stem=content["stem"],
-            options=content.get("options") or [],
-            blanks=content.get("blanks") or [],
-            subquestions=content.get("subquestions") or [],
-            attachments=content.get("attachments") or [],
-        ).model_dump(),
+        "content": question_service.content_from_json(content).model_dump(),
         "answer": AdminAnswer(
             value=answer.get("value"),
             equivalence_rules=answer.get("equivalence_rules") or {},
@@ -789,6 +773,8 @@ def create_version(
                 "blanks": [item.model_dump() for item in content.blanks],
                 "subquestions": [item.model_dump() for item in content.subquestions],
                 "attachments": [item.model_dump() for item in content.attachments],
+                "data_tables": [item.model_dump() for item in content.data_tables],
+                "safety": content.safety.model_dump() if content.safety else None,
                 "difficulty": body.difficulty,
                 "grade": body.grade,
                 "knowledge": sorted(codes),

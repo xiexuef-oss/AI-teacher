@@ -9,7 +9,7 @@
       "code": "idempotency_key_conflict",
       "message": "同一个 Idempotency-Key 已被用于另一个不同的请求",
       "details": {},
-      "request_id": "9389ddde97a345f79ee6483d3ff260b5"
+      "request_id": "115a6d60b24349b8be6807d267940998"
     }
   },
   "body": {
@@ -17,7 +17,7 @@
       "code": "idempotency_key_conflict",
       "message": "同一个 Idempotency-Key 已被用于另一个不同的请求",
       "details": {},
-      "request_id": "9389ddde97a345f79ee6483d3ff260b5"
+      "request_id": "115a6d60b24349b8be6807d267940998"
     }
   }
 }

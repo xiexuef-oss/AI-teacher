@@ -385,20 +385,6 @@ def test_a_definitely_wrong_blank_decides_even_if_another_is_uncertain():
     assert (result.state, result.is_correct) == ("verified", False)
 
 
-def test_experiment_mode_is_not_open_yet_so_it_is_pending_not_graded():
-    result = grade(
-        answer_mode="experiment",
-        content={"stem": "设计实验……"},
-        answer_key={},
-        rubric={},
-        teaching={},
-        answer={"text": "我的实验方案"},
-    )
-
-    assert (result.state, result.outcome, result.is_correct) == ("pending", "undetermined", None)
-    assert result.review_required is True
-
-
 # ---------------------------------------------------------------- 解答题
 
 REFERENCE = {"1": "a ≤ 1", "2": "最大值 3，最小值 -1"}
@@ -498,3 +484,202 @@ def test_objective_questions_reject_parts():
             teaching={},
             answer={"blanks": [{"key": "b1", "value": "4"}], "parts": [{"key": "1", "text": "x"}]},
         )
+
+
+# ---------------------------------------------------------------- 实验题
+
+EXPERIMENT_REFERENCE = {"t1.r1.v": "0.400", "t1.r2.v": "0.600", "1": "取平均速度，除以 0.10 s"}
+EXPERIMENT_CONTENT = {
+    "stem": "纸带实验……",
+    "data_tables": [
+        {
+            "key": "t1",
+            "title": "纸带数据",
+            "columns": [
+                {"key": "seg", "label": "线段", "unit": None},
+                {"key": "x", "label": "位移", "unit": "cm"},
+                {"key": "v", "label": "平均速度", "unit": "m/s"},
+            ],
+            "rows": [
+                {
+                    "key": "r1",
+                    "label": None,
+                    "cells": [
+                        {"col": "seg", "text": "AB"},
+                        {"col": "x", "text": "4.00"},
+                        {"col": "v", "text": None},
+                    ],
+                },
+                {
+                    "key": "r2",
+                    "label": None,
+                    "cells": [
+                        {"col": "seg", "text": "BC"},
+                        {"col": "x", "text": "6.00"},
+                        {"col": "v", "text": None},
+                    ],
+                },
+            ],
+        }
+    ],
+    "subquestions": [{"key": "1", "stem": "说明怎么算平均速度", "answer_mode": "written"}],
+}
+
+
+def experiment(answer: dict, *, has_ink: bool = False, content: dict | None = None):
+    return grade(
+        answer_mode="experiment",
+        content=content or EXPERIMENT_CONTENT,
+        answer_key={"value": EXPERIMENT_REFERENCE},
+        rubric={"points": [{"key": "p1", "part": "t1", "text": "单位换算"}]},
+        teaching={},
+        answer=answer,
+        has_ink=has_ink,
+    )
+
+
+def cells(*items: tuple[str, str, str, str]) -> dict:
+    return {
+        "cells": [
+            {"table": table, "row": row, "col": col, "value": value}
+            for table, row, col, value in items
+        ]
+    }
+
+
+def test_experiment_answers_are_never_graded_by_the_system():
+    result = experiment(cells(("t1", "r1", "v", "0.5"), ("t1", "r2", "v", "0.1")))
+
+    assert (result.state, result.outcome, result.is_correct) == ("pending", "undetermined", None)
+    assert result.review_required is True
+    assert result.uncertainty_reason == "subjective_self_check"
+    assert result.feedback == ()
+    assert "不自动评分" in result.message
+
+
+def test_an_experiment_answer_identical_to_the_reference_is_still_not_graded():
+    """哪怕每个格子都和参考数据一模一样也不判对：实验题不自动评分，系统不冒充阅卷。"""
+    answer = {
+        **cells(("t1", "r1", "v", "0.400"), ("t1", "r2", "v", "0.600")),
+        **parts(**{"1": EXPERIMENT_REFERENCE["1"]}),
+    }
+
+    result = experiment(answer)
+
+    assert (result.state, result.is_correct) == ("pending", None)
+
+
+def test_an_experiment_answer_may_fill_only_some_cells_or_only_text():
+    assert experiment(cells(("t1", "r2", "v", "0.6"))).state == "pending"
+    assert experiment(parts(**{"1": "先算位移"})).state == "pending"
+
+
+def test_a_blank_cell_value_with_spaces_around_it_is_kept_as_given():
+    assert experiment(cells(("t1", "r1", "v", " 0.4 "))).state == "pending"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {},
+        {"cells": []},
+        {"parts": []},
+        cells(("t1", "r1", "v", "  ")),
+        parts(**{"1": "\n"}),
+        {**cells(("t1", "r1", "v", "")), **parts(**{"1": " "})},
+    ],
+)
+def test_an_experiment_answer_needs_some_filling_or_some_ink(answer):
+    with pytest.raises(AnswerShapeError) as error:
+        experiment(answer)
+
+    assert error.value.field == "answer"
+
+
+def test_ink_alone_is_enough_for_an_experiment_answer():
+    assert experiment({}, has_ink=True).state == "pending"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        cells(("t1", "r1", "x", "4.0")),  # 题目给定的格子，不能改
+        cells(("t1", "r1", "seg", "AB")),
+        cells(("t9", "r1", "v", "1")),  # 不存在的表
+        cells(("t1", "r9", "v", "1")),  # 不存在的行
+        cells(("t1", "r1", "zz", "1")),  # 不存在的列
+    ],
+)
+def test_only_the_blank_cells_of_the_question_can_be_filled(answer):
+    with pytest.raises(AnswerShapeError) as error:
+        experiment(answer)
+
+    assert error.value.field == "answer.cells"
+
+
+def test_a_cell_can_only_be_filled_once():
+    with pytest.raises(AnswerShapeError) as error:
+        experiment(cells(("t1", "r1", "v", "0.4"), ("t1", "r1", "v", "0.5")))
+
+    assert error.value.field == "answer.cells"
+
+
+def test_experiment_parts_must_belong_to_the_question_and_appear_once():
+    with pytest.raises(AnswerShapeError) as unknown:
+        experiment(parts(**{"9": "x"}))
+    assert unknown.value.field == "answer.parts"
+
+    with pytest.raises(AnswerShapeError) as twice:
+        experiment({"parts": [{"key": "1", "text": "a"}, {"key": "1", "text": "b"}]})
+    assert twice.value.field == "answer.parts"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"selected_options": ["A"]},
+        {"blanks": [{"key": "b1", "value": "1"}]},
+        {"text": "我的方案"},
+    ],
+)
+def test_an_experiment_answer_cannot_use_the_other_answer_shapes(answer):
+    with pytest.raises(AnswerShapeError) as error:
+        experiment({**answer, **cells(("t1", "r1", "v", "0.4"))})
+
+    assert error.value.field == "answer"
+
+
+def test_an_experiment_without_tables_can_still_be_answered_in_text():
+    content = {"stem": "现象解释", "subquestions": EXPERIMENT_CONTENT["subquestions"]}
+
+    assert experiment(parts(**{"1": "产生气泡"}), content=content).state == "pending"
+    with pytest.raises(AnswerShapeError):
+        experiment(cells(("t1", "r1", "v", "1")), content=content)
+
+
+@pytest.mark.parametrize(
+    ("mode", "content", "key"),
+    [
+        ("single_choice", {"options": [{"key": "A"}, {"key": "B"}]}, {"value": ["A"]}),
+        ("fill", {"blanks": [{"key": "b1"}]}, {"value": {"b1": "1"}}),
+        ("written", WRITTEN_CONTENT, {"value": REFERENCE}),
+    ],
+)
+def test_the_other_modes_reject_experiment_cells(mode, content, key):
+    answer = {
+        "single_choice": {"selected_options": ["A"]},
+        "fill": {"blanks": [{"key": "b1", "value": "1"}]},
+        "written": parts(**{"1": "x"}),
+    }[mode]
+
+    with pytest.raises(AnswerShapeError) as error:
+        grade(
+            answer_mode=mode,
+            content=content,
+            answer_key=key,
+            rubric={},
+            teaching={},
+            answer={**answer, **cells(("t1", "r1", "v", "1"))},
+        )
+
+    assert error.value.field == "answer"

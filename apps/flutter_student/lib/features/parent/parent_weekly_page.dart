@@ -13,7 +13,7 @@ import '../../core/widgets.dart';
 
 /// P10 家长周报：已授权学生某一周的汇总。
 ///
-/// 只有计数和比例，口径和学生自己的学情页一致：独立和辅助分开、样本不足只给计数、解答题不进比例。
+/// 只有计数和比例，口径和学生自己的学情页一致：独立和辅助分开、样本不足只给计数、解答题和实验题不进比例。
 /// 不是官方成绩，没有排名、没有连续天数，也没有任何一道具体的题或一次具体的作答。
 class ParentWeeklyPage extends ConsumerStatefulWidget {
   const ParentWeeklyPage({super.key, required this.studentId});
@@ -236,7 +236,7 @@ class _Report extends ConsumerWidget {
                     tone: Tone.neutral,
                     icon: Icons.edit_note,
                     child: Text(
-                      '解答题 ${report.writtenAttempts} 份：解答题不自动评分，'
+                      '解答题和实验题 ${report.writtenAttempts} 份：它们不自动评分，'
                       '只记提交了几份，不计入上面的比例。',
                     ),
                   ),

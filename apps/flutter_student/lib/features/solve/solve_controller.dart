@@ -85,8 +85,11 @@ class SolveController extends ChangeNotifier {
   final Set<String> _selected = {};
   final Map<String, String> _blanks = {};
 
-  /// 解答题各小问的文字，键是小问的 key。
+  /// 解答题、实验题各小问的文字，键是小问的 key。
   final Map<String, String> _parts = {};
+
+  /// 实验题数据表里学生填的格子，键是 "表键.行键.列键"。
+  final Map<String, String> _cells = {};
 
   SaveStatus sync = SaveStatus.saved;
   bool localSaveFailed = false;
@@ -123,6 +126,7 @@ class SolveController extends ChangeNotifier {
   Set<String> get selected => Set.unmodifiable(_selected);
   Map<String, String> get blanks => Map.unmodifiable(_blanks);
   Map<String, String> get parts => Map.unmodifiable(_parts);
+  Map<String, String> get cells => Map.unmodifiable(_cells);
   Map<String, SelfCheckLevel> get marks => Map.unmodifiable(_marks);
 
   /// 每个要点都标过了。
@@ -162,12 +166,20 @@ class SolveController extends ChangeNotifier {
       case AnswerMode.written:
         // 有文字或有笔迹就可以提交，也可以只写其中几问
         return _hasPartsText || ink.hasInk;
+      case AnswerMode.experiment:
+        // 填了格子、写了文字或有笔迹都可以提交，也可以只填其中几个
+        return _hasCellsText || _hasPartsText || ink.hasInk;
       default:
         return false;
     }
   }
 
   bool get _hasPartsText => _parts.values.any((v) => v.trim().isNotEmpty);
+  bool get _hasCellsText => _cells.values.any((v) => v.trim().isNotEmpty);
+
+  /// 不自动评分、提交后对照要点自查的题（解答题、实验题）。
+  bool get _isSubjective =>
+      _mode == AnswerMode.written || _mode == AnswerMode.experiment;
 
   bool get canSubmit =>
       phase == SolvePhase.answering &&
@@ -243,6 +255,9 @@ class SolveController extends ChangeNotifier {
     _parts
       ..clear()
       ..addAll(draft.parts);
+    _cells
+      ..clear()
+      ..addAll(draft.cells);
     ink.loadContract(draft.strokes);
     _serverRevision = draft.baseRevision;
     _localAttemptId = draft.attemptId;
@@ -395,6 +410,13 @@ class SolveController extends ChangeNotifier {
       ..addEntries(
         (answer?.parts ?? const []).map((p) => MapEntry(p.key, p.text)),
       );
+    _cells
+      ..clear()
+      ..addEntries(
+        (answer?.cells ?? const []).map(
+          (c) => MapEntry('${c.table}.${c.row}.${c.col}', c.value),
+        ),
+      );
     ink.loadContract(draft.strokes);
     _serverRevision = draft.revision;
     _dirtyRemote = false;
@@ -441,6 +463,28 @@ class SolveController extends ChangeNotifier {
     _onChanged();
   }
 
+  /// 实验题数据表里留空的格子：(表键, 行键, 列键)，按表、行、列的顺序。
+  List<(String, String, String)> get _blankCells => [
+    for (final table in question?.content.dataTables ?? const <DataTable>[])
+      for (final row in table.rows)
+        for (final cell in row.cells)
+          if (cell.text == null) (table.key, row.key, cell.col),
+  ];
+
+  /// 实验题数据表里的一个格子。只认题目里留空的格子；超过 40 个字的部分截掉。
+  void setCell(String table, String row, String col, String value) {
+    if (phase != SolvePhase.answering) return;
+    if (!_blankCells.contains((table, row, col))) return;
+    final bounded = value.length > 40 ? value.substring(0, 40) : value;
+    final key = '$table.$row.$col';
+    if (bounded.isEmpty) {
+      _cells.remove(key);
+    } else {
+      _cells[key] = bounded;
+    }
+    _onChanged();
+  }
+
   void _onChanged() {
     if (phase != SolvePhase.answering) return;
     _localVersion += 1;
@@ -467,6 +511,7 @@ class SolveController extends ChangeNotifier {
     selected: _selected.toList(),
     blanks: Map.of(_blanks),
     parts: Map.of(_parts),
+    cells: Map.of(_cells),
     strokes: ink.hasInk ? ink.toContract() : null,
     savedAt: DateTime.now().toUtc(),
   );
@@ -510,6 +555,15 @@ class SolveController extends ChangeNotifier {
       final parts = _partsInOrder(trim: false);
       return parts.isEmpty ? null : AnswerPayload(parts: parts);
     }
+    if (mode == AnswerMode.experiment) {
+      final cells = _cellsInOrder(trim: false);
+      final parts = _partsInOrder(trim: false);
+      if (cells.isEmpty && parts.isEmpty) return null;
+      return AnswerPayload(
+        cells: cells.isEmpty ? null : cells,
+        parts: parts.isEmpty ? null : parts,
+      );
+    }
     if (_selected.isEmpty) return null;
     final options = question!.content.options
         .map((o) => o.key)
@@ -525,6 +579,20 @@ class SolveController extends ChangeNotifier {
         AnswerPart(
           key: sub.key,
           text: trim ? _parts[sub.key]!.trim() : _parts[sub.key]!,
+        ),
+  ];
+
+  /// 填了的格子，按表、行、列的顺序。
+  List<AnswerCell> _cellsInOrder({required bool trim}) => [
+    for (final (table, row, col) in _blankCells)
+      if ((_cells['$table.$row.$col'] ?? '').trim().isNotEmpty)
+        AnswerCell(
+          table: table,
+          row: row,
+          col: col,
+          value: trim
+              ? _cells['$table.$row.$col']!.trim()
+              : _cells['$table.$row.$col']!,
         ),
   ];
 
@@ -687,6 +755,12 @@ class SolveController extends ChangeNotifier {
     if (_mode == AnswerMode.written) {
       return AnswerPayload(parts: _partsInOrder(trim: true));
     }
+    if (_mode == AnswerMode.experiment) {
+      return AnswerPayload(
+        cells: _cellsInOrder(trim: true),
+        parts: _partsInOrder(trim: true),
+      );
+    }
     final options = question!.content.options
         .map((o) => o.key)
         .where(_selected.contains)
@@ -708,9 +782,10 @@ class SolveController extends ChangeNotifier {
       // 有冲突则先让学生解决。
       await _syncDraft(force: true);
       if (sync == SaveStatus.conflict) return;
-      // 解答题只有笔迹、没有文字时，笔迹只能随草稿同步到云端：没同步上去，服务端会以为什么都没写
-      if (_mode == AnswerMode.written &&
+      // 解答题、实验题只有笔迹、没有文字和格子时，笔迹只能随草稿同步到云端：没同步上去，服务端会以为什么都没写
+      if (_isSubjective &&
           !_hasPartsText &&
+          !_hasCellsText &&
           sync != SaveStatus.saved) {
         actionError = ApiException.network('笔迹还没有同步到云端，连上网络后再提交');
         return;
@@ -732,7 +807,7 @@ class SolveController extends ChangeNotifier {
         // 清不掉也无妨：下次打开发现作答已提交，不会再用它
       }
       if (isRetest && args.reviewItemId != null) await _completeReview();
-      if (_mode == AnswerMode.written) await loadSelfCheck();
+      if (_isSubjective) await loadSelfCheck();
     } on ApiException catch (error) {
       actionError = error;
       _checkAuth(error);
@@ -789,6 +864,7 @@ class SolveController extends ChangeNotifier {
       _selected.clear();
       _blanks.clear();
       _parts.clear();
+      _cells.clear();
       _marks.clear();
       selfCheck = null;
       selfCheckError = null;
@@ -822,7 +898,7 @@ class SolveController extends ChangeNotifier {
   /// 取这份作答的自查要点和已保存的自评。要点只在提交之后才给，所以只在提交之后调用。
   /// 失败不影响已经提交的作答：[selfCheckError] 里有原因，可以再调用一次。
   Future<void> loadSelfCheck() async {
-    if (_mode != AnswerMode.written ||
+    if (!_isSubjective ||
         phase != SolvePhase.submitted ||
         attempt == null ||
         selfCheckBusy) {

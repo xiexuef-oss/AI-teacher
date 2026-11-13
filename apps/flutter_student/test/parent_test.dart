@@ -50,7 +50,11 @@ Future<void> tapAndSettle(
   await settle(tester, frames: frames);
 }
 
-const studentId = 'a8cde7a7-18b2-47aa-a6b2-446d1811d350';
+/// 样例里那位已授权学生的 ID。样例由 tools/export_dart_fixtures.py 导出，每次导出的 ID 都不一样，不能写死。
+final String studentId =
+    ((Fixtures.load().value('parent_students')['items'] as List).first
+            as Map<String, dynamic>)['student_id']
+        as String;
 
 String textOf(WidgetTester tester, String name) =>
     tester.widget<Text>(key(name)).data!;
@@ -294,15 +298,16 @@ void main() {
       await teardownTree(tester);
     });
 
-    testWidgets('解答题只说提交了几份，并说明它不进比例', (tester) async {
+    testWidgets('解答题和实验题只说提交了几份，并说明它们不进比例', (tester) async {
       h.backend.weeklyTweak = (weekly) {
         weekly['written_attempts'] = 2;
         return weekly;
       };
       await openWeekly(tester);
 
-      expect(find.textContaining('解答题 2 份'), findsOneWidget);
+      expect(find.textContaining('解答题和实验题 2 份'), findsOneWidget);
       expect(find.textContaining('不自动评分'), findsWidgets);
+      expect(find.textContaining('不计入上面的比例'), findsOneWidget);
       await teardownTree(tester);
     });
 
@@ -390,9 +395,7 @@ void main() {
           .dy;
       expect(homeTop, lessThan(120), reason: '紧挨着标题栏，而不是垂直居中');
 
-      await tester.pumpWidget(
-        h.page(const ParentWeeklyPage(studentId: studentId)),
-      );
+      await tester.pumpWidget(h.page(ParentWeeklyPage(studentId: studentId)));
       await settle(tester, frames: 12);
       final weeklyTop = tester.getTopLeft(key('parent.weekly.range')).dy;
       expect(weeklyTop, lessThan(200), reason: '周报也是');
@@ -413,10 +416,7 @@ void main() {
           expect(tester.takeException(), isNull);
 
           await tester.pumpWidget(
-            h.page(
-              const ParentWeeklyPage(studentId: studentId),
-              textScale: 1.5,
-            ),
+            h.page(ParentWeeklyPage(studentId: studentId), textScale: 1.5),
           );
           await settle(tester, frames: 12);
           await tester.scrollUntilVisible(

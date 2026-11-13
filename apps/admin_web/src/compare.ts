@@ -108,17 +108,38 @@ function analysisLines(analysis: Record<string, string>): string[] {
     .map(([key, text]) => `${key}. ${text}`)
 }
 
-/** 评分细则：解答题的自查要点逐条一行（键｜所属小问｜文字），其余内容按 JSON 逐行。 */
-function rubricLines(rubric: unknown): string[] {
+/** 评分细则：解答题、实验题的自查要点逐条一行（键｜所属小问或数据表｜文字），其余内容按 JSON 逐行。 */
+function rubricLines(rubric: unknown, tableKeys: Set<string> = new Set()): string[] {
   if (!rubric || typeof rubric !== 'object') return []
   const { points, ...others } = rubric as { points?: unknown } & Record<string, unknown>
+  const where = (part: unknown): string =>
+    typeof part !== 'string' ? '整份解答' : tableKeys.has(part) ? `数据表 ${part}` : `第 ${part} 问`
   const pointRows = Array.isArray(points)
     ? (points as { key?: unknown; part?: unknown; text?: unknown }[]).map(
-        (point) =>
-          `${String(point.key ?? '')}｜${typeof point.part === 'string' ? `第 ${point.part} 问` : '整份解答'}｜${String(point.text ?? '')}`,
+        (point) => `${String(point.key ?? '')}｜${where(point.part)}｜${String(point.text ?? '')}`,
       )
     : []
   return [...pointRows, ...jsonLines(others)]
+}
+
+type Tables = AdminVersionSnapshot['content']['data_tables']
+type Safety = AdminVersionSnapshot['content']['safety']
+
+/** 数据表摊成行：一张表的标题、每一列、每一行（留空的格子写"（留空）"）。 */
+function tableLines(tables: Tables): string[] {
+  return tables.flatMap((table) => [
+    `表 ${table.key}｜${table.title}`,
+    ...table.columns.map((column) => `　列 ${column.key}｜${column.label}｜${column.unit ?? ''}`),
+    ...table.rows.map(
+      (row) =>
+        `　行 ${row.key}｜${row.label ?? ''}｜` +
+        row.cells.map((cell) => `${cell.col}=${cell.text === null ? '（留空）' : cell.text}`).join('；'),
+    ),
+  ])
+}
+
+function safetyLines(safety: Safety): string[] {
+  return safety === null ? [] : [`风险等级｜${safety.level}`, ...safety.notes.map((note) => `提示｜${note}`)]
 }
 
 function reviewText(solution: AdminSolution | undefined): string {
@@ -175,6 +196,8 @@ export function compareSnapshots(left: AdminVersionSnapshot, right: AdminVersion
       rowsField('blanks', '空位（键｜标签｜单位提示｜占位文字）', blankLines(left), blankLines(right)),
       rowsField('subquestions', '小问（键｜题干）', subquestionLines(left), subquestionLines(right), true),
       rowsField('attachments', '附件', attachmentLines(left), attachmentLines(right)),
+      rowsField('data_tables', '数据表', tableLines(left.content.data_tables), tableLines(right.content.data_tables)),
+      rowsField('safety', '实验安全提示', safetyLines(left.content.safety), safetyLines(right.content.safety)),
     ]),
     section('answer', '答案', [
       rowsField('answer', '标准答案', answerLines(left.answer.value), answerLines(right.answer.value)),
@@ -207,7 +230,13 @@ export function compareSnapshots(left: AdminVersionSnapshot, right: AdminVersion
     ]),
     section('knowledge', '知识点', [rowsField('knowledge', '知识点', left.knowledge, right.knowledge)]),
     section('rubric', '评分细则', [
-      rowsField('rubric', '评分细则 / 自查要点', rubricLines(left.rubric), rubricLines(right.rubric), true),
+      rowsField(
+        'rubric',
+        '评分细则 / 自查要点',
+        rubricLines(left.rubric, new Set(left.content.data_tables.map((table) => table.key))),
+        rubricLines(right.rubric, new Set(right.content.data_tables.map((table) => table.key))),
+        true,
+      ),
     ]),
   ]
 

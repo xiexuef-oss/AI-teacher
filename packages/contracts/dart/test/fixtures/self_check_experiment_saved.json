@@ -1,0 +1,265 @@
+{
+  "name": "self_check_experiment_saved",
+  "method": "PUT",
+  "path": "/api/v1/attempts/3ca51c8e-07f7-42a7-b57e-64516782c34d/self-check",
+  "status": 200,
+  "schema": "SelfCheck",
+  "value": {
+    "attempt_id": "3ca51c8e-07f7-42a7-b57e-64516782c34d",
+    "points": [
+      {
+        "key": "p1",
+        "part": "t1",
+        "text": "把距离从 cm 换算成 m 之后再除以时间"
+      },
+      {
+        "key": "p2",
+        "part": "t1",
+        "text": "四段的平均速度都算出来了，填进表 1，位数合适"
+      },
+      {
+        "key": "p3",
+        "part": "1",
+        "text": "说明 $T$ 是怎么得到的（打点周期和\"隔了几个点\"），并求出它的值"
+      },
+      {
+        "key": "p4",
+        "part": "1",
+        "text": "说明平均速度 = 距离 ÷ 时间间隔"
+      },
+      {
+        "key": "p5",
+        "part": "2",
+        "text": "指出相邻相等时间内的位移之差是恒量，写出逐差法的算式"
+      },
+      {
+        "key": "p6",
+        "part": "2",
+        "text": "代入数据，算出加速度并写上单位"
+      },
+      {
+        "key": "p7",
+        "part": "t2",
+        "text": "加速度保留三位有效数字，填进表 2"
+      },
+      {
+        "key": "p8",
+        "part": "3",
+        "text": "至少写出两条合理的误差原因"
+      },
+      {
+        "key": "p9",
+        "part": null,
+        "text": "数据表填得完整，单位不漏，书写清楚"
+      }
+    ],
+    "reference_cells": [
+      {
+        "table": "t1",
+        "row": "r1",
+        "col": "v",
+        "value": "0.400"
+      },
+      {
+        "table": "t1",
+        "row": "r2",
+        "col": "v",
+        "value": "0.600"
+      },
+      {
+        "table": "t1",
+        "row": "r3",
+        "col": "v",
+        "value": "0.800"
+      },
+      {
+        "table": "t1",
+        "row": "r4",
+        "col": "v",
+        "value": "1.00"
+      },
+      {
+        "table": "t2",
+        "row": "r1",
+        "col": "val",
+        "value": "2.00"
+      }
+    ],
+    "marks": [
+      {
+        "point_key": "p1",
+        "level": "done"
+      },
+      {
+        "point_key": "p2",
+        "level": "partial"
+      },
+      {
+        "point_key": "p3",
+        "level": "missed"
+      },
+      {
+        "point_key": "p4",
+        "level": "done"
+      },
+      {
+        "point_key": "p5",
+        "level": "partial"
+      },
+      {
+        "point_key": "p6",
+        "level": "missed"
+      },
+      {
+        "point_key": "p7",
+        "level": "done"
+      },
+      {
+        "point_key": "p8",
+        "level": "partial"
+      },
+      {
+        "point_key": "p9",
+        "level": "missed"
+      }
+    ],
+    "summary": {
+      "done": 3,
+      "partial": 3,
+      "missed": 3,
+      "total": 9
+    },
+    "saved_at": "2026-11-11T08:00:00Z",
+    "disclaimer": "自查是你自己对照要点做的记录，不是官方阅卷分数，也不会计入正确率。"
+  },
+  "body": {
+    "data": {
+      "attempt_id": "3ca51c8e-07f7-42a7-b57e-64516782c34d",
+      "points": [
+        {
+          "key": "p1",
+          "part": "t1",
+          "text": "把距离从 cm 换算成 m 之后再除以时间"
+        },
+        {
+          "key": "p2",
+          "part": "t1",
+          "text": "四段的平均速度都算出来了，填进表 1，位数合适"
+        },
+        {
+          "key": "p3",
+          "part": "1",
+          "text": "说明 $T$ 是怎么得到的（打点周期和\"隔了几个点\"），并求出它的值"
+        },
+        {
+          "key": "p4",
+          "part": "1",
+          "text": "说明平均速度 = 距离 ÷ 时间间隔"
+        },
+        {
+          "key": "p5",
+          "part": "2",
+          "text": "指出相邻相等时间内的位移之差是恒量，写出逐差法的算式"
+        },
+        {
+          "key": "p6",
+          "part": "2",
+          "text": "代入数据，算出加速度并写上单位"
+        },
+        {
+          "key": "p7",
+          "part": "t2",
+          "text": "加速度保留三位有效数字，填进表 2"
+        },
+        {
+          "key": "p8",
+          "part": "3",
+          "text": "至少写出两条合理的误差原因"
+        },
+        {
+          "key": "p9",
+          "part": null,
+          "text": "数据表填得完整，单位不漏，书写清楚"
+        }
+      ],
+      "reference_cells": [
+        {
+          "table": "t1",
+          "row": "r1",
+          "col": "v",
+          "value": "0.400"
+        },
+        {
+          "table": "t1",
+          "row": "r2",
+          "col": "v",
+          "value": "0.600"
+        },
+        {
+          "table": "t1",
+          "row": "r3",
+          "col": "v",
+          "value": "0.800"
+        },
+        {
+          "table": "t1",
+          "row": "r4",
+          "col": "v",
+          "value": "1.00"
+        },
+        {
+          "table": "t2",
+          "row": "r1",
+          "col": "val",
+          "value": "2.00"
+        }
+      ],
+      "marks": [
+        {
+          "point_key": "p1",
+          "level": "done"
+        },
+        {
+          "point_key": "p2",
+          "level": "partial"
+        },
+        {
+          "point_key": "p3",
+          "level": "missed"
+        },
+        {
+          "point_key": "p4",
+          "level": "done"
+        },
+        {
+          "point_key": "p5",
+          "level": "partial"
+        },
+        {
+          "point_key": "p6",
+          "level": "missed"
+        },
+        {
+          "point_key": "p7",
+          "level": "done"
+        },
+        {
+          "point_key": "p8",
+          "level": "partial"
+        },
+        {
+          "point_key": "p9",
+          "level": "missed"
+        }
+      ],
+      "summary": {
+        "done": 3,
+        "partial": 3,
+        "missed": 3,
+        "total": 9
+      },
+      "saved_at": "2026-11-11T08:00:00Z",
+      "disclaimer": "自查是你自己对照要点做的记录，不是官方阅卷分数，也不会计入正确率。"
+    }
+  }
+}

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -48,6 +49,7 @@ _TYPE_BY_MODE = {
     "multiple_choice": "multiple_choice",
     "fill": "fill_blank",
     "written": "solution",
+    "experiment": "experiment",
 }
 _CHOICE_MODES = {"single_choice", "multiple_choice"}
 _MAX_PARTS = 20
@@ -56,6 +58,15 @@ _POINT_FIELDS = {"key", "part", "text"}  # 自查要点只有这三个字段：�
 _REAL_EXAM_CLAIMS = ("真题", "原题")
 _MAX_TEXT = 4000
 _MAX_SHORT = 200
+# 实验题：表、行、列的键只用字母、数字和下划线（格子的键是 "表键.行键.列键"，不能含点）
+_TABLE_KEY = re.compile(r"^[A-Za-z0-9_]{1,16}$")
+_MAX_TABLES = 5
+_MAX_COLUMNS = 12
+_MAX_ROWS = 30
+_MAX_CELL_TEXT = 40
+_MAX_SAFETY_NOTES = 8
+_SAFETY_LEVELS = ("low", "medium")  # high（高风险）现在不收录
+_NUMBER_LIKE = re.compile(r"^[-+]?\d+(?:\.\d+)?$")
 
 
 DRAFT_AUTHOR_KEY = "engineering-seed"
@@ -112,6 +123,12 @@ def leak_markers(question: dict[str, Any]) -> list[str]:
                 f"选项{key}正确",
                 f"{key}是对的",
             ]
+    elif question["answer_mode"] == "experiment":
+        # 数据表里留空格子的参考值（键是 "表键.行键.列键"）：提示里不能出现这些数
+        for cell_key, value in answer.items():
+            text = value.strip() if isinstance(value, str) else ""
+            if cell_key.count(".") == 2 and len(text) >= 3 and _NUMBER_LIKE.match(text):
+                markers.append(text)
     else:
         rules = question["answer"].get("equivalence_rules", {})
         for blank, value in answer.items():
@@ -177,9 +194,63 @@ def _short_key(value: Any) -> bool:
 
 
 def _check_no_subquestions(key: str, question: dict[str, Any]) -> list[str]:
+    problems = _check_no_experiment_content(key, question)
     if question["content"].get("subquestions"):
-        return [f"{key}: 选择题和填空题不分小问（content.subquestions 只用于解答题）"]
+        problems.append(f"{key}: 选择题和填空题不分小问（content.subquestions 只用于解答题）")
+    return problems
+
+
+def _check_no_experiment_content(key: str, question: dict[str, Any]) -> list[str]:
+    content = question["content"]
+    if content.get("data_tables") or content.get("safety"):
+        return [f"{key}: 只有实验题才能有 content.data_tables 和 content.safety"]
     return []
+
+
+def _check_points(
+    key: str,
+    question: dict[str, Any],
+    valid_parts: list[str],
+    required_parts: list[str],
+    where_name: str,
+) -> list[str]:
+    """自查要点：只有 key、part、text 三个字段（不带分值）；part 要指向存在的小问（或数据表）；
+    每个必须覆盖的小问（或数据表）至少有一条要点。解答题和实验题共用。"""
+    problems: list[str] = []
+    points = (question.get("rubric") or {}).get("points")
+    if not isinstance(points, list) or not 1 <= len(points) <= _MAX_POINTS:
+        problems.append(
+            f"{key}: rubric.points 至少一条、至多 {_MAX_POINTS} 条（提交后给学生对照自查）"
+        )
+        points = []
+    point_keys: list[str] = []
+    covered: set[str] = set()
+    for index, point in enumerate(points):
+        where = f"rubric.points[{index}]"
+        if not isinstance(point, dict) or set(point) != _POINT_FIELDS:
+            problems.append(f"{key}: {where} 只能有 key、part、text 三个字段（自查要点不带分值）")
+            continue
+        if _short_key(point["key"]):
+            point_keys.append(point["key"])
+        else:
+            problems.append(f"{key}: {where}.key 不能为空且不超过 16 个字符")
+        if not _nonempty_text(point["text"], _MAX_SHORT):
+            problems.append(f"{key}: {where}.text 不能为空且不超过 {_MAX_SHORT} 字")
+        part = point["part"]
+        if part is None:
+            continue
+        if part in valid_parts:
+            covered.add(part)
+        else:
+            problems.append(f"{key}: {where}.part 指向不存在的{where_name} {part!r}")
+    if len(set(point_keys)) != len(point_keys):
+        problems.append(f"{key}: rubric.points 的 key 不能重复")
+    problems += [
+        f"{key}: rubric.points 没有覆盖{where_name} {part}"
+        for part in required_parts
+        if part not in covered
+    ]
+    return problems
 
 
 def _check_written(key: str, question: dict[str, Any]) -> list[str]:
@@ -192,6 +263,7 @@ def _check_written(key: str, question: dict[str, Any]) -> list[str]:
     content = question["content"]
     if content.get("options") or content.get("blanks"):
         problems.append(f"{key}: 解答题不能有 content.options 或 content.blanks")
+    problems += _check_no_experiment_content(key, question)
 
     subquestions = content.get("subquestions")
     if not isinstance(subquestions, list) or not 1 <= len(subquestions) <= _MAX_PARTS:
@@ -224,37 +296,7 @@ def _check_written(key: str, question: dict[str, Any]) -> list[str]:
     ):
         problems.append(f"{key}: answer.value 必须给出每个小问的参考答案文字")
 
-    points = (question.get("rubric") or {}).get("points")
-    if not isinstance(points, list) or not 1 <= len(points) <= _MAX_POINTS:
-        problems.append(
-            f"{key}: rubric.points 至少一条、至多 {_MAX_POINTS} 条（提交后给学生对照自查）"
-        )
-        points = []
-    point_keys: list[str] = []
-    covered: set[str] = set()
-    for index, point in enumerate(points):
-        where = f"rubric.points[{index}]"
-        if not isinstance(point, dict) or set(point) != _POINT_FIELDS:
-            problems.append(f"{key}: {where} 只能有 key、part、text 三个字段（自查要点不带分值）")
-            continue
-        if _short_key(point["key"]):
-            point_keys.append(point["key"])
-        else:
-            problems.append(f"{key}: {where}.key 不能为空且不超过 16 个字符")
-        if not _nonempty_text(point["text"], _MAX_SHORT):
-            problems.append(f"{key}: {where}.text 不能为空且不超过 {_MAX_SHORT} 字")
-        part = point["part"]
-        if part is None:
-            continue
-        if part in part_keys:
-            covered.add(part)
-        else:
-            problems.append(f"{key}: {where}.part 指向不存在的小问 {part!r}")
-    if len(set(point_keys)) != len(point_keys):
-        problems.append(f"{key}: rubric.points 的 key 不能重复")
-    problems += [
-        f"{key}: rubric.points 没有覆盖小问 {part}" for part in part_keys if part not in covered
-    ]
+    problems += _check_points(key, question, part_keys, part_keys, "小问")
 
     markers = (question.get("teaching") or {}).get("leak_markers")
     if (
@@ -264,6 +306,202 @@ def _check_written(key: str, question: dict[str, Any]) -> list[str]:
     ):
         problems.append(
             f"{key}: teaching.leak_markers 不能为空（解答题的答案推不出泄题标记，要题目自己列）"
+        )
+    return problems
+
+
+def _check_safety(key: str, content: dict[str, Any]) -> list[str]:
+    """实验安全提示（PRD §5：审核实验安全提示）：每道实验题必须有，高风险的现在不收录。"""
+    safety = content.get("safety")
+    if not isinstance(safety, dict) or set(safety) != {"level", "notes"}:
+        return [
+            f"{key}: content.safety 必须有 level 和 notes"
+            "（实验题必须有安全提示，上线前由审核员确认）"
+        ]
+    problems: list[str] = []
+    level = safety["level"]
+    if level == "high":
+        problems.append(
+            f"{key}: content.safety.level 是 high：高风险实验现在不收录，还没有专项审核流程"
+        )
+    elif level not in _SAFETY_LEVELS:
+        problems.append(f"{key}: content.safety.level 取值无效：{level!r}")
+    notes = safety["notes"]
+    if (
+        not isinstance(notes, list)
+        or not 1 <= len(notes) <= _MAX_SAFETY_NOTES
+        or not all(_nonempty_text(note, _MAX_SHORT) for note in notes)
+    ):
+        problems.append(
+            f"{key}: content.safety.notes 至少一条、至多 {_MAX_SAFETY_NOTES} 条，每条不超过 {_MAX_SHORT} 字"
+        )
+    return problems
+
+
+def _check_table(key: str, where: str, table: Any) -> tuple[list[str], str | None, list[str]]:
+    """一张数据表：返回 (问题, 表键, 留空格子的键 "表键.行键.列键")。"""
+    if not isinstance(table, dict):
+        return [f"{key}: {where} 不是对象"], None, []
+    problems: list[str] = []
+    table_key = table.get("key")
+    if not (isinstance(table_key, str) and _TABLE_KEY.match(table_key)):
+        problems.append(f"{key}: {where}.key 只能用字母、数字、下划线，1~16 个字符")
+        table_key = None
+    if not _nonempty_text(table.get("title"), 120):
+        problems.append(f"{key}: {where}.title 不能为空且不超过 120 字")
+
+    column_keys: list[str] = []
+    columns = table.get("columns")
+    if not isinstance(columns, list) or not 1 <= len(columns) <= _MAX_COLUMNS:
+        problems.append(f"{key}: {where}.columns 至少一列、至多 {_MAX_COLUMNS} 列")
+        columns = []
+    for index, column in enumerate(columns):
+        here = f"{where}.columns[{index}]"
+        if not isinstance(column, dict) or set(column) != {"key", "label", "unit"}:
+            problems.append(f"{key}: {here} 只能有 key、label、unit 三个字段")
+            continue
+        if isinstance(column["key"], str) and _TABLE_KEY.match(column["key"]):
+            column_keys.append(column["key"])
+        else:
+            problems.append(f"{key}: {here}.key 只能用字母、数字、下划线，1~16 个字符")
+        if not _nonempty_text(column["label"], 40):
+            problems.append(f"{key}: {here}.label 不能为空且不超过 40 字")
+        unit = column["unit"]
+        if unit is not None and not _nonempty_text(unit, 16):
+            problems.append(f"{key}: {here}.unit 要么是 null，要么是不超过 16 字的单位")
+    if len(set(column_keys)) != len(column_keys):
+        problems.append(f"{key}: {where}.columns 的 key 不能重复")
+
+    blanks: list[str] = []
+    row_keys: list[str] = []
+    rows = table.get("rows")
+    if not isinstance(rows, list) or not 1 <= len(rows) <= _MAX_ROWS:
+        problems.append(f"{key}: {where}.rows 至少一行、至多 {_MAX_ROWS} 行")
+        rows = []
+    for index, row in enumerate(rows):
+        here = f"{where}.rows[{index}]"
+        if not isinstance(row, dict) or set(row) != {"key", "label", "cells"}:
+            problems.append(f"{key}: {here} 只能有 key、label、cells 三个字段")
+            continue
+        if isinstance(row["key"], str) and _TABLE_KEY.match(row["key"]):
+            row_keys.append(row["key"])
+        else:
+            problems.append(f"{key}: {here}.key 只能用字母、数字、下划线，1~16 个字符")
+        if row["label"] is not None and not _nonempty_text(row["label"], 40):
+            problems.append(f"{key}: {here}.label 要么是 null，要么是不超过 40 字的文字")
+        cells = row["cells"]
+        if not isinstance(cells, list) or not all(
+            isinstance(cell, dict) and set(cell) == {"col", "text"} for cell in cells
+        ):
+            problems.append(f"{key}: {here}.cells 每个格子只能有 col、text 两个字段")
+            continue
+        cell_columns = [cell["col"] for cell in cells]
+        if sorted(cell_columns) != sorted(column_keys):
+            problems.append(f"{key}: {here}.cells 必须给每一列恰好一个格子")
+        for cell in cells:
+            value = cell["text"]
+            if value is None:
+                if table_key is not None and isinstance(row["key"], str):
+                    blanks.append(f"{table_key}.{row['key']}.{cell['col']}")
+            elif not _nonempty_text(value, _MAX_CELL_TEXT):
+                problems.append(
+                    f"{key}: {here} 的格子 {cell['col']} 要么留空（null），要么是不超过 {_MAX_CELL_TEXT} 字的文字"
+                )
+    if len(set(row_keys)) != len(row_keys):
+        problems.append(f"{key}: {where}.rows 的 key 不能重复")
+    return problems, table_key, blanks
+
+
+def _check_experiment(key: str, question: dict[str, Any]) -> list[str]:
+    """实验题：带数据表和安全提示的主观题。不自动评分，提交之后学生对照参考数据和 rubric.points 自查。
+
+    这里只能保证结构自洽：每个留空的格子都有参考值、每个小问有参考答案、每张有留空格子的表和每个小问
+    都有自查要点，高风险的实验不收录，提示不泄题（泄题标记要题目自己列，数值参考值会自动加进去）。
+    """
+    problems: list[str] = []
+    content = question["content"]
+    if content.get("options") or content.get("blanks"):
+        problems.append(f"{key}: 实验题不能有 content.options 或 content.blanks")
+    problems += _check_safety(key, content)
+
+    tables = content.get("data_tables")
+    if tables is None:
+        tables = []
+    if not isinstance(tables, list) or len(tables) > _MAX_TABLES:
+        problems.append(f"{key}: content.data_tables 至多 {_MAX_TABLES} 张表")
+        tables = []
+    table_keys: list[str] = []
+    blank_cells: list[str] = []
+    tables_with_blanks: list[str] = []
+    for index, table in enumerate(tables):
+        found, table_key, blanks = _check_table(key, f"content.data_tables[{index}]", table)
+        problems += found
+        if table_key is not None:
+            table_keys.append(table_key)
+            if blanks:
+                tables_with_blanks.append(table_key)
+        blank_cells += blanks
+    if len(set(table_keys)) != len(table_keys):
+        problems.append(f"{key}: content.data_tables 的 key 不能重复")
+
+    subquestions = content.get("subquestions")
+    if subquestions is None:
+        subquestions = []
+    if not isinstance(subquestions, list) or len(subquestions) > _MAX_PARTS:
+        problems.append(f"{key}: content.subquestions 至多 {_MAX_PARTS} 个")
+        subquestions = []
+    part_keys: list[str] = []
+    for index, sub in enumerate(subquestions):
+        where = f"content.subquestions[{index}]"
+        if not isinstance(sub, dict):
+            problems.append(f"{key}: {where} 不是对象")
+            continue
+        if isinstance(sub.get("key"), str) and _TABLE_KEY.match(sub["key"]):
+            part_keys.append(sub["key"])
+        else:
+            problems.append(f"{key}: {where}.key 只能用字母、数字、下划线，1~16 个字符")
+        if not _nonempty_text(sub.get("stem")):
+            problems.append(f"{key}: {where}.stem 不能为空")
+        if sub.get("answer_mode", "written") != "written":
+            problems.append(f"{key}: {where}.answer_mode 必须是 written")
+        if sub.get("options") or sub.get("blanks"):
+            problems.append(f"{key}: {where} 不能带选项或空位")
+    if len(set(part_keys)) != len(part_keys):
+        problems.append(f"{key}: content.subquestions 的 key 不能重复")
+    if set(part_keys) & set(table_keys):
+        problems.append(
+            f"{key}: 小问的 key 和数据表的 key 不能相同（自查要点靠它们指向各自的部分）"
+        )
+    if not blank_cells and not part_keys:
+        problems.append(f"{key}: 实验题至少要有一个留空的格子或一个小问")
+
+    values = question["answer"].get("value")
+    expected = [*part_keys, *blank_cells]
+    if (
+        not isinstance(values, dict)
+        or set(values) != set(expected)
+        or not all(_nonempty_text(values[part]) for part in part_keys if part in values)
+        or not all(
+            _nonempty_text(values[cell], _MAX_CELL_TEXT) for cell in blank_cells if cell in values
+        )
+    ):
+        problems.append(
+            f"{key}: answer.value 必须给出每个小问的参考答案文字，"
+            "和每个留空格子（键是 表键.行键.列键）的参考值"
+        )
+
+    problems += _check_points(
+        key, question, [*part_keys, *table_keys], [*part_keys, *tables_with_blanks], "小问或数据表"
+    )
+
+    markers = (question.get("teaching") or {}).get("leak_markers")
+    if (
+        not isinstance(markers, list)
+        or not markers
+        or not all(_nonempty_text(marker, _MAX_SHORT) for marker in markers)
+    ):
+        problems.append(
+            f"{key}: teaching.leak_markers 不能为空（实验题的文字答案推不出泄题标记，要题目自己列）"
         )
     return problems
 
@@ -340,7 +578,9 @@ def _check_question(
     problems: list[str] = []
     mode = question.get("answer_mode")
     if mode not in _TYPE_BY_MODE:
-        return [f"{key}: answer_mode {mode!r} 不在本阶段支持的范围内（单选、多选、填空、解答）"]
+        return [
+            f"{key}: answer_mode {mode!r} 不在本阶段支持的范围内（单选、多选、填空、解答、实验）"
+        ]
     if question.get("type") != _TYPE_BY_MODE[mode]:
         problems.append(f"{key}: type 与 answer_mode 不一致")
     if question.get("subject") not in launch.SUBJECT_NAMES:
@@ -365,6 +605,8 @@ def _check_question(
         problems += _check_choice(key, question)
     elif mode == "written":
         problems += _check_written(key, question)
+    elif mode == "experiment":
+        problems += _check_experiment(key, question)
     else:
         problems += _check_fill(key, question)
 
@@ -618,6 +860,8 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
                         for sub in content.get("subquestions") or []
                     ],
                     "attachments": [],
+                    "data_tables": content.get("data_tables") or [],
+                    "safety": content.get("safety"),
                 },
                 answer_json={
                     "value": question["answer"]["value"],

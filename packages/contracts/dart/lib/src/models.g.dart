@@ -140,7 +140,7 @@ enum QuestionType {
   String toJson() => value;
 }
 
-/// 作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定； written（解答题）只保存作答，提交后给对照要点的自查，不自动评分；experiment 尚未开放。
+/// 作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定； written（解答题）只保存作答，提交后给对照要点的自查，不自动评分； experiment（实验题）是带数据表和安全提示的主观题：数据表里留空的格子填在 `answer.cells`， 文字作答填在 `answer.parts`，和解答题一样不自动评分、提交后对照要点和参考数据自查。
 enum AnswerMode {
   singleChoice('single_choice'),
   multipleChoice('multiple_choice'),
@@ -1088,6 +1088,142 @@ class Subquestion {
       };
 }
 
+/// 实验的风险分级。low 只涉及常规的低风险操作；medium 需要提醒防护措施； high（高风险）现在不收录：还没有专项审核流程，程序校验会拦住它，不会发给学生。
+enum ExperimentSafetyLevel {
+  low('low'),
+  medium('medium'),
+  high('high'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const ExperimentSafetyLevel(this.value);
+  final String value;
+
+  static ExperimentSafetyLevel fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => ExperimentSafetyLevel.$unknown);
+
+  String toJson() => value;
+}
+
+/// 实验安全提示。每道实验题都必须有，上线前由审核员逐条确认。 这是纸面练习，不是操作指导：题目、提示和解法都不给现实操作的步骤诱导。
+class ExperimentSafety {
+  const ExperimentSafety({
+    required this.level,
+    required this.notes,
+  });
+
+  final ExperimentSafetyLevel level;
+  final List<String> notes;
+
+  factory ExperimentSafety.fromJson(Map<String, dynamic> json) => ExperimentSafety(
+        level: ExperimentSafetyLevel.fromJson(json['level'] as String),
+        notes: (json['notes'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'level': level.toJson(),
+        'notes': notes,
+      };
+}
+
+class DataTableColumn {
+  const DataTableColumn({
+    required this.key,
+    required this.label,
+    this.unit,
+  });
+
+  final String key;
+  final String label;
+  final String? unit;
+
+  factory DataTableColumn.fromJson(Map<String, dynamic> json) => DataTableColumn(
+        key: json['key'] as String,
+        label: json['label'] as String,
+        unit: json['unit'] == null ? null : json['unit'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'label': label,
+        'unit': unit,
+      };
+}
+
+class DataTableCell {
+  const DataTableCell({
+    required this.col,
+    this.text,
+  });
+
+  final String col;
+  final String? text;
+
+  factory DataTableCell.fromJson(Map<String, dynamic> json) => DataTableCell(
+        col: json['col'] as String,
+        text: json['text'] == null ? null : json['text'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'col': col,
+        'text': text,
+      };
+}
+
+class DataTableRow {
+  const DataTableRow({
+    required this.key,
+    this.label,
+    required this.cells,
+  });
+
+  final String key;
+  final String? label;
+  final List<DataTableCell> cells;
+
+  factory DataTableRow.fromJson(Map<String, dynamic> json) => DataTableRow(
+        key: json['key'] as String,
+        label: json['label'] == null ? null : json['label'] as String,
+        cells: (json['cells'] as List<dynamic>).map((e) => DataTableCell.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'label': label,
+        'cells': cells.map((e) => e.toJson()).toList(),
+      };
+}
+
+/// 实验题的数据表。格子由 (表键, 行键, 列键) 唯一确定；text 为 null 的格子由学生填写。
+class DataTable {
+  const DataTable({
+    required this.key,
+    required this.title,
+    required this.columns,
+    required this.rows,
+  });
+
+  final String key;
+  final String title;
+  final List<DataTableColumn> columns;
+  final List<DataTableRow> rows;
+
+  factory DataTable.fromJson(Map<String, dynamic> json) => DataTable(
+        key: json['key'] as String,
+        title: json['title'] as String,
+        columns: (json['columns'] as List<dynamic>).map((e) => DataTableColumn.fromJson(e as Map<String, dynamic>)).toList(),
+        rows: (json['rows'] as List<dynamic>).map((e) => DataTableRow.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'title': title,
+        'columns': columns.map((e) => e.toJson()).toList(),
+        'rows': rows.map((e) => e.toJson()).toList(),
+      };
+}
+
 class QuestionContent {
   const QuestionContent({
     required this.stem,
@@ -1095,6 +1231,8 @@ class QuestionContent {
     required this.blanks,
     required this.subquestions,
     required this.attachments,
+    required this.dataTables,
+    this.safety,
   });
 
   final String stem;
@@ -1102,6 +1240,8 @@ class QuestionContent {
   final List<QuestionBlank> blanks;
   final List<Subquestion> subquestions;
   final List<QuestionAttachment> attachments;
+  final List<DataTable> dataTables;
+  final ExperimentSafety? safety;
 
   factory QuestionContent.fromJson(Map<String, dynamic> json) => QuestionContent(
         stem: json['stem'] as String,
@@ -1109,6 +1249,8 @@ class QuestionContent {
         blanks: (json['blanks'] as List<dynamic>).map((e) => QuestionBlank.fromJson(e as Map<String, dynamic>)).toList(),
         subquestions: (json['subquestions'] as List<dynamic>).map((e) => Subquestion.fromJson(e as Map<String, dynamic>)).toList(),
         attachments: (json['attachments'] as List<dynamic>).map((e) => QuestionAttachment.fromJson(e as Map<String, dynamic>)).toList(),
+        dataTables: (json['data_tables'] as List<dynamic>).map((e) => DataTable.fromJson(e as Map<String, dynamic>)).toList(),
+        safety: json['safety'] == null ? null : ExperimentSafety.fromJson(json['safety'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -1117,6 +1259,8 @@ class QuestionContent {
         'blanks': blanks.map((e) => e.toJson()).toList(),
         'subquestions': subquestions.map((e) => e.toJson()).toList(),
         'attachments': attachments.map((e) => e.toJson()).toList(),
+        'data_tables': dataTables.map((e) => e.toJson()).toList(),
+        'safety': safety?.toJson(),
       };
 }
 
@@ -1456,7 +1600,36 @@ class AnswerBlank {
       };
 }
 
-/// 解答题某一小问的文字作答。
+/// 实验题数据表里的一个格子：学生填写的数（作答），或提交之后给出的参考值（自查）。
+class AnswerCell {
+  const AnswerCell({
+    required this.table,
+    required this.row,
+    required this.col,
+    required this.value,
+  });
+
+  final String table;
+  final String row;
+  final String col;
+  final String value;
+
+  factory AnswerCell.fromJson(Map<String, dynamic> json) => AnswerCell(
+        table: json['table'] as String,
+        row: json['row'] as String,
+        col: json['col'] as String,
+        value: json['value'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'table': table,
+        'row': row,
+        'col': col,
+        'value': value,
+      };
+}
+
+/// 解答题、实验题某一小问的文字作答。
 class AnswerPart {
   const AnswerPart({
     required this.key,
@@ -1477,24 +1650,27 @@ class AnswerPart {
       };
 }
 
-/// 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts。 解答题可以只写部分小问，也可以只有笔迹（笔迹随草稿同步，不在这里）；文字和笔迹都没有时提交返回 422。
+/// 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts， 实验题用 cells（数据表里留空的格子）和 parts（文字小问）。 解答题、实验题可以只写一部分，也可以只有笔迹（笔迹随草稿同步，不在这里）； 文字、格子和笔迹都没有时提交返回 422。
 class AnswerPayload {
   const AnswerPayload({
     this.selectedOptions,
     this.blanks,
     this.parts,
+    this.cells,
     this.text,
   });
 
   final List<String>? selectedOptions;
   final List<AnswerBlank>? blanks;
   final List<AnswerPart>? parts;
+  final List<AnswerCell>? cells;
   final String? text;
 
   factory AnswerPayload.fromJson(Map<String, dynamic> json) => AnswerPayload(
         selectedOptions: json['selected_options'] == null ? null : (json['selected_options'] as List<dynamic>).map((e) => e as String).toList(),
         blanks: json['blanks'] == null ? null : (json['blanks'] as List<dynamic>).map((e) => AnswerBlank.fromJson(e as Map<String, dynamic>)).toList(),
         parts: json['parts'] == null ? null : (json['parts'] as List<dynamic>).map((e) => AnswerPart.fromJson(e as Map<String, dynamic>)).toList(),
+        cells: json['cells'] == null ? null : (json['cells'] as List<dynamic>).map((e) => AnswerCell.fromJson(e as Map<String, dynamic>)).toList(),
         text: json['text'] == null ? null : json['text'] as String,
       );
 
@@ -1502,6 +1678,7 @@ class AnswerPayload {
         if (selectedOptions != null) 'selected_options': selectedOptions,
         if (blanks != null) 'blanks': blanks?.map((e) => e.toJson()).toList(),
         if (parts != null) 'parts': parts?.map((e) => e.toJson()).toList(),
+        if (cells != null) 'cells': cells?.map((e) => e.toJson()).toList(),
         if (text != null) 'text': text,
       };
 }
@@ -1934,6 +2111,7 @@ class SelfCheck {
   const SelfCheck({
     required this.attemptId,
     required this.points,
+    required this.referenceCells,
     required this.marks,
     required this.summary,
     this.savedAt,
@@ -1942,6 +2120,7 @@ class SelfCheck {
 
   final String attemptId;
   final List<SelfCheckPoint> points;
+  final List<AnswerCell> referenceCells;
   final List<SelfCheckMark> marks;
   final SelfCheckSummary summary;
   final DateTime? savedAt;
@@ -1950,6 +2129,7 @@ class SelfCheck {
   factory SelfCheck.fromJson(Map<String, dynamic> json) => SelfCheck(
         attemptId: json['attempt_id'] as String,
         points: (json['points'] as List<dynamic>).map((e) => SelfCheckPoint.fromJson(e as Map<String, dynamic>)).toList(),
+        referenceCells: (json['reference_cells'] as List<dynamic>).map((e) => AnswerCell.fromJson(e as Map<String, dynamic>)).toList(),
         marks: (json['marks'] as List<dynamic>).map((e) => SelfCheckMark.fromJson(e as Map<String, dynamic>)).toList(),
         summary: SelfCheckSummary.fromJson(json['summary'] as Map<String, dynamic>),
         savedAt: json['saved_at'] == null ? null : DateTime.parse(json['saved_at'] as String),
@@ -1959,6 +2139,7 @@ class SelfCheck {
   Map<String, dynamic> toJson() => {
         'attempt_id': attemptId,
         'points': points.map((e) => e.toJson()).toList(),
+        'reference_cells': referenceCells.map((e) => e.toJson()).toList(),
         'marks': marks.map((e) => e.toJson()).toList(),
         'summary': summary.toJson(),
         'saved_at': savedAt?.toUtc().toIso8601String(),
@@ -2299,7 +2480,7 @@ class ProgressBucket {
       };
 }
 
-/// 解答题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份， 以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
+/// 解答题和实验题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份， 以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
 class SubjectiveProgress {
   const SubjectiveProgress({
     required this.attempts,

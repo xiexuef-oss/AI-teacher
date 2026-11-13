@@ -57,7 +57,9 @@
         }
       ],
       "subquestions": [],
-      "attachments": []
+      "attachments": [],
+      "data_tables": [],
+      "safety": null
     },
     "assists": {
       "hint_levels": 3,
@@ -121,7 +123,9 @@
           }
         ],
         "subquestions": [],
-        "attachments": []
+        "attachments": [],
+        "data_tables": [],
+        "safety": null
       },
       "assists": {
         "hint_levels": 3,

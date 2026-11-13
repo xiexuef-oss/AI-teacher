@@ -892,6 +892,198 @@ void main() {
     });
   });
 
+  group('实验题', () {
+    late Harness e;
+    late Map<String, dynamic> question;
+    setUp(() {
+      final backend = FakeBackend()
+        ..submitFixture = 'submit_experiment'
+        ..selfCheckFixture = 'self_check_experiment_pending'
+        ..installLearningFlow(questionFixture: 'question_experiment');
+      question = Fixtures.load().value('question_experiment');
+      e = Harness(backend: backend, questionId: question['id'] as String);
+    });
+    tearDown(() => e.dispose());
+
+    /// 第一张表里留空的格子 v 的四行，加上表 2 的加速度
+    void fillTables(SolveController c) {
+      c.setCell('t1', 'r1', 'v', '0.400');
+      c.setCell('t1', 'r2', 'v', '0.600');
+      c.setCell('t1', 'r3', 'v', '0.800');
+      c.setCell('t1', 'r4', 'v', '1.00');
+      c.setCell('t2', 'r1', 'val', '2.00');
+    }
+
+    test('有填写的格子、小问文字或笔迹才能提交；只有空白不算', () async {
+      final c = await started(e);
+      expect(c.canSubmit, isFalse);
+
+      c.setCell('t1', 'r1', 'v', '   ');
+      c.setPart('1', '\n');
+      expect(c.canSubmit, isFalse);
+      c.setCell('t1', 'r1', 'v', '0.400');
+      expect(c.canSubmit, isTrue);
+      c.setCell('t1', 'r1', 'v', '');
+      expect(c.canSubmit, isFalse);
+      c.setPart('2', '用逐差法');
+      expect(c.canSubmit, isTrue, reason: '只写文字也可以');
+      c.setPart('2', '');
+
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      expect(c.canSubmit, isTrue, reason: '只有笔迹也可以提交');
+    });
+
+    test('只能填题目里留空的格子；格子的值截到 40 字', () async {
+      final c = await started(e);
+
+      c.setCell('t1', 'r1', 'x', '9.99'); // 题目给定的格子
+      c.setCell('t1', 'r1', 'seg', 'ZZ');
+      c.setCell('t9', 'r1', 'v', '1'); // 不存在的表
+      c.setCell('t1', 'r9', 'v', '1');
+      c.setCell('t1', 'r1', 'zz', '1');
+      expect(c.cells, isEmpty);
+
+      c.setCell('t1', 'r1', 'v', '9' * 60);
+      expect(c.cells['t1.r1.v']!.length, 40);
+    });
+
+    test('格子和小问按题目里的顺序同步到云端草稿，没填的不发', () async {
+      final c = await started(e);
+
+      c.setPart('2', '用逐差法');
+      c.setCell('t2', 'r1', 'val', '2.00');
+      c.setCell('t1', 'r2', 'v', '0.600');
+      c.setCell('t1', 'r1', 'v', '0.400');
+      await until(() => e.backend.serverAnswer != null, reason: '草稿没有同步到云端');
+      await until(() => c.sync == SaveStatus.saved);
+
+      expect(e.backend.serverAnswer, {
+        'cells': [
+          {'table': 't1', 'row': 'r1', 'col': 'v', 'value': '0.400'},
+          {'table': 't1', 'row': 'r2', 'col': 'v', 'value': '0.600'},
+          {'table': 't2', 'row': 'r1', 'col': 'val', 'value': '2.00'},
+        ],
+        'parts': [
+          {'key': '2', 'text': '用逐差法'},
+        ],
+      });
+    });
+
+    test('格子先存在本机，重新打开时恢复；不重复开会话', () async {
+      final first = await started(e);
+      first.setCell('t1', 'r3', 'v', '0.800');
+      await first.flushNow();
+
+      final saved = await first.drafts.readDraft(e.questionId);
+      expect(saved!.cells, {'t1.r3.v': '0.800'});
+      first.dispose();
+
+      final second = await started(e);
+      expect(second.cells, {'t1.r3.v': '0.800'});
+      expect(e.backend.sessionsCreated, 1);
+    });
+
+    test('提交：格子和文字去掉首尾空白；结果是待自评，不是对也不是错', () async {
+      final c = await started(e);
+      fillTables(c);
+      c.setCell('t1', 'r1', 'v', '  0.400 ');
+      c.setPart('1', '  T 等于 0.10 秒  ');
+      await c.submit();
+
+      final body = e.backend.bodyOf(
+        e.backend.requestsTo('POST', '/submit').single,
+      )!;
+      expect(body['answer'], {
+        'cells': [
+          {'table': 't1', 'row': 'r1', 'col': 'v', 'value': '0.400'},
+          {'table': 't1', 'row': 'r2', 'col': 'v', 'value': '0.600'},
+          {'table': 't1', 'row': 'r3', 'col': 'v', 'value': '0.800'},
+          {'table': 't1', 'row': 'r4', 'col': 'v', 'value': '1.00'},
+          {'table': 't2', 'row': 'r1', 'col': 'val', 'value': '2.00'},
+        ],
+        'parts': [
+          {'key': '1', 'text': 'T 等于 0.10 秒'},
+        ],
+      });
+      expect(c.phase, SolvePhase.submitted);
+      expect(c.evaluation!.state, EvaluationState.pending);
+      expect(c.evaluation!.isCorrect, isNull);
+      expect(c.events.single.uncertainty.reasonCode, 'subjective_self_check');
+      expect(c.reviewItem, isNull);
+    });
+
+    test('只有笔迹也能提交（笔迹同步上去之后）', () async {
+      final c = await started(e);
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      await until(() => c.sync == SaveStatus.saved);
+
+      await c.submit();
+
+      expect(c.phase, SolvePhase.submitted);
+      expect(
+        e.backend.bodyOf(
+          e.backend.requestsTo('POST', '/submit').single,
+        )!['answer'],
+        {'cells': <Object>[], 'parts': <Object>[]},
+      );
+    });
+
+    test('提交之前不会去要自查要点和参考数据；提交之后取到，参考数据只在这时才有', () async {
+      final c = await started(e);
+      fillTables(c);
+      expect(e.backend.requestsTo('GET', '/self-check'), isEmpty);
+      expect(c.selfCheck, isNull);
+
+      await c.submit();
+      await until(() => c.selfCheck != null, reason: '自查要点没有取到');
+
+      expect(c.selfCheck!.points, isNotEmpty);
+      expect(c.selfCheck!.referenceCells, isNotEmpty);
+      expect(
+        c.selfCheck!.referenceCells.map((cell) => cell.value),
+        containsAll(['0.400', '2.00']),
+      );
+    });
+
+    test('再试一次：格子、文字、笔迹都清空，新建一份作答', () async {
+      final c = await started(e);
+      fillTables(c);
+      c.setPart('1', '写过');
+      await c.submit();
+
+      await c.retry();
+
+      expect(c.cells, isEmpty);
+      expect(c.parts, isEmpty);
+      expect(c.phase, SolvePhase.answering);
+      expect(c.selfCheck, isNull);
+    });
+
+    test('版本冲突：使用云端稿之后，云端草稿里的格子也回来', () async {
+      final c = await started(e);
+      c.setCell('t1', 'r1', 'v', '0.4');
+      await until(() => c.sync == SaveStatus.saved);
+      // 别处把云端草稿改成了另一份
+      e.backend.serverRevision = 5;
+      e.backend.serverAnswer = {
+        'cells': [
+          {'table': 't1', 'row': 'r2', 'col': 'v', 'value': '别处写的'},
+        ],
+      };
+
+      c.setCell('t1', 'r1', 'v', '0.41');
+      await until(() => c.sync == SaveStatus.conflict, reason: '没有发现冲突');
+      expect(c.cells, {'t1.r1.v': '0.41'}, reason: '本地稿原样保留');
+      await c.resolveConflictUseServer();
+
+      expect(c.cells, {'t1.r2.v': '别处写的'});
+    });
+  });
+
   group('登录失效', () {
     test('401：通知外层重新登录，未同步的草稿仍在本机', () async {
       final c = await started(h);

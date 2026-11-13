@@ -5,7 +5,7 @@ import * as api from '../src/api/admin'
 import { ApiError } from '../src/api/client'
 import { clearSession, setSession } from '../src/session'
 import QuestionView from '../src/views/QuestionView.vue'
-import { AUTHOR, detail, ME, QUESTION_ID, writtenDetail } from './fixtures'
+import { AUTHOR, detail, experimentDetail, ME, QUESTION_ID, writtenDetail } from './fixtures'
 
 vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
@@ -111,7 +111,7 @@ describe('编辑题目', () => {
 
   it('填了不合法的 JSON：列出原因，不能保存', async () => {
     mocked.getQuestion.mockResolvedValue(
-      detail({ answer_mode: 'fill', type: 'fill_blank', content: { stem: '填空 ____', options: [], blanks: [{ key: 'b1', label: null, unit_hint: null, placeholder: null }], subquestions: [], attachments: [] }, answer: { value: { b1: '5' }, equivalence_rules: {}, units: {} } }),
+      detail({ answer_mode: 'fill', type: 'fill_blank', content: { stem: '填空 ____', options: [], blanks: [{ key: 'b1', label: null, unit_hint: null, placeholder: null }], subquestions: [], attachments: [], data_tables: [], safety: null }, answer: { value: { b1: '5' }, equivalence_rules: {}, units: {} } }),
     )
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
@@ -315,5 +315,69 @@ describe('编辑解答题', () => {
     const body = mocked.createQuestionVersion.mock.calls[0]![2]
     const points = (body.rubric as unknown as { points: { key: string }[] }).points
     expect(points.map((point) => point.key)).toEqual(['p1', 'p3', 'p4'])
+  })
+})
+
+describe('编辑实验题', () => {
+  async function openEditor(source = experimentDetail()) {
+    mocked.getQuestion.mockResolvedValue(source)
+    const wrapper = await openPage()
+    await wrapper.get('[data-testid="edit"]').trigger('click')
+    return wrapper
+  }
+
+  it('编辑器里有安全提示、数据表、小问和自查要点；没有选项、空位，也没有评分细则的 JSON', async () => {
+    const wrapper = await openEditor()
+
+    for (const block of ['safety', 'data-tables', 'subquestions', 'points']) {
+      expect(wrapper.find(`[data-testid="${block}"]`).exists(), block).toBe(true)
+    }
+    for (const block of ['options', 'blanks', 'rubric-json']) {
+      expect(wrapper.find(`[data-testid="${block}"]`).exists(), block).toBe(false)
+    }
+    expect(wrapper.get('[data-testid="safety-level"]').element).toHaveProperty('value', 'low')
+    expect(wrapper.get('[data-testid="safety"]').text()).toContain('不是操作指导')
+    expect(wrapper.get('[data-testid="data-tables-json"]').element).toHaveProperty(
+      'value',
+      JSON.stringify(experimentDetail().content.data_tables, null, 2),
+    )
+  })
+
+  it('其他题型的编辑器里没有安全提示和数据表', async () => {
+    const wrapper = await openEditor(writtenDetail())
+
+    expect(wrapper.find('[data-testid="safety"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="data-tables"]').exists()).toBe(false)
+  })
+
+  it('每条要点的"所属"下拉里有整份、每个小问和每张数据表', async () => {
+    const wrapper = await openEditor()
+
+    const options = wrapper.get('[data-testid="point-part-0"]').findAll('option')
+    expect(options.map((option) => option.element.value)).toEqual(['', '1', 't1'])
+    expect(options[2]!.text()).toContain('数据表 t1')
+  })
+
+  it('改一条安全提示再保存：请求里带着新的安全提示和原样的数据表', async () => {
+    mocked.createQuestionVersion.mockResolvedValue(experimentDetail({ version: 2, created_by: ME }))
+    const wrapper = await openEditor()
+
+    await wrapper.get('[data-testid="safety"] textarea').setValue('（改）本题只处理数据。')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const body = mocked.createQuestionVersion.mock.calls[0]![2]
+    expect(body.content.safety!.notes[0]).toBe('（改）本题只处理数据。')
+    expect(body.content.data_tables).toEqual(experimentDetail().content.data_tables)
+    expect(body.answer.value).toEqual(experimentDetail().answer.value)
+  })
+
+  it('数据表的 JSON 写坏了：列出原因，不能保存', async () => {
+    const wrapper = await openEditor()
+
+    await wrapper.get('[data-testid="data-tables-json"]').setValue('[{坏了')
+
+    expect(wrapper.get('[data-testid="editor-errors"]').text()).toContain('数据表不是合法的 JSON')
+    expect(wrapper.get('[data-testid="save"]').attributes('disabled')).toBeDefined()
   })
 })

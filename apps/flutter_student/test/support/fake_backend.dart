@@ -287,9 +287,12 @@ class FakeBackend implements ApiTransport {
   /// 解答题提交后的自评：服务端按要点清单的顺序存下来的那一份。
   List<Map<String, dynamic>> selfCheckMarks = [];
 
-  /// 解答题的自查：要点来自真实样例，自评与计数按已保存的内容算（与服务端的算法一致）。
+  /// 自查用哪个样例：解答题是 self_check_pending，实验题是 self_check_experiment_pending（带参考数据）。
+  String selfCheckFixture = 'self_check_pending';
+
+  /// 解答题、实验题的自查：要点来自真实样例，自评与计数按已保存的内容算（与服务端的算法一致）。
   Map<String, dynamic> selfCheck() {
-    final base = fixtures.value('self_check_pending');
+    final base = fixtures.value(selfCheckFixture);
     final points = base['points'] as List<dynamic>;
     final counts = {'done': 0, 'partial': 0, 'missed': 0};
     for (final mark in selfCheckMarks) {
@@ -360,7 +363,7 @@ class FakeBackend implements ApiTransport {
       if (!submitted) return errorResponse(409, 'attempt_not_submitted');
       final marks = (bodyOf(request)!['marks'] as List<dynamic>)
           .cast<Map<String, dynamic>>();
-      final keys = (fixtures.value('self_check_pending')['points'] as List)
+      final keys = (fixtures.value(selfCheckFixture)['points'] as List)
           .map((p) => (p as Map<String, dynamic>)['key'])
           .toSet();
       // 与服务端一样：每个要点恰好评一次

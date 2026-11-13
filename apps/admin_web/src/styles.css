@@ -567,3 +567,33 @@ a.badge {
 a.badge:hover {
   background: #dfeee9;
 }
+
+/* 实验题的数据表：题目给定的格子是文字，留空的格子标出"学生填写"和参考值 */
+.table-block {
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.data-table {
+  border-collapse: collapse;
+  min-width: 320px;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.data-table thead th {
+  background: var(--bg);
+}
+
+.blank-cell {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--draft);
+  background: var(--draft-bg);
+}

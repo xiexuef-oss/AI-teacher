@@ -14,6 +14,7 @@ import '../../core/providers.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import 'answer_input.dart';
+import 'experiment_input.dart';
 import 'ink/ink_canvas.dart';
 import 'self_check_card.dart';
 import 'solve_controller.dart';
@@ -72,7 +73,7 @@ class _SolvePageState extends ConsumerState<SolvePage>
     }
     final cardShown =
         _controller.phase == SolvePhase.submitted &&
-        _controller.question?.answerMode == AnswerMode.written &&
+        isSubjectiveMode(_controller.question?.answerMode) &&
         !_controller.selfCheckBusy &&
         (_controller.selfCheck != null || _controller.selfCheckError != null);
     if (cardShown && !_selfCheckRevealed) {
@@ -88,7 +89,7 @@ class _SolvePageState extends ConsumerState<SolvePage>
     }
   }
 
-  /// 解答题提交之后，把自查要点的顶部带到眼前（默认的"滚到最新一条"会停在要点下方）。
+  /// 解答题、实验题提交之后，把自查要点的顶部带到眼前（默认的"滚到最新一条"会停在要点下方）。
   /// 列表是按需建出来的：先跳到末尾，让这张卡片建出来，再把它的顶部对齐到视口顶部。
   void _revealSelfCheck() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -398,6 +399,8 @@ class _Banners extends StatelessWidget {
         ?.where((p) => p.text.trim().isNotEmpty)
         .length;
     if (written != null && written > 0) parts.add('写了 $written 问');
+    final cells = answer?.cells?.where((c) => c.value.trim().isNotEmpty).length;
+    if (cells != null && cells > 0) parts.add('填了 $cells 个格子');
     final count =
         strokes?.pages.fold<int>(0, (sum, p) => sum + p.strokes.length) ?? 0;
     parts.add(count == 0 ? '没有笔迹' : '笔迹 $count 笔');
@@ -532,12 +535,26 @@ class _Banners extends StatelessWidget {
         ],
       );
     }
-    if (c.parts.isNotEmpty) {
+    if (c.parts.isNotEmpty || c.cells.isNotEmpty) {
       return AnswerPayload(
-        parts: [
-          for (final e in c.parts.entries)
-            AnswerPart(key: e.key, text: e.value),
-        ],
+        parts: c.parts.isEmpty
+            ? null
+            : [
+                for (final e in c.parts.entries)
+                  AnswerPart(key: e.key, text: e.value),
+              ],
+        cells: c.cells.isEmpty
+            ? null
+            : [
+                for (final e in c.cells.entries)
+                  if (e.key.split('.').length == 3)
+                    AnswerCell(
+                      table: e.key.split('.')[0],
+                      row: e.key.split('.')[1],
+                      col: e.key.split('.')[2],
+                      value: e.value,
+                    ),
+              ],
       );
     }
     return null;
@@ -596,6 +613,11 @@ class _QuestionPane extends StatelessWidget {
             ),
           ),
         ),
+        if (q.content.safety != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: ExperimentSafetyNotice(safety: q.content.safety!),
+          ),
         if (q.judgingNote != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -620,7 +642,7 @@ class _QuestionPane extends StatelessWidget {
           title: answering ? '你的答案' : '你提交的答案',
           child: _answer(context, c, q, enabled: answering),
         ),
-        if (q.answerMode == AnswerMode.written &&
+        if (isSubjectiveMode(q.answerMode) &&
             c.phase == SolvePhase.submitted) ...[
           const SizedBox(height: kGap),
           SelfCheckCard(key: selfCheckKey, controller: c),
@@ -672,10 +694,20 @@ class _QuestionPane extends StatelessWidget {
           onChanged: c.setPart,
           enabled: enabled,
         );
+      case AnswerMode.experiment:
+        return ExperimentInput(
+          tables: q.content.dataTables,
+          subquestions: q.content.subquestions,
+          cells: c.cells,
+          parts: c.parts,
+          onCell: c.setCell,
+          onPart: c.setPart,
+          enabled: enabled,
+        );
       default:
         return const Callout(
           tone: Tone.info,
-          child: Text('这类题目（证明、实验）的评分还没有开放。可以在右边的草稿上演算，作答会保存在这台设备上。'),
+          child: Text('这类题目的评分还没有开放。可以在右边的草稿上演算，作答会保存在这台设备上。'),
         );
     }
   }

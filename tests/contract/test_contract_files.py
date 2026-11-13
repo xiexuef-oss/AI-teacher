@@ -293,6 +293,69 @@ def test_question_payloads_cannot_reach_the_self_check_points():
         assert not {"SelfCheck", "SelfCheckPoint"} & reachable, name
 
 
+def _property_names(name: str) -> set[str]:
+    """从一个 schema 出发，沿 $ref 能走到的所有 schema 里出现过的字段名。"""
+    schemas = load_openapi()["components"]["schemas"]
+    return {
+        field
+        for reachable in _reachable_schemas(name)
+        for field in schemas[reachable].get("properties", {})
+    }
+
+
+def test_question_payloads_cannot_reach_the_reference_data_of_an_experiment():
+    """实验题数据表里留空格子的参考值（reference_cells）只能在提交之后通过自查接口拿到。"""
+    for name in ("Question", "QuestionSummary", "QuestionPage", "StudyTask", "TodayTasks"):
+        reachable = _reachable_schemas(name)
+        assert "reference_cells" not in _property_names(name), name
+        assert "SelfCheck" not in reachable and "AnswerCell" not in reachable, name
+
+
+def test_questions_never_carry_a_field_called_value():
+    """题目接口里不允许出现名为 value 的键：答案类的字段（空位的答案、格子里的数）都叫这个名字。
+    所以题目给定的数据表格子叫 text，留空的格子 text 为 null。"""
+    for name in ("Question", "QuestionContent", "DataTable", "DataTableRow", "DataTableCell"):
+        assert "value" not in _property_names(name), name
+    cell = load_openapi()["components"]["schemas"]["DataTableCell"]
+    assert set(cell["properties"]) == {"col", "text"} and cell["required"] == ["col", "text"]
+    assert cell["properties"]["text"]["type"] == ["string", "null"]
+
+
+def test_experiment_questions_carry_tables_and_safety_notes():
+    schemas = load_openapi()["components"]["schemas"]
+    content = schemas["QuestionContent"]
+    assert {"data_tables", "safety"} <= set(content["required"])
+    assert content["properties"]["data_tables"]["maxItems"] <= 5
+    safety = schemas["ExperimentSafety"]
+    assert safety["required"] == ["level", "notes"]
+    assert schemas["ExperimentSafetyLevel"]["enum"] == ["low", "medium", "high"]
+    assert safety["properties"]["notes"]["minItems"] >= 1
+    # 表、行、列的键只用字母、数字、下划线：格子的键是"表键.行键.列键"，不能含点
+    for name in ("DataTable", "DataTableRow", "DataTableColumn"):
+        assert schemas[name]["properties"]["key"]["pattern"] == "^[A-Za-z0-9_]+$", name
+
+
+def test_experiment_answers_use_cells_for_the_blank_table_cells():
+    schemas = load_openapi()["components"]["schemas"]
+    payload = schemas["AnswerPayload"]["properties"]
+    assert payload["cells"]["items"] == {"$ref": "#/components/schemas/AnswerCell"}
+    assert payload["cells"]["maxItems"] <= 200
+    cell = schemas["AnswerCell"]
+    assert cell["required"] == ["table", "row", "col", "value"]
+    assert cell["properties"]["value"]["maxLength"] <= 40
+    assert all(cell["properties"][name]["maxLength"] <= 16 for name in ("table", "row", "col"))
+
+
+def test_the_self_check_carries_reference_cells_but_no_score():
+    schemas = load_openapi()["components"]["schemas"]
+    check = schemas["SelfCheck"]
+    assert "reference_cells" in check["required"]
+    assert check["properties"]["reference_cells"]["items"] == {
+        "$ref": "#/components/schemas/AnswerCell"
+    }
+    assert not {"score", "points_earned", "weight"} & set(check["properties"])
+
+
 def test_written_answers_use_parts_keyed_by_subquestion():
     schemas = load_openapi()["components"]["schemas"]
     payload = schemas["AnswerPayload"]["properties"]

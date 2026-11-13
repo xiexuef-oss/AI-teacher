@@ -65,7 +65,9 @@
           "blanks": []
         }
       ],
-      "attachments": []
+      "attachments": [],
+      "data_tables": [],
+      "safety": null
     },
     "assists": {
       "hint_levels": 3,
@@ -137,7 +139,9 @@
             "blanks": []
           }
         ],
-        "attachments": []
+        "attachments": [],
+        "data_tables": [],
+        "safety": null
       },
       "assists": {
         "hint_levels": 3,

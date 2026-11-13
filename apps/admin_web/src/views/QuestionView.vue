@@ -24,11 +24,19 @@ const editing = ref(false)
 
 const id = computed(() => String(route.params.id ?? ''))
 const isWritten = computed(() => detail.value?.answer_mode === 'written')
+const isExperiment = computed(() => detail.value?.answer_mode === 'experiment')
+// 解答题和实验题：分小问作答，不自动评分，提交后对照要点自查
+const isSubjective = computed(() => isWritten.value || isExperiment.value)
 const answerRows = computed<[string, string][]>(() => {
   const value = detail.value?.answer.value
   if (Array.isArray(value)) return [['正确选项', value.map(String).join('、')]]
   if (value && typeof value === 'object') {
-    const label = isWritten.value ? (key: string) => `第 ${key} 问` : (key: string) => `空 ${key}`
+    // 实验题的参考答案里，键带点的是留空格子的参考值（表键.行键.列键），其余是各小问的参考答案
+    const label = isExperiment.value
+      ? (key: string) => (key.includes('.') ? `格子 ${key}` : `第 ${key} 问`)
+      : isWritten.value
+        ? (key: string) => `第 ${key} 问`
+        : (key: string) => `空 ${key}`
     return Object.entries(value as Record<string, unknown>).map(([key, answer]) => [
       label(key),
       String(answer),
@@ -36,6 +44,15 @@ const answerRows = computed<[string, string][]>(() => {
   }
   return []
 })
+
+type DataTable = AdminQuestionDetail['content']['data_tables'][number]
+const cellOf = (table: DataTable, rowKey: string, colKey: string): string | null | undefined =>
+  table.rows.find((row) => row.key === rowKey)?.cells.find((cell) => cell.col === colKey)?.text
+const referenceOf = (table: DataTable, rowKey: string, colKey: string): string => {
+  const value = (detail.value?.answer.value as Record<string, unknown> | undefined)?.[`${table.key}.${rowKey}.${colKey}`]
+  return value === undefined ? '（没有参考值）' : String(value)
+}
+const hasRowLabels = (table: DataTable): boolean => table.rows.some((row) => row.label)
 
 interface PointGroup {
   heading: string
@@ -47,9 +64,12 @@ const pointGroups = computed<PointGroup[]>(() => {
   const raw = (detail.value?.rubric as { points?: unknown } | undefined)?.points
   if (!Array.isArray(raw)) return []
   const groups = new Map<string, PointGroup>()
+  const tableKeys = new Set((detail.value?.content.data_tables ?? []).map((table) => table.key))
+  const headingOf = (part: string): string =>
+    part === '' ? '整份解答' : tableKeys.has(part) ? `数据表 ${part}` : `第 ${part} 问`
   for (const item of raw as { key?: unknown; part?: unknown; text?: unknown }[]) {
     const part = typeof item.part === 'string' ? item.part : ''
-    const group = groups.get(part) ?? { heading: part === '' ? '整份解答' : `第 ${part} 问`, points: [] }
+    const group = groups.get(part) ?? { heading: headingOf(part), points: [] }
     group.points.push({ key: String(item.key ?? ''), text: String(item.text ?? '') })
     groups.set(part, group)
   }
@@ -173,6 +193,43 @@ function saved(next: AdminQuestionDetail): void {
         <section class="card">
           <h2>题面</h2>
           <p class="stem"><MathText :text="detail.content.stem" /></p>
+          <div v-if="detail.content.safety" class="notice warn small" data-testid="safety-view">
+            <strong>实验安全提示（风险等级 {{ detail.content.safety.level }}）</strong>
+            <ul>
+              <li v-for="note in detail.content.safety.notes" :key="note">{{ note }}</li>
+            </ul>
+          </div>
+          <div
+            v-for="table in detail.content.data_tables"
+            :key="table.key"
+            class="table-block"
+            :data-testid="`table-${table.key}`"
+          >
+            <h3 class="small">
+              {{ table.title }} <span class="muted small mono">键 {{ table.key }}</span>
+            </h3>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th v-if="hasRowLabels(table)" scope="col"></th>
+                  <th v-for="column in table.columns" :key="column.key" scope="col">
+                    {{ column.label }}<span v-if="column.unit" class="muted">（{{ column.unit }}）</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in table.rows" :key="row.key">
+                  <th v-if="hasRowLabels(table)" scope="row">{{ row.label }}</th>
+                  <td v-for="column in table.columns" :key="column.key">
+                    <MathText v-if="typeof cellOf(table, row.key, column.key) === 'string'" :text="cellOf(table, row.key, column.key) as string" />
+                    <span v-else class="blank-cell" :data-testid="`blank-${table.key}-${row.key}-${column.key}`">
+                      学生填写 · 参考 <span class="mono">{{ referenceOf(table, row.key, column.key) }}</span>
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <ul v-if="detail.content.options.length" class="options">
             <li v-for="option in detail.content.options" :key="option.key">
               <strong>{{ option.key }}</strong> <MathText :text="option.text" />
@@ -214,10 +271,10 @@ function saved(next: AdminQuestionDetail): void {
           </details>
         </section>
 
-        <section v-if="isWritten" class="card" data-testid="rubric-points">
+        <section v-if="isSubjective" class="card" data-testid="rubric-points">
           <h2>自查要点</h2>
           <p class="muted small">
-            提交后给学生对照自查的清单。解答题不自动评分，要点不带分值，不是评分标准；学生自己标"做到了 / 做到一部分 /
+            提交后给学生对照自查的清单。{{ isExperiment ? '实验题' : '解答题' }}不自动评分，要点不带分值，不是评分标准；学生自己标"做到了 / 做到一部分 /
             没做到"。
           </p>
           <template v-for="group in pointGroups" :key="group.heading">

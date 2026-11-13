@@ -81,6 +81,24 @@ void main() {
     expect(read.blanks, isEmpty);
   });
 
+  test('实验题数据表里填的格子随草稿一起存、一起读（键是 表.行.列）', () async {
+    final draft = LocalDraft(
+      questionId: 'q1',
+      cells: const {'t1.r1.v': '0.400', 't2.r1.val': '2.00'},
+      parts: const {'1': 'T 等于 0.10 秒'},
+      savedAt: DateTime.utc(2026, 11, 10, 8),
+    );
+    expect(draft.hasContent, isTrue);
+
+    await store.writeDraft(draft);
+
+    final read = (await store.readDraft('q1'))!;
+    expect(read.cells, {'t1.r1.v': '0.400', 't2.r1.val': '2.00'});
+    expect(read.parts, {'1': 'T 等于 0.10 秒'});
+    expect(read.selected, isEmpty);
+    expect(read.blanks, isEmpty);
+  });
+
   test('只有空白文字不算有内容', () {
     final draft = LocalDraft(
       questionId: 'q1',
@@ -88,6 +106,51 @@ void main() {
       savedAt: DateTime.utc(2026, 11, 10, 8),
     );
     expect(draft.hasContent, isFalse);
+  });
+
+  test('只有空白的格子也不算有内容', () {
+    final draft = LocalDraft(
+      questionId: 'q1',
+      cells: const {'t1.r1.v': '  '},
+      savedAt: DateTime.utc(2026, 11, 10, 8),
+    );
+    expect(draft.hasContent, isFalse);
+  });
+
+  test('只有格子、没有别的内容，也算有内容（不会被当成空草稿丢掉）', () {
+    final draft = LocalDraft(
+      questionId: 'q1',
+      cells: const {'t1.r1.v': '0.4'},
+      savedAt: DateTime.utc(2026, 11, 10, 8),
+    );
+    expect(draft.hasContent, isTrue);
+  });
+
+  test('解答题加入之后、实验题加入之前存下的草稿（有分小问、没有格子）仍然读得出来', () async {
+    await memory.write(
+      'u/u1/draft/q1',
+      jsonEncode({
+        'v': 1,
+        'questionId': 'q1',
+        'sessionId': null,
+        'attemptId': null,
+        'baseRevision': 0,
+        'dirty': true,
+        'answer': {
+          'selected': <String>[],
+          'blanks': <String, String>{},
+          'parts': {'1': '写了一半'},
+        },
+        'strokes': null,
+        'savedAt': '2026-11-10T08:00:00.000Z',
+      }),
+    );
+
+    final read = (await store.readDraft('q1'))!;
+
+    expect(read.parts, {'1': '写了一半'});
+    expect(read.cells, isEmpty);
+    expect(memory.data.keys, ['u/u1/draft/q1'], reason: '没有被当成坏草稿另存');
   });
 
   test('旧版本存下的草稿（没有分小问这一项）仍然读得出来', () async {
@@ -154,56 +217,105 @@ void main() {
     expect(await store.readActive('q1'), isNull);
   });
 
+  Map<String, dynamic> cachedQuestion({bool withDataTables = true}) => {
+    'id': 'q1',
+    'subject': 'math',
+    'type': 'single_choice',
+    'answer_mode': 'single_choice',
+    'difficulty': 2,
+    'title': '测试题',
+    'source': {
+      'source_type': 'self_authored',
+      'source_category': 'foundation',
+      'source_name': null,
+      'source_year': null,
+      'source_license': 'x',
+      'source_url': null,
+      'is_engineering_sample': true,
+      'label': '自编',
+    },
+    'applicability': {
+      'scope': 'general',
+      'label': '全国通用基础题',
+      'recommended_regions': <String>[],
+      'origin_region_code': null,
+      'exam_year_from': null,
+      'exam_year_to': null,
+      'disclaimer': 'x',
+    },
+    'knowledge': <Object>[],
+    'variant_of': null,
+    'version': 1,
+    'grade': null,
+    'content': {
+      'stem': '题干',
+      'options': <Object>[],
+      'blanks': <Object>[],
+      'subquestions': <Object>[],
+      'attachments': <Object>[],
+      if (withDataTables) 'data_tables': <Object>[],
+      if (withDataTables) 'safety': null,
+    },
+    'assists': {
+      'hint_levels': 0,
+      'has_standard_solution': false,
+      'has_fast_solution': false,
+      'visual_available': false,
+    },
+    'judging_note': null,
+  };
+
   test('题目缓存：断网时可以继续显示', () async {
-    final question = Question.fromJson({
-      'id': 'q1',
-      'subject': 'math',
-      'type': 'single_choice',
-      'answer_mode': 'single_choice',
-      'difficulty': 2,
-      'title': '测试题',
-      'source': {
-        'source_type': 'self_authored',
-        'source_category': 'foundation',
-        'source_name': null,
-        'source_year': null,
-        'source_license': 'x',
-        'source_url': null,
-        'is_engineering_sample': true,
-        'label': '自编',
-      },
-      'applicability': {
-        'scope': 'general',
-        'label': '全国通用基础题',
-        'recommended_regions': <String>[],
-        'origin_region_code': null,
-        'exam_year_from': null,
-        'exam_year_to': null,
-        'disclaimer': 'x',
-      },
-      'knowledge': <Object>[],
-      'variant_of': null,
-      'version': 1,
-      'grade': null,
-      'content': {
-        'stem': '题干',
-        'options': <Object>[],
-        'blanks': <Object>[],
-        'subquestions': <Object>[],
-        'attachments': <Object>[],
-      },
-      'assists': {
-        'hint_levels': 0,
-        'has_standard_solution': false,
-        'has_fast_solution': false,
-        'visual_available': false,
-      },
-      'judging_note': null,
-    });
+    final question = Question.fromJson(cachedQuestion());
 
     await store.writeQuestion(question);
 
     expect((await store.readQuestion('q1'))!.title, '测试题');
     expect(await DraftStore(memory, 'u2').readQuestion('q1'), isNull);
+  });
+
+  test('实验题的数据表和安全提示也在题目缓存里，断网时照样显示', () async {
+    final json = cachedQuestion();
+    final content = json['content'] as Map<String, dynamic>;
+    content['data_tables'] = [
+      {
+        'key': 't1',
+        'title': '表 1',
+        'columns': [
+          {'key': 'x', 'label': '距离', 'unit': 'cm'},
+        ],
+        'rows': [
+          {
+            'key': 'r1',
+            'label': 'AB',
+            'cells': [
+              {'col': 'x', 'text': null},
+            ],
+          },
+        ],
+      },
+    ];
+    content['safety'] = {
+      'level': 'low',
+      'notes': ['纸面练习'],
+    };
+    await store.writeQuestion(Question.fromJson(json));
+
+    final read = (await store.readQuestion('q1'))!;
+
+    expect(
+      read.content.dataTables.single.rows.single.cells.single.text,
+      isNull,
+    );
+    expect(read.content.dataTables.single.columns.single.unit, 'cm');
+    expect(read.content.safety!.notes, ['纸面练习']);
+  });
+
+  test('升级前缓存的题目（没有数据表这一项）读不懂时按没缓存处理，不崩溃', () async {
+    memory.data['u/u1/question/q1'] = jsonEncode(
+      cachedQuestion(withDataTables: false),
+    );
+
+    expect(await store.readQuestion('q1'), isNull);
   });
 }

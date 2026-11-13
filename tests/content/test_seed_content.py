@@ -51,13 +51,13 @@ WRITTEN_KEYS = (
 )
 
 
-def test_seed_covers_three_subjects_with_objective_and_written_modes(bundle):
+def test_seed_covers_three_subjects_with_objective_written_and_experiment_modes(bundle):
     combos = {(q["subject"], q["answer_mode"]) for q in bundle.questions}
     assert combos == {
         (subject, mode)
         for subject in ("math", "physics", "chemistry")
         for mode in ("single_choice", "multiple_choice", "fill", "written")
-    }
+    } | {("physics", "experiment"), ("chemistry", "experiment")}  # 数学没有实验题
     written = {q["key"] for q in bundle.questions if q["answer_mode"] == "written"}
     assert written == set(WRITTEN_KEYS)
 
@@ -469,11 +469,7 @@ BROKEN = {
     ),
     "难度越界": ("math-mono-quadratic", _set(["difficulty"], 9), "difficulty"),
     "作答方式不支持": ("math-mono-quadratic", _set(["answer_mode"], "essay"), "answer_mode"),
-    "实验题本阶段不支持": (
-        "math-mono-quadratic",
-        _set(["answer_mode"], "experiment"),
-        "answer_mode",
-    ),
+    "作答方式写错了": ("math-mono-quadratic", _set(["answer_mode"], "experiment"), "answer_mode"),
     # ---- 解答题
     "解答题的题型不对": (
         "math-quadratic-param-written",

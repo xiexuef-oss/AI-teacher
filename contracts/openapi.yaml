@@ -482,10 +482,11 @@ paths:
       summary: 提交作答并返回评估状态
       description: |
         客观题同步判定。判定不了（例如填空等价性无法确认）时 `evaluation.state=uncertain`、`is_correct=null`。
-        解答题（`written`）不自动评分：返回 `state=pending`、`outcome=undetermined`、`is_correct=null`，
-        并产生一条 `uncertainty` 事件（`reason_code=subjective_self_check`）；学生之后用
+        解答题（`written`）和实验题（`experiment`）不自动评分：返回 `state=pending`、`outcome=undetermined`、
+        `is_correct=null`，并产生一条 `uncertainty` 事件（`reason_code=subjective_self_check`）；学生之后用
         `/attempts/{attempt_id}/self-check` 对照要点自查。解答题没有文字（`answer.parts` 全空）
-        也没有已同步的笔迹时返回 422。
+        也没有已同步的笔迹时返回 422；实验题的 `answer.cells`（数据表里学生填的格子，只能是题目留空的）
+        与 `answer.parts` 都没有内容、也没有笔迹时同样返回 422。
         同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
         只有会话里第一次提交、且此前没有看过提示、图解或解析的作答才算 `independent=true`。
       x-implementation-status: implemented
@@ -522,11 +523,12 @@ paths:
     get:
       operationId: getSelfCheck
       tags: [attempts]
-      summary: 解答题提交后的对照自查：要点，以及已保存的自评
+      summary: 解答题、实验题提交后的对照自查：要点，以及已保存的自评
       description: |
-        解答题不自动评分。提交之后，学生对照这份要点清单，给每一条标"做到了 / 做到一部分 / 没做到"。
-        要点只在作答已提交之后才给：提交之前返回 409 `attempt_not_submitted`，独立作答阶段不泄题。
-        不是解答题的作答返回 409 `self_check_not_applicable`。还没有保存过自评时 `marks` 为空、`saved_at` 为 null。
+        解答题和实验题不自动评分。提交之后，学生对照这份要点清单，给每一条标"做到了 / 做到一部分 / 没做到"。
+        要点只在作答已提交之后才给：提交之前返回 409 `attempt_not_submitted`，独立作答阶段不泄题；
+        实验题数据表里留空格子的参考值（`reference_cells`）同样只在提交之后才给。
+        不是解答题或实验题的作答返回 409 `self_check_not_applicable`。还没有保存过自评时 `marks` 为空、`saved_at` 为 null。
         自查是学生自己做的记录，不是官方阅卷分数，也不计入任何正确率。
       x-implementation-status: implemented
       parameters:
@@ -554,7 +556,7 @@ paths:
       summary: 保存对照自查的结果
       description: |
         整体替换：每个要点必须恰好评一次，缺评、重复或不认识的要点返回 422。可以改过再保存。
-        同一幂等键重放返回同一结果。作答没有提交、或不是解答题的情形与 GET 相同，返回 409。
+        同一幂等键重放返回同一结果。作答没有提交、或不是解答题、实验题的情形与 GET 相同，返回 409。
       x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
@@ -1413,7 +1415,9 @@ components:
       type: string
       description: |
         作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定；
-        written（解答题）只保存作答，提交后给对照要点的自查，不自动评分；experiment 尚未开放。
+        written（解答题）只保存作答，提交后给对照要点的自查，不自动评分；
+        experiment（实验题）是带数据表和安全提示的主观题：数据表里留空的格子填在 `answer.cells`，
+        文字作答填在 `answer.parts`，和解答题一样不自动评分、提交后对照要点和参考数据自查。
       enum: [single_choice, multiple_choice, fill, written, experiment]
     SourceType:
       type: string
@@ -1723,10 +1727,80 @@ components:
           type: array
           maxItems: 12
           items: {$ref: '#/components/schemas/QuestionBlank'}
+    ExperimentSafetyLevel:
+      type: string
+      description: |
+        实验的风险分级。low 只涉及常规的低风险操作；medium 需要提醒防护措施；
+        high（高风险）现在不收录：还没有专项审核流程，程序校验会拦住它，不会发给学生。
+      enum: [low, medium, high]
+    ExperimentSafety:
+      type: object
+      additionalProperties: false
+      description: |
+        实验安全提示。每道实验题都必须有，上线前由审核员逐条确认。
+        这是纸面练习，不是操作指导：题目、提示和解法都不给现实操作的步骤诱导。
+      required: [level, notes]
+      properties:
+        level: {$ref: '#/components/schemas/ExperimentSafetyLevel'}
+        notes:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: {type: string, minLength: 1, maxLength: 200}
+    DataTableColumn:
+      type: object
+      additionalProperties: false
+      required: [key, label, unit]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16, pattern: '^[A-Za-z0-9_]+$'}
+        label: {type: string, minLength: 1, maxLength: 40}
+        unit: {type: [string, 'null'], maxLength: 16}
+    DataTableCell:
+      type: object
+      additionalProperties: false
+      required: [col, text]
+      properties:
+        col: {type: string, minLength: 1, maxLength: 16, description: '所在列的键，对应 columns[].key。'}
+        text:
+          type: [string, 'null']
+          maxLength: 40
+          description: |
+            题目给出的数据；null 表示留空，由学生填写（参考值只在提交之后随自查给出）。
+            字段不叫 value：题目接口里不允许出现名为 value 的键，答案类的字段都叫这个名字。
+    DataTableRow:
+      type: object
+      additionalProperties: false
+      required: [key, label, cells]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16, pattern: '^[A-Za-z0-9_]+$'}
+        label: {type: [string, 'null'], maxLength: 40}
+        cells:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items: {$ref: '#/components/schemas/DataTableCell'}
+    DataTable:
+      type: object
+      additionalProperties: false
+      description: 实验题的数据表。格子由 (表键, 行键, 列键) 唯一确定；text 为 null 的格子由学生填写。
+      required: [key, title, columns, rows]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16, pattern: '^[A-Za-z0-9_]+$'}
+        title: {type: string, minLength: 1, maxLength: 120}
+        columns:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items: {$ref: '#/components/schemas/DataTableColumn'}
+        rows:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items: {$ref: '#/components/schemas/DataTableRow'}
     QuestionContent:
       type: object
       additionalProperties: false
-      required: [stem, options, blanks, subquestions, attachments]
+      required: [stem, options, blanks, subquestions, attachments, data_tables, safety]
       properties:
         stem: {type: string, maxLength: 4000, description: 题干。纯文本，行内公式用 $...$ 包裹的 LaTeX。}
         options:
@@ -1745,6 +1819,16 @@ components:
           type: array
           maxItems: 20
           items: {$ref: '#/components/schemas/QuestionAttachment'}
+        data_tables:
+          type: array
+          maxItems: 5
+          description: 实验题的数据表；其他题型为空数组。
+          items: {$ref: '#/components/schemas/DataTable'}
+        safety:
+          description: 实验题的安全提示；其他题型为 null。
+          oneOf:
+            - {$ref: '#/components/schemas/ExperimentSafety'}
+            - {type: 'null'}
     QuestionAssists:
       type: object
       additionalProperties: false
@@ -1895,10 +1979,20 @@ components:
       properties:
         key: {type: string, minLength: 1, maxLength: 16}
         value: {type: string, maxLength: 200}
+    AnswerCell:
+      type: object
+      additionalProperties: false
+      description: 实验题数据表里的一个格子：学生填写的数（作答），或提交之后给出的参考值（自查）。
+      required: [table, row, col, value]
+      properties:
+        table: {type: string, minLength: 1, maxLength: 16, description: '数据表的键，对应 content.data_tables[].key。'}
+        row: {type: string, minLength: 1, maxLength: 16, description: '行键，对应 rows[].key。'}
+        col: {type: string, minLength: 1, maxLength: 16, description: '列键，对应 columns[].key。'}
+        value: {type: string, maxLength: 40}
     AnswerPart:
       type: object
       additionalProperties: false
-      description: 解答题某一小问的文字作答。
+      description: 解答题、实验题某一小问的文字作答。
       required: [key, text]
       properties:
         key: {type: string, minLength: 1, maxLength: 16, description: '小问键，对应题目 content.subquestions 里的 key。'}
@@ -1907,8 +2001,10 @@ components:
       type: object
       additionalProperties: false
       description: |
-        按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts。
-        解答题可以只写部分小问，也可以只有笔迹（笔迹随草稿同步，不在这里）；文字和笔迹都没有时提交返回 422。
+        按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts，
+        实验题用 cells（数据表里留空的格子）和 parts（文字小问）。
+        解答题、实验题可以只写一部分，也可以只有笔迹（笔迹随草稿同步，不在这里）；
+        文字、格子和笔迹都没有时提交返回 422。
       properties:
         selected_options:
           type: array
@@ -1923,6 +2019,11 @@ components:
           type: array
           maxItems: 20
           items: {$ref: '#/components/schemas/AnswerPart'}
+        cells:
+          type: array
+          maxItems: 200
+          description: 实验题数据表里学生填写的格子；只能是题目留空的格子，同一个格子只能填一次。
+          items: {$ref: '#/components/schemas/AnswerCell'}
         text: {type: [string, 'null'], maxLength: 4000}
     Stroke:
       type: object
@@ -2073,7 +2174,7 @@ components:
             - {$ref: '#/components/schemas/ReviewItem'}
             - {type: 'null'}
 
-    # ------------------------------------------------------------ 解答题自查
+    # ------------------------------------------------------------ 解答题、实验题自查
     SelfCheckLevel:
       type: string
       description: 学生对照一个要点的自评：done 做到了，partial 做到一部分，missed 没做到。
@@ -2085,7 +2186,7 @@ components:
       required: [key, part, text]
       properties:
         key: {type: string, minLength: 1, maxLength: 16}
-        part: {type: [string, 'null'], description: 对应的小问键；null 表示对整份解答的要求。}
+        part: {type: [string, 'null'], description: 对应的小问键或数据表键；null 表示对整份作答的要求。}
         text: {type: string, maxLength: 200}
     SelfCheckMark:
       type: object
@@ -2117,13 +2218,20 @@ components:
     SelfCheck:
       type: object
       additionalProperties: false
-      required: [attempt_id, points, marks, summary, saved_at, disclaimer]
+      required: [attempt_id, points, reference_cells, marks, summary, saved_at, disclaimer]
       properties:
         attempt_id: {type: string, format: uuid}
         points:
           type: array
           maxItems: 40
           items: {$ref: '#/components/schemas/SelfCheckPoint'}
+        reference_cells:
+          type: array
+          maxItems: 200
+          description: |
+            实验题数据表里留空格子的参考值，让学生把自己填的数和它对照。只在提交之后给；
+            它只是对照用的参考，不是评分，也不参与任何判定。解答题为空数组。
+          items: {$ref: '#/components/schemas/AnswerCell'}
         marks:
           type: array
           maxItems: 40
@@ -2265,11 +2373,11 @@ components:
       type: object
       additionalProperties: false
       description: |
-        解答题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份，
+        解答题和实验题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份，
         以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
       required: [attempts, self_checked, points_done, points_partial, points_missed]
       properties:
-        attempts: {type: integer, minimum: 0, description: 已提交的解答题作答数。}
+        attempts: {type: integer, minimum: 0, description: 已提交的解答题和实验题作答数。}
         self_checked: {type: integer, minimum: 0, description: 其中保存了自查的作答数。}
         points_done: {type: integer, minimum: 0}
         points_partial: {type: integer, minimum: 0}
@@ -2302,7 +2410,7 @@ components:
         uncertain_attempts:
           type: integer
           minimum: 0
-          description: 客观题里未能确定判定、因此没有计入任何正确率的提交数。解答题本来就不自动评分，不算在这里。
+          description: 客观题里未能确定判定、因此没有计入任何正确率的提交数。解答题和实验题本来就不自动评分，不算在这里。
         subjective: {$ref: '#/components/schemas/SubjectiveProgress'}
         by_subject:
           type: array
@@ -2507,7 +2615,7 @@ components:
         assisted: {$ref: '#/components/schemas/RateStat'}
         hint_dependency: {$ref: '#/components/schemas/RateStat'}
         retest_success: {$ref: '#/components/schemas/RateStat'}
-        written_attempts: {type: integer, minimum: 0, description: 这一周提交的解答题数。解答题不自动评分，不进上面任何一个比例。}
+        written_attempts: {type: integer, minimum: 0, description: 这一周提交的解答题和实验题数（字段名沿用）。它们不自动评分，不进上面任何一个比例。}
         independent_trend: {$ref: '#/components/schemas/WeeklyTrend'}
         previous_week: {$ref: '#/components/schemas/PreviousWeek'}
         by_subject:
@@ -2593,7 +2701,7 @@ components:
       required: [value, equivalence_rules, units]
       properties:
         value:
-          description: '选择题为选项键数组；填空题为 {空位键: 标准答案}；解答题为 {小问键: 参考答案文字}，只用于对照，不参与自动判定。'
+          description: '选择题为选项键数组；填空题为 {空位键: 标准答案}；解答题为 {小问键: 参考答案文字}；实验题为 {小问键: 参考答案文字, "表键.行键.列键": 参考值}，都只用于对照，不参与自动判定。'
         equivalence_rules:
           type: object
           description: 填空题每个空位的等价判定规则。

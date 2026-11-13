@@ -5,7 +5,7 @@
   "status": 200,
   "schema": "StudentProfile",
   "value": {
-    "user_id": "a8cde7a7-18b2-47aa-a6b2-446d1811d350",
+    "user_id": "c3162028-1e6c-4226-8e96-e799621a75dd",
     "display_name": null,
     "region_code": "CN-51",
     "grade": "G12",
@@ -33,7 +33,7 @@
   },
   "body": {
     "data": {
-      "user_id": "a8cde7a7-18b2-47aa-a6b2-446d1811d350",
+      "user_id": "c3162028-1e6c-4226-8e96-e799621a75dd",
       "display_name": null,
       "region_code": "CN-51",
       "grade": "G12",

@@ -175,6 +175,40 @@ class QuestionAttachment(BaseModel):
     alt: str
 
 
+ExperimentSafetyLevel = Literal["low", "medium", "high"]
+
+
+class ExperimentSafety(BaseModel):
+    level: ExperimentSafetyLevel
+    notes: list[str]
+
+
+class DataTableColumn(BaseModel):
+    key: str
+    label: str
+    unit: str | None = None
+
+
+class DataTableCell(BaseModel):
+    col: str
+    # None 表示留空，由学生填写；参考值不在这里，只在提交之后随自查给出。
+    # 不叫 value：题目接口里不允许出现名为 value 的键（答案类的字段都叫它）
+    text: str | None = None
+
+
+class DataTableRow(BaseModel):
+    key: str
+    label: str | None = None
+    cells: list[DataTableCell]
+
+
+class DataTable(BaseModel):
+    key: str
+    title: str
+    columns: list[DataTableColumn]
+    rows: list[DataTableRow]
+
+
 class Subquestion(BaseModel):
     key: str
     stem: str
@@ -189,6 +223,8 @@ class QuestionContent(BaseModel):
     blanks: list[QuestionBlank] = Field(default_factory=list)
     subquestions: list[Subquestion] = Field(default_factory=list)
     attachments: list[QuestionAttachment] = Field(default_factory=list)
+    data_tables: list[DataTable] = Field(default_factory=list)
+    safety: ExperimentSafety | None = None
 
 
 class QuestionAssists(BaseModel):
@@ -440,16 +476,26 @@ class AnswerBlank(_In):
 
 
 class AnswerPart(_In):
-    """解答题某一小问的文字作答。"""
+    """解答题、实验题某一小问的文字作答。"""
 
     key: str = Field(min_length=1, max_length=16)
     text: str = Field(max_length=4000)
+
+
+class AnswerCell(_In):
+    """实验题数据表里的一个格子：学生填的数（作答），或提交之后给出的参考值（自查）。"""
+
+    table: str = Field(min_length=1, max_length=16)
+    row: str = Field(min_length=1, max_length=16)
+    col: str = Field(min_length=1, max_length=16)
+    value: str = Field(max_length=40)
 
 
 class AnswerPayload(_In):
     selected_options: list[str] | None = Field(default=None, max_length=10)
     blanks: list[AnswerBlank] | None = Field(default=None, max_length=10)
     parts: list[AnswerPart] | None = Field(default=None, max_length=20)
+    cells: list[AnswerCell] | None = Field(default=None, max_length=200)
     text: str | None = Field(default=None, max_length=4000)
 
     @field_validator("selected_options")
@@ -558,7 +604,7 @@ class SubmitResult(BaseModel):
     review_item: ReviewItemOut | None
 
 
-# ---------------------------------------------------------------- 解答题自查
+# ---------------------------------------------------------------- 解答题、实验题自查
 
 SelfCheckLevel = Literal["done", "partial", "missed"]
 
@@ -593,6 +639,8 @@ class SelfCheckSummary(BaseModel):
 class SelfCheckOut(BaseModel):
     attempt_id: str
     points: list[SelfCheckPoint]
+    # 实验题数据表里留空格子的参考值，只在提交之后给；解答题为空
+    reference_cells: list[AnswerCell]
     marks: list[SelfCheckMark]
     summary: SelfCheckSummary
     saved_at: datetime | None
@@ -774,12 +822,45 @@ class SubquestionIn(_In, Subquestion):
     blanks: list[QuestionBlankIn] = Field(default_factory=list, max_length=12)
 
 
+TableKey = Annotated[str, Field(min_length=1, max_length=16, pattern=r"^[A-Za-z0-9_]+$")]
+
+
+class ExperimentSafetyIn(_In, ExperimentSafety):
+    notes: list[Text200] = Field(min_length=1, max_length=8)
+
+
+class DataTableColumnIn(_In, DataTableColumn):
+    key: TableKey
+    label: str = Field(min_length=1, max_length=40)
+    unit: str | None = Field(default=None, max_length=16)
+
+
+class DataTableCellIn(_In, DataTableCell):
+    col: str = Field(min_length=1, max_length=16)
+    text: str | None = Field(default=None, max_length=40)
+
+
+class DataTableRowIn(_In, DataTableRow):
+    key: TableKey
+    label: str | None = Field(default=None, max_length=40)
+    cells: list[DataTableCellIn] = Field(min_length=1, max_length=12)
+
+
+class DataTableIn(_In, DataTable):
+    key: TableKey
+    title: str = Field(min_length=1, max_length=120)
+    columns: list[DataTableColumnIn] = Field(min_length=1, max_length=12)
+    rows: list[DataTableRowIn] = Field(min_length=1, max_length=30)
+
+
 class QuestionContentIn(_In, QuestionContent):
     stem: Text4000
     options: list[QuestionOptionIn] = Field(default_factory=list, max_length=12)
     blanks: list[QuestionBlankIn] = Field(default_factory=list, max_length=12)
     subquestions: list[SubquestionIn] = Field(default_factory=list, max_length=20)
     attachments: list[QuestionAttachmentIn] = Field(default_factory=list, max_length=20)
+    data_tables: list[DataTableIn] = Field(default_factory=list, max_length=5)
+    safety: ExperimentSafetyIn | None = None
 
 
 class AdminAnswerIn(_In, AdminAnswer):

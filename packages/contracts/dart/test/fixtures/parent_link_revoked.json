@@ -1,12 +1,12 @@
 {
   "name": "parent_link_revoked",
   "method": "POST",
-  "path": "/api/v1/me/parent-links/1b942573-0fb3-44e4-a194-2dea1c674fe1/revoke",
+  "path": "/api/v1/me/parent-links/91fc8c64-0243-47cb-91c6-baea7bcc86b1/revoke",
   "status": 200,
   "schema": "ParentLink",
   "value": {
-    "id": "1b942573-0fb3-44e4-a194-2dea1c674fe1",
-    "parent_id": "59f708a6-7cf2-4a9c-84c7-bb35a3e31a9b",
+    "id": "91fc8c64-0243-47cb-91c6-baea7bcc86b1",
+    "parent_id": "aa68679b-2576-404a-b092-4d6378603451",
     "parent_label": null,
     "consent_at": "2026-11-11T08:00:00Z",
     "linked_at": "2026-11-11T08:00:00Z",
@@ -14,8 +14,8 @@
   },
   "body": {
     "data": {
-      "id": "1b942573-0fb3-44e4-a194-2dea1c674fe1",
-      "parent_id": "59f708a6-7cf2-4a9c-84c7-bb35a3e31a9b",
+      "id": "91fc8c64-0243-47cb-91c6-baea7bcc86b1",
+      "parent_id": "aa68679b-2576-404a-b092-4d6378603451",
       "parent_label": null,
       "consent_at": "2026-11-11T08:00:00Z",
       "linked_at": "2026-11-11T08:00:00Z",

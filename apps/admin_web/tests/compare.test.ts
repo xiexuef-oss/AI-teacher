@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compareSnapshots, jsonLines, type FieldDiff } from '../src/compare'
-import { FAST, snapshot, solution, writtenDetail } from './fixtures'
+import { experimentDetail, FAST, snapshot, solution, writtenDetail } from './fixtures'
 
 const field = (comparison: ReturnType<typeof compareSnapshots>, key: string): FieldDiff => {
   for (const section of comparison.sections) {
@@ -230,5 +230,72 @@ describe('jsonLines', () => {
     expect(jsonLines({})).toEqual([])
     expect(jsonLines([])).toEqual([])
     expect(jsonLines(null)).toEqual([])
+  })
+})
+
+/** 实验题的快照：内容取自 experimentDetail()。 */
+function experimentSnapshot(overrides: Parameters<typeof snapshot>[0] = {}) {
+  const base = experimentDetail()
+  return snapshot({
+    title: base.title,
+    content: base.content,
+    answer: base.answer,
+    teaching: base.teaching,
+    solutions: base.solutions,
+    rubric: base.rubric,
+    ...overrides,
+  })
+}
+
+describe('实验题的对比', () => {
+  it('数据表逐行对比：改了哪个格子一眼能看出；留空的格子写"（留空）"', () => {
+    const left = experimentSnapshot()
+    const tables = structuredClone(left.content.data_tables)
+    tables[0]!.rows[0]!.cells[1]!.text = '4.10'
+    const right = experimentSnapshot({ version: 2, is_current: false, content: { ...left.content, data_tables: tables } })
+
+    const diff = compareSnapshots(left, right)
+
+    const tablesField = diff.sections.find((item) => item.key === 'content')!.fields.find((item) => item.key === 'data_tables')!
+    expect(tablesField.changed).toBe(true)
+    expect(tablesField.rows.filter((row) => row.kind !== 'same').length).toBeGreaterThan(0)
+    expect(JSON.stringify(tablesField.rows)).toContain('v=（留空）')
+    expect(JSON.stringify(tablesField.rows)).toContain('x=4.10')
+    expect(diff.changedTitles).toEqual(['题面'])
+  })
+
+  it('安全提示的改动单独成一行：风险等级和每条提示', () => {
+    const left = experimentSnapshot()
+    const right = experimentSnapshot({
+      version: 2,
+      is_current: false,
+      content: { ...left.content, safety: { level: 'medium', notes: [...left.content.safety!.notes, '戴护目镜'] } },
+    })
+
+    const field = compareSnapshots(left, right).sections.find((item) => item.key === 'content')!.fields.find((item) => item.key === 'safety')!
+
+    expect(field.changed).toBe(true)
+    expect(JSON.stringify(field.rows)).toContain('风险等级｜medium')
+    expect(JSON.stringify(field.rows)).toContain('提示｜戴护目镜')
+  })
+
+  it('没改的实验题：没有任何部分有改动；自查要点里针对数据表的写成"数据表 t1"', () => {
+    const left = experimentSnapshot()
+    const right = experimentSnapshot({ version: 2, is_current: false })
+
+    const diff = compareSnapshots(left, right)
+
+    expect(diff.changed).toBe(false)
+    const rubric = diff.sections.find((item) => item.key === 'rubric')!.fields[0]!
+    expect(JSON.stringify(rubric.rows)).toContain('p1｜数据表 t1｜')
+    expect(JSON.stringify(rubric.rows)).toContain('p2｜第 1 问｜')
+  })
+
+  it('选择题没有数据表和安全提示：这两行没有内容，也不算改动', () => {
+    const diff = compareSnapshots(snapshot(), snapshot({ version: 2, is_current: false }))
+
+    const content = diff.sections.find((item) => item.key === 'content')!
+    expect(content.fields.find((item) => item.key === 'data_tables')!.rows).toEqual([])
+    expect(content.fields.find((item) => item.key === 'safety')!.changed).toBe(false)
   })
 })

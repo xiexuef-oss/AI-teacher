@@ -1,14 +1,14 @@
 {
   "name": "session_events",
   "method": "GET",
-  "path": "/api/v1/sessions/b139a884-6b8e-4118-8cd4-f149be7c580e/events",
+  "path": "/api/v1/sessions/3832e58a-7114-4e0b-a71c-0fab056f68fc/events",
   "status": 200,
   "schema": "TutorEventPage",
   "value": {
     "items": [
       {
-        "id": "29861c46-c6c9-4973-81e9-da4d6acee481",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "9bb25d9b-f41f-4d95-a4de-5bcd203168bf",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 1,
         "type": "hint",
         "created_at": "2026-11-10T08:00:00Z",
@@ -30,12 +30,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "4f2b668f710c4dc3bfb78c70a6a42ea2"
+          "request_id": "8fea5579ce0e41168a36fb90a502993a"
         }
       },
       {
-        "id": "ec11a2bf-4459-4dde-8651-b9e42b388d75",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "51d6419b-8406-4431-aa49-e51696408dbe",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 2,
         "type": "visual",
         "created_at": "2026-11-10T08:00:00Z",
@@ -60,12 +60,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "9154ac9e8c274bd8aee378e0298a5b43"
+          "request_id": "367a05c460de4f6dbb2c8ffe31ec07d0"
         }
       },
       {
-        "id": "7c8828d1-a4da-4356-879e-6e52cb76e379",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "3f32ef30-7968-4858-8b0b-395d310d6a9c",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 3,
         "type": "diagnosis",
         "created_at": "2026-11-10T08:00:00Z",
@@ -123,12 +123,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "d26c432e04b84e8abc13ddf6fa8c4bd9"
+          "request_id": "3cf97d343b13452991075dfd75ca793c"
         }
       },
       {
-        "id": "60c3875d-4dbb-4c19-9ef0-ba836c064b8e",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "42814254-1229-4896-a2de-2f844e4d7ca0",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 4,
         "type": "standard",
         "created_at": "2026-11-10T08:00:00Z",
@@ -184,12 +184,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "c4e21614190e49cca8c503e2f079f5b9"
+          "request_id": "07d72d1cb2344e5f8a9274bd95370c44"
         }
       },
       {
-        "id": "e0a4521d-8da9-4ea2-b02f-d568382ff6da",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "34981450-1e46-435b-9a84-02bb8599137b",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 5,
         "type": "fast",
         "created_at": "2026-11-10T08:00:00Z",
@@ -222,12 +222,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "bd215660d23340e8af51d2d398bbdd8a"
+          "request_id": "f749256b49e340c48b6aa63475c2dfb7"
         }
       },
       {
-        "id": "d4ac82ad-aeea-4436-bd34-f485d624f0af",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "9bf3daa1-4103-405c-b3b1-c1a04bc5dba5",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 6,
         "type": "ask",
         "created_at": "2026-11-10T08:00:00Z",
@@ -259,12 +259,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "145ee95b2eb64ed5b3f1cbf28904638f"
+          "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
         }
       },
       {
-        "id": "7c4bb4bc-5eb7-4dde-a5a3-4772105690e6",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "5f9ab43c-6229-489f-987d-617df814b366",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 7,
         "type": "notice",
         "created_at": "2026-11-10T08:00:00Z",
@@ -284,12 +284,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "145ee95b2eb64ed5b3f1cbf28904638f"
+          "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
         }
       },
       {
-        "id": "2651c07b-e933-4f1c-a01a-c89d569e56f0",
-        "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+        "id": "1376accc-6bb9-4bb9-b9e5-2fb10f91c04a",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
         "seq_no": 8,
         "type": "notice",
         "created_at": "2026-11-10T08:00:00Z",
@@ -309,7 +309,7 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "145ee95b2eb64ed5b3f1cbf28904638f"
+          "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
         }
       }
     ],
@@ -319,8 +319,8 @@
     "data": {
       "items": [
         {
-          "id": "29861c46-c6c9-4973-81e9-da4d6acee481",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "9bb25d9b-f41f-4d95-a4de-5bcd203168bf",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 1,
           "type": "hint",
           "created_at": "2026-11-10T08:00:00Z",
@@ -342,12 +342,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "4f2b668f710c4dc3bfb78c70a6a42ea2"
+            "request_id": "8fea5579ce0e41168a36fb90a502993a"
           }
         },
         {
-          "id": "ec11a2bf-4459-4dde-8651-b9e42b388d75",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "51d6419b-8406-4431-aa49-e51696408dbe",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 2,
           "type": "visual",
           "created_at": "2026-11-10T08:00:00Z",
@@ -372,12 +372,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "9154ac9e8c274bd8aee378e0298a5b43"
+            "request_id": "367a05c460de4f6dbb2c8ffe31ec07d0"
           }
         },
         {
-          "id": "7c8828d1-a4da-4356-879e-6e52cb76e379",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "3f32ef30-7968-4858-8b0b-395d310d6a9c",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 3,
           "type": "diagnosis",
           "created_at": "2026-11-10T08:00:00Z",
@@ -435,12 +435,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "d26c432e04b84e8abc13ddf6fa8c4bd9"
+            "request_id": "3cf97d343b13452991075dfd75ca793c"
           }
         },
         {
-          "id": "60c3875d-4dbb-4c19-9ef0-ba836c064b8e",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "42814254-1229-4896-a2de-2f844e4d7ca0",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 4,
           "type": "standard",
           "created_at": "2026-11-10T08:00:00Z",
@@ -496,12 +496,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "c4e21614190e49cca8c503e2f079f5b9"
+            "request_id": "07d72d1cb2344e5f8a9274bd95370c44"
           }
         },
         {
-          "id": "e0a4521d-8da9-4ea2-b02f-d568382ff6da",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "34981450-1e46-435b-9a84-02bb8599137b",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 5,
           "type": "fast",
           "created_at": "2026-11-10T08:00:00Z",
@@ -534,12 +534,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "bd215660d23340e8af51d2d398bbdd8a"
+            "request_id": "f749256b49e340c48b6aa63475c2dfb7"
           }
         },
         {
-          "id": "d4ac82ad-aeea-4436-bd34-f485d624f0af",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "9bf3daa1-4103-405c-b3b1-c1a04bc5dba5",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 6,
           "type": "ask",
           "created_at": "2026-11-10T08:00:00Z",
@@ -571,12 +571,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "145ee95b2eb64ed5b3f1cbf28904638f"
+            "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
           }
         },
         {
-          "id": "7c4bb4bc-5eb7-4dde-a5a3-4772105690e6",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "5f9ab43c-6229-489f-987d-617df814b366",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 7,
           "type": "notice",
           "created_at": "2026-11-10T08:00:00Z",
@@ -596,12 +596,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "145ee95b2eb64ed5b3f1cbf28904638f"
+            "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
           }
         },
         {
-          "id": "2651c07b-e933-4f1c-a01a-c89d569e56f0",
-          "session_id": "b139a884-6b8e-4118-8cd4-f149be7c580e",
+          "id": "1376accc-6bb9-4bb9-b9e5-2fb10f91c04a",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
           "seq_no": 8,
           "type": "notice",
           "created_at": "2026-11-10T08:00:00Z",
@@ -621,7 +621,7 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "145ee95b2eb64ed5b3f1cbf28904638f"
+            "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
           }
         }
       ],

@@ -16,6 +16,10 @@ String answerModeName(AnswerMode mode) => switch (mode) {
   AnswerMode.$unknown => '题目',
 };
 
+/// 不自动评分、提交后由学生对照要点自查的题（解答题、实验题）。
+bool isSubjectiveMode(AnswerMode? mode) =>
+    mode == AnswerMode.written || mode == AnswerMode.experiment;
+
 String taskKindName(TaskKind kind) => switch (kind) {
   TaskKind.newTopic => '新题',
   TaskKind.reviewMistake => '复习旧错题',

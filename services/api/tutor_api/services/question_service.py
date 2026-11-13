@@ -62,6 +62,10 @@ _JUDGING_NOTES = {
     ),
 }
 _WRITTEN_NOTE = "解答题不自动评分：提交后对照要点自己检查一遍。这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+_EXPERIMENT_NOTE = (
+    "实验题不自动评分：数据表里的数和文字作答提交后，对照参考数据和要点自己检查一遍。"
+    "这是练习用的自查，不是官方阅卷分数，也不会计入正确率；题目是纸面练习，不是操作指导。"
+)
 
 
 @dataclass(frozen=True)
@@ -250,6 +254,20 @@ def get_rubric(db: Session, question_id: str, version: int) -> dict[str, Any]:
     return dict(row.rubric_json) if row else {}
 
 
+def content_from_json(content: dict[str, Any]) -> QuestionContent:
+    """库里存的一版题目内容 → 题面。只取渲染题面需要的字段；答案、解法、提示都留在服务端，
+    实验题数据表里留空的格子没有值（参考值只在提交之后随自查给出）。"""
+    return QuestionContent(
+        stem=content["stem"],
+        options=content.get("options") or [],
+        blanks=content.get("blanks") or [],
+        subquestions=content.get("subquestions") or [],
+        attachments=content.get("attachments") or [],
+        data_tables=content.get("data_tables") or [],
+        safety=content.get("safety"),
+    )
+
+
 def build_assists(db: Session, question: Question, version: QuestionVersion) -> QuestionAssists:
     teaching = version.teaching_json or {}
     standard = get_solution(db, question.id, version.version, "standard")
@@ -293,18 +311,13 @@ def serialize_question(db: Session, question: Question, scope: StudentScope) -> 
         judging_note = _JUDGING_NOTES[rubric.get("multi_choice_rule") or "all_or_nothing"]
     elif question.answer_mode == "written":
         judging_note = _WRITTEN_NOTE
+    elif question.answer_mode == "experiment":
+        judging_note = _EXPERIMENT_NOTE
     return QuestionOut(
         **_summary_fields(question, version, tags, knowledge, scope),
         version=version.version,
         grade=question.grade,
-        # 只取渲染题面需要的字段；答案、解法、提示都留在服务端
-        content=QuestionContent(
-            stem=content["stem"],
-            options=content.get("options") or [],
-            blanks=content.get("blanks") or [],
-            subquestions=content.get("subquestions") or [],
-            attachments=content.get("attachments") or [],
-        ),
+        content=content_from_json(content),
         assists=build_assists(db, question, version),
         judging_note=judging_note,
     )

@@ -1,7 +1,7 @@
 {
   "name": "error_weekly_revoked",
   "method": "GET",
-  "path": "/api/v1/parents/students/a8cde7a7-18b2-47aa-a6b2-446d1811d350/weekly",
+  "path": "/api/v1/parents/students/c3162028-1e6c-4226-8e96-e799621a75dd/weekly",
   "status": 404,
   "schema": "ErrorEnvelope",
   "value": {
@@ -9,7 +9,7 @@
       "code": "not_found",
       "message": "资源不存在",
       "details": {},
-      "request_id": "4f7700cb4b0c429a9cae9b6ac6b5d1bb"
+      "request_id": "c3c74512473d4c319ae4d3a48378f576"
     }
   },
   "body": {
@@ -17,7 +17,7 @@
       "code": "not_found",
       "message": "资源不存在",
       "details": {},
-      "request_id": "4f7700cb4b0c429a9cae9b6ac6b5d1bb"
+      "request_id": "c3c74512473d4c319ae4d3a48378f576"
     }
   }
 }
