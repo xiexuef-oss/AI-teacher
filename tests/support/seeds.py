@@ -13,7 +13,8 @@ def qid(key: str) -> str:
 SICHUAN_TAGGED = {"math-mono-quadratic", "phys-force-analysis"}  # CN-51，考试年份 2027–2029
 SICHUAN_LATER_YEARS = {"chem-charge-conservation"}  # CN-51，考试年份 2030–2031
 CHONGQING_TAGGED = {"math-ineq-rect", "phys-tape-accel", "chem-lab-operation"}  # CN-50，2027–2029
-ALL_KEYS = {
+# 可以由服务端确定性判定的样题（单选、多选、填空）
+OBJECTIVE_KEYS = {
     "math-mono-quadratic",
     "math-mono-quadratic-v1",
     "math-mono-judge",
@@ -32,6 +33,13 @@ ALL_KEYS = {
     "chem-ion-inference",
     "chem-lab-operation",
 }
+# 解答题：不自动评分，作答后对照要点自查（PRD P0 第 3、4 条）。都没有地区标签，是通用题
+WRITTEN_KEYS = {
+    "math-quadratic-param-written",
+    "phys-pull-friction-written",
+    "chem-ion-equation-written",
+}
+ALL_KEYS = OBJECTIVE_KEYS | WRITTEN_KEYS  # 所有已发布的样题
 GENERAL_KEYS = ALL_KEYS - SICHUAN_TAGGED - SICHUAN_LATER_YEARS - CHONGQING_TAGGED
 KEY_BY_ID = {qid(key): key for key in ALL_KEYS}
 

@@ -5,7 +5,7 @@
   "status": 200,
   "schema": "StudentProfile",
   "value": {
-    "user_id": "1223464c-16a7-40a5-910c-7522e23fa895",
+    "user_id": "54f9a352-3c01-48a5-abe3-5ae450766187",
     "display_name": null,
     "region_code": null,
     "grade": null,
@@ -20,7 +20,7 @@
   },
   "body": {
     "data": {
-      "user_id": "1223464c-16a7-40a5-910c-7522e23fa895",
+      "user_id": "54f9a352-3c01-48a5-abe3-5ae450766187",
       "display_name": null,
       "region_code": null,
       "grade": null,

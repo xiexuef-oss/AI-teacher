@@ -63,6 +63,12 @@ def get_draft(db: Session, attempt_id: str) -> HandwritingDraft:
     return draft
 
 
+def _has_ink(draft: HandwritingDraft) -> bool:
+    """草稿里至少有一笔。只有空白页不算。"""
+    pages = (draft.strokes_json or {}).get("pages") or []
+    return any(page.get("strokes") for page in pages)
+
+
 def submitted_count(db: Session, session_id: str) -> int:
     return (
         db.scalar(
@@ -298,6 +304,8 @@ def submit_attempt(
             rubric=question_service.get_rubric(db, question.id, version.version),
             teaching=teaching,
             answer=answer,
+            # 解答题可以只手写、不打字：笔迹随草稿同步，这里看草稿里有没有笔迹
+            has_ink=_has_ink(get_draft(db, attempt.id)),
         )
     except grading.AnswerShapeError as error:
         raise unprocessable(error.field, error.message) from error

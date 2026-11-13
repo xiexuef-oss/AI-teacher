@@ -23,16 +23,38 @@ const savedVersion = ref<number | null>(null)
 const editing = ref(false)
 
 const id = computed(() => String(route.params.id ?? ''))
+const isWritten = computed(() => detail.value?.answer_mode === 'written')
 const answerRows = computed<[string, string][]>(() => {
   const value = detail.value?.answer.value
   if (Array.isArray(value)) return [['正确选项', value.map(String).join('、')]]
   if (value && typeof value === 'object') {
+    const label = isWritten.value ? (key: string) => `第 ${key} 问` : (key: string) => `空 ${key}`
     return Object.entries(value as Record<string, unknown>).map(([key, answer]) => [
-      `空 ${key}`,
+      label(key),
       String(answer),
     ])
   }
   return []
+})
+
+interface PointGroup {
+  heading: string
+  points: { key: string; text: string }[]
+}
+
+/** 解答题的自查要点，按所属小问分组（整份解答的放在最后）。 */
+const pointGroups = computed<PointGroup[]>(() => {
+  const raw = (detail.value?.rubric as { points?: unknown } | undefined)?.points
+  if (!Array.isArray(raw)) return []
+  const groups = new Map<string, PointGroup>()
+  for (const item of raw as { key?: unknown; part?: unknown; text?: unknown }[]) {
+    const part = typeof item.part === 'string' ? item.part : ''
+    const group = groups.get(part) ?? { heading: part === '' ? '整份解答' : `第 ${part} 问`, points: [] }
+    group.points.push({ key: String(item.key ?? ''), text: String(item.text ?? '') })
+    groups.set(part, group)
+  }
+  const ordered = [...groups.entries()].sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : 0))
+  return ordered.map(([, group]) => group)
 })
 const visualParams = computed(() =>
   Object.entries(detail.value?.teaching.visual?.params ?? {})
@@ -162,6 +184,12 @@ function saved(next: AdminQuestionDetail): void {
               <span v-if="blank.unit_hint" class="muted">（{{ blank.unit_hint }}）</span>
             </li>
           </ul>
+          <ul v-if="detail.content.subquestions.length" class="options" data-testid="subquestions-view">
+            <li v-for="(sub, index) in detail.content.subquestions" :key="sub.key">
+              <strong>（{{ index + 1 }}）</strong> <MathText :text="sub.stem" />
+              <span class="muted small mono">键 {{ sub.key }}</span>
+            </li>
+          </ul>
         </section>
 
         <section class="card">
@@ -184,6 +212,23 @@ function saved(next: AdminQuestionDetail): void {
               )
             }}</pre>
           </details>
+        </section>
+
+        <section v-if="isWritten" class="card" data-testid="rubric-points">
+          <h2>自查要点</h2>
+          <p class="muted small">
+            提交后给学生对照自查的清单。解答题不自动评分，要点不带分值，不是评分标准；学生自己标"做到了 / 做到一部分 /
+            没做到"。
+          </p>
+          <template v-for="group in pointGroups" :key="group.heading">
+            <h3 class="small">{{ group.heading }}</h3>
+            <ul class="points">
+              <li v-for="point in group.points" :key="point.key">
+                <MathText :text="point.text" /> <span class="muted small mono">{{ point.key }}</span>
+              </li>
+            </ul>
+          </template>
+          <p v-if="pointGroups.length === 0" class="bad">还没有自查要点：学生提交后没有东西可以对照。</p>
         </section>
 
         <section

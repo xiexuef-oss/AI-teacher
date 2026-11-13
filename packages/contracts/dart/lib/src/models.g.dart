@@ -140,7 +140,7 @@ enum QuestionType {
   String toJson() => value;
 }
 
-/// 作答区的渲染方式。本阶段只实现 single_choice、multiple_choice、fill 的判定。
+/// 作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定； written（解答题）只保存作答，提交后给对照要点的自查，不自动评分；experiment 尚未开放。
 enum AnswerMode {
   singleChoice('single_choice'),
   multipleChoice('multiple_choice'),
@@ -1455,27 +1455,52 @@ class AnswerBlank {
       };
 }
 
-/// 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks。
+/// 解答题某一小问的文字作答。
+class AnswerPart {
+  const AnswerPart({
+    required this.key,
+    required this.text,
+  });
+
+  final String key;
+  final String text;
+
+  factory AnswerPart.fromJson(Map<String, dynamic> json) => AnswerPart(
+        key: json['key'] as String,
+        text: json['text'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'text': text,
+      };
+}
+
+/// 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts。 解答题可以只写部分小问，也可以只有笔迹（笔迹随草稿同步，不在这里）；文字和笔迹都没有时提交返回 422。
 class AnswerPayload {
   const AnswerPayload({
     this.selectedOptions,
     this.blanks,
+    this.parts,
     this.text,
   });
 
   final List<String>? selectedOptions;
   final List<AnswerBlank>? blanks;
+  final List<AnswerPart>? parts;
   final String? text;
 
   factory AnswerPayload.fromJson(Map<String, dynamic> json) => AnswerPayload(
         selectedOptions: json['selected_options'] == null ? null : (json['selected_options'] as List<dynamic>).map((e) => e as String).toList(),
         blanks: json['blanks'] == null ? null : (json['blanks'] as List<dynamic>).map((e) => AnswerBlank.fromJson(e as Map<String, dynamic>)).toList(),
+        parts: json['parts'] == null ? null : (json['parts'] as List<dynamic>).map((e) => AnswerPart.fromJson(e as Map<String, dynamic>)).toList(),
         text: json['text'] == null ? null : json['text'] as String,
       );
 
   Map<String, dynamic> toJson() => {
         if (selectedOptions != null) 'selected_options': selectedOptions,
         if (blanks != null) 'blanks': blanks?.map((e) => e.toJson()).toList(),
+        if (parts != null) 'parts': parts?.map((e) => e.toJson()).toList(),
         if (text != null) 'text': text,
       };
 }
@@ -1793,6 +1818,150 @@ class SubmitResult {
         'session': session.toJson(),
         'events': events.map((e) => e.toJson()).toList(),
         'review_item': reviewItem?.toJson(),
+      };
+}
+
+/// 学生对照一个要点的自评：done 做到了，partial 做到一部分，missed 没做到。
+enum SelfCheckLevel {
+  done('done'),
+  partial('partial'),
+  missed('missed'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const SelfCheckLevel(this.value);
+  final String value;
+
+  static SelfCheckLevel fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => SelfCheckLevel.$unknown);
+
+  String toJson() => value;
+}
+
+/// 对照检查的一个要点。不带分值：这不是评分，只是一张自查清单。
+class SelfCheckPoint {
+  const SelfCheckPoint({
+    required this.key,
+    this.part$,
+    required this.text,
+  });
+
+  final String key;
+  final String? part$;
+  final String text;
+
+  factory SelfCheckPoint.fromJson(Map<String, dynamic> json) => SelfCheckPoint(
+        key: json['key'] as String,
+        part$: json['part'] == null ? null : json['part'] as String,
+        text: json['text'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'part': part$,
+        'text': text,
+      };
+}
+
+class SelfCheckMark {
+  const SelfCheckMark({
+    required this.pointKey,
+    required this.level,
+  });
+
+  final String pointKey;
+  final SelfCheckLevel level;
+
+  factory SelfCheckMark.fromJson(Map<String, dynamic> json) => SelfCheckMark(
+        pointKey: json['point_key'] as String,
+        level: SelfCheckLevel.fromJson(json['level'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'point_key': pointKey,
+        'level': level.toJson(),
+      };
+}
+
+class SelfCheckSave {
+  const SelfCheckSave({
+    required this.marks,
+  });
+
+  final List<SelfCheckMark> marks;
+
+  factory SelfCheckSave.fromJson(Map<String, dynamic> json) => SelfCheckSave(
+        marks: (json['marks'] as List<dynamic>).map((e) => SelfCheckMark.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'marks': marks.map((e) => e.toJson()).toList(),
+      };
+}
+
+/// 各档要点的个数。只是计数，不折算成分数。
+class SelfCheckSummary {
+  const SelfCheckSummary({
+    required this.done,
+    required this.partial,
+    required this.missed,
+    required this.total,
+  });
+
+  final int done;
+  final int partial;
+  final int missed;
+  final int total;
+
+  factory SelfCheckSummary.fromJson(Map<String, dynamic> json) => SelfCheckSummary(
+        done: (json['done'] as num).toInt(),
+        partial: (json['partial'] as num).toInt(),
+        missed: (json['missed'] as num).toInt(),
+        total: (json['total'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'done': done,
+        'partial': partial,
+        'missed': missed,
+        'total': total,
+      };
+}
+
+class SelfCheck {
+  const SelfCheck({
+    required this.attemptId,
+    required this.points,
+    required this.marks,
+    required this.summary,
+    this.savedAt,
+    required this.disclaimer,
+  });
+
+  final String attemptId;
+  final List<SelfCheckPoint> points;
+  final List<SelfCheckMark> marks;
+  final SelfCheckSummary summary;
+  final DateTime? savedAt;
+  final String disclaimer;
+
+  factory SelfCheck.fromJson(Map<String, dynamic> json) => SelfCheck(
+        attemptId: json['attempt_id'] as String,
+        points: (json['points'] as List<dynamic>).map((e) => SelfCheckPoint.fromJson(e as Map<String, dynamic>)).toList(),
+        marks: (json['marks'] as List<dynamic>).map((e) => SelfCheckMark.fromJson(e as Map<String, dynamic>)).toList(),
+        summary: SelfCheckSummary.fromJson(json['summary'] as Map<String, dynamic>),
+        savedAt: json['saved_at'] == null ? null : DateTime.parse(json['saved_at'] as String),
+        disclaimer: json['disclaimer'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'attempt_id': attemptId,
+        'points': points.map((e) => e.toJson()).toList(),
+        'marks': marks.map((e) => e.toJson()).toList(),
+        'summary': summary.toJson(),
+        'saved_at': savedAt?.toUtc().toIso8601String(),
+        'disclaimer': disclaimer,
       };
 }
 
@@ -2129,6 +2298,39 @@ class ProgressBucket {
       };
 }
 
+/// 解答题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份， 以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
+class SubjectiveProgress {
+  const SubjectiveProgress({
+    required this.attempts,
+    required this.selfChecked,
+    required this.pointsDone,
+    required this.pointsPartial,
+    required this.pointsMissed,
+  });
+
+  final int attempts;
+  final int selfChecked;
+  final int pointsDone;
+  final int pointsPartial;
+  final int pointsMissed;
+
+  factory SubjectiveProgress.fromJson(Map<String, dynamic> json) => SubjectiveProgress(
+        attempts: (json['attempts'] as num).toInt(),
+        selfChecked: (json['self_checked'] as num).toInt(),
+        pointsDone: (json['points_done'] as num).toInt(),
+        pointsPartial: (json['points_partial'] as num).toInt(),
+        pointsMissed: (json['points_missed'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'attempts': attempts,
+        'self_checked': selfChecked,
+        'points_done': pointsDone,
+        'points_partial': pointsPartial,
+        'points_missed': pointsMissed,
+      };
+}
+
 class ProgressSummary {
   const ProgressSummary({
     required this.generatedAt,
@@ -2139,6 +2341,7 @@ class ProgressSummary {
     required this.retestSuccess,
     required this.variantTransfer,
     required this.uncertainAttempts,
+    required this.subjective,
     required this.bySubject,
     required this.byAnswerMode,
     required this.byDifficulty,
@@ -2153,6 +2356,7 @@ class ProgressSummary {
   final RateStat retestSuccess;
   final RateStat variantTransfer;
   final int uncertainAttempts;
+  final SubjectiveProgress subjective;
   final List<ProgressBucket> bySubject;
   final List<ProgressBucket> byAnswerMode;
   final List<ProgressBucket> byDifficulty;
@@ -2167,6 +2371,7 @@ class ProgressSummary {
         retestSuccess: RateStat.fromJson(json['retest_success'] as Map<String, dynamic>),
         variantTransfer: RateStat.fromJson(json['variant_transfer'] as Map<String, dynamic>),
         uncertainAttempts: (json['uncertain_attempts'] as num).toInt(),
+        subjective: SubjectiveProgress.fromJson(json['subjective'] as Map<String, dynamic>),
         bySubject: (json['by_subject'] as List<dynamic>).map((e) => ProgressBucket.fromJson(e as Map<String, dynamic>)).toList(),
         byAnswerMode: (json['by_answer_mode'] as List<dynamic>).map((e) => ProgressBucket.fromJson(e as Map<String, dynamic>)).toList(),
         byDifficulty: (json['by_difficulty'] as List<dynamic>).map((e) => ProgressBucket.fromJson(e as Map<String, dynamic>)).toList(),
@@ -2182,6 +2387,7 @@ class ProgressSummary {
         'retest_success': retestSuccess.toJson(),
         'variant_transfer': variantTransfer.toJson(),
         'uncertain_attempts': uncertainAttempts,
+        'subjective': subjective.toJson(),
         'by_subject': bySubject.map((e) => e.toJson()).toList(),
         'by_answer_mode': byAnswerMode.map((e) => e.toJson()).toList(),
         'by_difficulty': byDifficulty.map((e) => e.toJson()).toList(),

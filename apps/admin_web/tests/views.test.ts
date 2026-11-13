@@ -7,7 +7,7 @@ import { clearSession, setSession } from '../src/session'
 import LoginView from '../src/views/LoginView.vue'
 import QueueView from '../src/views/QueueView.vue'
 import QuestionView from '../src/views/QuestionView.vue'
-import { AUTHOR, detail, FAST, ME, page, QUESTION_ID, solution, summary } from './fixtures'
+import { AUTHOR, detail, FAST, ME, page, QUESTION_ID, solution, summary, writtenDetail } from './fixtures'
 
 vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
@@ -223,6 +223,38 @@ describe('题目审核页', () => {
     expect(wrapper.get('[data-testid="checks"]').text()).toContain('通过')
     expect(wrapper.get('[data-testid="history"]').text()).toContain('第二步缺少前提')
     expect(wrapper.text()).toContain('分层提示')
+  })
+
+  it('解答题：题面里有小问，参考答案按小问列出，自查要点按小问分组、不带分值', async () => {
+    mocked.getQuestion.mockResolvedValue(writtenDetail())
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    expect(wrapper.text()).toContain('解答题')
+    const parts = wrapper.get('[data-testid="subquestions-view"]')
+    expect(parts.findAll('li')).toHaveLength(2)
+    expect(parts.text()).toContain('（1）')
+    expect(parts.text()).toContain('（2）')
+    expect(wrapper.find('[data-testid="subquestions-view"] .katex').exists()).toBe(true)
+    const answers = wrapper.get('dl.kv')
+    expect(answers.text()).toContain('第 1 问')
+    expect(answers.text()).toContain('第 2 问')
+    expect(answers.text()).not.toContain('空 1')
+    const points = wrapper.get('[data-testid="rubric-points"]')
+    expect(points.findAll('li')).toHaveLength(4)
+    expect(points.text()).toContain('第 1 问')
+    expect(points.text()).toContain('整份解答')
+    expect(points.text()).toContain('提交后给学生对照自查')
+    expect(points.text()).toContain('不是评分')
+  })
+
+  it('选择题的审核页里没有小问和自查要点这两块', async () => {
+    mocked.getQuestion.mockResolvedValue(detail())
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    expect(wrapper.find('[data-testid="subquestions-view"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="rubric-points"]').exists()).toBe(false)
   })
 
   it('程序校验有问题时逐条列出，并且二审按钮不可用', async () => {

@@ -385,16 +385,116 @@ def test_a_definitely_wrong_blank_decides_even_if_another_is_uncertain():
     assert (result.state, result.is_correct) == ("verified", False)
 
 
-@pytest.mark.parametrize("mode", ["written", "experiment"])
-def test_subjective_modes_are_pending_not_graded(mode):
+def test_experiment_mode_is_not_open_yet_so_it_is_pending_not_graded():
     result = grade(
-        answer_mode=mode,
-        content={"stem": "证明……"},
+        answer_mode="experiment",
+        content={"stem": "设计实验……"},
         answer_key={},
         rubric={},
         teaching={},
-        answer={"text": "我的证明过程"},
+        answer={"text": "我的实验方案"},
     )
 
     assert (result.state, result.outcome, result.is_correct) == ("pending", "undetermined", None)
     assert result.review_required is True
+
+
+# ---------------------------------------------------------------- 解答题
+
+REFERENCE = {"1": "a ≤ 1", "2": "最大值 3，最小值 -1"}
+WRITTEN_CONTENT = {
+    "stem": "已知二次函数……",
+    "subquestions": [
+        {"key": "1", "stem": "求 a 的取值范围", "answer_mode": "written"},
+        {"key": "2", "stem": "求最值", "answer_mode": "written"},
+    ],
+}
+
+
+def written(answer: dict, *, has_ink: bool = False):
+    return grade(
+        answer_mode="written",
+        content=WRITTEN_CONTENT,
+        answer_key={"value": REFERENCE},
+        rubric={"points": [{"key": "p1", "part": "1", "text": "写出对称轴"}]},
+        teaching={},
+        answer=answer,
+        has_ink=has_ink,
+    )
+
+
+def parts(**texts: str) -> dict:
+    return {"parts": [{"key": key, "text": text} for key, text in texts.items()]}
+
+
+def test_written_answers_are_never_graded_by_the_system():
+    result = written(parts(**{"1": "a≤1", "2": "我不会"}))
+
+    assert (result.state, result.outcome, result.is_correct) == ("pending", "undetermined", None)
+    assert result.review_required is True
+    assert result.uncertainty_reason == "subjective_self_check"
+    assert result.feedback == ()
+    assert "不自动评分" in result.message
+
+
+def test_a_written_answer_identical_to_the_reference_is_still_not_graded():
+    """哪怕和参考答案一字不差也不判对：解答题不是靠比对文字来评的，系统不冒充阅卷。"""
+    result = written(parts(**{"1": REFERENCE["1"], "2": REFERENCE["2"]}))
+
+    assert (result.state, result.is_correct) == ("pending", None)
+
+
+def test_a_written_answer_may_cover_only_some_parts():
+    assert written(parts(**{"2": "只做了第二问"})).state == "pending"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [{}, {"parts": []}, parts(**{"1": ""}), parts(**{"1": "  \n ", "2": "\t"})],
+)
+def test_a_written_answer_needs_some_text_or_some_ink(answer):
+    with pytest.raises(AnswerShapeError) as error:
+        written(answer)
+
+    assert error.value.field == "answer"
+    assert written(answer, has_ink=True).state == "pending", "只有笔迹也可以提交"
+
+
+def test_written_answers_reject_unknown_and_repeated_parts():
+    with pytest.raises(AnswerShapeError) as unknown:
+        written(parts(**{"1": "写了", "9": "不存在的小问"}))
+    assert unknown.value.field == "answer.parts"
+
+    repeated = {"parts": [{"key": "1", "text": "第一次"}, {"key": "1", "text": "第二次"}]}
+    with pytest.raises(AnswerShapeError) as duplicate:
+        written(repeated)
+    assert duplicate.value.field == "answer.parts"
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"selected_options": ["A"]},
+        {"blanks": [{"key": "b1", "value": "1"}]},
+        {"text": "整段解答"},
+    ],
+)
+def test_written_answers_only_use_parts(extra):
+    with pytest.raises(AnswerShapeError) as error:
+        written({**parts(**{"1": "写了"}), **extra})
+
+    assert error.value.field == "answer"
+
+
+def test_objective_questions_reject_parts():
+    with pytest.raises(AnswerShapeError):
+        choice("single_choice", ["B"], ["B"], parts=[{"key": "1", "text": "x"}])
+    with pytest.raises(AnswerShapeError):
+        grade(
+            answer_mode="fill",
+            content={"stem": "题干", "blanks": [{"key": "b1"}]},
+            answer_key={"value": {"b1": "4"}, "equivalence_rules": {"b1": NUMERIC}, "units": {}},
+            rubric={},
+            teaching={},
+            answer={"blanks": [{"key": "b1", "value": "4"}], "parts": [{"key": "1", "text": "x"}]},
+        )

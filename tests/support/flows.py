@@ -57,6 +57,52 @@ WRONG: dict[str, dict[str, Any]] = {
 }
 
 
+def parts(texts: dict[str, str]) -> dict[str, Any]:
+    """解答题的作答：{小问键: 文字}。"""
+    return {"parts": [{"key": key, "text": text} for key, text in texts.items()]}
+
+
+# 每道解答题样题的一份作答（内容对不对不重要：解答题不自动评分）
+WRITTEN: dict[str, dict[str, Any]] = {
+    "math-quadratic-param-written": parts(
+        {
+            "1": "f(x)=(x-a)^2+3-a^2，对称轴 x=a，开口向上，所以 a≤1。",
+            "2": "a=2 时 f(x)=(x-2)^2-1，最小值 -1，f(0)=3，f(3)=0，最大值 3。",
+        }
+    ),
+    "phys-pull-friction-written": parts(
+        {
+            "1": "竖直方向 N+Fsin37°=mg，N=14 N。",
+            "2": "f=μN=7 N，Fcos37°-f=ma，a=0.5 m/s²。",
+        }
+    ),
+    "chem-ion-equation-written": parts(
+        {
+            "1": "CaCO3+2H+=Ca2++H2O+CO2↑",
+            "2": "Ba2++2OH-+2H++SO42-=BaSO4↓+2H2O",
+        }
+    ),
+}
+
+# 一页、一笔的最小手写稿
+INK: dict[str, Any] = {
+    "version": 1,
+    "pages": [
+        {
+            "width": 800,
+            "height": 600,
+            "strokes": [
+                {
+                    "color": "#1A1A1A",
+                    "width": 3.0,
+                    "points": [10, 10, 0, 0.5, 20, 25, 16, 0.6, 40, 30, 33, 0.5],
+                }
+            ],
+        }
+    ],
+}
+
+
 def start(student: ApiClient, key: str, origin: str = "practice", **extra: Any) -> dict[str, Any]:
     body = {"question_id": qid(key), "origin": origin, **extra}
     return student.data("POST", "/sessions", expect=201, json=body)

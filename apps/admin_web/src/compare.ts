@@ -108,6 +108,19 @@ function analysisLines(analysis: Record<string, string>): string[] {
     .map(([key, text]) => `${key}. ${text}`)
 }
 
+/** 评分细则：解答题的自查要点逐条一行（键｜所属小问｜文字），其余内容按 JSON 逐行。 */
+function rubricLines(rubric: unknown): string[] {
+  if (!rubric || typeof rubric !== 'object') return []
+  const { points, ...others } = rubric as { points?: unknown } & Record<string, unknown>
+  const pointRows = Array.isArray(points)
+    ? (points as { key?: unknown; part?: unknown; text?: unknown }[]).map(
+        (point) =>
+          `${String(point.key ?? '')}｜${typeof point.part === 'string' ? `第 ${point.part} 问` : '整份解答'}｜${String(point.text ?? '')}`,
+      )
+    : []
+  return [...pointRows, ...jsonLines(others)]
+}
+
 function reviewText(solution: AdminSolution | undefined): string {
   if (!solution) return '没有这种解法'
   return solution.reviewed ? '已审核' : '未审核'
@@ -146,10 +159,9 @@ export function compareSnapshots(left: AdminVersionSnapshot, right: AdminVersion
     shot.content.blanks.map(
       (blank) => `${blank.key}｜${blank.label ?? ''}｜${blank.unit_hint ?? ''}｜${blank.placeholder ?? ''}`,
     )
-  const extraContent = (shot: AdminVersionSnapshot) =>
-    shot.content.subquestions.length === 0 && shot.content.attachments.length === 0
-      ? []
-      : jsonLines({ attachments: shot.content.attachments, subquestions: shot.content.subquestions })
+  const subquestionLines = (shot: AdminVersionSnapshot) =>
+    shot.content.subquestions.map((sub) => `${sub.key}｜${sub.stem}`)
+  const attachmentLines = (shot: AdminVersionSnapshot) => jsonLines(shot.content.attachments)
 
   const sections: SectionDiff[] = [
     section('basic', '基本信息', [
@@ -161,7 +173,8 @@ export function compareSnapshots(left: AdminVersionSnapshot, right: AdminVersion
       textField('stem', '题干', left.content.stem, right.content.stem, true),
       rowsField('options', '选项', optionLines(left.content.options), optionLines(right.content.options), true),
       rowsField('blanks', '空位（键｜标签｜单位提示｜占位文字）', blankLines(left), blankLines(right)),
-      rowsField('extra', '小问与附件', extraContent(left), extraContent(right)),
+      rowsField('subquestions', '小问（键｜题干）', subquestionLines(left), subquestionLines(right), true),
+      rowsField('attachments', '附件', attachmentLines(left), attachmentLines(right)),
     ]),
     section('answer', '答案', [
       rowsField('answer', '标准答案', answerLines(left.answer.value), answerLines(right.answer.value)),
@@ -193,7 +206,9 @@ export function compareSnapshots(left: AdminVersionSnapshot, right: AdminVersion
       rowsField('markers', '额外的泄题标记', left.teaching.leak_markers, right.teaching.leak_markers),
     ]),
     section('knowledge', '知识点', [rowsField('knowledge', '知识点', left.knowledge, right.knowledge)]),
-    section('rubric', '评分细则', [rowsField('rubric', '评分细则', jsonLines(left.rubric), jsonLines(right.rubric))]),
+    section('rubric', '评分细则', [
+      rowsField('rubric', '评分细则 / 自查要点', rubricLines(left.rubric), rubricLines(right.rubric), true),
+    ]),
   ]
 
   const changedTitles = sections.filter((item) => item.changed).map((item) => item.title)

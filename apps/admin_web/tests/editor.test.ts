@@ -5,7 +5,7 @@ import * as api from '../src/api/admin'
 import { ApiError } from '../src/api/client'
 import { clearSession, setSession } from '../src/session'
 import QuestionView from '../src/views/QuestionView.vue'
-import { AUTHOR, detail, ME, QUESTION_ID } from './fixtures'
+import { AUTHOR, detail, ME, QUESTION_ID, writtenDetail } from './fixtures'
 
 vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
@@ -218,5 +218,102 @@ describe('编辑题目', () => {
     expect(history).toContain('修改（新版本）')
     expect(history).toContain('改动了：标题、题面')
     expect(history).toContain('标题更具体')
+  })
+})
+
+describe('编辑解答题', () => {
+  async function openEditor(source = writtenDetail()) {
+    mocked.getQuestion.mockResolvedValue(source)
+    const wrapper = await openPage()
+    await wrapper.get('[data-testid="edit"]').trigger('click')
+    return wrapper
+  }
+
+  it('编辑器里是小问、参考答案和自查要点；没有选项、空位，也没有评分细则的 JSON', async () => {
+    const wrapper = await openEditor()
+
+    expect(wrapper.find('[data-testid="subquestions"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="points"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="options"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="blanks"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="rubric-json"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="subquestion-answer-1"]').element).toHaveProperty(
+      'value',
+      '最大值 $3$，最小值 $-1$',
+    )
+    expect(wrapper.get('[data-testid="point-part-3"]').element).toHaveProperty('value', '')
+    expect(wrapper.get('[data-testid="points"]').text()).toContain('不是评分')
+  })
+
+  it('选择题和填空题的编辑器里没有小问和自查要点', async () => {
+    const wrapper = await openEditor(detail())
+
+    expect(wrapper.find('[data-testid="subquestions"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="points"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="rubric-json"]').exists()).toBe(true)
+  })
+
+  it('每条要点的"所属小问"下拉里有每个小问和"整份解答"', async () => {
+    const wrapper = await openEditor()
+
+    const options = wrapper.get('[data-testid="point-part-0"]').findAll('option')
+    expect(options.map((option) => option.element.value)).toEqual(['', '1', '2'])
+    expect(options[0]!.text()).toBe('整份解答')
+  })
+
+  it('改一个小问的参考答案再保存：请求里的小问、参考答案、自查要点都在，要点不带分值', async () => {
+    mocked.createQuestionVersion.mockResolvedValue(writtenDetail({ version: 2, created_by: ME }))
+    const wrapper = await openEditor()
+
+    await wrapper.get('[data-testid="subquestion-answer-0"]').setValue('$a \\le 1$')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const [token, id, body, key] = mocked.createQuestionVersion.mock.calls[0]!
+    expect([token, id]).toEqual(['tok', QUESTION_ID])
+    expect(key).toMatch(/\S{8,}/)
+    expect(body.answer.value).toEqual({ '1': '$a \\le 1$', '2': '最大值 $3$，最小值 $-1$' })
+    expect(body.content.subquestions.map((sub) => [sub.key, sub.answer_mode])).toEqual([
+      ['1', 'written'],
+      ['2', 'written'],
+    ])
+    const points = (body.rubric as unknown as { points: object[] }).points
+    expect(points).toHaveLength(4)
+    for (const point of points) expect(Object.keys(point).sort()).toEqual(['key', 'part', 'text'])
+  })
+
+  it('加一个小问，再加一条归到它名下的自查要点', async () => {
+    mocked.createQuestionVersion.mockResolvedValue(writtenDetail({ version: 2, created_by: ME }))
+    const wrapper = await openEditor()
+
+    await wrapper.get('[data-testid="add-subquestion"]').trigger('click')
+    await wrapper.get('[data-testid="subquestion-key-2"]').setValue('3')
+    await wrapper.get('[data-testid="subquestion-stem-2"]').setValue('再求……')
+    await wrapper.get('[data-testid="subquestion-answer-2"]').setValue('略')
+    await wrapper.get('[data-testid="add-point"]').trigger('click')
+    await wrapper.get('[data-testid="point-key-4"]').setValue('p5')
+    await wrapper.get('[data-testid="point-part-4"]').setValue('3')
+    await wrapper.get('[data-testid="point-text-4"]').setValue('第 (3) 问的结论')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const body = mocked.createQuestionVersion.mock.calls[0]![2]
+    expect(body.content.subquestions.map((sub) => sub.key)).toEqual(['1', '2', '3'])
+    expect(body.answer.value).toMatchObject({ '3': '略' })
+    const points = (body.rubric as unknown as { points: { key: string; part: string | null }[] }).points
+    expect(points.at(-1)).toEqual({ key: 'p5', part: '3', text: '第 (3) 问的结论' })
+  })
+
+  it('删掉一条自查要点：请求里就少一条', async () => {
+    mocked.createQuestionVersion.mockResolvedValue(writtenDetail({ version: 2, created_by: ME }))
+    const wrapper = await openEditor()
+
+    await wrapper.get('[data-testid="point-delete-1"]').trigger('click')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const body = mocked.createQuestionVersion.mock.calls[0]![2]
+    const points = (body.rubric as unknown as { points: { key: string }[] }).points
+    expect(points.map((point) => point.key)).toEqual(['p1', 'p3', 'p4'])
   })
 })

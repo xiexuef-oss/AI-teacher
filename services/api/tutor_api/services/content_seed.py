@@ -47,8 +47,12 @@ _TYPE_BY_MODE = {
     "single_choice": "single_choice",
     "multiple_choice": "multiple_choice",
     "fill": "fill_blank",
+    "written": "solution",
 }
 _CHOICE_MODES = {"single_choice", "multiple_choice"}
+_MAX_PARTS = 20
+_MAX_POINTS = 40
+_POINT_FIELDS = {"key", "part", "text"}  # 自查要点只有这三个字段：不带分值，它不是评分
 _REAL_EXAM_CLAIMS = ("真题", "原题")
 _MAX_TEXT = 4000
 _MAX_SHORT = 200
@@ -168,8 +172,104 @@ def _check_solution(
     return problems
 
 
+def _short_key(value: Any) -> bool:
+    return isinstance(value, str) and 1 <= len(value) <= 16
+
+
+def _check_no_subquestions(key: str, question: dict[str, Any]) -> list[str]:
+    if question["content"].get("subquestions"):
+        return [f"{key}: 选择题和填空题不分小问（content.subquestions 只用于解答题）"]
+    return []
+
+
+def _check_written(key: str, question: dict[str, Any]) -> list[str]:
+    """解答题：分小问作答，不自动评分；提交之后学生对照 rubric.points 自查。
+
+    这里只能保证结构自洽——每个小问有参考答案、有至少一条自查要点，要点不带分值，
+    提示不泄题（泄题标记必须由题目自己列：一段话的答案没法自动推出来）。
+    """
+    problems: list[str] = []
+    content = question["content"]
+    if content.get("options") or content.get("blanks"):
+        problems.append(f"{key}: 解答题不能有 content.options 或 content.blanks")
+
+    subquestions = content.get("subquestions")
+    if not isinstance(subquestions, list) or not 1 <= len(subquestions) <= _MAX_PARTS:
+        problems.append(f"{key}: content.subquestions 至少一个、至多 {_MAX_PARTS} 个")
+        subquestions = []
+    part_keys: list[str] = []
+    for index, sub in enumerate(subquestions):
+        where = f"content.subquestions[{index}]"
+        if not isinstance(sub, dict):
+            problems.append(f"{key}: {where} 不是对象")
+            continue
+        if _short_key(sub.get("key")):
+            part_keys.append(sub["key"])
+        else:
+            problems.append(f"{key}: {where}.key 不能为空且不超过 16 个字符")
+        if not _nonempty_text(sub.get("stem")):
+            problems.append(f"{key}: {where}.stem 不能为空")
+        if sub.get("answer_mode", "written") != "written":
+            problems.append(f"{key}: {where}.answer_mode 必须是 written")
+        if sub.get("options") or sub.get("blanks"):
+            problems.append(f"{key}: {where} 不能带选项或空位")
+    if len(set(part_keys)) != len(part_keys):
+        problems.append(f"{key}: content.subquestions 的 key 不能重复")
+
+    values = question["answer"].get("value")
+    if (
+        not isinstance(values, dict)
+        or set(values) != set(part_keys)
+        or not all(_nonempty_text(text) for text in values.values())
+    ):
+        problems.append(f"{key}: answer.value 必须给出每个小问的参考答案文字")
+
+    points = (question.get("rubric") or {}).get("points")
+    if not isinstance(points, list) or not 1 <= len(points) <= _MAX_POINTS:
+        problems.append(
+            f"{key}: rubric.points 至少一条、至多 {_MAX_POINTS} 条（提交后给学生对照自查）"
+        )
+        points = []
+    point_keys: list[str] = []
+    covered: set[str] = set()
+    for index, point in enumerate(points):
+        where = f"rubric.points[{index}]"
+        if not isinstance(point, dict) or set(point) != _POINT_FIELDS:
+            problems.append(f"{key}: {where} 只能有 key、part、text 三个字段（自查要点不带分值）")
+            continue
+        if _short_key(point["key"]):
+            point_keys.append(point["key"])
+        else:
+            problems.append(f"{key}: {where}.key 不能为空且不超过 16 个字符")
+        if not _nonempty_text(point["text"], _MAX_SHORT):
+            problems.append(f"{key}: {where}.text 不能为空且不超过 {_MAX_SHORT} 字")
+        part = point["part"]
+        if part is None:
+            continue
+        if part in part_keys:
+            covered.add(part)
+        else:
+            problems.append(f"{key}: {where}.part 指向不存在的小问 {part!r}")
+    if len(set(point_keys)) != len(point_keys):
+        problems.append(f"{key}: rubric.points 的 key 不能重复")
+    problems += [
+        f"{key}: rubric.points 没有覆盖小问 {part}" for part in part_keys if part not in covered
+    ]
+
+    markers = (question.get("teaching") or {}).get("leak_markers")
+    if (
+        not isinstance(markers, list)
+        or not markers
+        or not all(_nonempty_text(marker, _MAX_SHORT) for marker in markers)
+    ):
+        problems.append(
+            f"{key}: teaching.leak_markers 不能为空（解答题的答案推不出泄题标记，要题目自己列）"
+        )
+    return problems
+
+
 def _check_choice(key: str, question: dict[str, Any]) -> list[str]:
-    problems = []
+    problems = _check_no_subquestions(key, question)
     options = question["content"].get("options") or []
     option_keys = [option.get("key") for option in options]
     if len(option_keys) < 2 or len(set(option_keys)) != len(option_keys):
@@ -198,7 +298,7 @@ def _check_choice(key: str, question: dict[str, Any]) -> list[str]:
 
 
 def _check_fill(key: str, question: dict[str, Any]) -> list[str]:
-    problems = []
+    problems = _check_no_subquestions(key, question)
     blanks = [blank.get("key") for blank in question["content"].get("blanks") or []]
     if not blanks or len(set(blanks)) != len(blanks):
         problems.append(f"{key}: content.blanks 至少一个且键不能重复")
@@ -240,7 +340,7 @@ def _check_question(
     problems: list[str] = []
     mode = question.get("answer_mode")
     if mode not in _TYPE_BY_MODE:
-        return [f"{key}: answer_mode {mode!r} 不在本阶段支持的客观题范围内"]
+        return [f"{key}: answer_mode {mode!r} 不在本阶段支持的范围内（单选、多选、填空、解答）"]
     if question.get("type") != _TYPE_BY_MODE[mode]:
         problems.append(f"{key}: type 与 answer_mode 不一致")
     if question.get("subject") not in launch.SUBJECT_NAMES:
@@ -261,9 +361,12 @@ def _check_question(
         elif nodes[code]["subject"] != question.get("subject"):
             problems.append(f"{key}: 知识点 {code} 与题目学科不一致")
 
-    problems += (
-        _check_choice(key, question) if mode in _CHOICE_MODES else _check_fill(key, question)
-    )
+    if mode in _CHOICE_MODES:
+        problems += _check_choice(key, question)
+    elif mode == "written":
+        problems += _check_written(key, question)
+    else:
+        problems += _check_fill(key, question)
 
     teaching = question.get("teaching") or {}
     hints = teaching.get("hints")
@@ -504,7 +607,16 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
                     "stem": content["stem"],
                     "options": content.get("options") or [],
                     "blanks": content.get("blanks") or [],
-                    "subquestions": [],
+                    "subquestions": [
+                        {
+                            "key": sub["key"],
+                            "stem": sub["stem"],
+                            "answer_mode": "written",
+                            "options": [],
+                            "blanks": [],
+                        }
+                        for sub in content.get("subquestions") or []
+                    ],
                     "attachments": [],
                 },
                 answer_json={

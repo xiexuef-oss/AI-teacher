@@ -21,6 +21,9 @@ let pending: { fingerprint: string; key: string } | null = null
 
 const isChoice = computed(() => ['single_choice', 'multiple_choice'].includes(props.detail.answer_mode))
 const isFill = computed(() => props.detail.answer_mode === 'fill')
+const isWritten = computed(() => props.detail.answer_mode === 'written')
+// "所属小问"只能选已经有键的小问
+const partChoices = computed(() => form.subquestions.filter((row) => row.key.trim() !== ''))
 const built = computed(() => requestFromForm(form, props.detail))
 const unchanged = computed(() => built.value.ok && isUnchanged(built.value.body, props.detail))
 const canSave = computed(() => !saving.value && built.value.ok && !unchanged.value)
@@ -36,6 +39,20 @@ function addOption(): void {
 
 function addBlank(): void {
   form.blanks.push({ key: `b${form.blanks.length + 1}`, label: '', unitHint: '', placeholder: '', answer: '' })
+}
+
+function addSubquestion(): void {
+  const used = new Set(form.subquestions.map((row) => row.key))
+  let next = form.subquestions.length + 1
+  while (used.has(String(next))) next += 1
+  form.subquestions.push({ key: String(next), stem: '', answer: '' })
+}
+
+function addPoint(): void {
+  const used = new Set(form.points.map((row) => row.key))
+  let next = form.points.length + 1
+  while (used.has(`p${next}`)) next += 1
+  form.points.push({ key: `p${next}`, part: '', text: '' })
 }
 
 async function save(): Promise<void> {
@@ -140,6 +157,49 @@ async function save(): Promise<void> {
       </label>
     </fieldset>
 
+    <fieldset v-if="isWritten" class="group" data-testid="subquestions">
+      <legend>小问与参考答案</legend>
+      <p class="muted small">解答题分小问作答。参考答案只用来给学生对照，不参与任何自动判定。</p>
+      <div v-for="(row, index) in form.subquestions" :key="index" class="option-row sub-row">
+        <input v-model="row.key" class="key" aria-label="小问键" maxlength="16" :data-testid="`subquestion-key-${index}`" />
+        <textarea
+          v-model="row.stem"
+          rows="2"
+          placeholder="这一问的题干（公式写在 $…$ 里）"
+          aria-label="小问题干"
+          :data-testid="`subquestion-stem-${index}`"
+        />
+        <textarea
+          v-model="row.answer"
+          rows="2"
+          placeholder="参考答案"
+          aria-label="参考答案"
+          :data-testid="`subquestion-answer-${index}`"
+        />
+        <button type="button" class="link" :data-testid="`subquestion-delete-${index}`" @click="form.subquestions.splice(index, 1)">
+          删除
+        </button>
+      </div>
+      <button type="button" data-testid="add-subquestion" @click="addSubquestion">添加小问</button>
+    </fieldset>
+
+    <fieldset v-if="isWritten" class="group" data-testid="points">
+      <legend>自查要点（提交之后给学生对照）</legend>
+      <p class="muted small">
+        这是一张清单，不是评分标准：不带分值，也不会折算成分数。每个小问至少要有一条；"整份解答"是对全部作答的要求。
+      </p>
+      <div v-for="(row, index) in form.points" :key="index" class="option-row point-row">
+        <input v-model="row.key" class="key" aria-label="要点键" maxlength="16" :data-testid="`point-key-${index}`" />
+        <select v-model="row.part" aria-label="所属小问" :data-testid="`point-part-${index}`">
+          <option value="">整份解答</option>
+          <option v-for="sub in partChoices" :key="sub.key" :value="sub.key">第 {{ sub.key }} 问</option>
+        </select>
+        <textarea v-model="row.text" rows="2" placeholder="要做到什么（公式写在 $…$ 里）" aria-label="要点" :data-testid="`point-text-${index}`" />
+        <button type="button" class="link" :data-testid="`point-delete-${index}`" @click="form.points.splice(index, 1)">删除</button>
+      </div>
+      <button type="button" data-testid="add-point" @click="addPoint">添加要点</button>
+    </fieldset>
+
     <fieldset class="group">
       <legend>教学辅助</legend>
       <label class="field">
@@ -201,9 +261,9 @@ async function save(): Promise<void> {
         <span>知识点（code，用逗号分隔）</span>
         <input v-model="form.knowledge" data-testid="knowledge" />
       </label>
-      <label class="field">
+      <label v-if="!isWritten" class="field">
         <span>评分细则（JSON）</span>
-        <textarea v-model="form.rubricJson" rows="3" class="mono" />
+        <textarea v-model="form.rubricJson" rows="3" class="mono" data-testid="rubric-json" />
       </label>
       <label class="field">
         <span>修改说明（可选，写进审核历史）</span>

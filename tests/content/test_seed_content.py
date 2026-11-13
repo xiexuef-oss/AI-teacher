@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import copy
 import math
+import re
+from collections import Counter
 
 import pytest
 
@@ -42,13 +44,22 @@ def test_seed_bundle_is_valid(bundle):
     assert validate_seed(bundle) == []
 
 
-def test_seed_covers_three_subjects_and_all_objective_modes(bundle):
+WRITTEN_KEYS = (
+    "math-quadratic-param-written",
+    "phys-pull-friction-written",
+    "chem-ion-equation-written",
+)
+
+
+def test_seed_covers_three_subjects_with_objective_and_written_modes(bundle):
     combos = {(q["subject"], q["answer_mode"]) for q in bundle.questions}
     assert combos == {
         (subject, mode)
         for subject in ("math", "physics", "chemistry")
-        for mode in ("single_choice", "multiple_choice", "fill")
+        for mode in ("single_choice", "multiple_choice", "fill", "written")
     }
+    written = {q["key"] for q in bundle.questions if q["answer_mode"] == "written"}
+    assert written == set(WRITTEN_KEYS)
 
 
 def test_seed_covers_the_sample_topics_of_prd_4_1(bundle):
@@ -197,6 +208,122 @@ def test_interval_and_expression_answers(bundle):
     assert q["phys-incline-accel-v1"]["answer"]["value"]["b1"] == "g*sin(theta)"
 
 
+# ---------------------------------------------------------------- 解答题样题
+
+
+def test_written_samples_have_subquestions_and_checklist_points_for_each(bundle):
+    q = _by_key(bundle)
+    for key in WRITTEN_KEYS:
+        question = q[key]
+        assert question["type"] == "solution", key
+        parts = [sub["key"] for sub in question["content"]["subquestions"]]
+        assert len(parts) >= 2 and len(set(parts)) == len(parts), key
+        assert set(question["answer"]["value"]) == set(parts), key
+
+        points = question["rubric"]["points"]
+        point_keys = [point["key"] for point in points]
+        assert len(set(point_keys)) == len(point_keys), key
+        covered = {point["part"] for point in points}
+        assert set(parts) <= covered <= set(parts) | {None}, key
+        # 解答题的答案是一整段话，推不出泄题标记，必须由题目自己列
+        assert question["teaching"]["leak_markers"], key
+        assert not question["content"].get("options") and not question["content"].get("blanks")
+
+
+def test_written_samples_never_give_points_or_weights(bundle):
+    """自查要点只是清单，不带分值：一旦带了分，学生就会把它当成评分。"""
+    for key in WRITTEN_KEYS:
+        for point in _by_key(bundle)[key]["rubric"]["points"]:
+            assert set(point) == {"key", "part", "text"}, (key, point)
+
+
+def test_written_math_answers_match_independent_recomputation(bundle):
+    question = _by_key(bundle)["math-quadratic-param-written"]
+
+    def f(x: float, a: float) -> float:
+        return x * x - 2 * a * x + 3
+
+    # (1) 在 [1,+∞) 上单调递增当且仅当 a≤1：在足够长的网格上逐点比较
+    grid = [1 + k * 0.05 for k in range(400)]
+
+    def increasing(a: float) -> bool:
+        return all(f(x, a) < f(y, a) for x, y in zip(grid, grid[1:], strict=False))
+
+    candidates = [k / 4 for k in range(-12, 13)]
+    assert {a for a in candidates if increasing(a)} == {a for a in candidates if a <= 1}
+    # (2) a=2，区间 [0,3]
+    values = [f(3 * k / 1000, 2) for k in range(1001)]
+    assert min(values) == pytest.approx(-1, abs=1e-5)
+    assert max(values) == pytest.approx(3)
+
+    answers = question["answer"]["value"]
+    assert "a\\le 1" in answers["1"]
+    assert "$3$" in answers["2"] and "$-1$" in answers["2"]
+
+
+def test_written_physics_answers_match_independent_recomputation(bundle):
+    question = _by_key(bundle)["phys-pull-friction-written"]
+    m, force, mu, g = 2, 10, 0.5, 10
+    # 题目给的 sin37°、cos37° 取一位小数，先核对它们与真值一致
+    assert (round(math.sin(math.radians(37)), 1), round(math.cos(math.radians(37)), 1)) == (
+        0.6,
+        0.8,
+    )
+    support = m * g - force * 0.6
+    friction = mu * support
+    assert force * 0.8 > friction, "拉力的水平分力要大于滑动摩擦力，物体才会滑动"
+    acceleration = (force * 0.8 - friction) / m
+    assert support == pytest.approx(14)
+    assert acceleration == pytest.approx(0.5)
+
+    answers = question["answer"]["value"]
+    assert "14" in answers["1"] and "0.5" in answers["2"]
+
+
+def _plain_equation(latex: str) -> str:
+    """把 $...$ 里的离子方程式化成容易数原子的纯文本：电荷写成 |2p| / |1m|。"""
+    text = latex.strip("$")
+    text = re.sub(r"\\text\{([^}]*)\}", r"\1", text)
+    text = re.sub(r"_\{?(\d+)\}?", r"\1", text)
+    text = text.replace("\\uparrow", "").replace("\\downarrow", "")
+    return re.sub(
+        r"\^\{?(\d*)([+-])\}?",
+        lambda m: f"|{m.group(1) or 1}{'p' if m.group(2) == '+' else 'm'}|",
+        text,
+    )
+
+
+def _side_totals(side: str) -> tuple[Counter, int]:
+    atoms: Counter = Counter()
+    charge = 0
+    for term in side.split("+"):
+        if not term:
+            continue
+        coefficient = re.match(r"\d+", term)
+        count = int(coefficient.group()) if coefficient else 1
+        body = term[coefficient.end() if coefficient else 0 :]
+        ion = re.search(r"\|(\d)([pm])\|$", body)
+        if ion:
+            charge += count * int(ion.group(1)) * (1 if ion.group(2) == "p" else -1)
+            body = body[: ion.start()]
+        for element, number in re.findall(r"([A-Z][a-z]?)(\d*)", body):
+            atoms[element] += count * int(number or 1)
+    return atoms, charge
+
+
+def test_written_chemistry_equations_balance_in_atoms_and_charge(bundle):
+    question = _by_key(bundle)["chem-ion-equation-written"]
+    answers = question["answer"]["value"]
+    for part, latex in answers.items():
+        left, right = _plain_equation(latex).split("=")
+        assert _side_totals(left) == _side_totals(right), (part, latex)
+    # 第 (2) 问：OH⁻ 与 H⁺ 的系数都是 2，不能约成 1:1
+    assert "2\\text{OH}^-" in answers["2"] and "2\\text{H}^+" in answers["2"]
+    # 标准解法的结论与参考答案一致
+    final = question["solutions"]["standard"]["final_answer"]
+    assert all(latex in final for latex in answers.values())
+
+
 # ---------------------------------------------------------------- 泄题标记
 
 
@@ -342,6 +469,105 @@ BROKEN = {
     ),
     "难度越界": ("math-mono-quadratic", _set(["difficulty"], 9), "difficulty"),
     "作答方式不支持": ("math-mono-quadratic", _set(["answer_mode"], "essay"), "answer_mode"),
+    "实验题本阶段不支持": (
+        "math-mono-quadratic",
+        _set(["answer_mode"], "experiment"),
+        "answer_mode",
+    ),
+    # ---- 解答题
+    "解答题的题型不对": (
+        "math-quadratic-param-written",
+        _set(["type"], "fill_blank"),
+        "type",
+    ),
+    "解答题没有小问": (
+        "math-quadratic-param-written",
+        _set(["content", "subquestions"], []),
+        "subquestions",
+    ),
+    "解答题小问键重复": (
+        "math-quadratic-param-written",
+        _set(["content", "subquestions", 1, "key"], "1"),
+        "subquestions",
+    ),
+    "解答题小问的作答方式不是 written": (
+        "math-quadratic-param-written",
+        _set(["content", "subquestions", 0, "answer_mode"], "fill"),
+        "subquestions",
+    ),
+    "解答题小问题干为空": (
+        "math-quadratic-param-written",
+        _set(["content", "subquestions", 0, "stem"], "  "),
+        "subquestions",
+    ),
+    "解答题带了选项": (
+        "math-quadratic-param-written",
+        _set(["content", "options"], [{"key": "A", "text": "x"}, {"key": "B", "text": "y"}]),
+        "options",
+    ),
+    "解答题参考答案缺一个小问": (
+        "math-quadratic-param-written",
+        _delete(["answer", "value", "2"]),
+        "answer.value",
+    ),
+    "解答题参考答案是空话": (
+        "math-quadratic-param-written",
+        _set(["answer", "value", "1"], "  "),
+        "answer.value",
+    ),
+    "解答题没有自查要点": (
+        "math-quadratic-param-written",
+        _delete(["rubric", "points"]),
+        "rubric.points",
+    ),
+    "解答题有小问没有自查要点": (
+        "math-quadratic-param-written",
+        _set(
+            ["rubric", "points"],
+            [{"key": "p1", "part": "1", "text": "写出对称轴"}],
+        ),
+        "rubric.points",
+    ),
+    "自查要点指向不存在的小问": (
+        "phys-pull-friction-written",
+        _set(["rubric", "points", 0, "part"], "9"),
+        "rubric.points",
+    ),
+    "自查要点键重复": (
+        "phys-pull-friction-written",
+        _set(["rubric", "points", 1, "key"], "p1"),
+        "rubric.points",
+    ),
+    "自查要点文字为空": (
+        "phys-pull-friction-written",
+        _set(["rubric", "points", 0, "text"], ""),
+        "rubric.points",
+    ),
+    "自查要点带了分值": (
+        "phys-pull-friction-written",
+        _set(["rubric", "points", 0, "weight"], 2),
+        "rubric.points",
+    ),
+    "解答题没有泄题标记": (
+        "chem-ion-equation-written",
+        _set(["teaching", "leak_markers"], []),
+        "leak_markers",
+    ),
+    "解答题提示泄露了结论": (
+        "math-quadratic-param-written",
+        _append(["teaching", "hints"], "所以第 (1) 问的结果是 $a\\le 1$。"),
+        "泄",
+    ),
+    "解答题提示泄露了数值结果": (
+        "phys-pull-friction-written",
+        _append(["teaching", "hints"], "算出来支持力是 14 N。"),
+        "泄",
+    ),
+    "解答题的解法没有结论": (
+        "chem-ion-equation-written",
+        _set(["solutions", "standard", "final_answer"], ""),
+        "final_answer",
+    ),
 }
 
 

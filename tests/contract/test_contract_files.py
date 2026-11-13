@@ -48,6 +48,9 @@ IMPLEMENTED = {
     "reviewQuestion",
     "createQuestionVersion",
     "getQuestionVersion",
+    # P0 第 3、4 条：解答题（主观题）提交后的对照自查
+    "getSelfCheck",
+    "saveSelfCheck",
 }
 PLANNED = {
     "createMediaUpload",
@@ -69,6 +72,7 @@ MUST_REQUIRE_IDEMPOTENCY_KEY = {
     "confirmScan",
     "reviewQuestion",
     "createQuestionVersion",
+    "saveSelfCheck",
 }
 PUBLIC_OPERATIONS = {"getHealth", "getLaunchConfig", "createLocalIdentity"}
 DOC06_TEMPLATES = {
@@ -227,15 +231,84 @@ def test_every_response_echoes_request_id():
 def test_question_schemas_cannot_carry_answers():
     """题目接口不得带出答案、解法、提示原文或选项分析（docs/03 P04 验收）。"""
     schemas = load_openapi()["components"]["schemas"]
-    forbidden = {"answer", "answer_json", "solutions", "hints", "option_analysis", "rubric"}
+    forbidden = {
+        "answer",
+        "answer_json",
+        "solutions",
+        "hints",
+        "option_analysis",
+        "rubric",
+        "points",  # 解答题的自查要点
+    }
     for name in (
         "Question",
         "QuestionSummary",
         "QuestionContent",
         "QuestionOption",
         "QuestionBlank",
+        "Subquestion",
     ):
         assert not forbidden & set(schemas[name]["properties"]), name
+
+
+def _reachable_schemas(name: str) -> set[str]:
+    """从一个 schema 出发，沿 $ref 能走到的所有 schema 名（含自己）。"""
+    schemas = load_openapi()["components"]["schemas"]
+    seen: set[str] = set()
+    pending = [name]
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+
+        def walk(node) -> None:
+            if isinstance(node, dict):
+                ref = node.get("$ref")
+                if isinstance(ref, str) and ref.startswith("#/components/schemas/"):
+                    pending.append(ref.rsplit("/", 1)[1])
+                for value in node.values():
+                    walk(value)
+            elif isinstance(node, list):
+                for value in node:
+                    walk(value)
+
+        walk(schemas[current])
+    return seen
+
+
+def test_question_payloads_cannot_reach_the_self_check_points():
+    """自查要点（采分点）只能在提交之后通过自查接口拿到，题目与作答前的任何接口都走不到它。"""
+    for name in ("Question", "QuestionSummary", "QuestionPage", "StudyTask", "TodayTasks"):
+        reachable = _reachable_schemas(name)
+        assert not {"SelfCheck", "SelfCheckPoint"} & reachable, name
+
+
+def test_written_answers_use_parts_keyed_by_subquestion():
+    schemas = load_openapi()["components"]["schemas"]
+    payload = schemas["AnswerPayload"]["properties"]
+    assert payload["parts"]["items"] == {"$ref": "#/components/schemas/AnswerPart"}
+    assert payload["parts"]["maxItems"] <= 20
+    part = schemas["AnswerPart"]
+    assert part["required"] == ["key", "text"]
+    assert part["properties"]["key"]["maxLength"] <= 16
+    assert part["properties"]["text"]["maxLength"] <= 4000
+
+
+def test_self_check_has_three_levels_and_no_numeric_score():
+    """自查只有"完成 / 部分 / 没做到"三档，不出现分数；它也不是官方阅卷。"""
+    schemas = load_openapi()["components"]["schemas"]
+    assert schemas["SelfCheckLevel"]["enum"] == ["done", "partial", "missed"]
+    for name in ("SelfCheck", "SelfCheckMark", "SelfCheckPoint", "SelfCheckSummary"):
+        assert not {"score", "points_earned", "weight"} & set(schemas[name]["properties"]), name
+    assert "disclaimer" in schemas["SelfCheck"]["required"]
+
+
+def test_progress_reports_subjective_work_apart_from_accuracy():
+    schemas = load_openapi()["components"]["schemas"]
+    assert "subjective" in schemas["ProgressSummary"]["required"]
+    subjective = schemas["SubjectiveProgress"]
+    assert not {"rate", "accuracy", "score"} & set(subjective["properties"])
 
 
 def test_response_schemas_are_closed_objects():
@@ -364,6 +437,16 @@ def test_valid_event_passes(event_type):
     validate_event(_event(event_type, VALID_PAYLOADS[event_type]))
 
 
+def test_subjective_questions_use_a_dedicated_uncertainty_reason():
+    """解答题不自动评分：用专门的原因码说明"没有判定、请自查"，而不是冒充格式认不出或等价未确认。"""
+    payload = _mutated(
+        "uncertainty",
+        reason_code="subjective_self_check",
+        text="解答题不自动评分，请对照要点自己检查。",
+    )
+    validate_event(_event("uncertainty", payload, state_after="DIAGNOSED"))
+
+
 def _mutated(event_type: str, **changes) -> dict:
     payload = copy.deepcopy(VALID_PAYLOADS[event_type])
     for key, value in changes.items():
@@ -386,6 +469,9 @@ INVALID_EVENTS = {
     "快速解法没有适用条件": _event("fast", _mutated("fast", conditions=[])),
     "快速解法未审核": _event("fast", _mutated("fast", reviewed=False)),
     "不确定事件却不要求复核": _event("uncertainty", _mutated("uncertainty", review_required=False)),
+    "不确定事件的原因码未知": _event(
+        "uncertainty", _mutated("uncertainty", reason_code="graded_by_vibes")
+    ),
     "缺元数据": {k: v for k, v in _event("hint", VALID_PAYLOADS["hint"]).items() if k != "meta"},
     "信封带多余字段": _event("hint", VALID_PAYLOADS["hint"], html="<b>x</b>"),
     "未知会话状态": _event("hint", VALID_PAYLOADS["hint"], state_after="CHEATING"),

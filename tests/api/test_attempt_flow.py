@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import func, select
 
 from support.flows import CORRECT, WRONG, begin, blank, choice, new_attempt, solve, start, submit
-from support.seeds import ALL_KEYS, qid
+from support.seeds import OBJECTIVE_KEYS, qid
 
 STROKES = {
     "version": 1,
@@ -384,7 +384,7 @@ def test_submission_response_does_not_leak_the_solution(onboarded):
     assert "final_answer" not in text
 
 
-@pytest.mark.parametrize("key", sorted(ALL_KEYS))
+@pytest.mark.parametrize("key", sorted(OBJECTIVE_KEYS))
 def test_every_sample_question_is_gradable_both_ways(onboarded, key):
     _, _, right = solve(onboarded, key, CORRECT[key])
     _, _, wrong = solve(onboarded, key, WRONG[key])

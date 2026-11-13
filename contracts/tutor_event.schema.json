@@ -299,7 +299,12 @@
       "properties": {
         "reason_code": {
           "type": "string",
-          "enum": ["equivalence_unconfirmed", "answer_unrecognized", "verification_failed"]
+          "enum": [
+            "equivalence_unconfirmed",
+            "answer_unrecognized",
+            "verification_failed",
+            "subjective_self_check"
+          ]
         },
         "text": { "$ref": "#/$defs/Text" },
         "review_required": { "const": true }

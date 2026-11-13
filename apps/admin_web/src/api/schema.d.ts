@@ -273,10 +273,42 @@ export interface paths {
         /**
          * 提交作答并返回评估状态
          * @description 客观题同步判定。判定不了（例如填空等价性无法确认）时 `evaluation.state=uncertain`、`is_correct=null`。
-         *     主观题只返回 `pending`。同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
+         *     解答题（`written`）不自动评分：返回 `state=pending`、`outcome=undetermined`、`is_correct=null`，
+         *     并产生一条 `uncertainty` 事件（`reason_code=subjective_self_check`）；学生之后用
+         *     `/attempts/{attempt_id}/self-check` 对照要点自查。解答题没有文字（`answer.parts` 全空）
+         *     也没有已同步的笔迹时返回 422。
+         *     同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
          *     只有会话里第一次提交、且此前没有看过提示、图解或解析的作答才算 `independent=true`。
          */
         post: operations["submitAttempt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attempts/{attempt_id}/self-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 解答题提交后的对照自查：要点，以及已保存的自评
+         * @description 解答题不自动评分。提交之后，学生对照这份要点清单，给每一条标"做到了 / 做到一部分 / 没做到"。
+         *     要点只在作答已提交之后才给：提交之前返回 409 `attempt_not_submitted`，独立作答阶段不泄题。
+         *     不是解答题的作答返回 409 `self_check_not_applicable`。还没有保存过自评时 `marks` 为空、`saved_at` 为 null。
+         *     自查是学生自己做的记录，不是官方阅卷分数，也不计入任何正确率。
+         */
+        get: operations["getSelfCheck"];
+        /**
+         * 保存对照自查的结果
+         * @description 整体替换：每个要点必须恰好评一次，缺评、重复或不认识的要点返回 422。可以改过再保存。
+         *     同一幂等键重放返回同一结果。作答没有提交、或不是解答题的情形与 GET 相同，返回 409。
+         */
+        put: operations["saveSelfCheck"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -638,7 +670,8 @@ export interface components {
          */
         QuestionType: "single_choice" | "multiple_choice" | "fill_blank" | "solution" | "proof" | "experiment" | "inference" | "process_flow" | "comprehensive";
         /**
-         * @description 作答区的渲染方式。本阶段只实现 single_choice、multiple_choice、fill 的判定。
+         * @description 作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定；
+         *     written（解答题）只保存作答，提交后给对照要点的自查，不自动评分；experiment 尚未开放。
          * @enum {string}
          */
         AnswerMode: "single_choice" | "multiple_choice" | "fill" | "written" | "experiment";
@@ -973,10 +1006,20 @@ export interface components {
             key: string;
             value: string;
         };
-        /** @description 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks。 */
+        /** @description 解答题某一小问的文字作答。 */
+        AnswerPart: {
+            /** @description 小问键，对应题目 content.subquestions 里的 key。 */
+            key: string;
+            text: string;
+        };
+        /**
+         * @description 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts。
+         *     解答题可以只写部分小问，也可以只有笔迹（笔迹随草稿同步，不在这里）；文字和笔迹都没有时提交返回 422。
+         */
         AnswerPayload: {
             selected_options?: string[];
             blanks?: components["schemas"]["AnswerBlank"][];
+            parts?: components["schemas"]["AnswerPart"][];
             text?: string | null;
         };
         Stroke: {
@@ -1063,6 +1106,45 @@ export interface components {
             events: components["schemas"]["TutorEvent"][];
             /** @description 答错或辅助答对时自动安排的复测项。 */
             review_item: components["schemas"]["ReviewItem"] | null;
+        };
+        /**
+         * @description 学生对照一个要点的自评：done 做到了，partial 做到一部分，missed 没做到。
+         * @enum {string}
+         */
+        SelfCheckLevel: "done" | "partial" | "missed";
+        /** @description 对照检查的一个要点。不带分值：这不是评分，只是一张自查清单。 */
+        SelfCheckPoint: {
+            key: string;
+            /** @description 对应的小问键；null 表示对整份解答的要求。 */
+            part: string | null;
+            text: string;
+        };
+        SelfCheckMark: {
+            point_key: string;
+            level: components["schemas"]["SelfCheckLevel"];
+        };
+        SelfCheckSave: {
+            marks: components["schemas"]["SelfCheckMark"][];
+        };
+        /** @description 各档要点的个数。只是计数，不折算成分数。 */
+        SelfCheckSummary: {
+            done: number;
+            partial: number;
+            missed: number;
+            /** @description 要点总数；还没保存自评时 done、partial、missed 都是 0。 */
+            total: number;
+        };
+        SelfCheck: {
+            /** Format: uuid */
+            attempt_id: string;
+            points: components["schemas"]["SelfCheckPoint"][];
+            /** @description 已保存的自评；还没保存过时为空数组。 */
+            marks: components["schemas"]["SelfCheckMark"][];
+            summary: components["schemas"]["SelfCheckSummary"];
+            /** Format: date-time */
+            saved_at: string | null;
+            /** @description 说明自查是学生自己的记录，不是官方阅卷分数。 */
+            disclaimer: string;
         };
         TutorAction: {
             action: components["schemas"]["TutorActionType"];
@@ -1159,6 +1241,19 @@ export interface components {
             independent: components["schemas"]["RateStat"];
             assisted: components["schemas"]["RateStat"];
         };
+        /**
+         * @description 解答题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份，
+         *     以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
+         */
+        SubjectiveProgress: {
+            /** @description 已提交的解答题作答数。 */
+            attempts: number;
+            /** @description 其中保存了自查的作答数。 */
+            self_checked: number;
+            points_done: number;
+            points_partial: number;
+            points_missed: number;
+        };
         ProgressSummary: {
             /** Format: date-time */
             generated_at: string;
@@ -1168,8 +1263,9 @@ export interface components {
             hint_dependency: components["schemas"]["RateStat"];
             retest_success: components["schemas"]["RateStat"];
             variant_transfer: components["schemas"]["RateStat"];
-            /** @description 未能确定判定、因此没有计入任何正确率的提交数。 */
+            /** @description 客观题里未能确定判定、因此没有计入任何正确率的提交数。解答题本来就不自动评分，不算在这里。 */
             uncertain_attempts: number;
+            subjective: components["schemas"]["SubjectiveProgress"];
             by_subject: components["schemas"]["ProgressBucket"][];
             by_answer_mode: components["schemas"]["ProgressBucket"][];
             by_difficulty: components["schemas"]["ProgressBucket"][];
@@ -1304,7 +1400,7 @@ export interface components {
             status_counts: components["schemas"]["AdminStatusCounts"];
         };
         AdminAnswer: {
-            /** @description 选择题为选项键数组；填空题为 {空位键: 标准答案}。 */
+            /** @description 选择题为选项键数组；填空题为 {空位键: 标准答案}；解答题为 {小问键: 参考答案文字}，只用于对照，不参与自动判定。 */
             value: unknown;
             /** @description 填空题每个空位的等价判定规则。 */
             equivalence_rules: Record<string, never>;
@@ -2116,6 +2212,80 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["SubmitResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    getSelfCheck: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                attempt_id: components["parameters"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 自查要点与已保存的自评 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SelfCheck"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    saveSelfCheck: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                attempt_id: components["parameters"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SelfCheckSave"];
+            };
+        };
+        responses: {
+            /** @description 保存后的自查 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SelfCheck"];
                     };
                 };
             };

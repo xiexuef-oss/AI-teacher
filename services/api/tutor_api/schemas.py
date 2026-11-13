@@ -439,9 +439,17 @@ class AnswerBlank(_In):
     value: str = Field(max_length=200)
 
 
+class AnswerPart(_In):
+    """解答题某一小问的文字作答。"""
+
+    key: str = Field(min_length=1, max_length=16)
+    text: str = Field(max_length=4000)
+
+
 class AnswerPayload(_In):
     selected_options: list[str] | None = Field(default=None, max_length=10)
     blanks: list[AnswerBlank] | None = Field(default=None, max_length=10)
+    parts: list[AnswerPart] | None = Field(default=None, max_length=20)
     text: str | None = Field(default=None, max_length=4000)
 
     @field_validator("selected_options")
@@ -550,6 +558,47 @@ class SubmitResult(BaseModel):
     review_item: ReviewItemOut | None
 
 
+# ---------------------------------------------------------------- 解答题自查
+
+SelfCheckLevel = Literal["done", "partial", "missed"]
+
+
+class SelfCheckPoint(BaseModel):
+    key: str
+    part: str | None
+    text: str
+
+
+class SelfCheckMark(BaseModel):
+    point_key: str
+    level: SelfCheckLevel
+
+
+class SelfCheckMarkIn(_In):
+    point_key: str = Field(min_length=1, max_length=16)
+    level: SelfCheckLevel
+
+
+class SelfCheckSaveIn(_In):
+    marks: list[SelfCheckMarkIn] = Field(min_length=1, max_length=40)
+
+
+class SelfCheckSummary(BaseModel):
+    done: int
+    partial: int
+    missed: int
+    total: int
+
+
+class SelfCheckOut(BaseModel):
+    attempt_id: str
+    points: list[SelfCheckPoint]
+    marks: list[SelfCheckMark]
+    summary: SelfCheckSummary
+    saved_at: datetime | None
+    disclaimer: str
+
+
 # ---------------------------------------------------------------- 教学
 
 
@@ -600,6 +649,14 @@ class ProgressBucket(BaseModel):
     assisted: RateStat
 
 
+class SubjectiveProgress(BaseModel):
+    attempts: int
+    self_checked: int
+    points_done: int
+    points_partial: int
+    points_missed: int
+
+
 class ProgressSummary(BaseModel):
     generated_at: datetime
     min_samples: int
@@ -609,6 +666,7 @@ class ProgressSummary(BaseModel):
     retest_success: RateStat
     variant_transfer: RateStat
     uncertain_attempts: int
+    subjective: SubjectiveProgress
     by_subject: list[ProgressBucket]
     by_answer_mode: list[ProgressBucket]
     by_difficulty: list[ProgressBucket]

@@ -5,11 +5,14 @@
 - 独立正确率 = 无提示且未看解析的正确作答数 / 无提示且未看解析的有效作答数；辅助正确率另算；
 - "正确"只指完全正确，多选的部分正确不算；
 - 提示依赖率、复测成功率、变式迁移率只看每次会话的第一份作答；
-- 分母小于 min_samples 时只给计数，rate 为 null，并标记 insufficient_data。
+- 分母小于 min_samples 时只给计数，rate 为 null，并标记 insufficient_data；
+- 解答题不自动评分，不进任何正确率，也不算"没能判定"。它单独数：提交了几份、自查了几份、
+  自查里各档要点各有几个——这些是学生自己的记录，不折算成分数。
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
@@ -18,8 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tutor_api import launch
-from tutor_api.models import Attempt, Question, StudySession
-from tutor_api.schemas import ProgressBucket, ProgressSummary, RateStat
+from tutor_api.models import Attempt, AttemptSelfCheck, Question, StudySession
+from tutor_api.schemas import ProgressBucket, ProgressSummary, RateStat, SubjectiveProgress
 from tutor_api.settings import Settings
 
 DISCLAIMER = "这些数字来自练习反馈，不是官方成绩，也不代表短期内一定提分。样本少的时候只显示计数。"
@@ -47,6 +50,28 @@ def _stat(rows: Iterable[_Row], hit: Callable[[_Row], bool], min_samples: int) -
         denominator=denominator,
         rate=round(numerator / denominator, 4) if enough else None,
         insufficient_data=not enough,
+    )
+
+
+def _subjective(db: Session, attempt_ids: list[str]) -> SubjectiveProgress:
+    """解答题只数不评：提交几份、自查几份、自查里各档要点各有几个。"""
+    marks = (
+        [
+            row.marks_json
+            for row in db.scalars(
+                select(AttemptSelfCheck).where(AttemptSelfCheck.attempt_id.in_(attempt_ids))
+            )
+        ]
+        if attempt_ids
+        else []
+    )
+    levels = Counter(mark["level"] for row in marks for mark in row)
+    return SubjectiveProgress(
+        attempts=len(attempt_ids),
+        self_checked=len(marks),
+        points_done=levels["done"],
+        points_partial=levels["partial"],
+        points_missed=levels["missed"],
     )
 
 
@@ -81,6 +106,12 @@ def summarize(
         if attempt.evaluation_state == "verified"
     ]
     first = [row for row in verified if row.attempt_no == 1]
+    written = [attempt for attempt, _, _, mode, _ in records if mode == "written"]
+    uncertain = [
+        attempt
+        for attempt, _, _, mode, _ in records
+        if mode != "written" and attempt.evaluation_state != "verified"
+    ]
 
     def is_correct(row: _Row) -> bool:
         return row.correct
@@ -108,7 +139,8 @@ def summarize(
         variant_transfer=_stat(
             (r for r in first if r.origin == "variant"), unaided_success, min_samples
         ),
-        uncertain_attempts=len(records) - len(verified),
+        uncertain_attempts=len(uncertain),
+        subjective=_subjective(db, [attempt.id for attempt in written]),
         by_subject=[
             bucket(code, name, [r for r in verified if r.subject == code])
             for code, name in launch.SUBJECTS

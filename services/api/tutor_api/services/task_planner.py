@@ -41,6 +41,20 @@ MAX_WEAK_POINTS = 2
 _TASK_NAMESPACE = uuid.UUID("0d6c2a55-3d0e-4f66-9a0b-7c1b8f1f2a90")
 
 
+def estimated_minutes(question: Question) -> int:
+    """估计用时。选择题和填空题几分钟；解答题要写出完整步骤、还要对照要点自查，时间长得多。"""
+    if question.answer_mode == "written":
+        return 8 + 2 * question.difficulty
+    return 3 + question.difficulty
+
+
+def _objective_first(questions: list[Question]) -> list[Question]:
+    """新题先推可以自动判定的题；解答题排在后面。先熟悉作答和反馈，再去写完整步骤。顺序其余不变。"""
+    return [q for q in questions if q.answer_mode != "written"] + [
+        q for q in questions if q.answer_mode == "written"
+    ]
+
+
 def _weak_nodes(db: Session, student_id: str) -> list[KnowledgeNode]:
     """按知识点统计有确定判定的首次作答：没有独立做对的次数多于独立做对的次数，记为薄弱。"""
     rows = db.execute(
@@ -76,6 +90,8 @@ def today_tasks(db: Session, student_id: str, *, now: datetime) -> TodayTasks:
         code for code, _ in launch.SUBJECTS
     ]
     deliverable = [question for question, _ in question_service.deliverable_questions(db, scope)]
+    # 新题和薄弱点补练都先推可以自动判定的题，解答题排在后面
+    ordered = _objective_first(deliverable)
 
     worked_on = set(
         db.scalars(
@@ -170,7 +186,7 @@ def today_tasks(db: Session, student_id: str, *, now: datetime) -> TodayTasks:
         candidate = next(
             (
                 q
-                for q in deliverable
+                for q in ordered
                 if q.id in linked[node.id]
                 and q.id not in attempted
                 and q.id not in used
@@ -195,7 +211,7 @@ def today_tasks(db: Session, student_id: str, *, now: datetime) -> TodayTasks:
         candidate = next(
             (
                 q
-                for q in deliverable
+                for q in ordered
                 if q.subject == subject
                 and q.variant_of_id is None
                 and q.id not in attempted
@@ -228,7 +244,7 @@ def today_tasks(db: Session, student_id: str, *, now: datetime) -> TodayTasks:
                 applicability=question_service.build_applicability(
                     question, tags[question.id], scope
                 ),
-                estimated_minutes=3 + question.difficulty,
+                estimated_minutes=estimated_minutes(question),
             )
         )
     return TodayTasks(date=today, items=items)

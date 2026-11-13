@@ -127,6 +127,7 @@ def _seed_shape(
             "stem": content.get("stem"),
             "options": content.get("options") or [],
             "blanks": content.get("blanks") or [],
+            "subquestions": content.get("subquestions") or [],
         },
         "answer": {
             "value": answer.get("value"),

@@ -255,7 +255,10 @@ class Resolver:
 
 
 def _render_enum(name: str, schema: dict[str, Any]) -> str:
-    lines = [f"/// {schema['description']}" for _ in [0] if schema.get("description")]
+    # 契约里的描述可以写成多行（YAML 的 | 块）：压成一行，否则后面的行会漏到注释外面
+    lines = [
+        f"/// {' '.join(schema['description'].split())}" for _ in [0] if schema.get("description")
+    ]
     lines.append(f"enum {name} {{")
     members = [enum_member(value) for value in schema["enum"]]
     if len(set(members)) != len(members):

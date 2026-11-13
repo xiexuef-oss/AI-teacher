@@ -41,6 +41,7 @@ V13_TABLES = {
     "model_call_audits",
     "model_budget_usage",
 }
+V14_TABLES = {"attempt_self_checks"}  # 解答题提交后的对照自查（PRD P0 第 3、4 条）
 TASK_TYPES = {
     "ocr_extract",
     "handwriting_understand",
@@ -61,7 +62,11 @@ def schema() -> dict[str, dict[str, str]]:
 
 def test_migration_files_are_numbered_and_ordered():
     names = sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql"))
-    assert names == ["001_init.sql", "002_region_model_governance.sql"]
+    assert names == [
+        "001_init.sql",
+        "002_region_model_governance.sql",
+        "003_subjective_self_check.sql",
+    ]
 
 
 def test_migrations_parse_as_mysql():
@@ -89,7 +94,7 @@ def test_doc04_tables_exist(schema):
 
 
 def test_ids_are_char36_and_times_are_datetime3(schema):
-    for table in DOC04_TABLES | V13_TABLES:
+    for table in DOC04_TABLES | V13_TABLES | V14_TABLES:
         columns = schema[table]
         if "id" in columns:
             assert columns["id"] == "CHAR(36)", table
@@ -132,6 +137,21 @@ def test_v13_additions_exist(schema):
         "exam_year_to",
         "review_status",
     } <= set(applicability)
+
+
+def test_self_checks_are_appended_without_touching_the_earlier_migrations(schema):
+    """迁移只追加：003 只新建一张表，001、002 的结构保持原样。"""
+    earlier = load_migration_schema(
+        MIGRATIONS_DIR, only=["001_init.sql", "002_region_model_governance.sql"]
+    )
+    assert set(schema) - set(earlier) == V14_TABLES
+    assert {name: schema[name] for name in earlier} == earlier
+
+    columns = schema["attempt_self_checks"]
+    assert set(columns) == {"id", "attempt_id", "marks_json", "created_at", "updated_at"}
+    assert columns["marks_json"] == "JSON"
+    # 只存"每个要点做到没有"，不存分数
+    assert not {"score", "points", "grade"} & set(columns)
 
 
 def test_questions_track_source_and_license_separately(schema):

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tutor_student/core/data.dart';
 import 'package:tutor_student/core/theme.dart';
+import 'package:tutor_student/core/widgets.dart';
 import 'package:tutor_student/features/home/home_page.dart';
 
 import 'support/app_harness.dart';
@@ -404,6 +405,24 @@ void main() {
       await teardownTree(tester);
     });
 
+    testWidgets('题型筛选里有"解答题"，选了之后请求带 written', (tester) async {
+      await launch(tester, h);
+      await tapAndSettle(tester, key('home.practice'), frames: 10);
+
+      await tapAndSettle(tester, key('filter.mode.written'));
+
+      expect(find.text('解答题'), findsWidgets);
+      expect(
+        h.backend
+            .requestsTo('GET', '/questions')
+            .last
+            .uri
+            .queryParameters['answer_mode'],
+        'written',
+      );
+      await teardownTree(tester);
+    });
+
     testWidgets('还有下一页就显示"加载更多"，点了带上游标', (tester) async {
       await launch(tester, h);
       await tapAndSettle(tester, key('home.practice'), frames: 10);
@@ -529,6 +548,49 @@ void main() {
       await openProgress(tester);
 
       expect(find.textContaining('有 2 次作答没能自动判定'), findsOneWidget);
+      await teardownTree(tester);
+    });
+
+    testWidgets('解答题只有计数：提交几份、自查几份、各档要点几条，没有比例和分数', (tester) async {
+      await openProgress(tester);
+
+      final card = tester.widget<Section>(key('progress.subjective'));
+      expect(card.title, '解答题');
+      expect(find.textContaining('提交了 1 份，其中 1 份做了对照自查'), findsOneWidget);
+      final points = tester
+          .widget<Text>(key('progress.subjective.points'))
+          .data!;
+      expect(points, matches(RegExp(r'做到了 \d+ 条 · 做到一部分 \d+ 条 · 没做到 \d+ 条')));
+      expect(points, isNot(contains('%')));
+      expect(find.textContaining('不是官方阅卷分数'), findsOneWidget);
+      expect(find.textContaining('不计入上面的任何正确率'), findsOneWidget);
+      await teardownTree(tester);
+    });
+
+    testWidgets('没做过解答题就不显示解答题那一块', (tester) async {
+      h.backend.onFixture('GET', '/progress/summary', 'progress_empty');
+      await openProgress(tester);
+
+      expect(key('progress.subjective'), findsNothing);
+      await teardownTree(tester);
+    });
+
+    testWidgets('只提交了、还没自查：只说提交了几份', (tester) async {
+      h.backend.on('GET', '/progress/summary', (_) {
+        final value = h.backend.fixtures.value('progress_summary');
+        value['subjective'] = {
+          'attempts': 2,
+          'self_checked': 0,
+          'points_done': 0,
+          'points_partial': 0,
+          'points_missed': 0,
+        };
+        return okResponse(value);
+      });
+      await openProgress(tester);
+
+      expect(find.textContaining('提交了 2 份，其中 0 份做了对照自查'), findsOneWidget);
+      expect(key('progress.subjective.points'), findsNothing);
       await teardownTree(tester);
     });
 

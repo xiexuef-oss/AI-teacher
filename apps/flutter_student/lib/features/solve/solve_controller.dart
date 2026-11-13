@@ -85,6 +85,9 @@ class SolveController extends ChangeNotifier {
   final Set<String> _selected = {};
   final Map<String, String> _blanks = {};
 
+  /// 解答题各小问的文字，键是小问的 key。
+  final Map<String, String> _parts = {};
+
   SaveStatus sync = SaveStatus.saved;
   bool localSaveFailed = false;
   Draft? conflictServerDraft;
@@ -94,6 +97,12 @@ class SolveController extends ChangeNotifier {
   ReviewItem? reviewItem;
   ReviewCompletion? reviewCompletion;
   Object? reviewError;
+
+  /// 解答题提交后对照要点做的自查。要点只在提交之后才取：独立作答阶段不泄题。
+  SelfCheck? selfCheck;
+  final Map<String, SelfCheckLevel> _marks = {};
+  bool selfCheckBusy = false;
+  Object? selfCheckError;
 
   Object? actionError;
   bool submitting = false;
@@ -113,6 +122,24 @@ class SolveController extends ChangeNotifier {
 
   Set<String> get selected => Set.unmodifiable(_selected);
   Map<String, String> get blanks => Map.unmodifiable(_blanks);
+  Map<String, String> get parts => Map.unmodifiable(_parts);
+  Map<String, SelfCheckLevel> get marks => Map.unmodifiable(_marks);
+
+  /// 每个要点都标过了。
+  bool get selfCheckComplete =>
+      selfCheck != null &&
+      selfCheck!.points.isNotEmpty &&
+      selfCheck!.points.every((p) => _marks.containsKey(p.key));
+
+  /// 标过的内容和已经保存的不一样（包括还一次都没保存过）。
+  bool get selfCheckDirty {
+    final saved = {
+      for (final m in selfCheck?.marks ?? const <SelfCheckMark>[])
+        m.pointKey: m.level,
+    };
+    if (saved.length != _marks.length) return true;
+    return _marks.entries.any((e) => saved[e.key] != e.value);
+  }
 
   bool get isFinished => session?.state == SessionState.done;
   bool get isRetest => args.origin == 'review';
@@ -132,10 +159,15 @@ class SolveController extends ChangeNotifier {
         final keys = question!.content.blanks.map((b) => b.key);
         return keys.isNotEmpty &&
             keys.every((k) => (_blanks[k] ?? '').trim().isNotEmpty);
+      case AnswerMode.written:
+        // 有文字或有笔迹就可以提交，也可以只写其中几问
+        return _hasPartsText || ink.hasInk;
       default:
         return false;
     }
   }
+
+  bool get _hasPartsText => _parts.values.any((v) => v.trim().isNotEmpty);
 
   bool get canSubmit =>
       phase == SolvePhase.answering &&
@@ -208,6 +240,9 @@ class SolveController extends ChangeNotifier {
     _blanks
       ..clear()
       ..addAll(draft.blanks);
+    _parts
+      ..clear()
+      ..addAll(draft.parts);
     ink.loadContract(draft.strokes);
     _serverRevision = draft.baseRevision;
     _localAttemptId = draft.attemptId;
@@ -307,6 +342,7 @@ class SolveController extends ChangeNotifier {
     final hasLocalContent =
         _selected.isNotEmpty ||
         _blanks.values.any((v) => v.trim().isNotEmpty) ||
+        _hasPartsText ||
         ink.hasInk;
     if (_localAttemptId == current.id) {
       // 本机草稿就是这份作答的草稿。本机没有未同步的改动、而云端往前走了（别处写过）：采用云端。
@@ -354,6 +390,11 @@ class SolveController extends ChangeNotifier {
       ..addEntries(
         (answer?.blanks ?? const []).map((b) => MapEntry(b.key, b.value)),
       );
+    _parts
+      ..clear()
+      ..addEntries(
+        (answer?.parts ?? const []).map((p) => MapEntry(p.key, p.text)),
+      );
     ink.loadContract(draft.strokes);
     _serverRevision = draft.revision;
     _dirtyRemote = false;
@@ -385,6 +426,21 @@ class SolveController extends ChangeNotifier {
     _onChanged();
   }
 
+  /// 解答题某一小问的文字。只认题目里有的小问；超过 4000 字的部分截掉。
+  void setPart(String key, String value) {
+    if (phase != SolvePhase.answering) return;
+    if (!(question?.content.subquestions.any((s) => s.key == key) ?? false)) {
+      return;
+    }
+    final bounded = value.length > 4000 ? value.substring(0, 4000) : value;
+    if (bounded.isEmpty) {
+      _parts.remove(key);
+    } else {
+      _parts[key] = bounded;
+    }
+    _onChanged();
+  }
+
   void _onChanged() {
     if (phase != SolvePhase.answering) return;
     _localVersion += 1;
@@ -410,6 +466,7 @@ class SolveController extends ChangeNotifier {
     dirty: _dirtyRemote,
     selected: _selected.toList(),
     blanks: Map.of(_blanks),
+    parts: Map.of(_parts),
     strokes: ink.hasInk ? ink.toContract() : null,
     savedAt: DateTime.now().toUtc(),
   );
@@ -449,6 +506,10 @@ class SolveController extends ChangeNotifier {
       ];
       return blanks.isEmpty ? null : AnswerPayload(blanks: blanks);
     }
+    if (mode == AnswerMode.written) {
+      final parts = _partsInOrder(trim: false);
+      return parts.isEmpty ? null : AnswerPayload(parts: parts);
+    }
     if (_selected.isEmpty) return null;
     final options = question!.content.options
         .map((o) => o.key)
@@ -456,6 +517,16 @@ class SolveController extends ChangeNotifier {
         .toList();
     return AnswerPayload(selectedOptions: options);
   }
+
+  /// 有文字的小问，按题目里的顺序。
+  List<AnswerPart> _partsInOrder({required bool trim}) => [
+    for (final sub in question!.content.subquestions)
+      if ((_parts[sub.key] ?? '').trim().isNotEmpty)
+        AnswerPart(
+          key: sub.key,
+          text: trim ? _parts[sub.key]!.trim() : _parts[sub.key]!,
+        ),
+  ];
 
   StrokeDoc? _draftStrokes() => ink.hasInk ? ink.toContract() : null;
 
@@ -613,6 +684,9 @@ class SolveController extends ChangeNotifier {
         ],
       );
     }
+    if (_mode == AnswerMode.written) {
+      return AnswerPayload(parts: _partsInOrder(trim: true));
+    }
     final options = question!.content.options
         .map((o) => o.key)
         .where(_selected.contains)
@@ -634,6 +708,13 @@ class SolveController extends ChangeNotifier {
       // 有冲突则先让学生解决。
       await _syncDraft(force: true);
       if (sync == SaveStatus.conflict) return;
+      // 解答题只有笔迹、没有文字时，笔迹只能随草稿同步到云端：没同步上去，服务端会以为什么都没写
+      if (_mode == AnswerMode.written &&
+          !_hasPartsText &&
+          sync != SaveStatus.saved) {
+        actionError = ApiException.network('笔迹还没有同步到云端，连上网络后再提交');
+        return;
+      }
 
       final result = await api.submitAttempt(
         attemptId: attempt!.id,
@@ -651,6 +732,7 @@ class SolveController extends ChangeNotifier {
         // 清不掉也无妨：下次打开发现作答已提交，不会再用它
       }
       if (isRetest && args.reviewItemId != null) await _completeReview();
+      if (_mode == AnswerMode.written) await loadSelfCheck();
     } on ApiException catch (error) {
       actionError = error;
       _checkAuth(error);
@@ -706,6 +788,10 @@ class SolveController extends ChangeNotifier {
       _keys.done('retry');
       _selected.clear();
       _blanks.clear();
+      _parts.clear();
+      _marks.clear();
+      selfCheck = null;
+      selfCheckError = null;
       ink.loadContract(null);
       evaluation = null;
       reviewItem = null;
@@ -727,6 +813,74 @@ class SolveController extends ChangeNotifier {
       _checkAuth(error);
     } finally {
       submitting = false;
+      _notify();
+    }
+  }
+
+  // ------------------------------------------------------------ 解答题的自查
+
+  /// 取这份作答的自查要点和已保存的自评。要点只在提交之后才给，所以只在提交之后调用。
+  /// 失败不影响已经提交的作答：[selfCheckError] 里有原因，可以再调用一次。
+  Future<void> loadSelfCheck() async {
+    if (_mode != AnswerMode.written ||
+        phase != SolvePhase.submitted ||
+        attempt == null ||
+        selfCheckBusy) {
+      return;
+    }
+    selfCheckBusy = true;
+    selfCheckError = null;
+    _notify();
+    try {
+      final loaded = await api.getSelfCheck(attemptId: attempt!.id);
+      selfCheck = loaded;
+      _marks
+        ..clear()
+        ..addEntries(loaded.marks.map((m) => MapEntry(m.pointKey, m.level)));
+    } on ApiException catch (error) {
+      selfCheckError = error;
+      _checkAuth(error);
+    } finally {
+      selfCheckBusy = false;
+      _notify();
+    }
+  }
+
+  /// 给一个要点标"做到了 / 做到一部分 / 没做到"。还没有保存，点保存才会发给服务端。
+  void markPoint(String pointKey, SelfCheckLevel level) {
+    final points = selfCheck?.points;
+    if (points == null || !points.any((p) => p.key == pointKey)) return;
+    _marks[pointKey] = level;
+    _notify();
+  }
+
+  /// 保存自评：每个要点都标完才发。幂等键随内容变化——同样的内容重试复用同一个键，改了内容就换新键。
+  Future<void> saveSelfCheck() async {
+    final current = selfCheck;
+    if (current == null || !selfCheckComplete || selfCheckBusy) return;
+    selfCheckBusy = true;
+    selfCheckError = null;
+    _notify();
+    try {
+      final body = SelfCheckSave(
+        marks: [
+          for (final point in current.points)
+            SelfCheckMark(pointKey: point.key, level: _marks[point.key]!),
+        ],
+      );
+      final key =
+          'selfcheck-${attempt!.id}-'
+          '${jsonEncode(body.toJson()).hashCode.toRadixString(36)}';
+      selfCheck = await api.saveSelfCheck(
+        attemptId: attempt!.id,
+        body: body,
+        idempotencyKey: key,
+      );
+    } on ApiException catch (error) {
+      selfCheckError = error;
+      _checkAuth(error);
+    } finally {
+      selfCheckBusy = false;
       _notify();
     }
   }

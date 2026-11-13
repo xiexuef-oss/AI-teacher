@@ -8,8 +8,8 @@ from fastapi.responses import JSONResponse
 from tutor_api.deps import Ctx, ok, student_ctx
 from tutor_api.errors import ApiError
 from tutor_api.idempotency import run_idempotent
-from tutor_api.schemas import AttemptCreateIn, DraftSyncIn, SubmitIn
-from tutor_api.services import session_service
+from tutor_api.schemas import AttemptCreateIn, DraftSyncIn, SelfCheckSaveIn, SubmitIn
+from tutor_api.services import self_check_service, session_service
 
 router = APIRouter()
 
@@ -75,6 +75,23 @@ def submit_attempt(
             key_digest=key_digest,
             request_id=ctx.request_id,
             now=ctx.now(),
+        )
+
+    return run_idempotent(ctx, body, 200, action)
+
+
+@router.get("/attempts/{attempt_id}/self-check")
+def get_self_check(attempt_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
+    return ok(self_check_service.get_self_check(ctx.db, ctx.student_id, str(attempt_id)))
+
+
+@router.put("/attempts/{attempt_id}/self-check")
+def save_self_check(
+    attempt_id: UUID, body: SelfCheckSaveIn, ctx: Ctx = Depends(student_ctx)
+) -> JSONResponse:
+    def action(_key_digest: str):
+        return self_check_service.save_self_check(
+            ctx.db, ctx.student_id, str(attempt_id), body, now=ctx.now()
         )
 
     return run_idempotent(ctx, body, 200, action)

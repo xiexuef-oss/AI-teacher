@@ -628,6 +628,270 @@ void main() {
     });
   });
 
+  group('解答题', () {
+    late Harness w;
+    setUp(() {
+      final backend = FakeBackend()
+        ..submitFixture = 'submit_written'
+        ..installLearningFlow(questionFixture: 'question_written');
+      w = Harness(
+        backend: backend,
+        questionId: Fixtures.load().value('question_written')['id'] as String,
+      );
+    });
+    tearDown(() => w.dispose());
+
+    Future<SolveController> submitted([String text = '对称轴是 x=a']) async {
+      final c = await started(w);
+      c.setPart('1', text);
+      await c.submit();
+      return c;
+    }
+
+    test('有文字或有笔迹才能提交；只有空白不算', () async {
+      final c = await started(w);
+      expect(c.canSubmit, isFalse);
+
+      c.setPart('1', '   ');
+      expect(c.canSubmit, isFalse);
+      c.setPart('1', '对称轴是 x=a');
+      expect(c.canSubmit, isTrue);
+      c.setPart('1', '');
+      expect(c.canSubmit, isFalse);
+
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      expect(c.canSubmit, isTrue, reason: '只有笔迹也可以提交');
+    });
+
+    test('只能写题目里有的小问；写得太长会被截到上限', () async {
+      final c = await started(w);
+
+      c.setPart('9', '没有这个小问');
+      expect(c.parts, isEmpty);
+      c.setPart('1', 'x' * 5000);
+      expect(c.parts['1']!.length, 4000);
+    });
+
+    test('分小问的文字按小问顺序同步到云端草稿，没写的小问不发', () async {
+      final c = await started(w);
+
+      c.setPart('2', '最小值 -1');
+      c.setPart('1', '对称轴 x=a');
+      await until(() => w.backend.serverAnswer != null, reason: '草稿没有同步到云端');
+      await until(() => c.sync == SaveStatus.saved);
+
+      expect(w.backend.serverAnswer, {
+        'parts': [
+          {'key': '1', 'text': '对称轴 x=a'},
+          {'key': '2', 'text': '最小值 -1'},
+        ],
+      });
+    });
+
+    test('分小问的文字先存在本机，重新打开时恢复', () async {
+      final first = await started(w);
+      first.setPart('2', '最小值 -1');
+      await first.flushNow();
+
+      final saved = await first.drafts.readDraft(w.questionId);
+      expect(saved!.parts, {'2': '最小值 -1'});
+      first.dispose();
+
+      final second = await started(w);
+      expect(second.parts, {'2': '最小值 -1'});
+      expect(w.backend.sessionsCreated, 1, reason: '不能重复开会话');
+    });
+
+    test('提交：文字去掉首尾空白；结果是待自评，不是对也不是错', () async {
+      final c = await submitted('  对称轴是 x=a  ');
+
+      final body = w.backend.bodyOf(
+        w.backend.requestsTo('POST', '/submit').single,
+      )!;
+      expect(body['answer'], {
+        'parts': [
+          {'key': '1', 'text': '对称轴是 x=a'},
+        ],
+      });
+      expect(c.phase, SolvePhase.submitted);
+      expect(c.evaluation!.state, EvaluationState.pending);
+      expect(c.evaluation!.isCorrect, isNull);
+      expect(c.events.single.uncertainty.reasonCode, 'subjective_self_check');
+      expect(c.reviewItem, isNull);
+    });
+
+    test('只有笔迹也能提交；笔迹没同步上去时先拦住，不让服务端拒绝一个看似空白的答案', () async {
+      final c = await started(w);
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      await until(() => c.sync == SaveStatus.saved);
+      await c.submit();
+      expect(c.phase, SolvePhase.submitted);
+      expect(
+        w.backend.bodyOf(
+          w.backend.requestsTo('POST', '/submit').single,
+        )!['answer'],
+        {'parts': <Object>[]},
+      );
+    });
+
+    test('笔迹还在本机、没同步到云端时，只有笔迹的作答不能提交', () async {
+      final c = await started(w);
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      await until(() => c.sync == SaveStatus.saved);
+      c.ink.beginStroke(0, 20, 20);
+      c.ink.extendStroke(80, 80, t: 12);
+      c.ink.endStroke();
+      w.backend.offline = true;
+
+      await c.submit();
+
+      expect(c.phase, SolvePhase.answering);
+      expect(c.actionError, isNotNull);
+      expect(w.backend.requestsTo('POST', '/submit'), isEmpty);
+      w.backend.offline = false;
+    });
+
+    test('提交之前不会去要自查要点', () async {
+      final c = await started(w);
+      c.setPart('1', '写了');
+      await until(() => c.sync == SaveStatus.saved);
+
+      expect(w.backend.requestsTo('GET', '/self-check'), isEmpty);
+      expect(c.selfCheck, isNull);
+    });
+
+    test('提交之后自动取来自查要点；一条都还没标', () async {
+      final c = await submitted();
+
+      expect(c.selfCheck, isNotNull);
+      expect(c.selfCheck!.points, isNotEmpty);
+      expect(c.selfCheck!.marks, isEmpty);
+      expect(c.marks, isEmpty);
+      expect(c.selfCheckComplete, isFalse);
+      expect(c.selfCheckDirty, isFalse);
+    });
+
+    test('逐条标出做到没有；全部标完才能保存；按要点清单的顺序、带幂等键', () async {
+      final c = await submitted();
+      final points = c.selfCheck!.points;
+
+      await c.saveSelfCheck();
+      expect(
+        w.backend.requestsTo('PUT', '/self-check'),
+        isEmpty,
+        reason: '没标完不发',
+      );
+
+      for (final point in points.skip(1)) {
+        c.markPoint(point.key, SelfCheckLevel.done);
+      }
+      expect(c.selfCheckComplete, isFalse, reason: '还差一条');
+      c.markPoint(points.first.key, SelfCheckLevel.missed);
+      expect(c.selfCheckComplete, isTrue);
+      expect(c.selfCheckDirty, isTrue);
+
+      await c.saveSelfCheck();
+
+      final request = w.backend.requestsTo('PUT', '/self-check').single;
+      expect(request.headers['Idempotency-Key'], isNotNull);
+      final sent = (w.backend.bodyOf(request)!['marks'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      expect(sent.map((m) => m['point_key']), points.map((p) => p.key));
+      expect(sent.first['level'], 'missed');
+      expect(c.selfCheck!.savedAt, isNotNull);
+      expect(c.selfCheck!.summary.missed, 1);
+      expect(c.selfCheck!.summary.done, points.length - 1);
+      expect(c.selfCheckDirty, isFalse);
+      expect(c.phase, SolvePhase.submitted, reason: '自查不改变作答的状态');
+      expect(c.evaluation!.state, EvaluationState.pending);
+      expect(c.evaluation!.isCorrect, isNull);
+    });
+
+    test('改了自评再保存：换新的幂等键；没改就不是待保存的', () async {
+      final c = await submitted();
+      final points = c.selfCheck!.points;
+      for (final point in points) {
+        c.markPoint(point.key, SelfCheckLevel.done);
+      }
+      await c.saveSelfCheck();
+      expect(c.selfCheckDirty, isFalse);
+
+      c.markPoint(points.first.key, SelfCheckLevel.partial);
+      expect(c.selfCheckDirty, isTrue);
+      await c.saveSelfCheck();
+
+      final keys = w.backend
+          .requestsTo('PUT', '/self-check')
+          .map((r) => r.headers['Idempotency-Key'])
+          .toList();
+      expect(keys, hasLength(2));
+      expect(keys[0], isNot(keys[1]));
+      expect(c.selfCheck!.summary.partial, 1);
+    });
+
+    test('保存失败：已标的内容还在，可以再点保存', () async {
+      final c = await submitted();
+      for (final point in c.selfCheck!.points) {
+        c.markPoint(point.key, SelfCheckLevel.done);
+      }
+      w.backend.failNextOn('/self-check', 503, 'service_unavailable');
+
+      await c.saveSelfCheck();
+      expect(c.selfCheckError, isNotNull);
+      expect(c.selfCheck!.savedAt, isNull);
+      expect(c.selfCheckComplete, isTrue, reason: '标好的没有丢');
+
+      await c.saveSelfCheck();
+      expect(c.selfCheckError, isNull);
+      expect(c.selfCheck!.savedAt, isNotNull);
+    });
+
+    test('取要点失败：作答仍是已提交的，之后可以重试', () async {
+      final c = await started(w);
+      c.setPart('1', '写了');
+      w.backend.failNextOn('/self-check', 503, 'service_unavailable');
+
+      await c.submit();
+
+      expect(c.phase, SolvePhase.submitted);
+      expect(c.selfCheck, isNull);
+      expect(c.selfCheckError, isNotNull);
+
+      await c.loadSelfCheck();
+      expect(c.selfCheck, isNotNull);
+      expect(c.selfCheckError, isNull);
+    });
+
+    test('再试一次：分小问的文字、自评和要点都清掉', () async {
+      final c = await submitted();
+      c.markPoint(c.selfCheck!.points.first.key, SelfCheckLevel.done);
+
+      await c.retry();
+
+      expect(c.phase, SolvePhase.answering);
+      expect(c.parts, isEmpty);
+      expect(c.selfCheck, isNull);
+      expect(c.marks, isEmpty);
+      expect(c.selfCheckError, isNull);
+    });
+
+    test('不是解答题就不去要自查要点', () async {
+      final c = await started(h);
+      c.selectOption('A');
+      await c.submit();
+
+      expect(c.phase, SolvePhase.submitted);
+      expect(h.backend.requestsTo('GET', '/self-check'), isEmpty);
+      expect(c.selfCheck, isNull);
+    });
+  });
+
   group('登录失效', () {
     test('401：通知外层重新登录，未同步的草稿仍在本机', () async {
       final c = await started(h);

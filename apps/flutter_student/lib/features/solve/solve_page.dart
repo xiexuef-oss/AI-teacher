@@ -15,6 +15,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import 'answer_input.dart';
 import 'ink/ink_canvas.dart';
+import 'self_check_card.dart';
 import 'solve_controller.dart';
 import 'tutor_panel.dart';
 
@@ -32,7 +33,9 @@ class _SolvePageState extends ConsumerState<SolvePage>
     with WidgetsBindingObserver {
   late final SolveController _controller;
   final ScrollController _scroll = ScrollController();
+  final GlobalKey _selfCheckKey = GlobalKey();
   int _eventCount = 0;
+  bool _selfCheckRevealed = false;
 
   @override
   void initState() {
@@ -67,11 +70,41 @@ class _SolvePageState extends ConsumerState<SolvePage>
         );
       });
     }
+    final cardShown =
+        _controller.phase == SolvePhase.submitted &&
+        _controller.question?.answerMode == AnswerMode.written &&
+        !_controller.selfCheckBusy &&
+        (_controller.selfCheck != null || _controller.selfCheckError != null);
+    if (cardShown && !_selfCheckRevealed) {
+      _selfCheckRevealed = true;
+      _revealSelfCheck();
+    } else if (_controller.phase == SolvePhase.answering) {
+      _selfCheckRevealed = false;
+    }
     if (_controller.phase == SolvePhase.submitted) {
       ref.invalidate(todayTasksProvider);
       ref.invalidate(reviewsProvider);
       ref.invalidate(progressProvider);
     }
+  }
+
+  /// 解答题提交之后，把自查要点的顶部带到眼前（默认的"滚到最新一条"会停在要点下方）。
+  /// 列表是按需建出来的：先跳到末尾，让这张卡片建出来，再把它的顶部对齐到视口顶部。
+  void _revealSelfCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final target = _selfCheckKey.currentContext;
+        if (!mounted || target == null) return;
+        Scrollable.ensureVisible(
+          target,
+          alignment: 0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      });
+    });
   }
 
   @override
@@ -222,6 +255,7 @@ class _SolvePageState extends ConsumerState<SolvePage>
               primary: _QuestionPane(
                 controller: c,
                 scroll: _scroll,
+                selfCheckKey: _selfCheckKey,
                 onSuggestion: _onSuggestion,
               ),
               secondary: Padding(
@@ -360,6 +394,10 @@ class _Banners extends StatelessWidget {
     if (answer?.blanks != null && answer!.blanks!.isNotEmpty) {
       parts.add('填了 ${answer.blanks!.map((b) => b.value).join('；')}');
     }
+    final written = answer?.parts
+        ?.where((p) => p.text.trim().isNotEmpty)
+        .length;
+    if (written != null && written > 0) parts.add('写了 $written 问');
     final count =
         strokes?.pages.fold<int>(0, (sum, p) => sum + p.strokes.length) ?? 0;
     parts.add(count == 0 ? '没有笔迹' : '笔迹 $count 笔');
@@ -494,6 +532,14 @@ class _Banners extends StatelessWidget {
         ],
       );
     }
+    if (c.parts.isNotEmpty) {
+      return AnswerPayload(
+        parts: [
+          for (final e in c.parts.entries)
+            AnswerPart(key: e.key, text: e.value),
+        ],
+      );
+    }
     return null;
   }
 }
@@ -504,11 +550,13 @@ class _QuestionPane extends StatelessWidget {
   const _QuestionPane({
     required this.controller,
     required this.scroll,
+    required this.selfCheckKey,
     required this.onSuggestion,
   });
 
   final SolveController controller;
   final ScrollController scroll;
+  final GlobalKey selfCheckKey;
   final ValueChanged<SuggestedAction> onSuggestion;
 
   @override
@@ -572,6 +620,11 @@ class _QuestionPane extends StatelessWidget {
           title: answering ? '你的答案' : '你提交的答案',
           child: _answer(context, c, q, enabled: answering),
         ),
+        if (q.answerMode == AnswerMode.written &&
+            c.phase == SolvePhase.submitted) ...[
+          const SizedBox(height: kGap),
+          SelfCheckCard(key: selfCheckKey, controller: c),
+        ],
         if (c.reviewCompletion != null) ...[
           const SizedBox(height: kGap),
           _reviewResult(context, c.reviewCompletion!),
@@ -612,10 +665,17 @@ class _QuestionPane extends StatelessWidget {
           onChanged: c.setBlank,
           enabled: enabled,
         );
+      case AnswerMode.written:
+        return WrittenInput(
+          subquestions: q.content.subquestions,
+          values: c.parts,
+          onChanged: c.setPart,
+          enabled: enabled,
+        );
       default:
         return const Callout(
           tone: Tone.info,
-          child: Text('这类题目（解答、证明、实验）的评分还没有开放。可以在右边的草稿上演算，作答会保存在这台设备上。'),
+          child: Text('这类题目（证明、实验）的评分还没有开放。可以在右边的草稿上演算，作答会保存在这台设备上。'),
         );
     }
   }

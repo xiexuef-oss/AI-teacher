@@ -25,6 +25,20 @@ export interface BlankRow {
   answer: string
 }
 
+/** 解答题的一个小问：题干和它的参考答案（参考答案只用来对照，不参与自动判定）。 */
+export interface SubquestionRow {
+  key: string
+  stem: string
+  answer: string
+}
+
+/** 解答题的一条自查要点。part 是它针对的小问的键，空字符串表示针对整份解答。不带分值：这不是评分。 */
+export interface PointRow {
+  key: string
+  part: string
+  text: string
+}
+
 export interface SolutionForm {
   on: boolean
   steps: string[]
@@ -41,6 +55,8 @@ export interface EditorForm {
   stem: string
   options: OptionRow[]
   blanks: BlankRow[]
+  subquestions: SubquestionRow[]
+  points: PointRow[]
   rulesJson: string
   unitsJson: string
   concept: string
@@ -62,6 +78,7 @@ export type Built = { ok: true; body: AdminQuestionEdit } | { ok: false; errors:
 
 const CHOICE_MODES = new Set(['single_choice', 'multiple_choice'])
 const FILL_MODES = new Set(['fill'])
+const WRITTEN_MODES = new Set(['written'])
 
 const pretty = (value: unknown): string => JSON.stringify(value ?? {}, null, 2)
 const orNull = (text: string): string | null => (text === '' ? null : text)
@@ -81,6 +98,24 @@ export function canonical(value: unknown): string {
   }
   return JSON.stringify(sort(value))
 }
+
+interface RubricPoint {
+  key: string
+  part: string | null
+  text: string
+}
+
+/** 评分细则里的自查要点；不是数组或形状不对的项一律忽略。 */
+function rubricPoints(rubric: unknown): RubricPoint[] {
+  const points = (rubric as { points?: unknown } | null)?.points
+  if (!Array.isArray(points)) return []
+  return points.filter(
+    (point): point is RubricPoint =>
+      !!point && typeof point === 'object' && typeof point.key === 'string' && typeof point.text === 'string',
+  )
+}
+
+const isBlankRow = (...texts: string[]): boolean => texts.every((text) => text.trim() === '')
 
 function solutionForm(detail: AdminQuestionDetail, kind: SolutionKind): SolutionForm {
   const found = detail.solutions.find((solution) => solution.kind === kind)
@@ -118,6 +153,16 @@ export function formFromDetail(detail: AdminQuestionDetail): EditorForm {
       unitHint: blank.unit_hint ?? '',
       placeholder: blank.placeholder ?? '',
       answer: answers[blank.key] === undefined ? '' : String(answers[blank.key]),
+    })),
+    subquestions: detail.content.subquestions.map((sub) => ({
+      key: sub.key,
+      stem: sub.stem,
+      answer: answers[sub.key] === undefined ? '' : String(answers[sub.key]),
+    })),
+    points: rubricPoints(detail.rubric).map((point) => ({
+      key: point.key,
+      part: point.part ?? '',
+      text: point.text,
     })),
     rulesJson: pretty(detail.answer.equivalence_rules),
     unitsJson: pretty(detail.answer.units),
@@ -199,7 +244,9 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
 
   const rules = parseObject('判定规则', form.rulesJson, errors)
   const units = parseObject('单位规则', form.unitsJson, errors)
-  const rubric = parseObject('评分细则', form.rubricJson, errors)
+  const written = WRITTEN_MODES.has(detail.answer_mode)
+  // 解答题的评分细则由"自查要点"那几行生成；其余题型是一段 JSON
+  const rubric = written ? ({} as Obj) : parseObject('评分细则', form.rubricJson, errors)
 
   let visual: AdminQuestionEdit['teaching']['visual'] = null
   if (form.visualOn) {
@@ -228,6 +275,29 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
     value = Object.fromEntries(form.blanks.map((row) => [row.key, row.answer]))
   }
 
+  // 解答题：小问和它们的参考答案是同一批行；整行都是空的就是没填，丢掉
+  const subquestionRows = form.subquestions.filter((row) => !isBlankRow(row.key, row.stem, row.answer))
+  const subquestions = written
+    ? subquestionRows.map((row) => ({
+        key: row.key,
+        stem: row.stem,
+        answer_mode: 'written' as const,
+        options: [],
+        blanks: [],
+      }))
+    : detail.content.subquestions
+  if (written) value = Object.fromEntries(subquestionRows.map((row) => [row.key, row.answer]))
+
+  let writtenRubric: Obj = rubric
+  if (written) {
+    const { points: _previous, ...others } = detail.rubric as unknown as Record<string, unknown>
+    const points = form.points
+      .filter((row) => !isBlankRow(row.key, row.text))
+      .map((row) => ({ key: row.key, part: row.part === '' ? null : row.part, text: row.text }))
+    const hadPoints = 'points' in (detail.rubric as object)
+    writtenRubric = (points.length === 0 && !hadPoints ? others : { ...others, points }) as unknown as Obj
+  }
+
   const optionAnalysis = Object.fromEntries(
     form.options.filter((row) => row.analysis.trim() !== '').map((row) => [row.key, row.analysis]),
   )
@@ -253,7 +323,7 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
           unit_hint: orNull(row.unitHint),
           placeholder: orNull(row.placeholder),
         })),
-        subquestions: detail.content.subquestions,
+        subquestions,
         attachments: detail.content.attachments,
       },
       answer: { value, equivalence_rules: rules, units },
@@ -270,7 +340,7 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
         .split(/[\s,，、]+/)
         .map((code) => code.trim())
         .filter((code) => code !== ''),
-      rubric: rubric,
+      rubric: writtenRubric,
       ...(form.comment.trim() === '' ? {} : { comment: form.comment.trim() }),
     },
   }

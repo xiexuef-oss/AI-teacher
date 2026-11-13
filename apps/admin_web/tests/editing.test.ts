@@ -6,7 +6,7 @@ import {
   isUnchanged,
   requestFromForm,
 } from '../src/editing'
-import { detail, FAST, solution } from './fixtures'
+import { detail, FAST, solution, writtenDetail } from './fixtures'
 import type { AdminQuestionDetail } from '../src/api/types'
 
 /** 契约里 type: object 且没有 properties 的字段，生成的类型是 Record<string, never>。 */
@@ -47,6 +47,7 @@ describe('表单与修改请求', () => {
   it.each([
     ['选择题', detail()],
     ['填空题（带规则、单位、图解、快速解法、额外标记）', fillDetail()],
+    ['解答题（小问、参考答案、自查要点）', writtenDetail()],
   ])('%s：原样放进表单再取出，和"题目详情原样还原"完全一致', (_name, source) => {
     const built = requestFromForm(formFromDetail(source), source)
 
@@ -181,5 +182,118 @@ describe('表单与修改请求', () => {
   it('canonical 不受对象键顺序影响，但受数组顺序影响', () => {
     expect(canonical({ a: 1, b: { c: 2, d: 3 } })).toBe(canonical({ b: { d: 3, c: 2 }, a: 1 }))
     expect(canonical([1, 2])).not.toBe(canonical([2, 1]))
+  })
+})
+
+describe('解答题的表单', () => {
+  it('小问、参考答案、自查要点各是一行；针对整份解答的要点没有小问（表单里是空字符串）', () => {
+    const form = formFromDetail(writtenDetail())
+
+    expect(form.subquestions).toEqual([
+      { key: '1', stem: '若 $f(x)$ 在区间 $[1,+\\infty)$ 上单调递增，求 $a$ 的取值范围；', answer: '$a\\le 1$' },
+      { key: '2', stem: '当 $a=2$ 时，求 $f(x)$ 在区间 $[0,3]$ 上的最大值和最小值。', answer: '最大值 $3$，最小值 $-1$' },
+    ])
+    expect(form.points.map((row) => [row.key, row.part])).toEqual([
+      ['p1', '1'],
+      ['p2', '1'],
+      ['p3', '2'],
+      ['p4', ''],
+    ])
+    expect(form.options).toEqual([])
+    expect(form.blanks).toEqual([])
+  })
+
+  it('改小问的题干和参考答案：请求里的小问是 written，参考答案按键对应', () => {
+    const source = writtenDetail()
+    const form = formFromDetail(source)
+    form.subquestions[0]!.stem = '（改）求 $a$ 的取值范围；'
+    form.subquestions[1]!.answer = '最小值 $-1$，最大值 $3$'
+
+    const built = requestFromForm(form, source)
+
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    expect(built.body.content.subquestions[0]).toEqual({
+      key: '1',
+      stem: '（改）求 $a$ 的取值范围；',
+      answer_mode: 'written',
+      options: [],
+      blanks: [],
+    })
+    expect(built.body.answer.value).toEqual({ '1': '$a\\le 1$', '2': '最小值 $-1$，最大值 $3$' })
+    expect(built.body.answer.equivalence_rules).toEqual({})
+    expect(isUnchanged(built.body, source)).toBe(false)
+  })
+
+  it('加一个小问：多一个小问和一条参考答案；删掉一个小问：它的参考答案也跟着没了', () => {
+    const source = writtenDetail()
+    const form = formFromDetail(source)
+    form.subquestions.push({ key: '3', stem: '再求……', answer: '略' })
+    const added = requestFromForm(form, source)
+    expect(added.ok && added.body.content.subquestions.map((item) => item.key)).toEqual(['1', '2', '3'])
+    expect(added.ok && added.body.answer.value).toMatchObject({ '3': '略' })
+
+    form.subquestions.splice(0, 1)
+    const removed = requestFromForm(form, source)
+    expect(removed.ok && removed.body.content.subquestions.map((item) => item.key)).toEqual(['2', '3'])
+    expect(removed.ok && Object.keys(removed.body.answer.value as object)).toEqual(['2', '3'])
+  })
+
+  it('空行（没有键也没有题干）会被丢掉，不会变成一个空的小问', () => {
+    const source = writtenDetail()
+    const form = formFromDetail(source)
+    form.subquestions.push({ key: '', stem: '', answer: '' })
+    form.points.push({ key: '', part: '', text: '' })
+
+    const built = requestFromForm(form, source)
+
+    expect(built.ok && isUnchanged(built.body, source)).toBe(true)
+  })
+
+  it('自查要点：改文字、改归属的小问、加一条针对整份解答的要点（part 是 null）', () => {
+    const source = writtenDetail()
+    const form = formFromDetail(source)
+    form.points[0]!.text = '（改）指出开口方向和对称轴'
+    form.points[1]!.part = '2'
+    form.points.push({ key: 'p5', part: '', text: '步骤完整' })
+
+    const built = requestFromForm(form, source)
+
+    expect(built.ok).toBe(true)
+    if (!built.ok) return
+    const points = (built.body.rubric as unknown as { points: unknown[] }).points
+    expect(points).toEqual([
+      { key: 'p1', part: '1', text: '（改）指出开口方向和对称轴' },
+      { key: 'p2', part: '2', text: '列出关于 $a$ 的不等式并得出范围' },
+      { key: 'p3', part: '2', text: '求出最小值，并写明在哪一点取得' },
+      { key: 'p4', part: null, text: '每一步写出依据，书写清楚' },
+      { key: 'p5', part: null, text: '步骤完整' },
+    ])
+    // 要点只有 key、part、text 三样：表单里没有"分值"这种东西
+    for (const point of points) expect(Object.keys(point as object).sort()).toEqual(['key', 'part', 'text'])
+  })
+
+  it('评分细则里除了 points 之外的内容原样保留', () => {
+    const source = writtenDetail({
+      rubric: obj({ points: [{ key: 'p1', part: '1', text: '写出对称轴' }], note: '工程样例' }),
+    })
+    const form = formFromDetail(source)
+    form.points[0]!.text = '写出对称轴和开口方向'
+
+    const built = requestFromForm(form, source)
+
+    expect(built.ok && built.body.rubric).toEqual({
+      points: [{ key: 'p1', part: '1', text: '写出对称轴和开口方向' }],
+      note: '工程样例',
+    })
+  })
+
+  it('选择题和填空题的小问不经过表单：原样带回', () => {
+    const source = fillDetail()
+
+    const built = requestFromForm(formFromDetail(source), source)
+
+    expect(built.ok && built.body.content.subquestions).toEqual(source.content.subquestions)
+    expect(built.ok && 'points' in built.body.rubric).toBe(false)
   })
 })

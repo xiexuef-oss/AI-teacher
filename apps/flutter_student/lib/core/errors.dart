@@ -13,6 +13,8 @@ String describeError(Object error) {
       'independent_attempt_in_progress' => '还没有提交作答，查看解析需要先确认。',
       'hints_disabled_in_retest' => '复测要求不看提示独立完成，提交之后才能查看。',
       'review_not_due' => '这道题还没有到复测时间。',
+      'attempt_not_submitted' => '提交之后才能对照要点自查。',
+      'self_check_not_applicable' => '这道题不需要对照要点自查。',
       _ => error.message,
     };
   }

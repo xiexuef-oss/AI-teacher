@@ -142,3 +142,60 @@ export function snapshot(overrides: Partial<AdminVersionSnapshot> = {}): AdminVe
     ...overrides,
   }
 }
+
+/** 契约里 type: object 且没有 properties 的字段，生成的类型是 Record<string, never>。 */
+const obj = (value: object) => value as Record<string, never>
+
+/** 一道解答题：两个小问、各自的参考答案、自查要点（含一条针对整份解答的），只有标准解法。 */
+export function writtenDetail(overrides: Partial<AdminQuestionDetail> = {}): AdminQuestionDetail {
+  return detail({
+    type: 'solution',
+    answer_mode: 'written',
+    title: '含参二次函数的单调性与最值',
+    content: {
+      stem: '已知二次函数 $f(x)=x^2-2ax+3$（$a$ 为常数）。',
+      options: [],
+      blanks: [],
+      subquestions: [
+        {
+          key: '1',
+          stem: '若 $f(x)$ 在区间 $[1,+\\infty)$ 上单调递增，求 $a$ 的取值范围；',
+          answer_mode: 'written',
+          options: [],
+          blanks: [],
+        },
+        {
+          key: '2',
+          stem: '当 $a=2$ 时，求 $f(x)$ 在区间 $[0,3]$ 上的最大值和最小值。',
+          answer_mode: 'written',
+          options: [],
+          blanks: [],
+        },
+      ],
+      attachments: [],
+    },
+    answer: {
+      value: { '1': '$a\\le 1$', '2': '最大值 $3$，最小值 $-1$' },
+      equivalence_rules: {},
+      units: {},
+    },
+    teaching: {
+      concept: '二次函数的单调性与最值',
+      hints: ['先看开口方向。', '再看对称轴的位置。'],
+      concept_rephrase: null,
+      option_analysis: {},
+      visual: null,
+      leak_markers: ['a≤1', '最大值为3'],
+    },
+    solutions: [solution({ final_answer: '（1）$a\\le 1$；（2）最大值 $3$，最小值 $-1$' })],
+    rubric: obj({
+      points: [
+        { key: 'p1', part: '1', text: '指出图像开口向上，对称轴是直线 $x=a$' },
+        { key: 'p2', part: '1', text: '列出关于 $a$ 的不等式并得出范围' },
+        { key: 'p3', part: '2', text: '求出最小值，并写明在哪一点取得' },
+        { key: 'p4', part: null, text: '每一步写出依据，书写清楚' },
+      ],
+    }),
+    ...overrides,
+  })
+}

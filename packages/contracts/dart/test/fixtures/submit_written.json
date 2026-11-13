@@ -1,0 +1,215 @@
+{
+  "name": "submit_written",
+  "method": "POST",
+  "path": "/api/v1/attempts/b241fe64-8ee1-4db4-bdf4-28bd9c856187/submit",
+  "status": 200,
+  "schema": "SubmitResult",
+  "value": {
+    "attempt": {
+      "id": "b241fe64-8ee1-4db4-bdf4-28bd9c856187",
+      "session_id": "56676364-31ce-4b3b-b2d9-37b9ffd55ba5",
+      "attempt_no": 1,
+      "status": "submitted",
+      "answer": {
+        "parts": [
+          {
+            "key": "1",
+            "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"
+          },
+          {
+            "key": "2",
+            "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"
+          }
+        ]
+      },
+      "draft_revision": 1,
+      "assisted": false,
+      "used_solution": false,
+      "independent": true,
+      "evaluation": {
+        "state": "pending",
+        "outcome": "undetermined",
+        "is_correct": null,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": true,
+        "feedback": [],
+        "message": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "submitted_at": "2026-11-10T08:00:00Z",
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "evaluation": {
+      "state": "pending",
+      "outcome": "undetermined",
+      "is_correct": null,
+      "independent": true,
+      "assisted": false,
+      "used_solution": false,
+      "review_required": true,
+      "feedback": [],
+      "message": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+      "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+    },
+    "session": {
+      "id": "56676364-31ce-4b3b-b2d9-37b9ffd55ba5",
+      "question_id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "DIAGNOSED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "submitted_attempts": 1,
+      "last_event_seq": 1,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "dbc1c022-e7ae-45f4-9390-8c8c99459a26",
+        "session_id": "56676364-31ce-4b3b-b2d9-37b9ffd55ba5",
+        "seq_no": 1,
+        "type": "uncertainty",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "DIAGNOSED",
+        "payload": {
+          "reason_code": "subjective_self_check",
+          "text": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+          "review_required": true
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "dcb1d40bdf2c41b9b5ab514a52d5c681"
+        }
+      }
+    ],
+    "review_item": null
+  },
+  "body": {
+    "data": {
+      "attempt": {
+        "id": "b241fe64-8ee1-4db4-bdf4-28bd9c856187",
+        "session_id": "56676364-31ce-4b3b-b2d9-37b9ffd55ba5",
+        "attempt_no": 1,
+        "status": "submitted",
+        "answer": {
+          "parts": [
+            {
+              "key": "1",
+              "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"
+            },
+            {
+              "key": "2",
+              "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"
+            }
+          ]
+        },
+        "draft_revision": 1,
+        "assisted": false,
+        "used_solution": false,
+        "independent": true,
+        "evaluation": {
+          "state": "pending",
+          "outcome": "undetermined",
+          "is_correct": null,
+          "independent": true,
+          "assisted": false,
+          "used_solution": false,
+          "review_required": true,
+          "feedback": [],
+          "message": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+          "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+        },
+        "submitted_at": "2026-11-10T08:00:00Z",
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "evaluation": {
+        "state": "pending",
+        "outcome": "undetermined",
+        "is_correct": null,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": true,
+        "feedback": [],
+        "message": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "session": {
+        "id": "56676364-31ce-4b3b-b2d9-37b9ffd55ba5",
+        "question_id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "DIAGNOSED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "submitted_attempts": 1,
+        "last_event_seq": 1,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "dbc1c022-e7ae-45f4-9390-8c8c99459a26",
+          "session_id": "56676364-31ce-4b3b-b2d9-37b9ffd55ba5",
+          "seq_no": 1,
+          "type": "uncertainty",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "DIAGNOSED",
+          "payload": {
+            "reason_code": "subjective_self_check",
+            "text": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+            "review_required": true
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "dcb1d40bdf2c41b9b5ab514a52d5c681"
+          }
+        }
+      ],
+      "review_item": null
+    }
+  }
+}

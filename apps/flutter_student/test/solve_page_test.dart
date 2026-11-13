@@ -782,4 +782,236 @@ void main() {
       await teardownTree(tester);
     });
   });
+
+  group('解答题', () {
+    late AppHarness w;
+    late String writtenId;
+
+    setUp(() {
+      final backend = FakeBackend()
+        ..submitFixture = 'submit_written'
+        ..installAppBasics()
+        ..installLearningFlow(questionFixture: 'question_written');
+      w = AppHarness(backend: backend);
+      writtenId = Fixtures.load().value('question_written')['id'] as String;
+    });
+
+    Future<void> openWritten(
+      WidgetTester tester, {
+      Size size = tabletLandscape,
+      double textScale = 1,
+    }) => open(
+      tester,
+      w,
+      size: size,
+      questionId: writtenId,
+      textScale: textScale,
+    );
+
+    Future<void> write(WidgetTester tester, String part, String text) async {
+      await tester.enterText(key('part.$part'), text);
+      await tester.pump();
+    }
+
+    /// 滚到看得见再点（滚动之后要等一帧，位置才会更新）。
+    Future<void> tapKey(WidgetTester tester, String name) async {
+      await tester.ensureVisible(key(name));
+      await tester.pump();
+      await tester.tap(key(name));
+      await tester.pump();
+    }
+
+    Future<void> submit(WidgetTester tester) async {
+      await tapKey(tester, 'action.submit');
+      await settle(tester, frames: 12);
+    }
+
+    List<String> pointKeys() =>
+        ((Fixtures.load().value('self_check_pending')['points'] as List)
+                .cast<Map<String, dynamic>>())
+            .map((p) => p['key'] as String)
+            .toList();
+
+    testWidgets('每个小问一个输入框，先说明不自动评分；没写之前不能提交', (tester) async {
+      await openWritten(tester);
+
+      expect(key('part.1'), findsOneWidget);
+      expect(key('part.2'), findsOneWidget);
+      expect(find.textContaining('不自动评分'), findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNull,
+      );
+      expect(key('selfcheck.card'), findsNothing, reason: '提交之前不给要点');
+      await teardownTree(tester);
+    });
+
+    testWidgets('提交之前页面上看不到任何自查要点的内容', (tester) async {
+      await openWritten(tester);
+      await write(tester, '1', '对称轴是 x=a');
+
+      final points =
+          (Fixtures.load().value('self_check_pending')['points'] as List)
+              .cast<Map<String, dynamic>>();
+      expect(w.backend.requestsTo('GET', '/self-check'), isEmpty);
+      for (final point in points) {
+        expect(find.textContaining(point['text'] as String), findsNothing);
+      }
+      await teardownTree(tester);
+    });
+
+    testWidgets('写了才能提交；提交后出现对照自查，没有对错', (tester) async {
+      await openWritten(tester);
+      await write(tester, '1', '对称轴是 x=a，开口向上');
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNotNull,
+      );
+
+      await submit(tester);
+
+      expect(key('selfcheck.card'), findsOneWidget);
+      for (final k in pointKeys()) {
+        await tester.ensureVisible(key('selfcheck.point.$k'));
+        await tester.pump();
+        expect(key('selfcheck.point.$k'), findsOneWidget, reason: k);
+      }
+      await tester.dragUntilVisible(
+        find.text('这道题不自动评分'),
+        key('solve.questionPane'),
+        const Offset(0, -300),
+      );
+      expect(find.text('这道题不自动评分'), findsOneWidget);
+      expect(find.text('待确认'), findsNothing, reason: '不是"没能判定"');
+      expect(find.text('回答正确'), findsNothing);
+      expect(find.textContaining('官方'), findsWidgets);
+      await teardownTree(tester);
+    });
+
+    testWidgets('提交之后自动滚到自查要点的顶部', (tester) async {
+      await openWritten(tester, size: tabletPortrait);
+      await write(tester, '1', '写了第一问');
+
+      await submit(tester);
+      await settle(tester, frames: 12);
+
+      final top = tester.getTopLeft(key('selfcheck.card')).dy;
+      expect(top, greaterThanOrEqualTo(0));
+      expect(top, lessThan(tabletPortrait.height / 2), reason: '卡片顶部在视口上半部分');
+      await teardownTree(tester);
+    });
+
+    testWidgets('标完所有要点才能保存；保存后只显示计数，没有分数', (tester) async {
+      await openWritten(tester);
+      await write(tester, '1', '写了第一问');
+      await submit(tester);
+      FilledButton saveButton() =>
+          tester.widget<FilledButton>(key('selfcheck.save'));
+      expect(saveButton().onPressed, isNull);
+
+      final keys = pointKeys();
+      for (final k in keys.skip(1)) {
+        await tapKey(tester, 'selfcheck.$k.done');
+      }
+      expect(saveButton().onPressed, isNull, reason: '还差一条');
+      await tapKey(tester, 'selfcheck.${keys.first}.missed');
+      expect(saveButton().onPressed, isNotNull);
+
+      await tapKey(tester, 'selfcheck.save');
+      await settle(tester, frames: 6);
+
+      final summary = tester.widget<Text>(key('selfcheck.summary')).data!;
+      expect(summary, contains('做到了 ${keys.length - 1}'));
+      expect(summary, contains('没做到 1'));
+      expect(summary, contains('共 ${keys.length} 条'));
+      expect(summary, isNot(contains('%')));
+      expect(
+        find.textContaining(RegExp(r'\d+\s*分(?!之)')),
+        findsNothing,
+        reason: '不出现"几分"',
+      );
+      expect(w.backend.selfCheckMarks, hasLength(keys.length));
+      // 保存之后没有改动，就不能再保存；改一条才行
+      expect(saveButton().onPressed, isNull);
+      await tapKey(tester, 'selfcheck.${keys.first}.partial');
+      expect(saveButton().onPressed, isNotNull);
+      await teardownTree(tester);
+    });
+
+    testWidgets('取要点失败时给出重试，作答仍是已提交', (tester) async {
+      await openWritten(tester);
+      await write(tester, '1', '写了第一问');
+      w.backend.failNextOn('/self-check', 503, 'service_unavailable');
+
+      await submit(tester);
+
+      expect(key('selfcheck.card'), findsOneWidget);
+      expect(key('selfcheck.retry'), findsOneWidget);
+      expect(key('selfcheck.save'), findsNothing);
+
+      await tapKey(tester, 'selfcheck.retry');
+      await settle(tester, frames: 6);
+      expect(key('selfcheck.retry'), findsNothing);
+      expect(key('selfcheck.point.${pointKeys().first}'), findsOneWidget);
+      await teardownTree(tester);
+    });
+
+    testWidgets('提交之后的输入框是只读的，写的内容还在', (tester) async {
+      await openWritten(tester);
+      await write(tester, '2', '最小值 -1');
+      await submit(tester);
+      await tester.dragUntilVisible(
+        key('part.2'),
+        key('solve.questionPane'),
+        const Offset(0, 300),
+      );
+
+      final field = tester.widget<TextField>(key('part.2'));
+      expect(field.enabled, isFalse);
+      expect(field.controller!.text, '最小值 -1');
+      await teardownTree(tester);
+    });
+
+    for (final size in [tabletLandscape, tabletPortrait, phone]) {
+      testWidgets(
+        '字体放大 1.5 倍不溢出：${size.width.toInt()}×${size.height.toInt()}',
+        (tester) async {
+          await openWritten(tester, size: size, textScale: 1.5);
+          await write(tester, '1', '写了第一问');
+          await submit(tester);
+          for (final k in pointKeys()) {
+            await tapKey(tester, 'selfcheck.$k.done');
+          }
+          await tester.ensureVisible(key('selfcheck.save'));
+          await settle(tester, frames: 3);
+          expect(
+            tester.widget<FilledButton>(key('selfcheck.save')).onPressed,
+            isNotNull,
+            reason: '都标完了，能保存',
+          );
+          expect(tester.takeException(), isNull);
+          await teardownTree(tester);
+        },
+      );
+    }
+
+    testWidgets('自查的每个选项点得到：触控目标不小于 48', (tester) async {
+      await openWritten(tester);
+      await write(tester, '1', '写了第一问');
+      await submit(tester);
+
+      final k = pointKeys().first;
+      for (final level in ['done', 'partial', 'missed']) {
+        await tester.ensureVisible(key('selfcheck.$k.$level'));
+        await tester.pump();
+        final size = tester.getSize(key('selfcheck.$k.$level'));
+        expect(
+          size.height,
+          greaterThanOrEqualTo(AppTheme.minTarget),
+          reason: level,
+        );
+      }
+      await teardownTree(tester);
+    });
+  });
 }

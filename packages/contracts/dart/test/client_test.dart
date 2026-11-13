@@ -103,6 +103,104 @@ void main() {
     expect(result.reviewItem, isNull);
   });
 
+  test('解答题：按小问提交，不自动评分，事件说明"请自查"', () async {
+    serve('submit_written');
+    final result = await client.submitAttempt(
+      attemptId: 'x',
+      body: const SubmitRequest(
+        answer: AnswerPayload(parts: [
+          AnswerPart(key: '1', text: '对称轴 x=a'),
+          AnswerPart(key: '2', text: '最小值 -1'),
+        ]),
+      ),
+      idempotencyKey: 'submit-0003-abcd',
+    );
+    expect(jsonDecode(transport.seen.single.body!), {
+      'answer': {
+        'parts': [
+          {'key': '1', 'text': '对称轴 x=a'},
+          {'key': '2', 'text': '最小值 -1'},
+        ]
+      },
+    });
+    expect(result.evaluation.state, EvaluationState.pending);
+    expect(result.evaluation.outcome, EvaluationOutcome.undetermined);
+    expect(result.evaluation.isCorrect, isNull);
+    expect(result.reviewItem, isNull);
+    expect(result.events.single.type, TutorEventType.uncertainty);
+    expect(
+        result.events.single.uncertainty.reasonCode, 'subjective_self_check');
+    // 存下来的作答里有按小问分开的文字
+    expect(result.attempt.answer!.parts!.map((p) => p.key), ['1', '2']);
+  });
+
+  test('解答题题面带小问，不带任何作答区之外的东西', () async {
+    serve('question_written');
+    final question = await client.getQuestion(questionId: 'q');
+    expect(question.answerMode, AnswerMode.written);
+    expect(question.content.subquestions.map((s) => s.key), ['1', '2']);
+    expect(question.content.subquestions.map((s) => s.answerMode),
+        everyElement(AnswerMode.written));
+    expect(question.judgingNote, contains('不自动评分'));
+    final text = jsonEncode(question.toJson());
+    for (final forbidden in ['"rubric"', '"points"', '"final_answer"']) {
+      expect(text.contains(forbidden), isFalse, reason: forbidden);
+    }
+  });
+
+  test('对照自查：提交前是 409；提交后拿到要点；保存后只有计数，没有分数', () async {
+    serve('self_check_before_submit');
+    await expectLater(
+      client.getSelfCheck(attemptId: 'x'),
+      throwsA(isA<ApiException>()
+          .having((e) => e.statusCode, 'statusCode', 409)
+          .having((e) => e.code, 'code', 'attempt_not_submitted')),
+    );
+
+    serve('self_check_pending');
+    final pending = await client.getSelfCheck(attemptId: 'x');
+    expect(pending.points, isNotEmpty);
+    expect(pending.marks, isEmpty);
+    expect(pending.savedAt, isNull);
+    expect(pending.summary.total, pending.points.length);
+    expect(
+        pending.summary.done + pending.summary.partial + pending.summary.missed,
+        0);
+
+    serve('self_check_saved');
+    final saved = await client.saveSelfCheck(
+      attemptId: 'x',
+      body: SelfCheckSave(marks: [
+        for (final point in pending.points)
+          SelfCheckMark(pointKey: point.key, level: SelfCheckLevel.done),
+      ]),
+      idempotencyKey: 'self-check-0001',
+    );
+    final request = transport.seen.last;
+    expect(request.method, 'PUT');
+    expect(request.uri.path, '/api/v1/attempts/x/self-check');
+    expect(request.headers['Idempotency-Key'], 'self-check-0001');
+    expect(saved.marks, hasLength(saved.points.length));
+    expect(saved.savedAt, isNotNull);
+    expect(saved.summary.done + saved.summary.partial + saved.summary.missed,
+        saved.summary.total);
+    expect(saved.disclaimer, contains('官方'));
+    expect(jsonEncode(saved.toJson()).contains('score'), isFalse);
+  });
+
+  test('学情里解答题只有计数，没有正确率', () async {
+    serve('progress_summary');
+    final progress = await client.getProgressSummary();
+    expect(progress.subjective.attempts, 1);
+    expect(progress.subjective.selfChecked, 1);
+    expect(
+        progress.subjective.pointsDone +
+            progress.subjective.pointsPartial +
+            progress.subjective.pointsMissed,
+        greaterThan(0));
+    expect(progress.uncertainAttempts, isA<int>());
+  });
+
   test('listQuestions 把筛选条件编成查询参数', () async {
     serve('questions_page');
     final page = await client.listQuestions(

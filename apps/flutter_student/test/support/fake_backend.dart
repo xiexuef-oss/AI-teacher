@@ -182,6 +182,26 @@ class FakeBackend implements ApiTransport {
   String sessionOrigin = 'task';
   String? sessionReviewItem;
 
+  /// 解答题提交后的自评：服务端按要点清单的顺序存下来的那一份。
+  List<Map<String, dynamic>> selfCheckMarks = [];
+
+  /// 解答题的自查：要点来自真实样例，自评与计数按已保存的内容算（与服务端的算法一致）。
+  Map<String, dynamic> selfCheck() {
+    final base = fixtures.value('self_check_pending');
+    final points = base['points'] as List<dynamic>;
+    final counts = {'done': 0, 'partial': 0, 'missed': 0};
+    for (final mark in selfCheckMarks) {
+      final level = mark['level'] as String;
+      counts[level] = counts[level]! + 1;
+    }
+    return {
+      ...base,
+      'marks': selfCheckMarks,
+      'summary': {...counts, 'total': points.length},
+      'saved_at': selfCheckMarks.isEmpty ? null : '2026-11-10T08:10:00Z',
+    };
+  }
+
   /// 把会话 → 作答 → 草稿 → 提交 → 辅导这一整套接口装上。
   void installLearningFlow({
     String questionFixture = 'question_single_choice',
@@ -224,7 +244,30 @@ class FakeBackend implements ApiTransport {
       serverRevision = 0;
       serverAnswer = null;
       serverStrokes = null;
+      selfCheckMarks = [];
       return okResponse(attempt, status: 201);
+    });
+    on(
+      'GET',
+      '/attempts/[^/]+/self-check',
+      (_) => submitted
+          ? okResponse(selfCheck())
+          : errorResponse(409, 'attempt_not_submitted'),
+    );
+    on('PUT', '/attempts/[^/]+/self-check', (request) {
+      if (!submitted) return errorResponse(409, 'attempt_not_submitted');
+      final marks = (bodyOf(request)!['marks'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final keys = (fixtures.value('self_check_pending')['points'] as List)
+          .map((p) => (p as Map<String, dynamic>)['key'])
+          .toSet();
+      // 与服务端一样：每个要点恰好评一次
+      if (marks.length != keys.length ||
+          !marks.every((m) => keys.contains(m['point_key']))) {
+        return errorResponse(422, 'validation_error');
+      }
+      selfCheckMarks = marks;
+      return okResponse(selfCheck());
     });
     on(
       'GET',

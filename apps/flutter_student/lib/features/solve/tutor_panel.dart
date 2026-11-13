@@ -468,6 +468,26 @@ class _EventCard extends StatelessWidget {
   }
 
   Widget _uncertainty(BuildContext context, UncertaintyPayload p) {
+    if (p.reasonCode == 'subjective_self_check') {
+      // 解答题本来就不自动评分：不是"没能判定"，也不是等什么人来确认，而是请学生自己对照要点检查
+      return Callout(
+        tone: Tone.info,
+        icon: Icons.fact_check_outlined,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('这道题不自动评分', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 2),
+            Text(p.text),
+            const SizedBox(height: 4),
+            Text(
+              '这次不算对，也不算错，不会计入正确率。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      );
+    }
     return Callout(
       tone: Tone.warning,
       icon: Icons.help_outline,

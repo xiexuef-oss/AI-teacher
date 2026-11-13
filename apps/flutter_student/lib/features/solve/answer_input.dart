@@ -225,16 +225,7 @@ class _FillInputState extends State<FillInput> {
   void _insert(String symbol) {
     final key = _active;
     if (key == null) return;
-    final controller = _controllers[key]!;
-    final selection = controller.selection;
-    final start = selection.isValid ? selection.start : controller.text.length;
-    final end = selection.isValid ? selection.end : controller.text.length;
-    final text = controller.text.replaceRange(start, end, symbol);
-    controller.value = TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: start + symbol.length),
-    );
-    widget.onChanged(key, text);
+    widget.onChanged(key, insertAtCursor(_controllers[key]!, symbol));
     _focus[key]?.requestFocus();
   }
 
@@ -267,34 +258,10 @@ class _FillInputState extends State<FillInput> {
                   widget.onChanged(widget.blanks[i].key, value),
             ),
           ),
-        Wrap(
-          spacing: 4,
-          runSpacing: 4,
-          children: [
-            for (final symbol in symbols)
-              Semantics(
-                button: true,
-                label: '插入 $symbol',
-                child: ExcludeSemantics(
-                  child: SizedBox(
-                    width: AppTheme.minTarget - 4,
-                    height: AppTheme.minTarget - 4,
-                    child: OutlinedButton(
-                      key: ValueKey('symbol.$symbol'),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(
-                          AppTheme.minTarget - 4,
-                          AppTheme.minTarget - 4,
-                        ),
-                      ),
-                      onPressed: widget.enabled ? () => _insert(symbol) : null,
-                      child: Text(symbol, style: theme.textTheme.titleMedium),
-                    ),
-                  ),
-                ),
-              ),
-          ],
+        SymbolPalette(
+          symbols: symbols,
+          onInsert: _insert,
+          enabled: widget.enabled,
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8),
@@ -304,6 +271,230 @@ class _FillInputState extends State<FillInput> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 在光标处（有选中内容就替换它）插入一个符号，返回插入后的整段文字。
+String insertAtCursor(TextEditingController controller, String symbol) {
+  final selection = controller.selection;
+  final start = selection.isValid ? selection.start : controller.text.length;
+  final end = selection.isValid ? selection.end : controller.text.length;
+  final text = controller.text.replaceRange(start, end, symbol);
+  controller.value = TextEditingValue(
+    text: text,
+    selection: TextSelection.collapsed(offset: start + symbol.length),
+  );
+  return text;
+}
+
+/// 平板上不好敲的符号：点一下插进当前输入框。
+class SymbolPalette extends StatelessWidget {
+  const SymbolPalette({
+    super.key,
+    required this.symbols,
+    required this.onInsert,
+    this.enabled = true,
+  });
+
+  final List<String> symbols;
+  final ValueChanged<String> onInsert;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        for (final symbol in symbols)
+          Semantics(
+            button: true,
+            label: '插入 $symbol',
+            child: ExcludeSemantics(
+              child: SizedBox(
+                width: AppTheme.minTarget - 4,
+                height: AppTheme.minTarget - 4,
+                child: OutlinedButton(
+                  key: ValueKey('symbol.$symbol'),
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(
+                      AppTheme.minTarget - 4,
+                      AppTheme.minTarget - 4,
+                    ),
+                  ),
+                  onPressed: enabled ? () => onInsert(symbol) : null,
+                  child: Text(symbol, style: theme.textTheme.titleMedium),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 解答题：每个小问一个多行输入框；也可以只在旁边的草稿上手写，两样都有也行。
+/// 解答题不自动评分，这里只负责把学生写的东西接住——提交之后才会有对照要点的自查。
+class WrittenInput extends StatefulWidget {
+  const WrittenInput({
+    super.key,
+    required this.subquestions,
+    required this.values,
+    required this.onChanged,
+    this.enabled = true,
+  });
+
+  final List<Subquestion> subquestions;
+  final Map<String, String> values;
+  final void Function(String key, String value) onChanged;
+  final bool enabled;
+
+  @override
+  State<WrittenInput> createState() => _WrittenInputState();
+}
+
+class _WrittenInputState extends State<WrittenInput> {
+  static const symbols = [
+    '√',
+    'π',
+    '²',
+    '³',
+    '×',
+    '÷',
+    '≤',
+    '≥',
+    '∞',
+    '°',
+    'θ',
+    'Δ',
+    '→',
+    '↑',
+    '↓',
+    '±',
+    '(',
+    ')',
+    '=',
+    '^',
+  ];
+
+  final Map<String, TextEditingController> _controllers = {};
+  final Map<String, FocusNode> _focus = {};
+  String? _active;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final sub in widget.subquestions) {
+      _controllers[sub.key] = TextEditingController(
+        text: widget.values[sub.key] ?? '',
+      );
+      _focus[sub.key] = FocusNode()
+        ..addListener(() {
+          if (_focus[sub.key]!.hasFocus) setState(() => _active = sub.key);
+        });
+    }
+    _active = widget.subquestions.isEmpty
+        ? null
+        : widget.subquestions.first.key;
+  }
+
+  @override
+  void didUpdateWidget(WrittenInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 外部改了内容（采用云端稿、再试一次清空）：同步到输入框，但不打断正在输入的光标
+    for (final sub in widget.subquestions) {
+      final controller = _controllers[sub.key];
+      final value = widget.values[sub.key] ?? '';
+      if (controller != null &&
+          controller.text != value &&
+          !(_focus[sub.key]?.hasFocus ?? false)) {
+        controller.text = value;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    for (final f in _focus.values) {
+      f.dispose();
+    }
+    super.dispose();
+  }
+
+  void _insert(String symbol) {
+    final key = _active;
+    if (key == null) return;
+    widget.onChanged(key, insertAtCursor(_controllers[key]!, symbol));
+    _focus[key]?.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final many = widget.subquestions.length > 1;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < widget.subquestions.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (many)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Text(
+                          '（${i + 1}）',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                      ),
+                    Expanded(
+                      child: MathText(
+                        widget.subquestions[i].stem,
+                        style: theme.textTheme.bodyLarge?.copyWith(height: 1.6),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  key: ValueKey('part.${widget.subquestions[i].key}'),
+                  controller: _controllers[widget.subquestions[i].key],
+                  focusNode: _focus[widget.subquestions[i].key],
+                  enabled: widget.enabled,
+                  keyboardType: TextInputType.multiline,
+                  minLines: 4,
+                  maxLines: 14,
+                  maxLength: 4000,
+                  style: theme.textTheme.bodyLarge,
+                  decoration: InputDecoration(
+                    labelText: many ? '第 ${i + 1} 问的解答' : '你的解答',
+                    alignLabelWithHint: true,
+                    hintText: '写出主要步骤和依据；也可以直接在旁边的草稿上手写。',
+                    counterText: '',
+                  ),
+                  onChanged: (value) =>
+                      widget.onChanged(widget.subquestions[i].key, value),
+                ),
+              ],
+            ),
+          ),
+        SymbolPalette(
+          symbols: symbols,
+          onInsert: _insert,
+          enabled: widget.enabled,
         ),
       ],
     );

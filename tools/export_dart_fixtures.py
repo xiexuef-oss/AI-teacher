@@ -253,6 +253,59 @@ def export(directory: Path = OUTPUT_DIR) -> int:
             )
             rec("session_after_submit", student, "GET", f"/sessions/{s3['id']}")
 
+            # 解答题：不自动评分，提交之后对照要点自查
+            written_id = qid("math-quadratic-param-written")
+            rec("question_written", student, "GET", f"/questions/{written_id}")
+            s8 = student.data(
+                "POST",
+                "/sessions",
+                expect=201,
+                json={"question_id": written_id, "origin": "practice"},
+            )
+            a8 = student.data("POST", "/attempts", expect=201, json={"session_id": s8["id"]})
+            written = {
+                "parts": [
+                    {"key": "1", "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"},
+                    {"key": "2", "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"},
+                ]
+            }
+            rec(
+                "self_check_before_submit",
+                student,
+                "GET",
+                f"/attempts/{a8['id']}/self-check",
+                expect=409,
+            )
+            rec(
+                "draft_synced_written",
+                student,
+                "PUT",
+                f"/attempts/{a8['id']}/draft",
+                json={"base_revision": 0, "answer": written, "strokes": STROKES},
+            )
+            rec(
+                "submit_written",
+                student,
+                "POST",
+                f"/attempts/{a8['id']}/submit",
+                json={"answer": written},
+            )
+            checklist = rec(
+                "self_check_pending", student, "GET", f"/attempts/{a8['id']}/self-check"
+            )
+            levels = ["done", "partial", "missed"]
+            marks = [
+                {"point_key": point["key"], "level": levels[index % 3]}
+                for index, point in enumerate(checklist["points"])
+            ]
+            rec(
+                "self_check_saved",
+                student,
+                "PUT",
+                f"/attempts/{a8['id']}/self-check",
+                json={"marks": marks},
+            )
+
             # "没懂"的三级回退：没有审核文案的题走模型网关（Mock）
             s4 = student.data(
                 "POST",

@@ -74,6 +74,33 @@ def test_field_names(name, expected):
 # ---------------------------------------------------------------- 覆盖
 
 
+def test_multi_line_descriptions_stay_inside_their_doc_comment():
+    """YAML 的多行描述（| 块）不能漏到注释外面：漏出去的那几行会让生成的 Dart 无法编译。"""
+    from gen_dart_contracts import _render_class, _render_enum
+
+    enum_text = _render_enum("Mode", {"description": "第一行\n第二行\n", "enum": ["a", "b"]})
+    head = enum_text.split("enum Mode {")[0]
+    assert head.strip() == "/// 第一行 第二行"
+
+    class_text = _render_class(
+        "Thing", {"description": "第一行\n第二行\n", "properties": {}}, resolver=None
+    )
+    assert class_text.split("class Thing {")[0].strip() == "/// 第一行 第二行"
+
+
+def test_every_generated_doc_comment_is_a_single_line(generated):
+    """生成的每一行中文说明都在 /// 注释里：契约里的多行描述压成一行，没有哪一行光秃秃地落在注释外。"""
+    for relative in (MODELS, CLIENT, PAYLOADS):
+        lines = generated[relative].splitlines()
+        for number, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if not re.search(r"[一-鿿]", stripped):
+                continue
+            in_comment = stripped.startswith("//")
+            in_string = "'" in stripped or '"' in stripped
+            assert in_comment or in_string, f"{relative}:{number} 有一行说明漏到了注释外面：{line}"
+
+
 def test_expected_files_are_generated(generated):
     assert set(generated) == {MODELS, CLIENT, PAYLOADS, VISUALS, ROUND_TRIP}
     for path, content in generated.items():

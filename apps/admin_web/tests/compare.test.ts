@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compareSnapshots, jsonLines, type FieldDiff } from '../src/compare'
-import { FAST, snapshot, solution } from './fixtures'
+import { FAST, snapshot, solution, writtenDetail } from './fixtures'
 
 const field = (comparison: ReturnType<typeof compareSnapshots>, key: string): FieldDiff => {
   for (const section of comparison.sections) {
@@ -129,14 +129,98 @@ describe('compareSnapshots', () => {
     expect(comparison.changedTitles).toEqual(['教学辅助', '知识点', '评分细则'])
   })
 
-  it('没有小问和附件时，这一项没有行；有的话按 JSON 对比', () => {
-    expect(field(compareSnapshots(snapshot(), snapshot()), 'extra').rows).toEqual([])
+  it('没有小问和附件时这两项没有行；附件按 JSON 对比', () => {
+    const none = compareSnapshots(snapshot(), snapshot())
+    expect(field(none, 'subquestions').rows).toEqual([])
+    expect(field(none, 'attachments').rows).toEqual([])
 
     const base = snapshot()
     const withAttachment = snapshot({
       content: { ...base.content, attachments: [{ kind: 'image', media_id: null, alt: '受力图' }] },
     })
-    expect(field(compareSnapshots(base, withAttachment), 'extra').changed).toBe(true)
+    expect(field(compareSnapshots(base, withAttachment), 'attachments').changed).toBe(true)
+    expect(field(compareSnapshots(base, withAttachment), 'subquestions').changed).toBe(false)
+  })
+})
+
+/** 解答题的快照：内容取自 writtenDetail()。 */
+function writtenSnapshot(overrides: Parameters<typeof snapshot>[0] = {}) {
+  const base = writtenDetail()
+  return snapshot({
+    title: base.title,
+    content: base.content,
+    answer: base.answer,
+    teaching: base.teaching,
+    solutions: base.solutions,
+    rubric: base.rubric,
+    ...overrides,
+  })
+}
+
+describe('解答题的对比', () => {
+  it('小问、参考答案、自查要点逐行对比：改了哪一条一眼就能看出', () => {
+    const left = writtenSnapshot()
+    const [first, second] = left.content.subquestions
+    const right = writtenSnapshot({
+      version: 2,
+      is_current: false,
+      content: { ...left.content, subquestions: [{ ...first!, stem: '（改）求 $a$ 的取值范围；' }, second!] },
+      answer: { ...left.answer, value: { '1': '$a\\le 1$', '2': '最小值 $-1$' } },
+      rubric: obj({
+        points: [
+          { key: 'p1', part: '1', text: '指出图像开口向上，对称轴是直线 $x=a$' },
+          { key: 'p2', part: '1', text: '（改）列出不等式并得出范围' },
+          { key: 'p3', part: '2', text: '求出最小值，并写明在哪一点取得' },
+          { key: 'p4', part: null, text: '每一步写出依据，书写清楚' },
+          { key: 'p5', part: '2', text: '比较端点，得出最大值' },
+        ],
+      }),
+    })
+
+    const comparison = compareSnapshots(left, right)
+
+    expect(field(comparison, 'subquestions').rows.map((row) => row.kind)).toEqual(['changed', 'same'])
+    expect(field(comparison, 'answer').rows.map((row) => row.kind)).toEqual(['same', 'changed'])
+    expect(field(comparison, 'rubric').rows.map((row) => row.kind)).toEqual([
+      'same',
+      'changed',
+      'same',
+      'same',
+      'added',
+    ])
+    expect(comparison.changedTitles).toEqual(['题面', '答案', '评分细则'])
+  })
+
+  it('小问行有键和题干；参考答案行是"键 = 答案"；要点行有键、所属小问、文字，没有分值', () => {
+    const shot = writtenSnapshot()
+
+    const comparison = compareSnapshots(shot, shot)
+
+    const subquestions = field(comparison, 'subquestions').rows.map((row) => row.left)
+    expect(subquestions[0]).toMatch(/^1｜.*求 \$a\$ 的取值范围/)
+    expect(field(comparison, 'answer').rows.map((row) => row.left)).toEqual([
+      '1 = $a\\le 1$',
+      '2 = 最大值 $3$，最小值 $-1$',
+    ])
+    const points = field(comparison, 'rubric').rows.map((row) => row.left)
+    expect(points).toEqual([
+      'p1｜第 1 问｜指出图像开口向上，对称轴是直线 $x=a$',
+      'p2｜第 1 问｜列出关于 $a$ 的不等式并得出范围',
+      'p3｜第 2 问｜求出最小值，并写明在哪一点取得',
+      'p4｜整份解答｜每一步写出依据，书写清楚',
+    ])
+  })
+
+  it('评分细则里除了要点之外的内容仍按 JSON 逐行对比', () => {
+    const left = writtenSnapshot()
+    const right = writtenSnapshot({
+      rubric: obj({ ...(left.rubric as object), note: '工程样例' }),
+    })
+
+    const rows = field(compareSnapshots(left, right), 'rubric').rows
+
+    expect(rows.filter((row) => row.kind === 'added').length).toBeGreaterThan(0)
+    expect(rows.slice(0, 4).every((row) => row.kind === 'same')).toBe(true)
   })
 })
 

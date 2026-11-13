@@ -65,6 +65,57 @@ void main() {
     expect(read.savedAt, DateTime.utc(2026, 11, 10, 8));
   });
 
+  test('解答题分小问的文字随草稿一起存、一起读', () async {
+    final draft = LocalDraft(
+      questionId: 'q1',
+      parts: const {'1': 'a≤1', '2': '最小值 -1，最大值 3'},
+      savedAt: DateTime.utc(2026, 11, 10, 8),
+    );
+    expect(draft.hasContent, isTrue);
+
+    await store.writeDraft(draft);
+
+    final read = (await store.readDraft('q1'))!;
+    expect(read.parts, {'1': 'a≤1', '2': '最小值 -1，最大值 3'});
+    expect(read.selected, isEmpty);
+    expect(read.blanks, isEmpty);
+  });
+
+  test('只有空白文字不算有内容', () {
+    final draft = LocalDraft(
+      questionId: 'q1',
+      parts: const {'1': '  \n '},
+      savedAt: DateTime.utc(2026, 11, 10, 8),
+    );
+    expect(draft.hasContent, isFalse);
+  });
+
+  test('旧版本存下的草稿（没有分小问这一项）仍然读得出来', () async {
+    await memory.write(
+      'u/u1/draft/q1',
+      jsonEncode({
+        'v': 1,
+        'questionId': 'q1',
+        'sessionId': null,
+        'attemptId': null,
+        'baseRevision': 0,
+        'dirty': true,
+        'answer': {
+          'selected': ['B'],
+          'blanks': <String, String>{},
+        },
+        'strokes': null,
+        'savedAt': '2026-11-10T08:00:00.000Z',
+      }),
+    );
+
+    final read = (await store.readDraft('q1'))!;
+
+    expect(read.selected, ['B']);
+    expect(read.parts, isEmpty);
+    expect(memory.data.keys, ['u/u1/draft/q1'], reason: '没有被当成坏草稿另存');
+  });
+
   test('键里带用户 ID：不同用户的草稿互不可见', () async {
     await store.writeDraft(sample());
 

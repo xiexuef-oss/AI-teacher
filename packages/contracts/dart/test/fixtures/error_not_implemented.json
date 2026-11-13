@@ -9,7 +9,7 @@
       "code": "not_implemented",
       "message": "createScan 已在契约中规划，本阶段尚未实现",
       "details": {},
-      "request_id": "82419079f827448ebdeba660a0633aba"
+      "request_id": "6a524a1427f74f698d3de1bbf3793dc6"
     }
   },
   "body": {
@@ -17,7 +17,7 @@
       "code": "not_implemented",
       "message": "createScan 已在契约中规划，本阶段尚未实现",
       "details": {},
-      "request_id": "82419079f827448ebdeba660a0633aba"
+      "request_id": "6a524a1427f74f698d3de1bbf3793dc6"
     }
   }
 }

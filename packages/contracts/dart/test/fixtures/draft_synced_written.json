@@ -1,0 +1,93 @@
+{
+  "name": "draft_synced_written",
+  "method": "PUT",
+  "path": "/api/v1/attempts/b241fe64-8ee1-4db4-bdf4-28bd9c856187/draft",
+  "status": 200,
+  "schema": "Draft",
+  "value": {
+    "attempt_id": "b241fe64-8ee1-4db4-bdf4-28bd9c856187",
+    "revision": 1,
+    "answer": {
+      "parts": [
+        {
+          "key": "1",
+          "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"
+        },
+        {
+          "key": "2",
+          "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"
+        }
+      ]
+    },
+    "strokes": {
+      "version": 1,
+      "pages": [
+        {
+          "width": 800.0,
+          "height": 1100.0,
+          "strokes": [
+            {
+              "color": "#1A1A1A",
+              "width": 2.5,
+              "points": [
+                10.0,
+                20.0,
+                0.0,
+                0.5,
+                14.0,
+                26.0,
+                16.0,
+                0.6
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "updated_at": "2026-11-10T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "attempt_id": "b241fe64-8ee1-4db4-bdf4-28bd9c856187",
+      "revision": 1,
+      "answer": {
+        "parts": [
+          {
+            "key": "1",
+            "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"
+          },
+          {
+            "key": "2",
+            "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"
+          }
+        ]
+      },
+      "strokes": {
+        "version": 1,
+        "pages": [
+          {
+            "width": 800.0,
+            "height": 1100.0,
+            "strokes": [
+              {
+                "color": "#1A1A1A",
+                "width": 2.5,
+                "points": [
+                  10.0,
+                  20.0,
+                  0.0,
+                  0.5,
+                  14.0,
+                  26.0,
+                  16.0,
+                  0.6
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "updated_at": "2026-11-10T08:00:00Z"
+    }
+  }
+}

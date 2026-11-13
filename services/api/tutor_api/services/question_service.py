@@ -61,6 +61,7 @@ _JUDGING_NOTES = {
         "多选题：全部选对才算正确，漏选或错选都记为不正确。这是练习反馈规则，不代表任何地区的官方评分办法。"
     ),
 }
+_WRITTEN_NOTE = "解答题不自动评分：提交后对照要点自己检查一遍。这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
 
 
 @dataclass(frozen=True)
@@ -290,6 +291,8 @@ def serialize_question(db: Session, question: Question, scope: StudentScope) -> 
     judging_note = None
     if question.answer_mode == "multiple_choice":
         judging_note = _JUDGING_NOTES[rubric.get("multi_choice_rule") or "all_or_nothing"]
+    elif question.answer_mode == "written":
+        judging_note = _WRITTEN_NOTE
     return QuestionOut(
         **_summary_fields(question, version, tags, knowledge, scope),
         version=version.version,

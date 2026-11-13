@@ -1,11 +1,11 @@
 {
   "name": "session_after_submit",
   "method": "GET",
-  "path": "/api/v1/sessions/b4e211b2-3b5d-44a5-98c9-8576a00554e0",
+  "path": "/api/v1/sessions/91728413-ba01-4527-8afa-a09fc11b6741",
   "status": 200,
   "schema": "StudySession",
   "value": {
-    "id": "b4e211b2-3b5d-44a5-98c9-8576a00554e0",
+    "id": "91728413-ba01-4527-8afa-a09fc11b6741",
     "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
     "question_version": 1,
     "origin": "practice",
@@ -30,7 +30,7 @@
   },
   "body": {
     "data": {
-      "id": "b4e211b2-3b5d-44a5-98c9-8576a00554e0",
+      "id": "91728413-ba01-4527-8afa-a09fc11b6741",
       "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
       "question_version": 1,
       "origin": "practice",

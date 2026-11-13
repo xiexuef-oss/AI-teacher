@@ -222,6 +222,23 @@ class HandwritingDraft(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
+class AttemptSelfCheck(Base):
+    """解答题提交后，学生对照要点做的自查（PRD P0 第 3、4 条，migrations/003）。
+
+    一份作答至多一行，改了整体替换。只记每个要点"做到 / 做到一部分 / 没做到"：不折算成分数，
+    不进任何正确率。要点本身不存在这里，按作答所属会话固定的题目版本去 rubrics 里取。
+    """
+
+    __tablename__ = "attempt_self_checks"
+    __table_args__ = (UniqueConstraint("attempt_id", name="uq_self_check_attempt"),)
+
+    id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    attempt_id: Mapped[str] = mapped_column(_ID, ForeignKey("attempts.id"))
+    marks_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
 class TutorEventRow(Base):
     __tablename__ = "tutor_events"
     __table_args__ = (UniqueConstraint("session_id", "seq_no", name="uq_event_seq"),)

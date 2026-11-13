@@ -482,7 +482,11 @@ paths:
       summary: 提交作答并返回评估状态
       description: |
         客观题同步判定。判定不了（例如填空等价性无法确认）时 `evaluation.state=uncertain`、`is_correct=null`。
-        主观题只返回 `pending`。同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
+        解答题（`written`）不自动评分：返回 `state=pending`、`outcome=undetermined`、`is_correct=null`，
+        并产生一条 `uncertainty` 事件（`reason_code=subjective_self_check`）；学生之后用
+        `/attempts/{attempt_id}/self-check` 对照要点自查。解答题没有文字（`answer.parts` 全空）
+        也没有已同步的笔迹时返回 422。
+        同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
         只有会话里第一次提交、且此前没有看过提示、图解或解析的作答才算 `independent=true`。
       x-implementation-status: implemented
       parameters:
@@ -507,6 +511,73 @@ paths:
                 required: [data]
                 properties:
                   data: {$ref: '#/components/schemas/SubmitResult'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /attempts/{attempt_id}/self-check:
+    get:
+      operationId: getSelfCheck
+      tags: [attempts]
+      summary: 解答题提交后的对照自查：要点，以及已保存的自评
+      description: |
+        解答题不自动评分。提交之后，学生对照这份要点清单，给每一条标"做到了 / 做到一部分 / 没做到"。
+        要点只在作答已提交之后才给：提交之前返回 409 `attempt_not_submitted`，独立作答阶段不泄题。
+        不是解答题的作答返回 409 `self_check_not_applicable`。还没有保存过自评时 `marks` 为空、`saved_at` 为 null。
+        自查是学生自己做的记录，不是官方阅卷分数，也不计入任何正确率。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/AttemptId'}
+      responses:
+        '200':
+          description: 自查要点与已保存的自评
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SelfCheck'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+    put:
+      operationId: saveSelfCheck
+      tags: [attempts]
+      summary: 保存对照自查的结果
+      description: |
+        整体替换：每个要点必须恰好评一次，缺评、重复或不认识的要点返回 422。可以改过再保存。
+        同一幂等键重放返回同一结果。作答没有提交、或不是解答题的情形与 GET 相同，返回 409。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/AttemptId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SelfCheckSave'}
+      responses:
+        '200':
+          description: 保存后的自查
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SelfCheck'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1177,7 +1248,9 @@ components:
       enum: [single_choice, multiple_choice, fill_blank, solution, proof, experiment, inference, process_flow, comprehensive]
     AnswerMode:
       type: string
-      description: 作答区的渲染方式。本阶段只实现 single_choice、multiple_choice、fill 的判定。
+      description: |
+        作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定；
+        written（解答题）只保存作答，提交后给对照要点的自查，不自动评分；experiment 尚未开放。
       enum: [single_choice, multiple_choice, fill, written, experiment]
     SourceType:
       type: string
@@ -1657,10 +1730,20 @@ components:
       properties:
         key: {type: string, minLength: 1, maxLength: 16}
         value: {type: string, maxLength: 200}
+    AnswerPart:
+      type: object
+      additionalProperties: false
+      description: 解答题某一小问的文字作答。
+      required: [key, text]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16, description: '小问键，对应题目 content.subquestions 里的 key。'}
+        text: {type: string, maxLength: 4000}
     AnswerPayload:
       type: object
       additionalProperties: false
-      description: 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks。
+      description: |
+        按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts。
+        解答题可以只写部分小问，也可以只有笔迹（笔迹随草稿同步，不在这里）；文字和笔迹都没有时提交返回 422。
       properties:
         selected_options:
           type: array
@@ -1671,6 +1754,10 @@ components:
           type: array
           maxItems: 10
           items: {$ref: '#/components/schemas/AnswerBlank'}
+        parts:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/AnswerPart'}
         text: {type: [string, 'null'], maxLength: 4000}
     Stroke:
       type: object
@@ -1821,6 +1908,66 @@ components:
             - {$ref: '#/components/schemas/ReviewItem'}
             - {type: 'null'}
 
+    # ------------------------------------------------------------ 解答题自查
+    SelfCheckLevel:
+      type: string
+      description: 学生对照一个要点的自评：done 做到了，partial 做到一部分，missed 没做到。
+      enum: [done, partial, missed]
+    SelfCheckPoint:
+      type: object
+      additionalProperties: false
+      description: 对照检查的一个要点。不带分值：这不是评分，只是一张自查清单。
+      required: [key, part, text]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16}
+        part: {type: [string, 'null'], description: 对应的小问键；null 表示对整份解答的要求。}
+        text: {type: string, maxLength: 200}
+    SelfCheckMark:
+      type: object
+      additionalProperties: false
+      required: [point_key, level]
+      properties:
+        point_key: {type: string, minLength: 1, maxLength: 16}
+        level: {$ref: '#/components/schemas/SelfCheckLevel'}
+    SelfCheckSave:
+      type: object
+      additionalProperties: false
+      required: [marks]
+      properties:
+        marks:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items: {$ref: '#/components/schemas/SelfCheckMark'}
+    SelfCheckSummary:
+      type: object
+      additionalProperties: false
+      description: 各档要点的个数。只是计数，不折算成分数。
+      required: [done, partial, missed, total]
+      properties:
+        done: {type: integer, minimum: 0}
+        partial: {type: integer, minimum: 0}
+        missed: {type: integer, minimum: 0}
+        total: {type: integer, minimum: 0, description: 要点总数；还没保存自评时 done、partial、missed 都是 0。}
+    SelfCheck:
+      type: object
+      additionalProperties: false
+      required: [attempt_id, points, marks, summary, saved_at, disclaimer]
+      properties:
+        attempt_id: {type: string, format: uuid}
+        points:
+          type: array
+          maxItems: 40
+          items: {$ref: '#/components/schemas/SelfCheckPoint'}
+        marks:
+          type: array
+          maxItems: 40
+          description: 已保存的自评；还没保存过时为空数组。
+          items: {$ref: '#/components/schemas/SelfCheckMark'}
+        summary: {$ref: '#/components/schemas/SelfCheckSummary'}
+        saved_at: {type: [string, 'null'], format: date-time}
+        disclaimer: {type: string, description: 说明自查是学生自己的记录，不是官方阅卷分数。}
+
     # ------------------------------------------------------------ 教学
     TutorAction:
       type: object
@@ -1949,6 +2096,19 @@ components:
         label: {type: string}
         independent: {$ref: '#/components/schemas/RateStat'}
         assisted: {$ref: '#/components/schemas/RateStat'}
+    SubjectiveProgress:
+      type: object
+      additionalProperties: false
+      description: |
+        解答题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份，
+        以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
+      required: [attempts, self_checked, points_done, points_partial, points_missed]
+      properties:
+        attempts: {type: integer, minimum: 0, description: 已提交的解答题作答数。}
+        self_checked: {type: integer, minimum: 0, description: 其中保存了自查的作答数。}
+        points_done: {type: integer, minimum: 0}
+        points_partial: {type: integer, minimum: 0}
+        points_missed: {type: integer, minimum: 0}
     ProgressSummary:
       type: object
       additionalProperties: false
@@ -1961,6 +2121,7 @@ components:
         - retest_success
         - variant_transfer
         - uncertain_attempts
+        - subjective
         - by_subject
         - by_answer_mode
         - by_difficulty
@@ -1973,7 +2134,11 @@ components:
         hint_dependency: {$ref: '#/components/schemas/RateStat'}
         retest_success: {$ref: '#/components/schemas/RateStat'}
         variant_transfer: {$ref: '#/components/schemas/RateStat'}
-        uncertain_attempts: {type: integer, minimum: 0, description: 未能确定判定、因此没有计入任何正确率的提交数。}
+        uncertain_attempts:
+          type: integer
+          minimum: 0
+          description: 客观题里未能确定判定、因此没有计入任何正确率的提交数。解答题本来就不自动评分，不算在这里。
+        subjective: {$ref: '#/components/schemas/SubjectiveProgress'}
         by_subject:
           type: array
           items: {$ref: '#/components/schemas/ProgressBucket'}
@@ -2146,7 +2311,7 @@ components:
       required: [value, equivalence_rules, units]
       properties:
         value:
-          description: '选择题为选项键数组；填空题为 {空位键: 标准答案}。'
+          description: '选择题为选项键数组；填空题为 {空位键: 标准答案}；解答题为 {小问键: 参考答案文字}，只用于对照，不参与自动判定。'
         equivalence_rules:
           type: object
           description: 填空题每个空位的等价判定规则。

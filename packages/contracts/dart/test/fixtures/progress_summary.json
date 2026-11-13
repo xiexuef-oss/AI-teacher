@@ -38,6 +38,13 @@
       "insufficient_data": true
     },
     "uncertain_attempts": 1,
+    "subjective": {
+      "attempts": 1,
+      "self_checked": 1,
+      "points_done": 3,
+      "points_partial": 2,
+      "points_missed": 2
+    },
     "by_subject": [
       {
         "key": "math",
@@ -257,6 +264,13 @@
         "insufficient_data": true
       },
       "uncertain_attempts": 1,
+      "subjective": {
+        "attempts": 1,
+        "self_checked": 1,
+        "points_done": 3,
+        "points_partial": 2,
+        "points_missed": 2
+      },
       "by_subject": [
         {
           "key": "math",

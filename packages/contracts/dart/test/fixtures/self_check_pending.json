@@ -1,0 +1,107 @@
+{
+  "name": "self_check_pending",
+  "method": "GET",
+  "path": "/api/v1/attempts/b241fe64-8ee1-4db4-bdf4-28bd9c856187/self-check",
+  "status": 200,
+  "schema": "SelfCheck",
+  "value": {
+    "attempt_id": "b241fe64-8ee1-4db4-bdf4-28bd9c856187",
+    "points": [
+      {
+        "key": "p1",
+        "part": "1",
+        "text": "指出图像开口向上，对称轴是直线 $x=a$（配方或用公式均可）"
+      },
+      {
+        "key": "p2",
+        "part": "1",
+        "text": "说明 $[1,+\\infty)$ 要落在递增区间里，列出关于 $a$ 的不等式"
+      },
+      {
+        "key": "p3",
+        "part": "1",
+        "text": "得出 $a$ 的取值范围"
+      },
+      {
+        "key": "p4",
+        "part": "2",
+        "text": "代入 $a=2$ 并配方（或求顶点），判断对称轴在不在区间 $[0,3]$ 里"
+      },
+      {
+        "key": "p5",
+        "part": "2",
+        "text": "求出最小值，并写明在哪一点取得"
+      },
+      {
+        "key": "p6",
+        "part": "2",
+        "text": "比较区间两个端点处的函数值，得出最大值"
+      },
+      {
+        "key": "p7",
+        "part": null,
+        "text": "每一步写出依据，书写清楚"
+      }
+    ],
+    "marks": [],
+    "summary": {
+      "done": 0,
+      "partial": 0,
+      "missed": 0,
+      "total": 7
+    },
+    "saved_at": null,
+    "disclaimer": "自查是你自己对照要点做的记录，不是官方阅卷分数，也不会计入正确率。"
+  },
+  "body": {
+    "data": {
+      "attempt_id": "b241fe64-8ee1-4db4-bdf4-28bd9c856187",
+      "points": [
+        {
+          "key": "p1",
+          "part": "1",
+          "text": "指出图像开口向上，对称轴是直线 $x=a$（配方或用公式均可）"
+        },
+        {
+          "key": "p2",
+          "part": "1",
+          "text": "说明 $[1,+\\infty)$ 要落在递增区间里，列出关于 $a$ 的不等式"
+        },
+        {
+          "key": "p3",
+          "part": "1",
+          "text": "得出 $a$ 的取值范围"
+        },
+        {
+          "key": "p4",
+          "part": "2",
+          "text": "代入 $a=2$ 并配方（或求顶点），判断对称轴在不在区间 $[0,3]$ 里"
+        },
+        {
+          "key": "p5",
+          "part": "2",
+          "text": "求出最小值，并写明在哪一点取得"
+        },
+        {
+          "key": "p6",
+          "part": "2",
+          "text": "比较区间两个端点处的函数值，得出最大值"
+        },
+        {
+          "key": "p7",
+          "part": null,
+          "text": "每一步写出依据，书写清楚"
+        }
+      ],
+      "marks": [],
+      "summary": {
+        "done": 0,
+        "partial": 0,
+        "missed": 0,
+        "total": 7
+      },
+      "saved_at": null,
+      "disclaimer": "自查是你自己对照要点做的记录，不是官方阅卷分数，也不会计入正确率。"
+    }
+  }
+}

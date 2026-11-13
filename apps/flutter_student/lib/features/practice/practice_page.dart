@@ -235,6 +235,7 @@ class _Filters extends StatelessWidget {
               AnswerMode.singleChoice,
               AnswerMode.multipleChoice,
               AnswerMode.fill,
+              AnswerMode.written,
             ])
               ChoiceChip(
                 key: ValueKey('filter.mode.${m.value}'),

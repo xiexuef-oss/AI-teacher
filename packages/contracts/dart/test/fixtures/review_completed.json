@@ -1,12 +1,12 @@
 {
   "name": "review_completed",
   "method": "POST",
-  "path": "/api/v1/reviews/f3cc93b4-6b56-46d7-bbd6-711a08f65192/complete",
+  "path": "/api/v1/reviews/7a2cb7b4-d92d-4c40-83e3-313307474414/complete",
   "status": 200,
   "schema": "ReviewCompletion",
   "value": {
     "review_item": {
-      "id": "f3cc93b4-6b56-46d7-bbd6-711a08f65192",
+      "id": "7a2cb7b4-d92d-4c40-83e3-313307474414",
       "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
       "question_title": "二次函数的单调递增区间",
       "subject": "math",
@@ -25,7 +25,7 @@
   "body": {
     "data": {
       "review_item": {
-        "id": "f3cc93b4-6b56-46d7-bbd6-711a08f65192",
+        "id": "7a2cb7b4-d92d-4c40-83e3-313307474414",
         "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
         "question_title": "二次函数的单调递增区间",
         "subject": "math",

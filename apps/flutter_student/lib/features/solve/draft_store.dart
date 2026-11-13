@@ -14,6 +14,7 @@ class LocalDraft {
     this.dirty = false,
     this.selected = const [],
     this.blanks = const {},
+    this.parts = const {},
     this.strokes,
     required this.savedAt,
   });
@@ -32,12 +33,16 @@ class LocalDraft {
   final bool dirty;
   final List<String> selected;
   final Map<String, String> blanks;
+
+  /// 解答题各小问的文字，键是小问的 key。
+  final Map<String, String> parts;
   final StrokeDoc? strokes;
   final DateTime savedAt;
 
   bool get hasContent =>
       selected.isNotEmpty ||
       blanks.values.any((v) => v.trim().isNotEmpty) ||
+      parts.values.any((v) => v.trim().isNotEmpty) ||
       (strokes?.pages.any((p) => p.strokes.isNotEmpty) ?? false);
 
   Map<String, dynamic> toJson() => {
@@ -47,7 +52,7 @@ class LocalDraft {
     'attemptId': attemptId,
     'baseRevision': baseRevision,
     'dirty': dirty,
-    'answer': {'selected': selected, 'blanks': blanks},
+    'answer': {'selected': selected, 'blanks': blanks, 'parts': parts},
     'strokes': strokes?.toJson(),
     'savedAt': savedAt.toUtc().toIso8601String(),
   };
@@ -62,6 +67,10 @@ class LocalDraft {
       dirty: json['dirty'] as bool,
       selected: (answer['selected'] as List<dynamic>).cast<String>(),
       blanks: Map<String, String>.from(answer['blanks'] as Map),
+      // 解答题加入之前存下的草稿没有这一项
+      parts: answer['parts'] == null
+          ? const {}
+          : Map<String, String>.from(answer['parts'] as Map),
       strokes: json['strokes'] == null
           ? null
           : StrokeDoc.fromJson(json['strokes'] as Map<String, dynamic>),

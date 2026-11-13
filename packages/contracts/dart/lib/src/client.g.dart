@@ -231,6 +231,34 @@ class TutorApiClient {
     return SubmitResult.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 解答题提交后的对照自查：要点，以及已保存的自评
+  Future<SelfCheck> getSelfCheck({
+    required String attemptId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/attempts/${Uri.encodeComponent(attemptId)}/self-check',
+      requestId: requestId,
+    );
+    return SelfCheck.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 保存对照自查的结果
+  Future<SelfCheck> saveSelfCheck({
+    required String attemptId,
+    required SelfCheckSave body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/attempts/${Uri.encodeComponent(attemptId)}/self-check',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return SelfCheck.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 教学下一步
   Future<TutorStep> tutorNext({
     required String sessionId,
