@@ -5,6 +5,21 @@ import '../../core/math_text.dart';
 import '../../core/widgets.dart';
 import 'answer_input.dart';
 
+/// 一行叫什么：有行标签就用行标签；没有，就用第一列的文字（纸带那道题里是 AB、BC……）；
+/// 第一列是留空的格子、或者没有文字，才写"第 N 行"。读屏标签和自查对照里都用它。
+String experimentRowName(DataTable table, DataTableRow row, int index) {
+  final label = (row.label ?? '').trim();
+  if (label.isNotEmpty) return label;
+  if (table.columns.isNotEmpty) {
+    final first = table.columns.first.key;
+    for (final cell in row.cells) {
+      final text = (cell.text ?? '').trim();
+      if (cell.col == first && text.isNotEmpty) return text;
+    }
+  }
+  return '第 ${index + 1} 行';
+}
+
 /// 实验安全提示：每道实验题都有，放在题干下面。
 ///
 /// 这是纸面练习，不是操作指导（PRD §5：审核实验安全提示）。服务端只会发低风险和中等风险的题，
@@ -162,10 +177,29 @@ class _ExperimentInputState extends State<ExperimentInput> {
     );
   }
 
+  // 一列的最小宽度：有输入框的列要放得下 40 字以内的数，给定文字的列可以窄一点；字体放大时跟着放大。
+  static const double _inputColumnMin = 96;
+  static const double _textColumnMin = 72;
+  static const double _labelColumnMin = 80;
+
   Widget _tableView(BuildContext context, DataTable table) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final hasRowLabels = table.rows.any((r) => (r.label ?? '').isNotEmpty);
+    final scale = MediaQuery.textScalerOf(context)
+        .scale(1)
+        .clamp(1.0, 2.0)
+        .toDouble();
+    bool hasBlank(DataTableColumn column) => table.rows.any(
+      (row) =>
+          row.cells.any((cell) => cell.col == column.key && cell.text == null),
+    );
+    final minimums = [
+      if (hasRowLabels) _labelColumnMin * scale,
+      for (final column in table.columns)
+        (hasBlank(column) ? _inputColumnMin : _textColumnMin) * scale,
+    ];
+    final minimum = minimums.fold<double>(0, (sum, width) => sum + width);
 
     Widget head(String text) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
@@ -183,48 +217,75 @@ class _ExperimentInputState extends State<ExperimentInput> {
       children: [
         Text(table.title, style: theme.textTheme.titleSmall),
         const SizedBox(height: 8),
-        // 窄屏、大字体时表格比屏幕宽：横着滑，不截断
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Table(
-            border: TableBorder.all(color: scheme.outlineVariant),
-            defaultColumnWidth: const FixedColumnWidth(136),
-            columnWidths: hasRowLabels
-                ? const {0: FixedColumnWidth(150)}
-                : const {},
-            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-            children: [
-              TableRow(
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
-                ),
-                children: [
-                  if (hasRowLabels) head(''),
-                  for (final column in table.columns)
-                    head(
-                      column.unit == null
-                          ? column.label
-                          : '${column.label}（${column.unit}）',
-                    ),
-                ],
-              ),
-              for (var r = 0; r < table.rows.length; r++)
-                TableRow(
-                  children: [
-                    if (hasRowLabels)
-                      Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: MathText(
-                          table.rows[r].label ?? '',
-                          style: theme.textTheme.bodyMedium,
+        // 栏够宽：表格撑满栏宽，各列按最小宽度的比例分。栏比表格的最小宽度还窄（窄屏、大字体）：
+        // 表格横着滑，不截断，并提示一句。
+        LayoutBuilder(
+          builder: (context, box) {
+            final bounded = box.hasBoundedWidth;
+            final fits = !bounded || box.maxWidth >= minimum;
+            final width = bounded && fits ? box.maxWidth : minimum;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: width,
+                    child: Table(
+                      border: TableBorder.all(color: scheme.outlineVariant),
+                      columnWidths: {
+                        for (var i = 0; i < minimums.length; i++)
+                          i: FlexColumnWidth(minimums[i]),
+                      },
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      children: [
+                        TableRow(
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest,
+                          ),
+                          children: [
+                            if (hasRowLabels) head(''),
+                            for (final column in table.columns)
+                              head(
+                                column.unit == null
+                                    ? column.label
+                                    : '${column.label}（${column.unit}）',
+                              ),
+                          ],
                         ),
-                      ),
-                    for (final column in table.columns)
-                      _cell(context, table, table.rows[r], r, column),
-                  ],
+                        for (var r = 0; r < table.rows.length; r++)
+                          TableRow(
+                            children: [
+                              if (hasRowLabels)
+                                Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: MathText(
+                                    table.rows[r].label ?? '',
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                ),
+                              for (final column in table.columns)
+                                _cell(context, table, table.rows[r], r, column),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-            ],
-          ),
+                if (!fits)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '表格比这一栏宽：左右滑动可以看到后面的列。',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -252,9 +313,7 @@ class _ExperimentInputState extends State<ExperimentInput> {
     final key = _cellKey(table.key, row.key, column.key);
     final controller = _controllers[key];
     if (controller == null) return const SizedBox.shrink();
-    final rowName = (row.label ?? '').isNotEmpty
-        ? row.label!
-        : '第 ${rowIndex + 1} 行';
+    final rowName = experimentRowName(table, row, rowIndex);
     return Padding(
       padding: const EdgeInsets.all(6),
       child: Semantics(

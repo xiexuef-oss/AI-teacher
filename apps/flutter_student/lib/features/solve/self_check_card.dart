@@ -6,6 +6,7 @@ import 'package:tutor_contracts/tutor_contracts.dart';
 import '../../core/errors.dart';
 import '../../core/math_text.dart';
 import '../../core/widgets.dart';
+import 'experiment_input.dart' show experimentRowName;
 import 'solve_controller.dart';
 
 /// 解答题、实验题提交之后的对照自查。
@@ -261,14 +262,13 @@ class _ReferenceTable extends StatelessWidget {
           final unit = column.isEmpty || column.first.unit == null
               ? ''
               : '（${column.first.unit}）';
-          final rowName = (row.label ?? '').isNotEmpty
-              ? row.label!
-              : '第 ${r + 1} 行';
+          final rowName = experimentRowName(table, row, r);
           final filled = (mine[key] ?? '').trim();
           lines.add(
             _RefLine(
               key: ValueKey('selfcheck.ref.$key'),
-              label: '$rowName · $label$unit',
+              label: rowName,
+              sub: '$label$unit',
               mine: value(filled.isEmpty ? '没填' : filled),
               reference: value(reference[key]!, strong: true),
             ),
@@ -315,12 +315,17 @@ class _RefLine extends StatelessWidget {
   const _RefLine({
     super.key,
     required this.label,
+    this.sub,
     required this.mine,
     required this.reference,
     this.heading = false,
   });
 
+  /// 这一行叫什么（行名）。
   final String label;
+
+  /// 行名下面的一行小字：列名和单位。
+  final String? sub;
   final Widget mine;
   final Widget reference;
   final bool heading;
@@ -335,11 +340,21 @@ class _RefLine extends StatelessWidget {
         children: [
           Expanded(
             flex: 5,
-            child: Text(
-              label,
-              style: heading
-                  ? theme.textTheme.labelLarge
-                  : theme.textTheme.bodyMedium,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (heading)
+                  Text(label, style: theme.textTheme.labelLarge)
+                else
+                  MathText(label, style: theme.textTheme.bodyMedium),
+                if (sub != null)
+                  Text(
+                    sub!,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
             ),
           ),
           Expanded(flex: 3, child: mine),

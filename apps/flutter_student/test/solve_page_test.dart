@@ -951,6 +951,19 @@ void main() {
         find.descendant(of: first, matching: find.text('0.400')),
         findsOneWidget,
       );
+      // 行名用表里第一列的文字（AB），不是"第 1 行"；列名和单位在它下面一行
+      expect(
+        find.descendant(of: first, matching: find.text('AB')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: first, matching: find.textContaining('第 1 行')),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: first, matching: find.text('平均速度（m/s）')),
+        findsOneWidget,
+      );
       // 没填的格子也列出来，明说"没填"，参考值照给
       final blank = key('selfcheck.ref.t1.r2.v');
       expect(
