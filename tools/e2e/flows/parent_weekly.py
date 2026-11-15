@@ -20,6 +20,7 @@ from e2e.browser import (
     reopen,
     stored,
     tap,
+    type_into,
 )
 from e2e.checks import say
 from e2e.flowbase import Context, Flow
@@ -70,9 +71,7 @@ def run(ctx: Context) -> None:
 
     say("== 学生：我的页——称呼、家长查看、生成邀请码")
     reopen(student, "#/profile")
-    student.get_by_role("textbox", name="你的称呼").click()
-    student.keyboard.type("小明")
-    student.wait_for_timeout(400)
+    type_into(student, student.get_by_role("textbox", name="你的称呼"), "小明")
     tap(student, "保存", exact=True, wait=1800)
     check("称呼随资料保存（PUT /profile 200）", ("PUT", "/profile", 200) in student.responses)
     text = all_text(student)
@@ -135,9 +134,8 @@ def run(ctx: Context) -> None:
     ctx.shot(parent, "02_parent_home_empty")
 
     say("== 家长：输入邀请码（小写、带空格）并绑定")
-    parent.get_by_role("textbox", name="邀请码").click()
-    parent.keyboard.type(code[:5].lower() + " " + code[5:].lower())
-    parent.wait_for_timeout(400)
+    invite_box = parent.get_by_role("textbox", name="邀请码")
+    type_into(parent, invite_box, code[:5].lower() + " " + code[5:].lower())
     tap(parent, "绑定", exact=True, wait=3200)
     check(
         "绑定成功（POST /parents/links 201）",
@@ -241,12 +239,10 @@ def run(ctx: Context) -> None:
     code2 = find_text(student, INVITE_CODE)
     check("第二个邀请码和第一个不一样", code2 and code2.replace(" ", "") != code)
     tap(student, "我知道了", wait=1000)
-    parent.get_by_role("textbox", name="邀请码").click()
-    parent.keyboard.type(code2 or "")
+    type_into(parent, invite_box, code2 or "")
     tap(parent, "绑定", exact=True, wait=3200)
     check("重新授权成功，又能看到这位学生", has(parent, "小明", role="button"))
-    parent.get_by_role("textbox", name="邀请码").click()
-    parent.keyboard.type(code)
+    type_into(parent, invite_box, code)
     tap(parent, "绑定", exact=True, wait=2500)
     check(
         "旧码（已经用过）：只说邀请码不对或已失效",

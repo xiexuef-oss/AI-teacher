@@ -21,6 +21,7 @@ from e2e.browser import (
     stored,
     stored_all,
     tap,
+    type_into,
 )
 from e2e.checks import say
 from e2e.flowbase import Context, Flow
@@ -100,18 +101,14 @@ def run(ctx: Context) -> None:
 
     say("== 填格子，写第 1 问")
     for index, value in typed.items():
-        _cell_boxes(page).nth(index).click()
-        page.keyboard.type(value)
-        page.wait_for_timeout(300)
+        type_into(page, _cell_boxes(page).nth(index), value)
     part_boxes = [
         box
         for box in page.get_by_role("textbox").all()
         if "请填写" not in (box.get_attribute("aria-label") or "")
     ]
     check("文字小问各有一个输入框", len(part_boxes) == len(subquestions), len(part_boxes))
-    part_boxes[0].click()
-    page.keyboard.type(PART_TEXT)
-    page.wait_for_timeout(300)
+    type_into(page, part_boxes[0], PART_TEXT)
     check("填了之后提交按钮可以点", not is_disabled(submit_button))
 
     say("== 先落本机：2 秒后草稿在 localStorage 里，格子在里面")

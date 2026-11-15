@@ -164,6 +164,18 @@ def tap(
     page.wait_for_timeout(wait)
 
 
+def type_into(page: Page, locator: Any, text: str) -> None:
+    """点一下输入框再输入。
+
+    Flutter Web 的输入框是点了才接上键盘的：点完马上输入，会丢掉第一个字符（联调里出现过，
+    "2.00" 变成 ".00"、"T 等于…" 变成"等于…"），所以先等焦点落稳，再一个一个字符慢一点敲。
+    """
+    locator.click()
+    page.wait_for_timeout(300)
+    page.keyboard.type(text, delay=20)
+    page.wait_for_timeout(300)
+
+
 def has(page: Page, text: str, *, role: str = "button", exact: bool = False) -> bool:
     return page.get_by_role(role, name=text, exact=exact).count() > 0
 

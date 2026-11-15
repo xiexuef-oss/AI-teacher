@@ -67,6 +67,8 @@ uv run --group e2e python tools/e2e/run.py --no-build            # 不检查、�
 - Flutter Web 的元素靠语义树找：`page.get_by_role("button", name=...)`，短名字加 `exact=True`；
   文字读 `all_text(page)`；输入框的值读不到（Web 上的语义输入框不回显没聚焦字段的值），
   要验证"恢复了什么"就看提交请求体（`page.submit_bodies`）和截图；
+- 往 Flutter 的输入框里输入用 `type_into(page, 输入框, 文字)`，不要自己 `click()` 之后马上 `keyboard.type()`：
+  点完马上输入会丢掉第一个字符（联调里出现过）；
 - 检查用 `ctx.check(名字, 条件, 出错时的细节)`，不要用 assert——一项不过不该拦住后面的检查。
 
 ## 没有覆盖的
