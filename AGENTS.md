@@ -53,7 +53,7 @@
 | `apps/admin_web/` | 内容审核后台（Vue 3 + Vite + TypeScript），最小审核流已实现，见 ADR-008 |
 | `migrations/` | MySQL 迁移 SQL |
 | `config/` | 模型路由示例配置 |
-| `tools/` | 本地启动脚本、迁移校验、变异检查 |
+| `tools/` | 本地启动脚本、迁移校验、变异检查、浏览器联调（`tools/e2e/`） |
 | `tests/` | pytest：契约、网关、单元、API、迁移、样题内容 |
 | `docs/*高考真题/` | 用户提供的原始试卷文件（约 8.4 GB），未导入、不进仓库，见 ADR-007 |
 
@@ -81,6 +81,11 @@ npm run typecheck        # vue-tsc；测试数据按契约类型写
 npm run check:api        # src/api/schema.d.ts 是否由当前契约生成；契约改了先 npm run gen:api
 ```
 
+```
+uv sync --group e2e                                # 装浏览器联调用的 playwright（可选依赖组，默认的 uv sync 不装）
+uv run --group e2e python tools/e2e/run.py         # 浏览器联调：真实后端 + Web 版 + 审核后台，全部约 8 分钟；--list / --only 见 tools/e2e/README.md
+```
+
 Flutter 已安装但没有加入系统 PATH，命令用绝对路径。在 `apps/flutter_student`（或 `packages/contracts/dart`）下执行：
 
 ```
@@ -96,4 +101,5 @@ C:\src\flutter\bin\flutter.bat build web --release # 构建 Web 版（联调用�
 - `tests/support/api.py` 里的客户端会把每个响应按 `contracts/openapi.yaml` 校验一遍；响应不符合契约，测试直接失败。
 - 改了归属校验、泄题门控、判题、幂等、复测这类规则之后，跑一遍 `tools/mutation_check.py`；如果改动了被变异的代码行，要同步更新脚本里的片段。
 - 合并前全绿：`uv run pytest -q`、`uv run ruff check .`；`apps/flutter_student` 下的 `flutter test` 与 `dart analyze`；`packages/contracts/dart` 下的 `dart test`；`apps/admin_web` 下的 `npm test`、`npm run typecheck`、`npm run check:api`。
+- 改了学生端或审核后台的页面、流程之后，建议跑一遍浏览器联调 `tools/e2e/run.py`（要浏览器和 Web 构建，约 8 分钟，不是合并门禁）。它依赖的样题数据由 `tests/unit/test_e2e_tooling.py` 守着，随 `uv run pytest -q` 一起跑；联调里的期望值从样题取，不要写死标题和数字。
 - 分支命名 `feat/TASK-ID-*`，提交说明列出任务 ID 和测试证明。

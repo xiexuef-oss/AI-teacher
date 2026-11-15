@@ -27,6 +27,9 @@ dev = [
 ]
 # 仅在对真实 MySQL 执行 tools/verify_migrations.py --mysql-url 时需要
 mysql = ["pymysql>=1.1", "cryptography>=42"]
+# 仅在跑浏览器联调 tools/e2e/run.py 时需要。版本钉死：每个版本对应固定的 Chromium 修订号，
+# 换版本要重新执行 `uv run --group e2e playwright install chromium`
+e2e = ["playwright==1.58.0"]
 
 [tool.uv]
 # 根工程只承载开发环境；服务代码通过 PYTHONPATH 引入，不做 editable 安装
@@ -52,4 +55,4 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["tutor_api", "ai_gateway", "support", "verify_migrations"]
+known-first-party = ["tutor_api", "ai_gateway", "support", "verify_migrations", "e2e"]
