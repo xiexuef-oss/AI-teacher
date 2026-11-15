@@ -102,6 +102,7 @@ export function detail(overrides: Partial<AdminQuestionDetail> = {}): AdminQuest
       attachments: [],
       data_tables: [],
       safety: null,
+      proof: null,
     },
     answer: { value: ['A'], equivalence_rules: {}, units: {} },
     teaching: {
@@ -177,6 +178,7 @@ export function writtenDetail(overrides: Partial<AdminQuestionDetail> = {}): Adm
       attachments: [],
       data_tables: [],
       safety: null,
+      proof: null,
     },
     answer: {
       value: { '1': '$a\\le 1$', '2': '最大值 $3$，最小值 $-1$' },
@@ -254,6 +256,7 @@ export function experimentDetail(overrides: Partial<AdminQuestionDetail> = {}): 
         },
       ],
       safety: { level: 'low', notes: ['本题只处理已经得到的纸带数据，不需要动手操作。', '这是纸面练习，不是操作指导。'] },
+      proof: null,
     },
     answer: {
       value: { '1': '平均速度等于距离除以时间间隔', 't1.r1.v': '0.400', 't1.r2.v': '0.600' },
@@ -274,6 +277,59 @@ export function experimentDetail(overrides: Partial<AdminQuestionDetail> = {}): 
         { key: 'p1', part: 't1', text: '把距离从 cm 换算成 m 之后再除以时间' },
         { key: 'p2', part: '1', text: '说明平均速度 = 距离 ÷ 时间间隔' },
         { key: 'p3', part: null, text: '数据表填得完整，单位不漏' },
+      ],
+    }),
+    ...overrides,
+  })
+}
+
+/**
+ * 一道证明题：已知（两条）、求证，参考证明是一组 {stage, text, reason}，自查要点按证明阶段分组（含一条针对整份证明的）；
+ * 没有小问，只有标准解法。
+ */
+export function proofDetail(overrides: Partial<AdminQuestionDetail> = {}): AdminQuestionDetail {
+  return detail({
+    type: 'proof',
+    answer_mode: 'proof',
+    title: '证明同向的正数不等式可以相乘',
+    content: {
+      stem: '证明不等式的一条性质。',
+      options: [],
+      blanks: [],
+      subquestions: [],
+      attachments: [],
+      data_tables: [],
+      safety: null,
+      proof: { givens: ['$a>b>0$', '$c>d>0$'], claim: '$ac>bd$。' },
+    },
+    answer: {
+      value: {
+        steps: [
+          { stage: 'premise', text: '由已知，$b>0$，$c>d>0$，所以 $c>0$。', reason: '已知 ①②' },
+          { stage: 'construction', text: '引入中间量 $bc$：因为 $a>b$，$c>0$，所以 $ac>bc$。', reason: '不等式两边同乘正数，方向不变' },
+          { stage: 'reasoning', text: '因为 $c>d$，$b>0$，所以 $bc>bd$。', reason: '不等式两边同乘正数，方向不变' },
+          { stage: 'conclusion', text: '由 $ac>bc$ 和 $bc>bd$，得 $ac>bd$。', reason: '不等式的传递性' },
+        ],
+      },
+      equivalence_rules: {},
+      units: {},
+    },
+    teaching: {
+      concept: '不等式的基本性质',
+      hints: ['先找一个中间的量。', '每次同乘，乘的数要满足什么条件？'],
+      concept_rephrase: null,
+      option_analysis: {},
+      visual: null,
+      leak_markers: ['ac>bc', 'bc>bd'],
+    },
+    solutions: [solution({ steps: ['由已知得 $c>0$。', '$ac>bc>bd$。'], final_answer: '得证：$ac>bd$。' })],
+    rubric: obj({
+      points: [
+        { key: 'p1', part: 'premise', text: '从已知得出 $b>0$、$c>0$' },
+        { key: 'p2', part: 'construction', text: '想到引入中间量 $bc$' },
+        { key: 'p3', part: 'reasoning', text: '第二次比较：写出 $bc>bd$，并说明依据' },
+        { key: 'p4', part: 'conclusion', text: '用传递性得出 $ac>bd$' },
+        { key: 'p5', part: null, text: '每一步都写出依据' },
       ],
     }),
     ...overrides,

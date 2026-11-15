@@ -9,7 +9,7 @@
       "code": "invite_invalid",
       "message": "邀请码不对，或者已经过期、已经被用过",
       "details": {},
-      "request_id": "4bee65621e9d49b986ed7c12f661cff3"
+      "request_id": "f00b918b007e49afb9221c9e811b2b88"
     }
   },
   "body": {
@@ -17,7 +17,7 @@
       "code": "invite_invalid",
       "message": "邀请码不对，或者已经过期、已经被用过",
       "details": {},
-      "request_id": "4bee65621e9d49b986ed7c12f661cff3"
+      "request_id": "f00b918b007e49afb9221c9e811b2b88"
     }
   }
 }

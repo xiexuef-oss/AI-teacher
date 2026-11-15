@@ -43,16 +43,18 @@ _TASK_NAMESPACE = uuid.UUID("0d6c2a55-3d0e-4f66-9a0b-7c1b8f1f2a90")
 
 def estimated_minutes(question: Question) -> int:
     """估计用时。选择题和填空题几分钟；解答题要写出完整步骤、还要对照要点自查，时间长得多；
-    实验题还要读表、算数、填数据，更长一点。"""
+    实验题还要读表、算数、填数据，更长一点；证明题要想构造、每一步写依据，最长。"""
     if question.answer_mode == "written":
         return 8 + 2 * question.difficulty
     if question.answer_mode == "experiment":
         return 10 + 2 * question.difficulty
+    if question.answer_mode == "proof":
+        return 9 + 3 * question.difficulty
     return 3 + question.difficulty
 
 
 def _objective_first(questions: list[Question]) -> list[Question]:
-    """新题先推可以自动判定的题；解答题和实验题排在后面。先熟悉作答和反馈，再去写完整步骤、填数据表。
+    """新题先推可以自动判定的题；解答题、实验题和证明题排在后面。先熟悉作答和反馈，再去写完整步骤、填数据表、写证明。
     顺序其余不变。"""
     return [q for q in questions if q.answer_mode not in grading.SUBJECTIVE_MODES] + [
         q for q in questions if q.answer_mode in grading.SUBJECTIVE_MODES

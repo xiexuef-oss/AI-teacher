@@ -23,6 +23,7 @@ _ANSWER_TABLES: dict[str, dict[str, dict[str, Any]]] = {
     "wrong": test_answers.WRONG,
     "written": test_answers.WRITTEN,
     "experiment": test_answers.EXPERIMENT,
+    "proof": test_answers.PROOF,
 }
 
 
@@ -63,5 +64,5 @@ def points_of(key: str) -> list[dict[str, Any]]:
 
 
 def answer_for(key: str, kind: str) -> dict[str, Any]:
-    """kind：correct / wrong（客观题）、written（解答题）、experiment（实验题）。"""
+    """kind：correct / wrong（客观题）、written（解答题）、experiment（实验题）、proof（证明题）。"""
     return _ANSWER_TABLES[kind][key]

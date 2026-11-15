@@ -6,7 +6,7 @@ import {
   isUnchanged,
   requestFromForm,
 } from '../src/editing'
-import { detail, experimentDetail, FAST, solution, writtenDetail } from './fixtures'
+import { detail, experimentDetail, FAST, proofDetail, solution, writtenDetail } from './fixtures'
 import type { AdminQuestionDetail } from '../src/api/types'
 
 /** 契约里 type: object 且没有 properties 的字段，生成的类型是 Record<string, never>。 */
@@ -25,7 +25,7 @@ export function fillDetail(): AdminQuestionDetail {
       subquestions: [],
       attachments: [],
       data_tables: [],
-      safety: null,
+      safety: null, proof: null,
     },
     answer: {
       value: { b1: '5' },
@@ -94,7 +94,7 @@ describe('表单与修改请求', () => {
         subquestions: [],
         attachments: [],
         data_tables: [],
-        safety: null,
+        safety: null, proof: null,
       },
       answer: { value: ['C', 'A'], equivalence_rules: {}, units: {} },
     })
@@ -435,5 +435,152 @@ describe('实验题的表单', () => {
       expect(result.ok && result.body.content.data_tables).toEqual([])
       expect(result.ok && result.body.content.safety).toBeNull()
     }
+  })
+})
+
+describe('证明题的表单', () => {
+  const built = (source: AdminQuestionDetail, change: (form: ReturnType<typeof formFromDetail>) => void) => {
+    const form = formFromDetail(source)
+    change(form)
+    return requestFromForm(form, source)
+  }
+
+  it('已知、求证、参考证明、自查要点各是表单里的一块', () => {
+    const source = proofDetail()
+    const form = formFromDetail(source)
+
+    expect(form.givens).toEqual(['$a>b>0$', '$c>d>0$'])
+    expect(form.claim).toBe('$ac>bd$。')
+    expect(form.proofSteps.map((row) => row.stage)).toEqual(['premise', 'construction', 'reasoning', 'conclusion'])
+    expect(form.proofSteps[1]).toEqual({
+      stage: 'construction',
+      text: '引入中间量 $bc$：因为 $a>b$，$c>0$，所以 $ac>bc$。',
+      reason: '不等式两边同乘正数，方向不变',
+    })
+    expect(form.points.map((row) => [row.key, row.part])).toEqual([
+      ['p1', 'premise'],
+      ['p2', 'construction'],
+      ['p3', 'reasoning'],
+      ['p4', 'conclusion'],
+      ['p5', ''],
+    ])
+    expect(form.subquestions).toEqual([])
+  })
+
+  it('表单没改动：请求和题目详情一模一样，不算有改动', () => {
+    const source = proofDetail()
+
+    const result = built(source, () => {})
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(isUnchanged(result.body, source)).toBe(true)
+    expect(result.body.content.proof).toEqual(source.content.proof)
+    expect(result.body.answer.value).toEqual(source.answer.value)
+    expect(result.body.content.subquestions).toEqual([])
+  })
+
+  it('改求证、加一条已知：请求里的已知和求证跟着变，参考证明原样带回', () => {
+    const source = proofDetail()
+
+    const result = built(source, (form) => {
+      form.claim = '（改）$ac>bd$'
+      form.givens.push('$a,b,c,d$ 都是实数')
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.body.content.proof).toEqual({
+      givens: ['$a>b>0$', '$c>d>0$', '$a,b,c,d$ 都是实数'],
+      claim: '（改）$ac>bd$',
+    })
+    expect(result.body.answer.value).toEqual(source.answer.value)
+    expect(isUnchanged(result.body, source)).toBe(false)
+  })
+
+  it('空的已知会被丢掉（已知可以一条都没有）', () => {
+    const result = built(proofDetail(), (form) => {
+      form.givens = ['  ', '']
+    })
+
+    expect(result.ok && result.body.content.proof).toEqual({ givens: [], claim: '$ac>bd$。' })
+  })
+
+  it('改参考证明的一步：阶段、文字、依据各自带回，顺序不变', () => {
+    const source = proofDetail()
+
+    const result = built(source, (form) => {
+      form.proofSteps[2]!.stage = 'construction'
+      form.proofSteps[2]!.reason = '（改）依据'
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const steps = (result.body.answer.value as { steps: { stage: string; text: string; reason: string }[] }).steps
+    expect(steps.map((step) => step.stage)).toEqual(['premise', 'construction', 'construction', 'conclusion'])
+    expect(steps[2]!.reason).toBe('（改）依据')
+    expect(steps[2]!.text).toBe('因为 $c>d$，$b>0$，所以 $bc>bd$。')
+    expect(Object.keys(steps[0]!).sort()).toEqual(['reason', 'stage', 'text'])
+  })
+
+  it('加一步、删一步、挪一步：参考证明的顺序就是表单里的顺序；整行都是空的会被丢掉', () => {
+    const source = proofDetail()
+    const original = (source.answer.value as { steps: { text: string }[] }).steps.map((step) => step.text)
+
+    const result = built(source, (form) => {
+      form.proofSteps.push({ stage: 'reasoning', text: '', reason: '  ' }) // 空行
+      const [first] = form.proofSteps.splice(0, 1) // 把第一步挪到第三位
+      form.proofSteps.splice(2, 0, first!)
+      form.proofSteps.splice(0, 1) // 删掉现在的第一步（原来的第二步）
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const steps = (result.body.answer.value as { steps: { text: string }[] }).steps
+    expect(steps.map((step) => step.text)).toEqual([original[2], original[0], original[3]])
+  })
+
+  it('自查要点：part 是证明阶段，整份证明的要点没有阶段（part 是 null），不带分值', () => {
+    const result = built(proofDetail(), (form) => {
+      form.points[0]!.part = 'reasoning'
+      form.points[0]!.text = '（改）要点'
+    })
+
+    const points = (result.ok && (result.body.rubric as unknown as { points: { key: string; part: string | null }[] }).points) || []
+    expect(points.map((point) => point.part)).toEqual(['reasoning', 'construction', 'reasoning', 'conclusion', null])
+    for (const point of points) expect(Object.keys(point).sort()).toEqual(['key', 'part', 'text'])
+  })
+
+  it('参考证明里阶段不认识：表单里按 reasoning 显示，保存时是 reasoning（程序校验不会再报阶段无效）', () => {
+    const source = proofDetail({
+      answer: { value: { steps: [{ stage: 'intro', text: 'x', reason: 'y' }] }, equivalence_rules: {}, units: {} },
+    })
+
+    const form = formFromDetail(source)
+
+    expect(form.proofSteps).toEqual([{ stage: 'reasoning', text: 'x', reason: 'y' }])
+  })
+
+  it('参考答案不是 {steps: [...]} 时表单里没有步骤，不崩溃', () => {
+    const source = proofDetail({ answer: { value: ['A'], equivalence_rules: {}, units: {} } })
+
+    expect(formFromDetail(source).proofSteps).toEqual([])
+    expect(formFromDetail(proofDetail({ answer: { value: { steps: 'x' }, equivalence_rules: {}, units: {} } })).proofSteps).toEqual([])
+  })
+
+  it('其他题型没有已知和求证：proof 一直是 null，原样带回', () => {
+    for (const source of [detail(), fillDetail(), writtenDetail(), experimentDetail()]) {
+      const result = built(source, () => {})
+      expect(result.ok && result.body.content.proof).toBeNull()
+    }
+  })
+
+  it('证明题没有小问：subquestions 一直是空，不会因为表单而多出小问', () => {
+    const result = built(proofDetail(), (form) => {
+      form.subquestions.push({ key: '1', stem: '偷偷加的小问', answer: '答案' })
+    })
+
+    expect(result.ok && result.body.content.subquestions).toEqual([])
+    expect(result.ok && result.body.answer.value).toEqual(proofDetail().answer.value)
   })
 })

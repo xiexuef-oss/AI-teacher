@@ -1,11 +1,11 @@
 {
   "name": "self_check_experiment_pending",
   "method": "GET",
-  "path": "/api/v1/attempts/3ca51c8e-07f7-42a7-b57e-64516782c34d/self-check",
+  "path": "/api/v1/attempts/ce44b571-d077-4fca-9ce4-8f74b0fac2bf/self-check",
   "status": 200,
   "schema": "SelfCheck",
   "value": {
-    "attempt_id": "3ca51c8e-07f7-42a7-b57e-64516782c34d",
+    "attempt_id": "ce44b571-d077-4fca-9ce4-8f74b0fac2bf",
     "points": [
       {
         "key": "p1",
@@ -85,6 +85,7 @@
         "value": "2.00"
       }
     ],
+    "reference_steps": [],
     "marks": [],
     "summary": {
       "done": 0,
@@ -97,7 +98,7 @@
   },
   "body": {
     "data": {
-      "attempt_id": "3ca51c8e-07f7-42a7-b57e-64516782c34d",
+      "attempt_id": "ce44b571-d077-4fca-9ce4-8f74b0fac2bf",
       "points": [
         {
           "key": "p1",
@@ -177,6 +178,7 @@
           "value": "2.00"
         }
       ],
+      "reference_steps": [],
       "marks": [],
       "summary": {
         "done": 0,

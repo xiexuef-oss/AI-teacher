@@ -231,7 +231,7 @@ def run(ctx: Context) -> None:
     reopen(page, "#/progress")
     text = all_text(page)
     ctx.shot(page, "05_progress")
-    check('学情页有"解答题和实验题"这一块', "解答题和实验题" in text, text[:300])
+    check('学情页有"解答题、实验题和证明题"这一块', "解答题、实验题和证明题" in text, text[:300])
     check("提交了 1 份，其中 1 份做了对照自查", "提交了 1 份，其中 1 份做了对照自查" in text)
     check(f"自查里做到了 {total} 条", f"做到了 {total} 条" in text)
     check(

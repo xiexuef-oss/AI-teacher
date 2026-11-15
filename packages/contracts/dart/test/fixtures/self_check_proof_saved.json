@@ -1,0 +1,203 @@
+{
+  "name": "self_check_proof_saved",
+  "method": "PUT",
+  "path": "/api/v1/attempts/00c23fe1-8d4d-4ee8-a70f-5d436233aab2/self-check",
+  "status": 200,
+  "schema": "SelfCheck",
+  "value": {
+    "attempt_id": "00c23fe1-8d4d-4ee8-a70f-5d436233aab2",
+    "points": [
+      {
+        "key": "p1",
+        "part": "premise",
+        "text": "按定义取值：在区间内任取 $x_1<x_2$，并交代它们都在 $[1,+\\infty)$ 内"
+      },
+      {
+        "key": "p2",
+        "part": "construction",
+        "text": "作差 $f(x_1)-f(x_2)$，通分并因式分解，化成几个因式相乘（除）的形式"
+      },
+      {
+        "key": "p3",
+        "part": "reasoning",
+        "text": "逐个判断因式的符号；对 $x_1x_2-1$ 的符号要写出依据（用到 $x_1\\ge 1$ 且 $x_1<x_2$）"
+      },
+      {
+        "key": "p4",
+        "part": "reasoning",
+        "text": "由各因式的符号得出 $f(x_1)-f(x_2)<0$，即 $f(x_1)<f(x_2)$"
+      },
+      {
+        "key": "p5",
+        "part": "conclusion",
+        "text": "回到定义，写出结论：$f(x)$ 在 $[1,+\\infty)$ 上单调递增"
+      },
+      {
+        "key": "p6",
+        "part": null,
+        "text": "每一步写出依据；没有只写\"显然\"就跳过符号判断"
+      }
+    ],
+    "reference_cells": [],
+    "reference_steps": [
+      {
+        "stage": "premise",
+        "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+        "reason": "单调性的定义：在区间内任取两个自变量，设出它们的大小关系"
+      },
+      {
+        "stage": "construction",
+        "text": "作差并通分、提取公因式：$f(x_1)-f(x_2)=(x_1-x_2)+\\dfrac{x_2-x_1}{x_1x_2}=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+        "reason": "作差；通分；提取公因式"
+      },
+      {
+        "stage": "reasoning",
+        "text": "因为 $1\\le x_1<x_2$，所以 $x_1-x_2<0$，$x_1x_2>0$，并且 $x_1x_2>1$，即 $x_1x_2-1>0$。",
+        "reason": "已知 $x_1<x_2$；不等式的性质：$x_2>x_1\\ge 1$，所以 $x_1x_2\\ge x_2>1$"
+      },
+      {
+        "stage": "reasoning",
+        "text": "所以 $f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}<0$，即 $f(x_1)<f(x_2)$。",
+        "reason": "一负、一正、一正，积与商的符号法则"
+      },
+      {
+        "stage": "conclusion",
+        "text": "所以 $f(x)$ 在区间 $[1,+\\infty)$ 上单调递增。",
+        "reason": "单调递增的定义：$x_1<x_2$ 时总有 $f(x_1)<f(x_2)$"
+      }
+    ],
+    "marks": [
+      {
+        "point_key": "p1",
+        "level": "done"
+      },
+      {
+        "point_key": "p2",
+        "level": "partial"
+      },
+      {
+        "point_key": "p3",
+        "level": "missed"
+      },
+      {
+        "point_key": "p4",
+        "level": "done"
+      },
+      {
+        "point_key": "p5",
+        "level": "partial"
+      },
+      {
+        "point_key": "p6",
+        "level": "missed"
+      }
+    ],
+    "summary": {
+      "done": 2,
+      "partial": 2,
+      "missed": 2,
+      "total": 6
+    },
+    "saved_at": "2026-11-11T08:00:00Z",
+    "disclaimer": "自查是你自己对照要点做的记录，不是官方阅卷分数，也不会计入正确率。"
+  },
+  "body": {
+    "data": {
+      "attempt_id": "00c23fe1-8d4d-4ee8-a70f-5d436233aab2",
+      "points": [
+        {
+          "key": "p1",
+          "part": "premise",
+          "text": "按定义取值：在区间内任取 $x_1<x_2$，并交代它们都在 $[1,+\\infty)$ 内"
+        },
+        {
+          "key": "p2",
+          "part": "construction",
+          "text": "作差 $f(x_1)-f(x_2)$，通分并因式分解，化成几个因式相乘（除）的形式"
+        },
+        {
+          "key": "p3",
+          "part": "reasoning",
+          "text": "逐个判断因式的符号；对 $x_1x_2-1$ 的符号要写出依据（用到 $x_1\\ge 1$ 且 $x_1<x_2$）"
+        },
+        {
+          "key": "p4",
+          "part": "reasoning",
+          "text": "由各因式的符号得出 $f(x_1)-f(x_2)<0$，即 $f(x_1)<f(x_2)$"
+        },
+        {
+          "key": "p5",
+          "part": "conclusion",
+          "text": "回到定义，写出结论：$f(x)$ 在 $[1,+\\infty)$ 上单调递增"
+        },
+        {
+          "key": "p6",
+          "part": null,
+          "text": "每一步写出依据；没有只写\"显然\"就跳过符号判断"
+        }
+      ],
+      "reference_cells": [],
+      "reference_steps": [
+        {
+          "stage": "premise",
+          "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+          "reason": "单调性的定义：在区间内任取两个自变量，设出它们的大小关系"
+        },
+        {
+          "stage": "construction",
+          "text": "作差并通分、提取公因式：$f(x_1)-f(x_2)=(x_1-x_2)+\\dfrac{x_2-x_1}{x_1x_2}=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+          "reason": "作差；通分；提取公因式"
+        },
+        {
+          "stage": "reasoning",
+          "text": "因为 $1\\le x_1<x_2$，所以 $x_1-x_2<0$，$x_1x_2>0$，并且 $x_1x_2>1$，即 $x_1x_2-1>0$。",
+          "reason": "已知 $x_1<x_2$；不等式的性质：$x_2>x_1\\ge 1$，所以 $x_1x_2\\ge x_2>1$"
+        },
+        {
+          "stage": "reasoning",
+          "text": "所以 $f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}<0$，即 $f(x_1)<f(x_2)$。",
+          "reason": "一负、一正、一正，积与商的符号法则"
+        },
+        {
+          "stage": "conclusion",
+          "text": "所以 $f(x)$ 在区间 $[1,+\\infty)$ 上单调递增。",
+          "reason": "单调递增的定义：$x_1<x_2$ 时总有 $f(x_1)<f(x_2)$"
+        }
+      ],
+      "marks": [
+        {
+          "point_key": "p1",
+          "level": "done"
+        },
+        {
+          "point_key": "p2",
+          "level": "partial"
+        },
+        {
+          "point_key": "p3",
+          "level": "missed"
+        },
+        {
+          "point_key": "p4",
+          "level": "done"
+        },
+        {
+          "point_key": "p5",
+          "level": "partial"
+        },
+        {
+          "point_key": "p6",
+          "level": "missed"
+        }
+      ],
+      "summary": {
+        "done": 2,
+        "partial": 2,
+        "missed": 2,
+        "total": 6
+      },
+      "saved_at": "2026-11-11T08:00:00Z",
+      "disclaimer": "自查是你自己对照要点做的记录，不是官方阅卷分数，也不会计入正确率。"
+    }
+  }
+}

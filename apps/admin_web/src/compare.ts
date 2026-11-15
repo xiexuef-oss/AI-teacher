@@ -2,6 +2,7 @@
 // 纯函数，界面只管把结果画出来。
 import type { AdminSolution, AdminVersionSnapshot } from './api/types'
 import { diffList, diffText, listChanged, type ListRow, type Seg } from './diff'
+import { STAGE_LABEL } from './labels'
 
 export interface FieldDiff {
   key: string
@@ -90,9 +91,20 @@ export function jsonLines(value: unknown): string[] {
   return JSON.stringify(sortKeys(value), null, 2).split('\n')
 }
 
+/** 证明题的参考证明：一步一行（序号｜阶段｜这一步｜依据）。 */
+function stepLines(steps: unknown): string[] {
+  if (!Array.isArray(steps)) return []
+  return (steps as { stage?: unknown; text?: unknown; reason?: unknown }[]).map((step, index) => {
+    const stage = typeof step.stage === 'string' ? (STAGE_LABEL[step.stage as keyof typeof STAGE_LABEL] ?? step.stage) : ''
+    return `第 ${index + 1} 步｜${stage}｜${String(step.text ?? '')}｜依据：${String(step.reason ?? '')}`
+  })
+}
+
 function answerLines(value: unknown): string[] {
   if (Array.isArray(value)) return [value.map(String).join('、')]
   if (value && typeof value === 'object') {
+    // 证明题的参考答案是 {steps: [...]}，不能把数组原样转成"[object Object]"
+    if ('steps' in value) return stepLines((value as { steps?: unknown }).steps)
     return Object.entries(value as Record<string, unknown>).map(([key, answer]) => `${key} = ${String(answer)}`)
   }
   return value === undefined || value === null ? [] : [String(value)]
@@ -108,12 +120,14 @@ function analysisLines(analysis: Record<string, string>): string[] {
     .map(([key, text]) => `${key}. ${text}`)
 }
 
-/** 评分细则：解答题、实验题的自查要点逐条一行（键｜所属小问或数据表｜文字），其余内容按 JSON 逐行。 */
-function rubricLines(rubric: unknown, tableKeys: Set<string> = new Set()): string[] {
+/** 评分细则：解答题、实验题、证明题的自查要点逐条一行（键｜所属小问、数据表或证明阶段｜文字），其余内容按 JSON 逐行。 */
+function rubricLines(rubric: unknown, tableKeys: Set<string> = new Set(), proof = false): string[] {
   if (!rubric || typeof rubric !== 'object') return []
   const { points, ...others } = rubric as { points?: unknown } & Record<string, unknown>
-  const where = (part: unknown): string =>
-    typeof part !== 'string' ? '整份解答' : tableKeys.has(part) ? `数据表 ${part}` : `第 ${part} 问`
+  const where = (part: unknown): string => {
+    if (proof) return typeof part !== 'string' ? '整份证明' : (STAGE_LABEL[part as keyof typeof STAGE_LABEL] ?? `阶段 ${part}`)
+    return typeof part !== 'string' ? '整份解答' : tableKeys.has(part) ? `数据表 ${part}` : `第 ${part} 问`
+  }
   const pointRows = Array.isArray(points)
     ? (points as { key?: unknown; part?: unknown; text?: unknown }[]).map(
         (point) => `${String(point.key ?? '')}｜${where(point.part)}｜${String(point.text ?? '')}`,
@@ -124,6 +138,14 @@ function rubricLines(rubric: unknown, tableKeys: Set<string> = new Set()): strin
 
 type Tables = AdminVersionSnapshot['content']['data_tables']
 type Safety = AdminVersionSnapshot['content']['safety']
+type Proof = AdminVersionSnapshot['content']['proof']
+
+/** 证明题的已知（编号 ①②③…）和求证，一条一行。 */
+function proofLines(proof: Proof): string[] {
+  if (proof === null) return []
+  const marks = '①②③④⑤⑥⑦⑧'
+  return [...proof.givens.map((given, index) => `已知 ${marks[index] ?? `(${index + 1})`}｜${given}`), `求证｜${proof.claim}`]
+}
 
 /** 数据表摊成行：一张表的标题、每一列、每一行（留空的格子写"（留空）"）。 */
 function tableLines(tables: Tables): string[] {
@@ -198,6 +220,7 @@ export function compareSnapshots(left: AdminVersionSnapshot, right: AdminVersion
       rowsField('attachments', '附件', attachmentLines(left), attachmentLines(right)),
       rowsField('data_tables', '数据表', tableLines(left.content.data_tables), tableLines(right.content.data_tables)),
       rowsField('safety', '实验安全提示', safetyLines(left.content.safety), safetyLines(right.content.safety)),
+      rowsField('proof', '已知与求证', proofLines(left.content.proof), proofLines(right.content.proof), true),
     ]),
     section('answer', '答案', [
       rowsField('answer', '标准答案', answerLines(left.answer.value), answerLines(right.answer.value)),
@@ -233,8 +256,8 @@ export function compareSnapshots(left: AdminVersionSnapshot, right: AdminVersion
       rowsField(
         'rubric',
         '评分细则 / 自查要点',
-        rubricLines(left.rubric, new Set(left.content.data_tables.map((table) => table.key))),
-        rubricLines(right.rubric, new Set(right.content.data_tables.map((table) => table.key))),
+        rubricLines(left.rubric, new Set(left.content.data_tables.map((table) => table.key)), left.content.proof !== null),
+        rubricLines(right.rubric, new Set(right.content.data_tables.map((table) => table.key)), right.content.proof !== null),
         true,
       ),
     ]),

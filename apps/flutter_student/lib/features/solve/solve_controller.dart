@@ -91,6 +91,17 @@ class SolveController extends ChangeNotifier {
   /// 实验题数据表里学生填的格子，键是 "表键.行键.列键"。
   final Map<String, String> _cells = {};
 
+  /// 证明题一步一步写的证明，顺序就是证明的顺序。答题期间证明题至少有一张卡片（可以是空白的）。
+  final List<ProofStepDraft> _steps = [];
+
+  /// 步骤结构的版本号：添加、删除、挪动、整体换掉时加一，输入框据此整体重新同步。
+  int _stepsRevision = 0;
+
+  /// 证明题最多写多少步，每步的文字、依据最多多少字（与契约一致）。
+  static const int maxProofSteps = 30;
+  static const int maxStepText = 1000;
+  static const int maxStepReason = 400;
+
   SaveStatus sync = SaveStatus.saved;
   bool localSaveFailed = false;
   Draft? conflictServerDraft;
@@ -127,6 +138,10 @@ class SolveController extends ChangeNotifier {
   Map<String, String> get blanks => Map.unmodifiable(_blanks);
   Map<String, String> get parts => Map.unmodifiable(_parts);
   Map<String, String> get cells => Map.unmodifiable(_cells);
+  List<ProofStepDraft> get steps => List.unmodifiable(_steps);
+  int get stepsRevision => _stepsRevision;
+  bool get canAddStep =>
+      phase == SolvePhase.answering && _steps.length < maxProofSteps;
   Map<String, SelfCheckLevel> get marks => Map.unmodifiable(_marks);
 
   /// 每个要点都标过了。
@@ -169,6 +184,9 @@ class SolveController extends ChangeNotifier {
       case AnswerMode.experiment:
         // 填了格子、写了文字或有笔迹都可以提交，也可以只填其中几个
         return _hasCellsText || _hasPartsText || ink.hasInk;
+      case AnswerMode.proof:
+        // 至少有一步写了文字，或有笔迹就可以提交；依据可以不写
+        return _hasStepsText || ink.hasInk;
       default:
         return false;
     }
@@ -176,10 +194,13 @@ class SolveController extends ChangeNotifier {
 
   bool get _hasPartsText => _parts.values.any((v) => v.trim().isNotEmpty);
   bool get _hasCellsText => _cells.values.any((v) => v.trim().isNotEmpty);
+  bool get _hasStepsText => _steps.any((s) => s.text.trim().isNotEmpty);
 
-  /// 不自动评分、提交后对照要点自查的题（解答题、实验题）。
+  /// 不自动评分、提交后对照要点自查的题（解答题、实验题、证明题）。
   bool get _isSubjective =>
-      _mode == AnswerMode.written || _mode == AnswerMode.experiment;
+      _mode == AnswerMode.written ||
+      _mode == AnswerMode.experiment ||
+      _mode == AnswerMode.proof;
 
   bool get canSubmit =>
       phase == SolvePhase.answering &&
@@ -208,6 +229,7 @@ class SolveController extends ChangeNotifier {
     }
     final local = await drafts.readDraft(args.questionId);
     if (local != null) _applyLocal(local);
+    _ensureStep();
     phase = SolvePhase.answering;
     _stopwatch.start();
     _notify();
@@ -258,6 +280,10 @@ class SolveController extends ChangeNotifier {
     _cells
       ..clear()
       ..addAll(draft.cells);
+    _steps
+      ..clear()
+      ..addAll(draft.steps);
+    _stepsRevision += 1;
     ink.loadContract(draft.strokes);
     _serverRevision = draft.baseRevision;
     _localAttemptId = draft.attemptId;
@@ -358,6 +384,8 @@ class SolveController extends ChangeNotifier {
         _selected.isNotEmpty ||
         _blanks.values.any((v) => v.trim().isNotEmpty) ||
         _hasPartsText ||
+        _hasCellsText ||
+        _steps.any((s) => !s.isBlank) ||
         ink.hasInk;
     if (_localAttemptId == current.id) {
       // 本机草稿就是这份作答的草稿。本机没有未同步的改动、而云端往前走了（别处写过）：采用云端。
@@ -417,6 +445,15 @@ class SolveController extends ChangeNotifier {
           (c) => MapEntry('${c.table}.${c.row}.${c.col}', c.value),
         ),
       );
+    _steps
+      ..clear()
+      ..addAll(
+        (answer?.steps ?? const []).map(
+          (s) => ProofStepDraft(text: s.text, reason: s.reason),
+        ),
+      );
+    _ensureStep();
+    _stepsRevision += 1;
     ink.loadContract(draft.strokes);
     _serverRevision = draft.revision;
     _dirtyRemote = false;
@@ -485,6 +522,76 @@ class SolveController extends ChangeNotifier {
     _onChanged();
   }
 
+  /// 证明题答题期间至少有一张卡片，学生一打开就能写。
+  void _ensureStep() {
+    if (_mode == AnswerMode.proof && _steps.isEmpty) {
+      _steps.add(const ProofStepDraft());
+      _stepsRevision += 1;
+    }
+  }
+
+  /// 证明题第 [index] 步写了什么。超过 1000 字的部分截掉。
+  void setStepText(int index, String value) {
+    if (phase != SolvePhase.answering || index < 0 || index >= _steps.length) {
+      return;
+    }
+    final bounded = value.length > maxStepText
+        ? value.substring(0, maxStepText)
+        : value;
+    _steps[index] = _steps[index].copyWith(text: bounded);
+    _onChanged();
+  }
+
+  /// 证明题第 [index] 步的依据。超过 400 字的部分截掉。
+  void setStepReason(int index, String value) {
+    if (phase != SolvePhase.answering || index < 0 || index >= _steps.length) {
+      return;
+    }
+    final bounded = value.length > maxStepReason
+        ? value.substring(0, maxStepReason)
+        : value;
+    _steps[index] = _steps[index].copyWith(reason: bounded);
+    _onChanged();
+  }
+
+  /// 在最后添加一张空白的卡片。最多 30 步。
+  void addStep() {
+    if (!canAddStep) return;
+    _steps.add(const ProofStepDraft());
+    _stepsRevision += 1;
+    _onChanged();
+  }
+
+  /// 删掉第 [index] 步。只剩一步时把它清成空白，不让卡片消失。
+  void removeStep(int index) {
+    if (phase != SolvePhase.answering || index < 0 || index >= _steps.length) {
+      return;
+    }
+    if (_steps.length == 1) {
+      _steps[0] = const ProofStepDraft();
+    } else {
+      _steps.removeAt(index);
+    }
+    _stepsRevision += 1;
+    _onChanged();
+  }
+
+  /// 把第 [index] 步往前（delta=-1）或往后（delta=1）挪一位。到头了就什么都不做。
+  void moveStep(int index, int delta) {
+    final target = index + delta;
+    if (phase != SolvePhase.answering ||
+        index < 0 ||
+        index >= _steps.length ||
+        target < 0 ||
+        target >= _steps.length) {
+      return;
+    }
+    final step = _steps.removeAt(index);
+    _steps.insert(target, step);
+    _stepsRevision += 1;
+    _onChanged();
+  }
+
   void _onChanged() {
     if (phase != SolvePhase.answering) return;
     _localVersion += 1;
@@ -512,6 +619,7 @@ class SolveController extends ChangeNotifier {
     blanks: Map.of(_blanks),
     parts: Map.of(_parts),
     cells: Map.of(_cells),
+    steps: List.of(_steps),
     strokes: ink.hasInk ? ink.toContract() : null,
     savedAt: DateTime.now().toUtc(),
   );
@@ -564,6 +672,10 @@ class SolveController extends ChangeNotifier {
         parts: parts.isEmpty ? null : parts,
       );
     }
+    if (mode == AnswerMode.proof) {
+      final steps = _stepsToSend(trim: false);
+      return steps.isEmpty ? null : AnswerPayload(steps: steps);
+    }
     if (_selected.isEmpty) return null;
     final options = question!.content.options
         .map((o) => o.key)
@@ -571,6 +683,16 @@ class SolveController extends ChangeNotifier {
         .toList();
     return AnswerPayload(selectedOptions: options);
   }
+
+  /// 写了东西的步骤（文字或依据有一样不是空白），按学生排的顺序；整张卡片是空白的不发。
+  List<AnswerStep> _stepsToSend({required bool trim}) => [
+    for (final step in _steps)
+      if (!step.isBlank)
+        AnswerStep(
+          text: trim ? step.text.trim() : step.text,
+          reason: trim ? step.reason.trim() : step.reason,
+        ),
+  ];
 
   /// 有文字的小问，按题目里的顺序。
   List<AnswerPart> _partsInOrder({required bool trim}) => [
@@ -761,6 +883,9 @@ class SolveController extends ChangeNotifier {
         parts: _partsInOrder(trim: true),
       );
     }
+    if (_mode == AnswerMode.proof) {
+      return AnswerPayload(steps: _stepsToSend(trim: true));
+    }
     final options = question!.content.options
         .map((o) => o.key)
         .where(_selected.contains)
@@ -782,10 +907,11 @@ class SolveController extends ChangeNotifier {
       // 有冲突则先让学生解决。
       await _syncDraft(force: true);
       if (sync == SaveStatus.conflict) return;
-      // 解答题、实验题只有笔迹、没有文字和格子时，笔迹只能随草稿同步到云端：没同步上去，服务端会以为什么都没写
+      // 解答题、实验题、证明题只有笔迹、没有文字、格子和步骤时，笔迹只能随草稿同步到云端：没同步上去，服务端会以为什么都没写
       if (_isSubjective &&
           !_hasPartsText &&
           !_hasCellsText &&
+          !_hasStepsText &&
           sync != SaveStatus.saved) {
         actionError = ApiException.network('笔迹还没有同步到云端，连上网络后再提交');
         return;
@@ -865,6 +991,9 @@ class SolveController extends ChangeNotifier {
       _blanks.clear();
       _parts.clear();
       _cells.clear();
+      _steps.clear();
+      _ensureStep();
+      _stepsRevision += 1;
       _marks.clear();
       selfCheck = null;
       selfCheckError = null;

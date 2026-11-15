@@ -1,13 +1,13 @@
 {
   "name": "submit_uncertain",
   "method": "POST",
-  "path": "/api/v1/attempts/29d364c5-a514-486e-ad49-ce7c4defb065/submit",
+  "path": "/api/v1/attempts/9885ac60-d474-4411-86fc-130a1e24f673/submit",
   "status": 200,
   "schema": "SubmitResult",
   "value": {
     "attempt": {
-      "id": "29d364c5-a514-486e-ad49-ce7c4defb065",
-      "session_id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+      "id": "9885ac60-d474-4411-86fc-130a1e24f673",
+      "session_id": "7dee06ad-8473-47d0-a0c7-a9e893290dfa",
       "attempt_no": 1,
       "status": "submitted",
       "answer": {
@@ -63,7 +63,7 @@
       "disclaimer": "这是练习反馈，不是官方阅卷分数。"
     },
     "session": {
-      "id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+      "id": "7dee06ad-8473-47d0-a0c7-a9e893290dfa",
       "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
       "question_version": 1,
       "origin": "practice",
@@ -88,8 +88,8 @@
     },
     "events": [
       {
-        "id": "0c6657cf-8804-4349-bbd4-77fc42c51e7f",
-        "session_id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+        "id": "fb95cd9c-30e7-4085-81e2-a3d718442624",
+        "session_id": "7dee06ad-8473-47d0-a0c7-a9e893290dfa",
         "seq_no": 1,
         "type": "uncertainty",
         "created_at": "2026-11-10T08:00:00Z",
@@ -109,7 +109,7 @@
           "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "537c170213ae4d3e9255b5fedf7ef479"
+          "request_id": "dcec4bd35b174a00bd954ef98223098f"
         }
       }
     ],
@@ -118,8 +118,8 @@
   "body": {
     "data": {
       "attempt": {
-        "id": "29d364c5-a514-486e-ad49-ce7c4defb065",
-        "session_id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+        "id": "9885ac60-d474-4411-86fc-130a1e24f673",
+        "session_id": "7dee06ad-8473-47d0-a0c7-a9e893290dfa",
         "attempt_no": 1,
         "status": "submitted",
         "answer": {
@@ -175,7 +175,7 @@
         "disclaimer": "这是练习反馈，不是官方阅卷分数。"
       },
       "session": {
-        "id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+        "id": "7dee06ad-8473-47d0-a0c7-a9e893290dfa",
         "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
         "question_version": 1,
         "origin": "practice",
@@ -200,8 +200,8 @@
       },
       "events": [
         {
-          "id": "0c6657cf-8804-4349-bbd4-77fc42c51e7f",
-          "session_id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+          "id": "fb95cd9c-30e7-4085-81e2-a3d718442624",
+          "session_id": "7dee06ad-8473-47d0-a0c7-a9e893290dfa",
           "seq_no": 1,
           "type": "uncertainty",
           "created_at": "2026-11-10T08:00:00Z",
@@ -221,7 +221,7 @@
             "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "537c170213ae4d3e9255b5fedf7ef479"
+            "request_id": "dcec4bd35b174a00bd954ef98223098f"
           }
         }
       ],

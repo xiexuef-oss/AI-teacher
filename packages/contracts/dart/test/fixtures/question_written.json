@@ -67,7 +67,8 @@
       ],
       "attachments": [],
       "data_tables": [],
-      "safety": null
+      "safety": null,
+      "proof": null
     },
     "assists": {
       "hint_levels": 3,
@@ -141,7 +142,8 @@
         ],
         "attachments": [],
         "data_tables": [],
-        "safety": null
+        "safety": null,
+        "proof": null
       },
       "assists": {
         "hint_levels": 3,

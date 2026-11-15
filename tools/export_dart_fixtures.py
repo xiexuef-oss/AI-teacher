@@ -506,6 +506,75 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 json={"marks": marks},
             )
 
+            # 证明题：有已知和求证，学生把证明写成一步一步（每步带依据），不自动评分，
+            # 提交之后对照参考证明和要点自查。同样放在最后导出，不改变前面样例里的计数
+            mono_id = qid("math-mono-def-proof")
+            rec("question_proof", student, "GET", f"/questions/{mono_id}")
+            rec(
+                "question_proof_physics",
+                student,
+                "GET",
+                f"/questions/{qid('phys-work-energy-proof')}",
+            )
+            s10 = student.data(
+                "POST",
+                "/sessions",
+                expect=201,
+                json={"question_id": mono_id, "origin": "practice"},
+            )
+            a10 = student.data("POST", "/attempts", expect=201, json={"session_id": s10["id"]})
+            proof = {
+                "steps": [
+                    {
+                        "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+                        "reason": "单调性的定义",
+                    },
+                    {
+                        "text": "$f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+                        "reason": "作差，通分，提公因式",
+                    },
+                    {
+                        "text": "$x_1-x_2<0$，$x_1x_2>1$，所以 $f(x_1)<f(x_2)$，$f(x)$ 在 $[1,+\\infty)$ 上单调递增。",
+                        "reason": "",
+                    },
+                ]
+            }
+            rec(
+                "self_check_proof_before_submit",
+                student,
+                "GET",
+                f"/attempts/{a10['id']}/self-check",
+                expect=409,
+            )
+            rec(
+                "draft_synced_proof",
+                student,
+                "PUT",
+                f"/attempts/{a10['id']}/draft",
+                json={"base_revision": 0, "answer": proof, "strokes": STROKES},
+            )
+            rec(
+                "submit_proof",
+                student,
+                "POST",
+                f"/attempts/{a10['id']}/submit",
+                json={"answer": proof},
+            )
+            checklist = rec(
+                "self_check_proof_pending", student, "GET", f"/attempts/{a10['id']}/self-check"
+            )
+            marks = [
+                {"point_key": point["key"], "level": levels[index % 3]}
+                for index, point in enumerate(checklist["points"])
+            ]
+            rec(
+                "self_check_proof_saved",
+                student,
+                "PUT",
+                f"/attempts/{a10['id']}/self-check",
+                json={"marks": marks},
+            )
+
             # 错误
             rec("error_not_implemented", student, "POST", "/scans", expect=501, json={})
             rec("error_unauthenticated", ApiClient(raw), "GET", "/profile", expect=401)

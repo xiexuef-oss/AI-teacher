@@ -683,3 +683,138 @@ def test_the_other_modes_reject_experiment_cells(mode, content, key):
         )
 
     assert error.value.field == "answer"
+
+
+# ---------------------------------------------------------------- 证明题
+
+PROOF_CONTENT = {
+    "stem": "设 a、b 是正数。",
+    "proof": {"givens": ["a>0", "b>0"], "claim": "a/b+b/a≥2"},
+}
+PROOF_REFERENCE = {
+    "steps": [
+        {"stage": "premise", "text": "ab>0", "reason": "已知"},
+        {"stage": "conclusion", "text": "所以 a/b+b/a≥2", "reason": "作差"},
+    ]
+}
+
+
+def proof(answer: dict, *, has_ink: bool = False, content: dict | None = None):
+    return grade(
+        answer_mode="proof",
+        content=content or PROOF_CONTENT,
+        answer_key={"value": PROOF_REFERENCE},
+        rubric={"points": [{"key": "p1", "part": "premise", "text": "用到已知条件"}]},
+        teaching={},
+        answer=answer,
+        has_ink=has_ink,
+    )
+
+
+def steps(*items: tuple[str, str]) -> dict:
+    return {"steps": [{"text": text, "reason": reason} for text, reason in items]}
+
+
+def test_proof_answers_are_never_graded_by_the_system():
+    result = proof(steps(("因为 a>0，b>0，所以 ab>0", "已知"), ("所以结论成立", "")))
+
+    assert (result.state, result.outcome, result.is_correct) == ("pending", "undetermined", None)
+    assert result.review_required is True
+    assert result.uncertainty_reason == "subjective_self_check"
+    assert result.feedback == ()
+    assert "不自动评分" in result.message and "参考证明" in result.message
+
+
+def test_a_proof_identical_to_the_reference_is_still_not_graded():
+    """哪怕每一步都和参考证明一字不差也不判对：证明的写法不止一种，系统不冒充阅卷。"""
+    answer = steps(*[(step["text"], step["reason"]) for step in PROOF_REFERENCE["steps"]])
+
+    result = proof(answer)
+
+    assert (result.state, result.is_correct) == ("pending", None)
+
+
+def test_a_proof_may_leave_the_reasons_out():
+    assert proof(steps(("ab>0", ""))).state == "pending", "依据可以不写：不拦提交，也不判"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {},
+        {"steps": []},
+        steps(("", "")),
+        steps(("  \n ", "已知"), ("\t", "")),  # 只有依据、没有写这一步的内容，不算有内容
+    ],
+)
+def test_a_proof_needs_some_text_or_some_ink(answer):
+    with pytest.raises(AnswerShapeError) as error:
+        proof(answer)
+
+    assert error.value.field == "answer"
+    assert proof(answer, has_ink=True).state == "pending", "只有笔迹也可以提交"
+
+
+def test_a_proof_with_one_written_step_among_blank_ones_is_enough():
+    assert proof(steps(("", ""), ("ab>0", ""), ("  ", ""))).state == "pending"
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"selected_options": ["A"]},
+        {"blanks": [{"key": "b1", "value": "1"}]},
+        {"text": "整段证明"},
+        {"parts": [{"key": "1", "text": "x"}]},
+        {"cells": [{"table": "t1", "row": "r1", "col": "v", "value": "1"}]},
+    ],
+)
+def test_a_proof_answer_only_uses_steps(extra):
+    with pytest.raises(AnswerShapeError) as error:
+        proof({**steps(("ab>0", "已知")), **extra})
+
+    assert error.value.field == "answer"
+
+
+@pytest.mark.parametrize(
+    ("mode", "content", "key", "answer"),
+    [
+        (
+            "single_choice",
+            {"options": [{"key": "A"}, {"key": "B"}]},
+            {"value": ["A"]},
+            {"selected_options": ["A"]},
+        ),
+        (
+            "fill",
+            {"blanks": [{"key": "b1"}]},
+            {"value": {"b1": "1"}},
+            {"blanks": [{"key": "b1", "value": "1"}]},
+        ),
+        ("written", WRITTEN_CONTENT, {"value": REFERENCE}, parts(**{"1": "x"})),
+        (
+            "experiment",
+            EXPERIMENT_CONTENT,
+            {"value": EXPERIMENT_REFERENCE},
+            cells(("t1", "r1", "v", "1")),
+        ),
+    ],
+)
+def test_the_other_modes_reject_proof_steps(mode, content, key, answer):
+    with pytest.raises(AnswerShapeError) as error:
+        grade(
+            answer_mode=mode,
+            content=content,
+            answer_key=key,
+            rubric={},
+            teaching={},
+            answer={**answer, **steps(("ab>0", "已知"))},
+        )
+
+    assert error.value.field == "answer"
+
+
+def test_all_three_subjective_modes_are_listed_in_one_place():
+    from tutor_api.services.grading import SUBJECTIVE_MODES
+
+    assert SUBJECTIVE_MODES == ("written", "experiment", "proof")

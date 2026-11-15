@@ -11,6 +11,7 @@ import {
   AUTHOR,
   detail,
   experimentDetail,
+  proofDetail,
   FAST,
   ME,
   page,
@@ -299,6 +300,89 @@ describe('题目审核页', () => {
 
     expect(wrapper.find('[data-testid="safety-view"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="checks"]').text()).toContain('content.safety')
+  })
+
+  it('证明题：已知（编号）、求证、参考证明（阶段、文字、依据）、自查要点按证明阶段分组', async () => {
+    mocked.getQuestion.mockResolvedValue(proofDetail())
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    expect(wrapper.text()).toContain('证明题')
+    const statement = wrapper.get('[data-testid="proof-view"]')
+    expect(statement.findAll('li')).toHaveLength(2)
+    expect(wrapper.get('[data-testid="given-0"]').text()).toContain('①')
+    expect(wrapper.get('[data-testid="given-1"]').text()).toContain('②')
+    expect(wrapper.find('[data-testid="claim-view"]').exists()).toBe(true)
+    // 参考证明：一步一行，阶段用中文
+    const steps = wrapper.get('[data-testid="reference-steps"]')
+    expect(steps.findAll('tbody tr')).toHaveLength(4)
+    expect(steps.findAll('thead th').map((th) => th.text())).toEqual(['步', '阶段', '这一步', '依据'])
+    expect(wrapper.get('[data-testid="ref-step-0"]').text()).toContain('前提')
+    expect(wrapper.get('[data-testid="ref-step-1"]').text()).toContain('构造')
+    expect(wrapper.get('[data-testid="ref-step-3"]').text()).toContain('结论')
+    expect(wrapper.get('[data-testid="ref-step-3"]').text()).toContain('不等式的传递性')
+    // 答案那一块里不会出现"[object Object]"
+    expect(wrapper.text()).not.toContain('[object Object]')
+    // 自查要点：按阶段分组，整份证明的放在最后
+    const points = wrapper.get('[data-testid="rubric-points"]')
+    const headings = points.findAll('h3').map((h) => h.text())
+    expect(headings).toEqual(['前提', '构造', '推理', '结论', '整份证明'])
+    expect(points.text()).toContain('证明题不自动评分')
+    expect(points.text()).toContain('不是评分')
+    // 没有小问、没有安全提示和数据表
+    expect(wrapper.find('[data-testid="subquestions-view"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="safety-view"]').exists()).toBe(false)
+    expect(wrapper.find('.table-block').exists()).toBe(false)
+  })
+
+  it('证明题的已知可以是空的：只有求证', async () => {
+    const source = proofDetail()
+    mocked.getQuestion.mockResolvedValue(
+      proofDetail({ content: { ...source.content, proof: { givens: [], claim: '$x>0$' } } }),
+    )
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    const statement = wrapper.get('[data-testid="proof-view"]')
+    expect(statement.text()).not.toContain('已知')
+    expect(statement.text()).toContain('求证')
+  })
+
+  it('证明题的要点按证明的先后排，哪怕库里是乱序存的', async () => {
+    const source = proofDetail()
+    const points = (source.rubric as unknown as { points: unknown[] }).points
+    mocked.getQuestion.mockResolvedValue(proofDetail({ rubric: { points: [...points].reverse() } as never }))
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    const headings = wrapper.get('[data-testid="rubric-points"]').findAll('h3').map((h) => h.text())
+    expect(headings).toEqual(['前提', '构造', '推理', '结论', '整份证明'])
+  })
+
+  it('证明题没有参考证明：审核页明说，程序校验的问题照样列出', async () => {
+    const source = proofDetail()
+    mocked.getQuestion.mockResolvedValue(
+      proofDetail({
+        answer: { ...source.answer, value: {} },
+        check_problems: ['math-ineq-mul-proof: answer.value 必须是 {steps: [...]}'],
+      }),
+    )
+
+    const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+    expect(wrapper.get('[data-testid="reference-steps"]').text()).toContain('还没有参考证明')
+    expect(wrapper.get('[data-testid="checks"]').text()).toContain('answer.value')
+  })
+
+  it('其他题型的审核页里没有已知与求证和参考证明', async () => {
+    for (const source of [detail(), writtenDetail(), experimentDetail()]) {
+      mocked.getQuestion.mockResolvedValue(source)
+
+      const { wrapper } = await mountAt(`/questions/${QUESTION_ID}`)
+
+      expect(wrapper.find('[data-testid="proof-view"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="reference-steps"]').exists()).toBe(false)
+    }
   })
 
   it('选择题的审核页里没有数据表和安全提示', async () => {

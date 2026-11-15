@@ -273,11 +273,12 @@ export interface paths {
         /**
          * 提交作答并返回评估状态
          * @description 客观题同步判定。判定不了（例如填空等价性无法确认）时 `evaluation.state=uncertain`、`is_correct=null`。
-         *     解答题（`written`）和实验题（`experiment`）不自动评分：返回 `state=pending`、`outcome=undetermined`、
+         *     解答题（`written`）、实验题（`experiment`）和证明题（`proof`）不自动评分：返回 `state=pending`、`outcome=undetermined`、
          *     `is_correct=null`，并产生一条 `uncertainty` 事件（`reason_code=subjective_self_check`）；学生之后用
          *     `/attempts/{attempt_id}/self-check` 对照要点自查。解答题没有文字（`answer.parts` 全空）
          *     也没有已同步的笔迹时返回 422；实验题的 `answer.cells`（数据表里学生填的格子，只能是题目留空的）
-         *     与 `answer.parts` 都没有内容、也没有笔迹时同样返回 422。
+         *     与 `answer.parts` 都没有内容、也没有笔迹时同样返回 422；证明题的 `answer.steps` 没有一步有文字、
+         *     也没有笔迹时同样返回 422。
          *     同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
          *     只有会话里第一次提交、且此前没有看过提示、图解或解析的作答才算 `independent=true`。
          */
@@ -296,18 +297,18 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 解答题、实验题提交后的对照自查：要点，以及已保存的自评
-         * @description 解答题和实验题不自动评分。提交之后，学生对照这份要点清单，给每一条标"做到了 / 做到一部分 / 没做到"。
+         * 解答题、实验题、证明题提交后的对照自查：要点，以及已保存的自评
+         * @description 解答题、实验题和证明题不自动评分。提交之后，学生对照这份要点清单，给每一条标"做到了 / 做到一部分 / 没做到"。
          *     要点只在作答已提交之后才给：提交之前返回 409 `attempt_not_submitted`，独立作答阶段不泄题；
-         *     实验题数据表里留空格子的参考值（`reference_cells`）同样只在提交之后才给。
-         *     不是解答题或实验题的作答返回 409 `self_check_not_applicable`。还没有保存过自评时 `marks` 为空、`saved_at` 为 null。
+         *     实验题数据表里留空格子的参考值（`reference_cells`）、证明题的参考证明（`reference_steps`）同样只在提交之后才给。
+         *     不是这三种题的作答返回 409 `self_check_not_applicable`。还没有保存过自评时 `marks` 为空、`saved_at` 为 null。
          *     自查是学生自己做的记录，不是官方阅卷分数，也不计入任何正确率。
          */
         get: operations["getSelfCheck"];
         /**
          * 保存对照自查的结果
          * @description 整体替换：每个要点必须恰好评一次，缺评、重复或不认识的要点返回 422。可以改过再保存。
-         *     同一幂等键重放返回同一结果。作答没有提交、或不是解答题、实验题的情形与 GET 相同，返回 409。
+         *     同一幂等键重放返回同一结果。作答没有提交、或不是解答题、实验题、证明题的情形与 GET 相同，返回 409。
          */
         put: operations["saveSelfCheck"];
         post?: never;
@@ -784,10 +785,12 @@ export interface components {
          * @description 作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定；
          *     written（解答题）只保存作答，提交后给对照要点的自查，不自动评分；
          *     experiment（实验题）是带数据表和安全提示的主观题：数据表里留空的格子填在 `answer.cells`，
-         *     文字作答填在 `answer.parts`，和解答题一样不自动评分、提交后对照要点和参考数据自查。
+         *     文字作答填在 `answer.parts`，和解答题一样不自动评分、提交后对照要点和参考数据自查；
+         *     proof（证明题）有"已知 / 求证"（`content.proof`），学生把证明写成一步一步（每一步带依据）填在 `answer.steps`，
+         *     同样不自动评分、提交后对照参考证明和要点自查。
          * @enum {string}
          */
-        AnswerMode: "single_choice" | "multiple_choice" | "fill" | "written" | "experiment";
+        AnswerMode: "single_choice" | "multiple_choice" | "fill" | "written" | "experiment" | "proof";
         /** @enum {string} */
         SourceType: "self_authored" | "textbook_licensed" | "public_license" | "gaokao_licensed" | "ai_generated";
         /**
@@ -1045,6 +1048,13 @@ export interface components {
             columns: components["schemas"]["DataTableColumn"][];
             rows: components["schemas"]["DataTableRow"][];
         };
+        /** @description 证明题的"已知"和"求证"。参考证明不在这里，只在提交之后随自查（`SelfCheck.reference_steps`）给出。 */
+        ProofStatement: {
+            /** @description 已知条件，界面上编号成 ①②③，学生写依据时可以引用；题干里已经写全了已知条件时为空数组。 */
+            givens: string[];
+            /** @description 求证的结论。 */
+            claim: string;
+        };
         QuestionContent: {
             /** @description 题干。纯文本，行内公式用 $...$ 包裹的 LaTeX。 */
             stem: string;
@@ -1056,6 +1066,8 @@ export interface components {
             data_tables: components["schemas"]["DataTable"][];
             /** @description 实验题的安全提示；其他题型为 null。 */
             safety: components["schemas"]["ExperimentSafety"] | null;
+            /** @description 证明题的已知和求证；其他题型为 null。 */
+            proof: components["schemas"]["ProofStatement"] | null;
         };
         QuestionAssists: {
             hint_levels: number;
@@ -1180,11 +1192,18 @@ export interface components {
             key: string;
             text: string;
         };
+        /** @description 证明题作答里的一步。依据可以不写：写不写、写得对不对都不拦提交，也不判对错，只是自查清单里会问。 */
+        AnswerStep: {
+            /** @description 这一步写了什么、推出了什么。 */
+            text: string;
+            /** @description 依据：定义、定理、已知条件或前面的某一步。 */
+            reason: string;
+        };
         /**
          * @description 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts，
-         *     实验题用 cells（数据表里留空的格子）和 parts（文字小问）。
-         *     解答题、实验题可以只写一部分，也可以只有笔迹（笔迹随草稿同步，不在这里）；
-         *     文字、格子和笔迹都没有时提交返回 422。
+         *     实验题用 cells（数据表里留空的格子）和 parts（文字小问），证明题用 steps（一步一步的证明）。
+         *     解答题、实验题、证明题可以只写一部分，也可以只有笔迹（笔迹随草稿同步，不在这里）；
+         *     文字、格子、步骤和笔迹都没有时提交返回 422。
          */
         AnswerPayload: {
             selected_options?: string[];
@@ -1192,6 +1211,8 @@ export interface components {
             parts?: components["schemas"]["AnswerPart"][];
             /** @description 实验题数据表里学生填写的格子；只能是题目留空的格子，同一个格子只能填一次。 */
             cells?: components["schemas"]["AnswerCell"][];
+            /** @description 证明题里学生写的证明，一步一项，列表的顺序就是证明的顺序。 */
+            steps?: components["schemas"]["AnswerStep"][];
             text?: string | null;
         };
         Stroke: {
@@ -1284,12 +1305,28 @@ export interface components {
          * @enum {string}
          */
         SelfCheckLevel: "done" | "partial" | "missed";
+        /**
+         * @description 参考证明里一步的角色，对应 docs/06 的"拆解前提、构造、关键变形、结论"。
+         *     premise 前提（用了哪些已知条件）；construction 构造（引入辅助量、辅助线，或把式子改写成便于证明的形式）；
+         *     reasoning 推理（一步一步推下去的关键步骤）；conclusion 结论（回到求证）。
+         * @enum {string}
+         */
+        ProofStage: "premise" | "construction" | "reasoning" | "conclusion";
         /** @description 对照检查的一个要点。不带分值：这不是评分，只是一张自查清单。 */
         SelfCheckPoint: {
             key: string;
-            /** @description 对应的小问键或数据表键；null 表示对整份作答的要求。 */
+            /**
+             * @description 对应的部分：解答题是小问键；实验题是小问键或数据表键；证明题是证明阶段（ProofStage 的四个值之一）；
+             *     null 表示对整份作答的要求。
+             */
             part: string | null;
             text: string;
+        };
+        /** @description 参考证明里的一步。只在提交之后随自查给出，只是对照用的参考：证明的写法不止一种，它不参与任何判定。 */
+        ProofReferenceStep: {
+            stage: components["schemas"]["ProofStage"];
+            text: string;
+            reason: string;
         };
         SelfCheckMark: {
             point_key: string;
@@ -1312,9 +1349,14 @@ export interface components {
             points: components["schemas"]["SelfCheckPoint"][];
             /**
              * @description 实验题数据表里留空格子的参考值，让学生把自己填的数和它对照。只在提交之后给；
-             *     它只是对照用的参考，不是评分，也不参与任何判定。解答题为空数组。
+             *     它只是对照用的参考，不是评分，也不参与任何判定。解答题、证明题为空数组。
              */
             reference_cells: components["schemas"]["AnswerCell"][];
+            /**
+             * @description 证明题的参考证明，让学生把自己写的证明和它对照。只在提交之后给；证明的写法不止一种，
+             *     它只是对照用的参考，不是评分，也不参与任何判定。其他题型为空数组。
+             */
+            reference_steps: components["schemas"]["ProofReferenceStep"][];
             /** @description 已保存的自评；还没保存过时为空数组。 */
             marks: components["schemas"]["SelfCheckMark"][];
             summary: components["schemas"]["SelfCheckSummary"];
@@ -1419,11 +1461,11 @@ export interface components {
             assisted: components["schemas"]["RateStat"];
         };
         /**
-         * @description 解答题和实验题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份，
+         * @description 解答题、实验题和证明题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份，
          *     以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
          */
         SubjectiveProgress: {
-            /** @description 已提交的解答题和实验题作答数。 */
+            /** @description 已提交的解答题、实验题和证明题作答数。 */
             attempts: number;
             /** @description 其中保存了自查的作答数。 */
             self_checked: number;
@@ -1440,7 +1482,7 @@ export interface components {
             hint_dependency: components["schemas"]["RateStat"];
             retest_success: components["schemas"]["RateStat"];
             variant_transfer: components["schemas"]["RateStat"];
-            /** @description 客观题里未能确定判定、因此没有计入任何正确率的提交数。解答题和实验题本来就不自动评分，不算在这里。 */
+            /** @description 客观题里未能确定判定、因此没有计入任何正确率的提交数。解答题、实验题和证明题本来就不自动评分，不算在这里。 */
             uncertain_attempts: number;
             subjective: components["schemas"]["SubjectiveProgress"];
             by_subject: components["schemas"]["ProgressBucket"][];
@@ -1612,7 +1654,7 @@ export interface components {
             min_samples: number;
             /** @description 这一周开始的练习次数。 */
             sessions_count: number;
-            /** @description 这一周提交的作答数（含解答题）。 */
+            /** @description 这一周提交的作答数（含解答题、实验题和证明题）。 */
             attempts_count: number;
             /** @description 这一周有几天提交过作答。只是个数，没有连续天数。 */
             active_days: number;
@@ -1620,7 +1662,7 @@ export interface components {
             assisted: components["schemas"]["RateStat"];
             hint_dependency: components["schemas"]["RateStat"];
             retest_success: components["schemas"]["RateStat"];
-            /** @description 这一周提交的解答题和实验题数（字段名沿用）。它们不自动评分，不进上面任何一个比例。 */
+            /** @description 这一周提交的解答题、实验题和证明题数（字段名沿用）。它们不自动评分，不进上面任何一个比例。 */
             written_attempts: number;
             independent_trend: components["schemas"]["WeeklyTrend"];
             previous_week: components["schemas"]["PreviousWeek"];
@@ -1689,7 +1731,7 @@ export interface components {
             status_counts: components["schemas"]["AdminStatusCounts"];
         };
         AdminAnswer: {
-            /** @description 选择题为选项键数组；填空题为 {空位键: 标准答案}；解答题为 {小问键: 参考答案文字}；实验题为 {小问键: 参考答案文字, "表键.行键.列键": 参考值}，都只用于对照，不参与自动判定。 */
+            /** @description 选择题为选项键数组；填空题为 {空位键: 标准答案}；解答题为 {小问键: 参考答案文字}；实验题为 {小问键: 参考答案文字, "表键.行键.列键": 参考值}；证明题为 {steps: [{stage, text, reason}]}（参考证明），都只用于对照，不参与自动判定。 */
             value: unknown;
             /** @description 填空题每个空位的等价判定规则。 */
             equivalence_rules: Record<string, never>;

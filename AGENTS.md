@@ -20,7 +20,9 @@
 
 **不确定就弃判。** 判不出来的作答标 `uncertain`，不算对也不算错，不进正确率分母。练习反馈不是官方阅卷分数，界面和接口都不能这样表述。
 
-**解答题和实验题不自动评分。** `written`、`experiment` 的作答状态是 `pending`，永远不判对错（哪怕和参考答案、参考数据一字不差）；提交之后学生对照 `rubric.points`（实验题还有留空格子的参考数据 `reference_cells`）自查，要点和参考数据只能在提交之后给，不带分值，不进任何正确率，也不据此排复测。判断"是不是这类题"一律用 `grading.SUBJECTIVE_MODES`，不要各处写 `== "written"`。要接 AI 评分，先等 Q-06 冻结，并经模型网关。
+**解答题、实验题和证明题不自动评分。** `written`、`experiment`、`proof` 的作答状态是 `pending`，永远不判对错（哪怕和参考答案、参考数据、参考证明一字不差）；提交之后学生对照 `rubric.points`（实验题还有留空格子的参考数据 `reference_cells`，证明题还有参考证明 `reference_steps`）自查，要点、参考数据和参考证明只能在提交之后给，不带分值，不进任何正确率，也不据此排复测。判断"是不是这类题"一律用 `grading.SUBJECTIVE_MODES`，不要各处写 `== "written"`。要接 AI 评分，先等 Q-06 冻结，并经模型网关。
+
+**证明题的约定。** 作答是一步一步的 `steps`（`{text, reason}`）：依据写不写、写得对不对都不拦提交、不判；只有"没有任何一步有文字、也没有笔迹"才拒绝。参考证明（`answer.value.steps`，每步 `{stage, text, reason}`，`stage` 是 `premise` / `construction` / `reasoning` / `conclusion`）每一步都要有依据、以 `conclusion` 收尾；自查要点的 `part` 只能是这四个阶段或 `null`，参考证明里出现过的每个阶段都要有要点。证明的关键构造和变形没法自动推出泄题标记，必须由题目自己列，提示只给方向、不给式子。
 
 **实验题的安全提示。** 每道实验题必须带 `content.safety`，学生端每次都显示；`high` 级别的实验现在不收录，不要自己放开（高风险实验的专项审核流程还没有）；题面里不能带留空格子的参考值，样题里的数值参考值会自动进泄题标记。
 
@@ -83,7 +85,7 @@ npm run check:api        # src/api/schema.d.ts 是否由当前契约生成；契
 
 ```
 uv sync --group e2e                                # 装浏览器联调用的 playwright（可选依赖组，默认的 uv sync 不装）
-uv run --group e2e python tools/e2e/run.py         # 浏览器联调：真实后端 + Web 版 + 审核后台，全部约 8 分钟；--list / --only 见 tools/e2e/README.md
+uv run --group e2e python tools/e2e/run.py         # 浏览器联调：真实后端 + Web 版 + 审核后台，全部约 6~8 分钟；--list / --only 见 tools/e2e/README.md
 ```
 
 Flutter 已安装但没有加入系统 PATH，命令用绝对路径。在 `apps/flutter_student`（或 `packages/contracts/dart`）下执行：
@@ -101,5 +103,5 @@ C:\src\flutter\bin\flutter.bat build web --release # 构建 Web 版（联调用�
 - `tests/support/api.py` 里的客户端会把每个响应按 `contracts/openapi.yaml` 校验一遍；响应不符合契约，测试直接失败。
 - 改了归属校验、泄题门控、判题、幂等、复测这类规则之后，跑一遍 `tools/mutation_check.py`；如果改动了被变异的代码行，要同步更新脚本里的片段。
 - 合并前全绿：`uv run pytest -q`、`uv run ruff check .`；`apps/flutter_student` 下的 `flutter test` 与 `dart analyze`；`packages/contracts/dart` 下的 `dart test`；`apps/admin_web` 下的 `npm test`、`npm run typecheck`、`npm run check:api`。
-- 改了学生端或审核后台的页面、流程之后，建议跑一遍浏览器联调 `tools/e2e/run.py`（要浏览器和 Web 构建，约 8 分钟，不是合并门禁）。它依赖的样题数据由 `tests/unit/test_e2e_tooling.py` 守着，随 `uv run pytest -q` 一起跑；联调里的期望值从样题取，不要写死标题和数字。
+- 改了学生端或审核后台的页面、流程之后，建议跑一遍浏览器联调 `tools/e2e/run.py`（要浏览器和 Web 构建，约 6~8 分钟，不是合并门禁）。它依赖的样题数据由 `tests/unit/test_e2e_tooling.py` 守着，随 `uv run pytest -q` 一起跑；联调里的期望值从样题取，不要写死标题和数字。
 - 分支命名 `feat/TASK-ID-*`，提交说明列出任务 ID 和测试证明。

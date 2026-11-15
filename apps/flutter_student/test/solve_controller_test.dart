@@ -1084,6 +1084,343 @@ void main() {
     });
   });
 
+  group('证明题', () {
+    late Harness p;
+    late Map<String, dynamic> question;
+    setUp(() {
+      final backend = FakeBackend()
+        ..submitFixture = 'submit_proof'
+        ..selfCheckFixture = 'self_check_proof_pending'
+        ..installLearningFlow(questionFixture: 'question_proof');
+      question = Fixtures.load().value('question_proof');
+      p = Harness(backend: backend, questionId: question['id'] as String);
+    });
+    tearDown(() => p.dispose());
+
+    /// 三步的证明，第三步没写依据。
+    void writeProof(SolveController c) {
+      c.setStepText(0, '任取 x1<x2');
+      c.setStepReason(0, '单调性的定义');
+      c.addStep();
+      c.setStepText(1, '作差通分');
+      c.setStepReason(1, '通分，提公因式');
+      c.addStep();
+      c.setStepText(2, '所以 f(x1)<f(x2)');
+    }
+
+    test('一打开就有一张空白卡片；不是证明题就没有', () async {
+      final c = await started(p);
+      expect(c.steps, hasLength(1));
+      expect(c.steps.single.isBlank, isTrue);
+
+      final other = await started(h);
+      expect(other.steps, isEmpty, reason: '单选题没有证明步骤');
+    });
+
+    test('至少一步写了文字或有笔迹才能提交；只有依据、只有空白都不算', () async {
+      final c = await started(p);
+      expect(c.canSubmit, isFalse);
+
+      c.setStepText(0, '  \n');
+      expect(c.canSubmit, isFalse);
+      c.setStepReason(0, '已知');
+      expect(c.canSubmit, isFalse, reason: '只写了依据、没有写这一步的内容');
+      c.setStepText(0, '任取 x1<x2');
+      expect(c.canSubmit, isTrue, reason: '依据可以不写');
+      c.setStepText(0, '');
+      c.setStepReason(0, '');
+      expect(c.canSubmit, isFalse);
+
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      expect(c.canSubmit, isTrue, reason: '只有笔迹也可以提交');
+    });
+
+    test('添加、上移、下移、删除：顺序就是证明的顺序', () async {
+      final c = await started(p);
+      c.setStepText(0, '甲');
+      c.addStep();
+      c.setStepText(1, '乙');
+      c.addStep();
+      c.setStepText(2, '丙');
+      expect(c.steps.map((s) => s.text), ['甲', '乙', '丙']);
+
+      c.moveStep(2, -1);
+      expect(c.steps.map((s) => s.text), ['甲', '丙', '乙']);
+      c.moveStep(0, 1);
+      expect(c.steps.map((s) => s.text), ['丙', '甲', '乙']);
+      c.moveStep(0, -1); // 已经在最前面
+      c.moveStep(2, 1); // 已经在最后面
+      expect(c.steps.map((s) => s.text), ['丙', '甲', '乙']);
+
+      c.removeStep(1);
+      expect(c.steps.map((s) => s.text), ['丙', '乙']);
+      c.removeStep(7); // 不存在的步
+      c.removeStep(-1);
+      expect(c.steps, hasLength(2));
+    });
+
+    test('删到只剩一步时把它清成空白，卡片不会消失；依据跟着文字一起挪', () async {
+      final c = await started(p);
+      c.setStepText(0, '甲');
+      c.setStepReason(0, '依据甲');
+      c.addStep();
+      c.setStepText(1, '乙');
+      c.setStepReason(1, '依据乙');
+
+      c.moveStep(1, -1);
+      expect(c.steps.first.text, '乙');
+      expect(c.steps.first.reason, '依据乙');
+
+      c.removeStep(0);
+      c.removeStep(0);
+      expect(c.steps, hasLength(1));
+      expect(c.steps.single.isBlank, isTrue);
+    });
+
+    test('最多 30 步；文字截到 1000 字、依据截到 400 字；不存在的步被忽略', () async {
+      final c = await started(p);
+      for (var i = 0; i < 40; i++) {
+        c.addStep();
+      }
+      expect(c.steps, hasLength(30));
+      expect(c.canAddStep, isFalse);
+
+      c.setStepText(0, '证' * 1500);
+      c.setStepReason(0, '依' * 900);
+      expect(c.steps.first.text.length, 1000);
+      expect(c.steps.first.reason.length, 400);
+      c.setStepText(99, '不存在');
+      c.setStepReason(-1, '不存在');
+      expect(c.steps, hasLength(30));
+    });
+
+    test('结构变了（添加、删除、挪动）版本号才加一；写字不加', () async {
+      final c = await started(p);
+      final start = c.stepsRevision;
+
+      c.setStepText(0, '甲');
+      c.setStepReason(0, '依据');
+      expect(c.stepsRevision, start);
+
+      c.addStep();
+      expect(c.stepsRevision, start + 1);
+      c.moveStep(1, -1);
+      expect(c.stepsRevision, start + 2);
+      c.removeStep(0);
+      expect(c.stepsRevision, start + 3);
+      c.moveStep(0, -1); // 到头了，什么都没变
+      expect(c.stepsRevision, start + 3);
+    });
+
+    test('步骤按学生排的顺序同步到云端草稿，空白卡片不发', () async {
+      final c = await started(p);
+      c.setStepText(0, '第一步');
+      c.setStepReason(0, '依据一');
+      c.addStep(); // 空白卡片
+      c.addStep();
+      c.setStepText(2, '第三步');
+      await until(() => p.backend.serverAnswer != null, reason: '草稿没有同步到云端');
+      await until(() => c.sync == SaveStatus.saved);
+
+      expect(p.backend.serverAnswer, {
+        'steps': [
+          {'text': '第一步', 'reason': '依据一'},
+          {'text': '第三步', 'reason': ''},
+        ],
+      });
+    });
+
+    test('步骤先存在本机（空白卡片也留着），重新打开时恢复；不重复开会话', () async {
+      final first = await started(p);
+      first.setStepText(0, '任取 x1<x2');
+      first.setStepReason(0, '单调性的定义');
+      first.addStep();
+      first.addStep();
+      first.setStepText(2, '结论');
+      await first.flushNow();
+
+      final saved = await first.drafts.readDraft(p.questionId);
+      expect(saved!.steps.map((s) => (s.text, s.reason)), [
+        ('任取 x1<x2', '单调性的定义'),
+        ('', ''),
+        ('结论', ''),
+      ]);
+      first.dispose();
+
+      final second = await started(p);
+      expect(second.steps.map((s) => s.text), ['任取 x1<x2', '', '结论']);
+      expect(second.steps.first.reason, '单调性的定义');
+      expect(p.backend.sessionsCreated, 1);
+    });
+
+    test('提交：文字和依据去掉首尾空白，空白卡片不发；结果是待自评，不是对也不是错', () async {
+      final c = await started(p);
+      writeProof(c);
+      c.setStepText(0, '  任取 x1<x2  ');
+      c.addStep(); // 末尾一张空白卡片
+      await c.submit();
+
+      final body = p.backend.bodyOf(
+        p.backend.requestsTo('POST', '/submit').single,
+      )!;
+      expect(body['answer'], {
+        'steps': [
+          {'text': '任取 x1<x2', 'reason': '单调性的定义'},
+          {'text': '作差通分', 'reason': '通分，提公因式'},
+          {'text': '所以 f(x1)<f(x2)', 'reason': ''},
+        ],
+      });
+      expect(c.phase, SolvePhase.submitted);
+      expect(c.evaluation!.state, EvaluationState.pending);
+      expect(c.evaluation!.isCorrect, isNull);
+      expect(c.events.single.uncertainty.reasonCode, 'subjective_self_check');
+      expect(c.reviewItem, isNull);
+    });
+
+    test('只有笔迹也能提交（笔迹同步上去之后）', () async {
+      final c = await started(p);
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      await until(() => c.sync == SaveStatus.saved);
+
+      await c.submit();
+
+      expect(c.phase, SolvePhase.submitted);
+      expect(
+        p.backend.bodyOf(
+          p.backend.requestsTo('POST', '/submit').single,
+        )!['answer'],
+        {'steps': <Object>[]},
+      );
+    });
+
+    test('笔迹还在本机、没同步到云端时，只有笔迹的证明不能提交', () async {
+      final c = await started(p);
+      c.ink.beginStroke(0, 10, 10);
+      c.ink.extendStroke(60, 60, t: 12);
+      c.ink.endStroke();
+      await until(() => c.sync == SaveStatus.saved);
+      c.ink.beginStroke(0, 20, 20);
+      c.ink.extendStroke(80, 80, t: 12);
+      c.ink.endStroke();
+      p.backend.offline = true;
+
+      await c.submit();
+
+      expect(c.phase, SolvePhase.answering);
+      expect(c.actionError, isNotNull);
+      expect(p.backend.requestsTo('POST', '/submit'), isEmpty);
+      p.backend.offline = false;
+    });
+
+    test('提交之前不会去要自查要点和参考证明；提交之后取到，参考证明只在这时才有', () async {
+      final c = await started(p);
+      writeProof(c);
+      expect(p.backend.requestsTo('GET', '/self-check'), isEmpty);
+      expect(c.selfCheck, isNull);
+
+      await c.submit();
+      await until(() => c.selfCheck != null, reason: '自查要点没有取到');
+
+      expect(c.selfCheck!.points, isNotEmpty);
+      expect(c.selfCheck!.referenceSteps, isNotEmpty);
+      expect(c.selfCheck!.referenceSteps.last.stage, ProofStage.conclusion);
+      expect(c.selfCheck!.referenceCells, isEmpty);
+    });
+
+    test('再试一次：步骤、笔迹、自评都清空，留一张空白卡片，新建一份作答', () async {
+      final c = await started(p);
+      writeProof(c);
+      await c.submit();
+      await until(() => c.selfCheck != null);
+      final before = c.stepsRevision;
+
+      await c.retry();
+
+      expect(c.steps, hasLength(1));
+      expect(c.steps.single.isBlank, isTrue);
+      expect(c.stepsRevision, greaterThan(before));
+      expect(c.phase, SolvePhase.answering);
+      expect(c.selfCheck, isNull);
+      expect(c.canSubmit, isFalse);
+    });
+
+    test('版本冲突：使用云端稿之后，云端草稿里的步骤也回来；本地稿原样保留到那时', () async {
+      final c = await started(p);
+      c.setStepText(0, '本地写的');
+      await until(() => c.sync == SaveStatus.saved);
+      // 别处把云端草稿改成了另一份
+      p.backend.serverRevision = 5;
+      p.backend.serverAnswer = {
+        'steps': [
+          {'text': '别处写的第一步', 'reason': '别处的依据'},
+          {'text': '别处写的第二步', 'reason': ''},
+        ],
+      };
+
+      c.setStepText(0, '本地写的，又改了');
+      await until(() => c.sync == SaveStatus.conflict, reason: '没有发现冲突');
+      expect(c.steps.single.text, '本地写的，又改了');
+      final before = c.stepsRevision;
+      await c.resolveConflictUseServer();
+
+      expect(c.steps.map((s) => s.text), ['别处写的第一步', '别处写的第二步']);
+      expect(c.steps.first.reason, '别处的依据');
+      expect(c.stepsRevision, greaterThan(before));
+    });
+
+    test('云端草稿是空的时，采用云端稿之后仍然有一张空白卡片', () async {
+      final c = await started(p);
+      c.setStepText(0, '本地写的');
+      await until(() => c.sync == SaveStatus.saved);
+      p.backend.serverRevision = 5;
+      p.backend.serverAnswer = null;
+      c.setStepText(0, '本地写的，又改了');
+      await until(() => c.sync == SaveStatus.conflict);
+
+      await c.resolveConflictUseServer();
+
+      expect(c.steps, hasLength(1));
+      expect(c.steps.single.isBlank, isTrue);
+    });
+
+    test('只有步骤、没有别的内容的本机草稿不会被当成空草稿丢掉（离线写的）', () async {
+      // 先在线打开一次，让题目被缓存；再断网写证明
+      final warm = await started(p);
+      warm.dispose();
+      final fresh = FakeBackend()
+        ..submitFixture = 'submit_proof'
+        ..installLearningFlow(questionFixture: 'question_proof');
+      final harness = Harness(
+        store: p.store,
+        backend: fresh,
+        questionId: p.questionId,
+      );
+      fresh.offline = true;
+
+      final c = await started(harness);
+      expect(c.questionFromCache, isTrue);
+      c.setStepText(0, '离线时写的');
+      await c.flushNow();
+      await until(() => c.sync == SaveStatus.offline);
+      expect(fresh.sessionsCreated, 0);
+
+      fresh.offline = false;
+      await until(() => c.sync == SaveStatus.saved, reason: '恢复网络后应该自动同步');
+
+      expect(fresh.sessionsCreated, 1);
+      expect(fresh.serverAnswer, {
+        'steps': [
+          {'text': '离线时写的', 'reason': ''},
+        ],
+      });
+      harness.dispose();
+    });
+  });
+
   group('登录失效', () {
     test('401：通知外层重新登录，未同步的草稿仍在本机', () async {
       final c = await started(h);

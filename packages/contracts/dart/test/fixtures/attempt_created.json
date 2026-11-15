@@ -5,8 +5,8 @@
   "status": 201,
   "schema": "Attempt",
   "value": {
-    "id": "7acb86c8-336d-42a0-8a51-882195b6d41b",
-    "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+    "id": "c14029ae-1bed-4d96-a33c-85295598db43",
+    "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
     "attempt_no": 1,
     "status": "draft",
     "answer": null,
@@ -21,8 +21,8 @@
   },
   "body": {
     "data": {
-      "id": "7acb86c8-336d-42a0-8a51-882195b6d41b",
-      "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+      "id": "c14029ae-1bed-4d96-a33c-85295598db43",
+      "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
       "attempt_no": 1,
       "status": "draft",
       "answer": null,

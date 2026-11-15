@@ -17,8 +17,8 @@ import pytest
 
 from e2e import data, servers
 from e2e.checks import Checks
-from e2e.flows import FLOWS, parent_weekly
-from support.seeds import EXPERIMENT_KEYS, OBJECTIVE_KEYS, qid
+from e2e.flows import FLOWS, parent_weekly, student_proof
+from support.seeds import EXPERIMENT_KEYS, OBJECTIVE_KEYS, PROOF_KEYS, qid
 from tutor_api.services import grading
 from tutor_api.services.content_seed import load_seed
 from tutor_api.settings import Settings
@@ -144,11 +144,28 @@ class TestSeedData:
         assert data.blank_cells(key)
         assert data.points_of(key)
 
+    @pytest.mark.parametrize("key", sorted(PROOF_KEYS))
+    def test_every_proof_seed_has_what_the_flows_look_at(self, key):
+        question = data.question(key)
+        statement = question["content"]["proof"]
+        assert statement["claim"] and statement["givens"]
+        steps = question["answer"]["value"]["steps"]
+        assert steps[-1]["stage"] == "conclusion"
+        assert data.points_of(key)
+
     def test_published_counts_follow_the_seed(self):
         questions = load_seed().questions
         assert data.published_count() == len(questions)
         experiments = [q for q in questions if q["answer_mode"] == "experiment"]
         assert data.published_count("experiment") == len(experiments) == len(EXPERIMENT_KEYS)
+        proofs = [q for q in questions if q["answer_mode"] == "proof"]
+        assert data.published_count("proof") == len(proofs) == len(PROOF_KEYS)
+
+    @pytest.mark.parametrize("key", sorted(PROOF_KEYS))
+    def test_a_proof_answer_is_a_list_of_steps_with_reasons(self, key):
+        answer = data.answer_for(key, "proof")
+        assert set(answer) == {"steps"}
+        assert all(set(step) == {"text", "reason"} for step in answer["steps"])
 
     @pytest.mark.parametrize("key", sorted(OBJECTIVE_KEYS))
     def test_the_correct_and_the_wrong_answer_grade_as_named(self, key):
@@ -191,9 +208,40 @@ class TestParentWeeklyPlan:
         )
 
 
+class TestStudentProofFlow:
+    """学生端证明题联调要用到的题和学生写的步骤，对得上样题。"""
+
+    def test_the_flow_uses_a_proof_question_that_exists(self):
+        question = data.question(student_proof.KEY)
+        assert question["answer_mode"] == "proof"
+        assert data.title_of(student_proof.KEY)
+
+    def test_the_flow_moves_the_third_step_up_by_one(self):
+        # 写的顺序是 甲、乙、丙，上移第 3 步之后是 甲、丙、乙：提交的就是这个顺序
+        a, b, c = student_proof.STEP_A, student_proof.STEP_B, student_proof.STEP_C
+        assert [a, c, b] == student_proof.SUBMITTED
+        assert c[1] == "", "第 3 步故意没写依据"
+
+    def test_there_are_reasons_without_formulas_to_look_for_on_the_page(self):
+        # 参考证明里没有公式的依据在页面上能直接按文字找到：联调靠它们判断参考证明显示出来了
+        steps = data.question(student_proof.KEY)["answer"]["value"]["steps"]
+        assert [step for step in steps if "$" not in step["reason"]]
+
+    def test_the_typed_steps_do_not_contain_the_reference_reasons(self):
+        # 提交之前页面上不能有参考证明里的依据：学生自己打的字不能恰好撞上它们，否则这项检查会误报
+        steps = data.question(student_proof.KEY)["answer"]["value"]["steps"]
+        typed = " ".join(text + reason for text, reason in student_proof.SUBMITTED)
+        assert not [step["reason"] for step in steps if step["reason"] in typed]
+
+
 class TestFlowRegistry:
     def test_the_flows_are_registered_in_order(self):
-        assert list(FLOWS) == ["student_experiment", "admin_experiment", "parent_weekly"]
+        assert list(FLOWS) == [
+            "student_experiment",
+            "student_proof",
+            "admin_experiment",
+            "parent_weekly",
+        ]
 
     def test_every_flow_says_what_it_is_and_what_it_needs(self):
         for name, flow in FLOWS.items():

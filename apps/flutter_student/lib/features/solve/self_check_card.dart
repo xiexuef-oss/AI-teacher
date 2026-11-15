@@ -4,15 +4,18 @@ import 'package:flutter/material.dart' hide DataTable;
 import 'package:tutor_contracts/tutor_contracts.dart';
 
 import '../../core/errors.dart';
+import '../../core/labels.dart' show proofPartName, proofStageName;
 import '../../core/math_text.dart';
 import '../../core/widgets.dart';
+import 'draft_store.dart' show ProofStepDraft;
 import 'experiment_input.dart' show experimentRowName;
 import 'solve_controller.dart';
 
-/// 解答题、实验题提交之后的对照自查。
+/// 解答题、实验题、证明题提交之后的对照自查。
 ///
-/// 解答题和实验题不自动评分：系统不给对错，也不打分。学生对照每一个要点，自己标"做到了 / 做到一部分 / 没做到"。
-/// 实验题还给数据表里留空格子的参考数据，让学生把自己填的数和它并排对照——只是并排，不判对错。
+/// 这三种题不自动评分：系统不给对错，也不打分。学生对照每一个要点，自己标"做到了 / 做到一部分 / 没做到"。
+/// 实验题还给数据表里留空格子的参考数据，让学生把自己填的数和它并排对照；
+/// 证明题给参考证明，让学生把自己写的证明和它并排对照——只是并排，不判对错。
 /// 这是学生自己的记录，不是官方阅卷分数，也不会计入正确率；这里只显示各档的个数，不折算成分数。
 class SelfCheckCard extends StatelessWidget {
   const SelfCheckCard({super.key, required this.controller});
@@ -29,21 +32,24 @@ class SelfCheckCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final check = c.selfCheck;
-    final experiment = c.question?.answerMode == AnswerMode.experiment;
+    final mode = c.question?.answerMode;
     return Section(
       key: const ValueKey('selfcheck.card'),
       title: '对照要点自查',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            experiment
-                ? '实验题不自动评分。先把你填的数和参考数据并排看一遍，再对照下面每一条，自己检查，标出做到了没有。'
-                      '这是你自己的记录，不是官方阅卷分数，也不会计入正确率。'
-                : '解答题不自动评分。对照下面每一条，自己检查一遍，标出做到了没有。'
-                      '这是你自己的记录，不是官方阅卷分数，也不会计入正确率。',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(switch (mode) {
+            AnswerMode.experiment =>
+              '实验题不自动评分。先把你填的数和参考数据并排看一遍，再对照下面每一条，自己检查，标出做到了没有。'
+                  '这是你自己的记录，不是官方阅卷分数，也不会计入正确率。',
+            AnswerMode.proof =>
+              '证明题不自动评分。先把你的证明和参考证明并排看一遍，再对照下面每一条，自己检查，标出做到了没有。'
+                  '这是你自己的记录，不是官方阅卷分数，也不会计入正确率。',
+            _ =>
+              '解答题不自动评分。对照下面每一条，自己检查一遍，标出做到了没有。'
+                  '这是你自己的记录，不是官方阅卷分数，也不会计入正确率。',
+          }, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 12),
           if (check == null) _waiting(c) else ..._checklist(context, c, check),
         ],
@@ -101,8 +107,10 @@ class SelfCheckCard extends StatelessWidget {
     }
     final subquestions = c.question?.content.subquestions ?? const [];
     final tables = c.question?.content.dataTables ?? const <DataTable>[];
-    final experiment = c.question?.answerMode == AnswerMode.experiment;
+    final mode = c.question?.answerMode;
+    final experiment = mode == AnswerMode.experiment;
     String heading(String? part) {
+      if (mode == AnswerMode.proof) return proofPartName(part);
       if (part == null) return experiment ? '整份作答' : '整份解答';
       final index = subquestions.indexWhere((s) => s.key == part);
       if (index >= 0) return '第 ${index + 1} 问';
@@ -117,6 +125,16 @@ class SelfCheckCard extends StatelessWidget {
     final summary = check.summary;
 
     return [
+      if (check.referenceSteps.isNotEmpty) ...[
+        _ReferenceProof(
+          mine: [
+            for (final step in c.steps)
+              if (!step.isBlank) step,
+          ],
+          reference: check.referenceSteps,
+        ),
+        const SizedBox(height: 16),
+      ],
       if (check.referenceCells.isNotEmpty) ...[
         _ReferenceTable(
           tables: tables,
@@ -220,6 +238,124 @@ class SelfCheckCard extends StatelessWidget {
         ),
       ),
     ];
+  }
+}
+
+/// 证明题：你的证明和参考证明并排（窄屏上下排），参考证明的每一步带阶段标签和依据。
+/// 只是并排，不判对错——不用对勾和红绿色，也不说"对了"或"错了"；证明的写法不止一种。
+class _ReferenceProof extends StatelessWidget {
+  const _ReferenceProof({required this.mine, required this.reference});
+
+  final List<ProofStepDraft> mine;
+  final List<ProofReferenceStep> reference;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    Widget mineColumn() => Column(
+      key: const ValueKey('selfcheck.mine'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('你的证明', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 6),
+        if (mine.isEmpty)
+          Text('你没有打字写证明（也许写在草稿上了）。', style: muted)
+        else
+          for (var i = 0; i < mine.length; i++)
+            Padding(
+              key: ValueKey('selfcheck.mine.$i'),
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('第 ${i + 1} 步', style: theme.textTheme.labelLarge),
+                  Text(
+                    mine[i].text.trim().isEmpty ? '（这一步没写内容）' : mine[i].text,
+                    style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                  ),
+                  Text(
+                    mine[i].reason.trim().isEmpty
+                        ? '依据：没写'
+                        : '依据：${mine[i].reason}',
+                    style: muted,
+                  ),
+                ],
+              ),
+            ),
+      ],
+    );
+
+    Widget referenceColumn() => Column(
+      key: const ValueKey('selfcheck.refproof'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('参考证明', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 6),
+        for (var i = 0; i < reference.length; i++)
+          Padding(
+            key: ValueKey('selfcheck.refstep.$i'),
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text('第 ${i + 1} 步', style: theme.textTheme.labelLarge),
+                    InfoChip(proofStageName(reference[i].stage)),
+                  ],
+                ),
+                MathText(
+                  reference[i].text,
+                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                ),
+                MathText('依据：${reference[i].reason}', style: muted),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    return Column(
+      key: const ValueKey('selfcheck.proof'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('对照参考证明', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 4),
+        Text(
+          '参考证明只是一种写法，你的证明不必和它一样；对照时看每一步有没有依据、前后接不接得上，再去标下面的要点。',
+          style: muted,
+        ),
+        const SizedBox(height: 10),
+        LayoutBuilder(
+          builder: (context, box) {
+            if (box.maxWidth < 560) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  mineColumn(),
+                  const SizedBox(height: 8),
+                  referenceColumn(),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: mineColumn()),
+                const SizedBox(width: 16),
+                Expanded(child: referenceColumn()),
+              ],
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 

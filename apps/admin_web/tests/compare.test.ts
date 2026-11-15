@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compareSnapshots, jsonLines, type FieldDiff } from '../src/compare'
-import { experimentDetail, FAST, snapshot, solution, writtenDetail } from './fixtures'
+import { experimentDetail, FAST, proofDetail, snapshot, solution, writtenDetail } from './fixtures'
 
 const field = (comparison: ReturnType<typeof compareSnapshots>, key: string): FieldDiff => {
   for (const section of comparison.sections) {
@@ -297,5 +297,106 @@ describe('实验题的对比', () => {
     const content = diff.sections.find((item) => item.key === 'content')!
     expect(content.fields.find((item) => item.key === 'data_tables')!.rows).toEqual([])
     expect(content.fields.find((item) => item.key === 'safety')!.changed).toBe(false)
+  })
+})
+
+/** 证明题的快照：内容取自 proofDetail()。 */
+function proofSnapshot(overrides: Parameters<typeof snapshot>[0] = {}) {
+  const base = proofDetail()
+  return snapshot({
+    title: base.title,
+    content: base.content,
+    answer: base.answer,
+    teaching: base.teaching,
+    solutions: base.solutions,
+    rubric: base.rubric,
+    ...overrides,
+  })
+}
+
+describe('证明题的对比', () => {
+  const contentField = (diff: ReturnType<typeof compareSnapshots>, key: string) =>
+    diff.sections.find((item) => item.key === 'content')!.fields.find((item) => item.key === key)!
+  const answerField = (diff: ReturnType<typeof compareSnapshots>) =>
+    diff.sections.find((item) => item.key === 'answer')!.fields.find((item) => item.key === 'answer')!
+
+  it('已知和求证一条一行：改了求证、加了一条已知，一眼能看出', () => {
+    const left = proofSnapshot()
+    const right = proofSnapshot({
+      version: 2,
+      is_current: false,
+      content: {
+        ...left.content,
+        proof: { givens: [...left.content.proof!.givens, '$a,b,c,d$ 都是实数'], claim: '（改）$ac>bd$' },
+      },
+    })
+
+    const diff = compareSnapshots(left, right)
+
+    const field = contentField(diff, 'proof')
+    expect(field.changed).toBe(true)
+    expect(JSON.stringify(field.rows)).toContain('已知 ①｜$a>b>0$')
+    expect(JSON.stringify(field.rows)).toContain('已知 ③｜$a,b,c,d$ 都是实数')
+    expect(JSON.stringify(field.rows)).toContain('求证｜（改）$ac>bd$')
+    expect(diff.changedTitles).toEqual(['题面'])
+  })
+
+  it('参考证明一步一行（第几步｜阶段｜这一步｜依据），改了哪一步的依据一眼能看出；不会出现 [object Object]', () => {
+    const left = proofSnapshot()
+    const steps = structuredClone((left.answer.value as { steps: { reason: string }[] }).steps)
+    steps[1]!.reason = '（改）依据'
+    const right = proofSnapshot({ version: 2, is_current: false, answer: { ...left.answer, value: { steps } } })
+
+    const diff = compareSnapshots(left, right)
+
+    const field = answerField(diff)
+    expect(field.changed).toBe(true)
+    expect(JSON.stringify(field.rows)).toContain('第 2 步｜构造｜')
+    expect(JSON.stringify(field.rows)).toContain('依据：（改）依据')
+    expect(JSON.stringify(field.rows)).not.toContain('[object Object]')
+    expect(field.rows.filter((row) => row.kind !== 'same').length).toBeGreaterThan(0)
+    expect(diff.changedTitles).toEqual(['答案'])
+  })
+
+  it('挪动参考证明的步骤也算改动', () => {
+    const left = proofSnapshot()
+    const steps = structuredClone((left.answer.value as { steps: unknown[] }).steps)
+    steps.splice(1, 0, ...steps.splice(2, 1))
+    const right = proofSnapshot({ version: 2, is_current: false, answer: { ...left.answer, value: { steps } } })
+
+    expect(answerField(compareSnapshots(left, right)).changed).toBe(true)
+  })
+
+  it('自查要点里针对证明阶段的写成"前提""构造"……，整份的写成"整份证明"', () => {
+    const left = proofSnapshot()
+    const right = proofSnapshot({ version: 2, is_current: false })
+
+    const diff = compareSnapshots(left, right)
+
+    expect(diff.changed).toBe(false)
+    const rubric = diff.sections.find((item) => item.key === 'rubric')!.fields[0]!
+    expect(JSON.stringify(rubric.rows)).toContain('p1｜前提｜')
+    expect(JSON.stringify(rubric.rows)).toContain('p2｜构造｜')
+    expect(JSON.stringify(rubric.rows)).toContain('p5｜整份证明｜')
+    expect(JSON.stringify(rubric.rows)).not.toContain('第 premise 问')
+  })
+
+  it('没改的证明题：没有任何部分有改动', () => {
+    expect(compareSnapshots(proofSnapshot(), proofSnapshot({ version: 2, is_current: false })).changed).toBe(false)
+  })
+
+  it('其他题型没有已知与求证：这一行没有内容，也不算改动', () => {
+    const diff = compareSnapshots(snapshot(), snapshot({ version: 2, is_current: false }))
+
+    expect(contentField(diff, 'proof').rows).toEqual([])
+    expect(contentField(diff, 'proof').changed).toBe(false)
+  })
+
+  it('解答题和实验题的要点仍然写"第 1 问""数据表 t1"，不受证明题影响', () => {
+    const written = compareSnapshots(snapshot({ rubric: writtenDetail().rubric, content: writtenDetail().content }), snapshot({ version: 2, is_current: false, rubric: writtenDetail().rubric, content: writtenDetail().content }))
+
+    const rows = JSON.stringify(written.sections.find((item) => item.key === 'rubric')!.fields[0]!.rows)
+    expect(rows).toContain('p1｜第 1 问｜')
+    expect(rows).toContain('p4｜整份解答｜')
   })
 })

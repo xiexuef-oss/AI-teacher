@@ -13,12 +13,31 @@ String answerModeName(AnswerMode mode) => switch (mode) {
   AnswerMode.fill => '填空题',
   AnswerMode.written => '解答题',
   AnswerMode.experiment => '实验题',
+  AnswerMode.proof => '证明题',
   AnswerMode.$unknown => '题目',
 };
 
-/// 不自动评分、提交后由学生对照要点自查的题（解答题、实验题）。
+/// 不自动评分、提交后由学生对照要点自查的题（解答题、实验题、证明题）。
 bool isSubjectiveMode(AnswerMode? mode) =>
-    mode == AnswerMode.written || mode == AnswerMode.experiment;
+    mode == AnswerMode.written ||
+    mode == AnswerMode.experiment ||
+    mode == AnswerMode.proof;
+
+/// 参考证明里一步的角色。
+String proofStageName(ProofStage stage) => switch (stage) {
+  ProofStage.premise => '前提',
+  ProofStage.construction => '构造',
+  ProofStage.reasoning => '推理',
+  ProofStage.conclusion => '结论',
+  ProofStage.$unknown => '其他',
+};
+
+/// 自查要点的 part 在证明题里是证明阶段的键；不认识的原样返回。
+String proofPartName(String? part) {
+  if (part == null) return '整份证明';
+  final stage = ProofStage.fromJson(part);
+  return stage == ProofStage.$unknown ? part : proofStageName(stage);
+}
 
 String taskKindName(TaskKind kind) => switch (kind) {
   TaskKind.newTopic => '新题',

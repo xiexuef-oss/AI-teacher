@@ -8,7 +8,7 @@
 |---|---|---|---|
 | P01 | `/home` | 今日任务、拍题、练习、我的 | empty/loading/ready/offline/error |
 | P02 | `/scan` | 拍照/选图/裁切/OCR 确认 | camera-denied/low-confidence/edit/retry |
-| P03 | `/questions/:id/solve` | 客观题、主观题、实验题统一作答 | unsaved/saving/saved/conflict/submitted |
+| P03 | `/questions/:id/solve` | 客观题、主观题、实验题、证明题统一作答 | unsaved/saving/saved/conflict/submitted |
 | P04 | `/tutor/:sessionId` | AI 提示、双解法、图示推荐 | thinking/hint/explanation/fallback |
 | P05 | `/visual/:templateId` | 可调参数图解/静态后备 | available/invalid-template/static |
 | P06 | `/practice` | 高考题型/专题/限时选择 | empty/ready/loading |
@@ -20,7 +20,7 @@
 
 ## 3. P03 统一作答页（最关键）
 - 顶栏：返回、学科/题型/题序、手写保存状态；主内容左侧题干、图/表/公式；右侧草稿画布（多页可追加）。
-- 根据 `answer_mode` 自动渲染 `single_choice`, `multiple_choice`, `fill`, `written`, `experiment`；综合题支持 `subquestions`。
+- 根据 `answer_mode` 自动渲染 `single_choice`, `multiple_choice`, `fill`, `written`, `experiment`, `proof`；综合题支持 `subquestions`。
 - 右侧工具：笔、颜色（默认黑/蓝）、粗细、橡皮、撤销、重做、清空（须二次确认）；笔迹带时间戳和压力信息（可得时）。
 - 固定底栏：提交、给点提示、看图理解；“常规解法/快速解法”默认在提交后或学生明确选择结束独立作答后出现；打开解析标记 `used_solution=true`。
 - AI 步骤高亮引用 OCR 识别的 `span_id`，若源无法对齐展示普通点评，不得假装精确定位。

@@ -6,6 +6,7 @@ import { handleUnauthorized, newIdempotencyKey } from '../api/guard'
 import type { AdminQuestionDetail } from '../api/types'
 import { explainError } from '../decisions'
 import { canonical, formFromDetail, isUnchanged, requestFromForm } from '../editing'
+import { PROOF_STAGES, STAGE_LABEL } from '../labels'
 import { useSession } from '../session'
 import MathText from './MathText.vue'
 import StringList from './StringList.vue'
@@ -23,8 +24,10 @@ const isChoice = computed(() => ['single_choice', 'multiple_choice'].includes(pr
 const isFill = computed(() => props.detail.answer_mode === 'fill')
 const isWritten = computed(() => props.detail.answer_mode === 'written')
 const isExperiment = computed(() => props.detail.answer_mode === 'experiment')
-// 解答题和实验题：分小问作答，不自动评分，提交后对照要点自查
-const isSubjective = computed(() => isWritten.value || isExperiment.value)
+const isProof = computed(() => props.detail.answer_mode === 'proof')
+// 解答题、实验题、证明题：不自动评分，提交后对照要点自查；解答题和实验题分小问，证明题是一步一步的证明
+const isSubjective = computed(() => isWritten.value || isExperiment.value || isProof.value)
+const hasSubquestions = computed(() => isWritten.value || isExperiment.value)
 // "所属小问"只能选已经有键的小问
 const partChoices = computed(() => form.subquestions.filter((row) => row.key.trim() !== ''))
 // 实验题的要点也可以针对某张数据表：从数据表那段 JSON 里读出表的键（JSON 写到一半时先当没有）
@@ -62,6 +65,18 @@ function addSubquestion(): void {
   let next = form.subquestions.length + 1
   while (used.has(String(next))) next += 1
   form.subquestions.push({ key: String(next), stem: '', answer: '' })
+}
+
+function addStep(): void {
+  form.proofSteps.push({ stage: 'reasoning', text: '', reason: '' })
+}
+
+/** 把参考证明里的一步往前（delta=-1）或往后（delta=1）挪一位。 */
+function moveStep(index: number, delta: number): void {
+  const target = index + delta
+  if (target < 0 || target >= form.proofSteps.length) return
+  const [step] = form.proofSteps.splice(index, 1)
+  form.proofSteps.splice(target, 0, step!)
 }
 
 function addPoint(): void {
@@ -213,7 +228,58 @@ async function save(): Promise<void> {
       </label>
     </fieldset>
 
-    <fieldset v-if="isSubjective" class="group" data-testid="subquestions">
+    <fieldset v-if="isProof" class="group" data-testid="proof-statement">
+      <legend>已知与求证</legend>
+      <p class="muted small">
+        学生在题干下面看到“已知”（编号成 ①②③，写依据时可以引用）和“求证”。题干里已经写全了已知条件时，已知可以不填。
+        参考证明不在这里，只在学生提交之后给出。
+      </p>
+      <StringList v-model="form.givens" label="已知条件（一条一行，至多 8 条）" add-label="添加一条" :rows="2" />
+      <label class="field">
+        <span>求证（公式写在 $…$ 里）</span>
+        <textarea v-model="form.claim" rows="2" data-testid="claim" />
+      </label>
+      <p class="small preview"><span class="muted">预览：</span><MathText :text="form.claim" /></p>
+    </fieldset>
+
+    <fieldset v-if="isProof" class="group" data-testid="proof-steps">
+      <legend>参考证明（一行一步，顺序就是证明的顺序）</legend>
+      <p class="muted small">
+        学生提交之后，会把自己写的证明和它并排对照；证明的写法不止一种，它只是一种参考，不参与任何判定。
+        参考证明要示范“每一步都有依据”，最后一步必须是“结论”。
+      </p>
+      <div v-for="(row, index) in form.proofSteps" :key="index" class="option-row step-row">
+        <select v-model="row.stage" aria-label="阶段" :data-testid="`step-stage-${index}`">
+          <option v-for="stage in PROOF_STAGES" :key="stage" :value="stage">{{ STAGE_LABEL[stage] }}</option>
+        </select>
+        <textarea
+          v-model="row.text"
+          rows="2"
+          placeholder="这一步写了什么（公式写在 $…$ 里）"
+          aria-label="这一步"
+          :data-testid="`step-text-${index}`"
+        />
+        <textarea v-model="row.reason" rows="2" placeholder="依据" aria-label="依据" :data-testid="`step-reason-${index}`" />
+        <button type="button" class="link" :disabled="index === 0" :data-testid="`step-up-${index}`" @click="moveStep(index, -1)">
+          上移
+        </button>
+        <button
+          type="button"
+          class="link"
+          :disabled="index === form.proofSteps.length - 1"
+          :data-testid="`step-down-${index}`"
+          @click="moveStep(index, 1)"
+        >
+          下移
+        </button>
+        <button type="button" class="link" :data-testid="`step-delete-${index}`" @click="form.proofSteps.splice(index, 1)">
+          删除
+        </button>
+      </div>
+      <button type="button" data-testid="add-step" @click="addStep">添加一步</button>
+    </fieldset>
+
+    <fieldset v-if="hasSubquestions" class="group" data-testid="subquestions">
       <legend>小问与参考答案</legend>
       <p class="muted small">
         {{ isExperiment ? '实验题的文字小问（可以没有，只填数据表）' : '解答题分小问作答' }}。参考答案只用来给学生对照，不参与任何自动判定。
@@ -244,16 +310,25 @@ async function save(): Promise<void> {
     <fieldset v-if="isSubjective" class="group" data-testid="points">
       <legend>自查要点（提交之后给学生对照）</legend>
       <p class="muted small">
-        这是一张清单，不是评分标准：不带分值，也不会折算成分数。每个小问{{ isExperiment ? '、每张有留空格子的数据表' : '' }}至少要有一条；"整份解答"是对全部作答的要求。
+        这是一张清单，不是评分标准：不带分值，也不会折算成分数。{{
+          isProof
+            ? '参考证明里出现过的每个阶段至少要有一条；"整份证明"是对全部作答的要求。'
+            : `每个小问${isExperiment ? '、每张有留空格子的数据表' : ''}至少要有一条；"整份解答"是对全部作答的要求。`
+        }}
       </p>
       <div v-for="(row, index) in form.points" :key="index" class="option-row point-row">
         <input v-model="row.key" class="key" aria-label="要点键" maxlength="16" :data-testid="`point-key-${index}`" />
-        <select v-model="row.part" aria-label="所属小问" :data-testid="`point-part-${index}`">
-          <option value="">整份解答</option>
-          <option v-for="sub in partChoices" :key="sub.key" :value="sub.key">第 {{ sub.key }} 问</option>
-          <option v-for="table in tableChoices" :key="`table-${table.key}`" :value="table.key">
-            数据表 {{ table.key }}{{ table.title ? `（${table.title}）` : '' }}
-          </option>
+        <select v-model="row.part" aria-label="所属" :data-testid="`point-part-${index}`">
+          <option value="">{{ isProof ? '整份证明' : '整份解答' }}</option>
+          <template v-if="isProof">
+            <option v-for="stage in PROOF_STAGES" :key="stage" :value="stage">{{ STAGE_LABEL[stage] }}</option>
+          </template>
+          <template v-else>
+            <option v-for="sub in partChoices" :key="sub.key" :value="sub.key">第 {{ sub.key }} 问</option>
+            <option v-for="table in tableChoices" :key="`table-${table.key}`" :value="table.key">
+              数据表 {{ table.key }}{{ table.title ? `（${table.title}）` : '' }}
+            </option>
+          </template>
         </select>
         <textarea v-model="row.text" rows="2" placeholder="要做到什么（公式写在 $…$ 里）" aria-label="要点" :data-testid="`point-text-${index}`" />
         <button type="button" class="link" :data-testid="`point-delete-${index}`" @click="form.points.splice(index, 1)">删除</button>

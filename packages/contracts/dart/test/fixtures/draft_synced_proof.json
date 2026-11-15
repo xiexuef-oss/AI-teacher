@@ -1,0 +1,101 @@
+{
+  "name": "draft_synced_proof",
+  "method": "PUT",
+  "path": "/api/v1/attempts/00c23fe1-8d4d-4ee8-a70f-5d436233aab2/draft",
+  "status": 200,
+  "schema": "Draft",
+  "value": {
+    "attempt_id": "00c23fe1-8d4d-4ee8-a70f-5d436233aab2",
+    "revision": 1,
+    "answer": {
+      "steps": [
+        {
+          "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+          "reason": "单调性的定义"
+        },
+        {
+          "text": "$f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+          "reason": "作差，通分，提公因式"
+        },
+        {
+          "text": "$x_1-x_2<0$，$x_1x_2>1$，所以 $f(x_1)<f(x_2)$，$f(x)$ 在 $[1,+\\infty)$ 上单调递增。",
+          "reason": ""
+        }
+      ]
+    },
+    "strokes": {
+      "version": 1,
+      "pages": [
+        {
+          "width": 800.0,
+          "height": 1100.0,
+          "strokes": [
+            {
+              "color": "#1A1A1A",
+              "width": 2.5,
+              "points": [
+                10.0,
+                20.0,
+                0.0,
+                0.5,
+                14.0,
+                26.0,
+                16.0,
+                0.6
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "updated_at": "2026-11-11T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "attempt_id": "00c23fe1-8d4d-4ee8-a70f-5d436233aab2",
+      "revision": 1,
+      "answer": {
+        "steps": [
+          {
+            "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+            "reason": "单调性的定义"
+          },
+          {
+            "text": "$f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+            "reason": "作差，通分，提公因式"
+          },
+          {
+            "text": "$x_1-x_2<0$，$x_1x_2>1$，所以 $f(x_1)<f(x_2)$，$f(x)$ 在 $[1,+\\infty)$ 上单调递增。",
+            "reason": ""
+          }
+        ]
+      },
+      "strokes": {
+        "version": 1,
+        "pages": [
+          {
+            "width": 800.0,
+            "height": 1100.0,
+            "strokes": [
+              {
+                "color": "#1A1A1A",
+                "width": 2.5,
+                "points": [
+                  10.0,
+                  20.0,
+                  0.0,
+                  0.5,
+                  14.0,
+                  26.0,
+                  16.0,
+                  0.6
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "updated_at": "2026-11-11T08:00:00Z"
+    }
+  }
+}

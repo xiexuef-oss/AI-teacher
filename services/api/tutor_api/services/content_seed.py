@@ -50,6 +50,7 @@ _TYPE_BY_MODE = {
     "fill": "fill_blank",
     "written": "solution",
     "experiment": "experiment",
+    "proof": "proof",
 }
 _CHOICE_MODES = {"single_choice", "multiple_choice"}
 _MAX_PARTS = 20
@@ -67,6 +68,15 @@ _MAX_CELL_TEXT = 40
 _MAX_SAFETY_NOTES = 8
 _SAFETY_LEVELS = ("low", "medium")  # high（高风险）现在不收录
 _NUMBER_LIKE = re.compile(r"^[-+]?\d+(?:\.\d+)?$")
+# 证明题：参考证明里一步的角色（对应 docs/06 的"拆解前提、构造、关键变形、结论"）
+_STAGES = ("premise", "construction", "reasoning", "conclusion")
+_MAX_GIVENS = 8
+_MAX_GIVEN = 400
+_MAX_CLAIM = 500
+_MIN_PROOF_STEPS = 2
+_MAX_PROOF_STEPS = 20
+_MAX_STEP_TEXT = 1000
+_MAX_STEP_REASON = 400
 
 
 DRAFT_AUTHOR_KEY = "engineering-seed"
@@ -123,6 +133,8 @@ def leak_markers(question: dict[str, Any]) -> list[str]:
                 f"选项{key}正确",
                 f"{key}是对的",
             ]
+    elif question["answer_mode"] == "proof":
+        pass  # 关键构造和关键变形推不出标记：全由题目自己在 leak_markers 里列
     elif question["answer_mode"] == "experiment":
         # 数据表里留空格子的参考值（键是 "表键.行键.列键"）：提示里不能出现这些数
         for cell_key, value in answer.items():
@@ -194,7 +206,7 @@ def _short_key(value: Any) -> bool:
 
 
 def _check_no_subquestions(key: str, question: dict[str, Any]) -> list[str]:
-    problems = _check_no_experiment_content(key, question)
+    problems = _check_no_experiment_content(key, question) + _check_no_proof_content(key, question)
     if question["content"].get("subquestions"):
         problems.append(f"{key}: 选择题和填空题不分小问（content.subquestions 只用于解答题）")
     return problems
@@ -204,6 +216,12 @@ def _check_no_experiment_content(key: str, question: dict[str, Any]) -> list[str
     content = question["content"]
     if content.get("data_tables") or content.get("safety"):
         return [f"{key}: 只有实验题才能有 content.data_tables 和 content.safety"]
+    return []
+
+
+def _check_no_proof_content(key: str, question: dict[str, Any]) -> list[str]:
+    if question["content"].get("proof"):
+        return [f"{key}: 只有证明题才能有 content.proof"]
     return []
 
 
@@ -264,6 +282,7 @@ def _check_written(key: str, question: dict[str, Any]) -> list[str]:
     if content.get("options") or content.get("blanks"):
         problems.append(f"{key}: 解答题不能有 content.options 或 content.blanks")
     problems += _check_no_experiment_content(key, question)
+    problems += _check_no_proof_content(key, question)
 
     subquestions = content.get("subquestions")
     if not isinstance(subquestions, list) or not 1 <= len(subquestions) <= _MAX_PARTS:
@@ -422,6 +441,7 @@ def _check_experiment(key: str, question: dict[str, Any]) -> list[str]:
     content = question["content"]
     if content.get("options") or content.get("blanks"):
         problems.append(f"{key}: 实验题不能有 content.options 或 content.blanks")
+    problems += _check_no_proof_content(key, question)
     problems += _check_safety(key, content)
 
     tables = content.get("data_tables")
@@ -506,6 +526,100 @@ def _check_experiment(key: str, question: dict[str, Any]) -> list[str]:
     return problems
 
 
+def _check_proof_statement(key: str, content: dict[str, Any]) -> list[str]:
+    """证明题的已知和求证：只有 givens 和 claim 两项。"""
+    proof = content.get("proof")
+    if not isinstance(proof, dict) or set(proof) != {"givens", "claim"}:
+        return [f"{key}: content.proof 必须有 givens 和 claim 两项（证明题的已知和求证）"]
+    problems: list[str] = []
+    givens = proof["givens"]
+    if (
+        not isinstance(givens, list)
+        or len(givens) > _MAX_GIVENS
+        or not all(_nonempty_text(given, _MAX_GIVEN) for given in givens)
+    ):
+        problems.append(
+            f"{key}: content.proof.givens 至多 {_MAX_GIVENS} 条，每条不能为空、不超过 {_MAX_GIVEN} 字"
+        )
+    if not _nonempty_text(proof["claim"], _MAX_CLAIM):
+        problems.append(f"{key}: content.proof.claim 不能为空且不超过 {_MAX_CLAIM} 字")
+    return problems
+
+
+def _reference_steps(question: dict[str, Any]) -> list[dict[str, Any]]:
+    """证明题的参考证明（形状不对时返回空列表，由 _check_reference_proof 指出来）。"""
+    value = (question.get("answer") or {}).get("value")
+    steps = value.get("steps") if isinstance(value, dict) else None
+    return [step for step in steps if isinstance(step, dict)] if isinstance(steps, list) else []
+
+
+def _check_reference_proof(key: str, question: dict[str, Any]) -> list[str]:
+    """参考证明：answer.value 是 {steps: [{stage, text, reason}]}。参考证明自己要示范"每一步有依据"，
+    并且以结论收尾。"""
+    value = question["answer"].get("value")
+    if not isinstance(value, dict) or set(value) != {"steps"}:
+        return [
+            f"{key}: answer.value 必须是 {{steps: [...]}}（参考证明，每步有 stage、text、reason）"
+        ]
+    steps = value["steps"]
+    if not isinstance(steps, list) or not _MIN_PROOF_STEPS <= len(steps) <= _MAX_PROOF_STEPS:
+        return [f"{key}: answer.value.steps 至少 {_MIN_PROOF_STEPS} 步、至多 {_MAX_PROOF_STEPS} 步"]
+    problems: list[str] = []
+    for index, step in enumerate(steps):
+        where = f"answer.value.steps[{index}]"
+        if not isinstance(step, dict) or set(step) != {"stage", "text", "reason"}:
+            problems.append(f"{key}: {where} 只能有 stage、text、reason 三个字段")
+            continue
+        if step["stage"] not in _STAGES:
+            problems.append(f"{key}: {where}.stage 取值无效：{step['stage']!r}")
+        if not _nonempty_text(step["text"], _MAX_STEP_TEXT):
+            problems.append(f"{key}: {where}.text 不能为空且不超过 {_MAX_STEP_TEXT} 字")
+        if not _nonempty_text(step["reason"], _MAX_STEP_REASON):
+            problems.append(
+                f"{key}: {where}.reason 不能为空且不超过 {_MAX_STEP_REASON} 字"
+                "（参考证明要示范每一步都有依据）"
+            )
+    last = steps[-1]
+    if isinstance(last, dict) and last.get("stage") != "conclusion":
+        problems.append(
+            f"{key}: answer.value.steps 的最后一步必须是 conclusion（证明要以结论收尾）"
+        )
+    return problems
+
+
+def _check_proof(key: str, question: dict[str, Any]) -> list[str]:
+    """证明题：有已知和求证，学生把证明写成一步一步；不自动评分，提交之后学生对照参考证明和 rubric.points 自查。
+
+    这里只能保证结构自洽——参考证明每步有依据并以结论收尾、参考证明里出现过的每个阶段都有至少一条自查要点、
+    要点不带分值，提示不泄题（泄题标记必须由题目自己列：关键构造和关键变形推不出来）。
+    """
+    problems: list[str] = []
+    content = question["content"]
+    if content.get("options") or content.get("blanks"):
+        problems.append(f"{key}: 证明题不能有 content.options 或 content.blanks")
+    if content.get("subquestions"):
+        problems.append(f"{key}: 证明题不分小问（content.subquestions 只用于解答题和实验题）")
+    problems += _check_no_experiment_content(key, question)
+    problems += _check_proof_statement(key, content)
+    problems += _check_reference_proof(key, question)
+
+    used = {step.get("stage") for step in _reference_steps(question)}
+    problems += _check_points(
+        key, question, list(_STAGES), [stage for stage in _STAGES if stage in used], "证明阶段"
+    )
+
+    markers = (question.get("teaching") or {}).get("leak_markers")
+    if (
+        not isinstance(markers, list)
+        or not markers
+        or not all(_nonempty_text(marker, _MAX_SHORT) for marker in markers)
+    ):
+        problems.append(
+            f"{key}: teaching.leak_markers 不能为空（证明题的关键构造推不出泄题标记，要题目自己列）"
+        )
+    return problems
+
+
 def _check_choice(key: str, question: dict[str, Any]) -> list[str]:
     problems = _check_no_subquestions(key, question)
     options = question["content"].get("options") or []
@@ -579,7 +693,7 @@ def _check_question(
     mode = question.get("answer_mode")
     if mode not in _TYPE_BY_MODE:
         return [
-            f"{key}: answer_mode {mode!r} 不在本阶段支持的范围内（单选、多选、填空、解答、实验）"
+            f"{key}: answer_mode {mode!r} 不在本阶段支持的范围内（单选、多选、填空、解答、实验、证明）"
         ]
     if question.get("type") != _TYPE_BY_MODE[mode]:
         problems.append(f"{key}: type 与 answer_mode 不一致")
@@ -607,6 +721,8 @@ def _check_question(
         problems += _check_written(key, question)
     elif mode == "experiment":
         problems += _check_experiment(key, question)
+    elif mode == "proof":
+        problems += _check_proof(key, question)
     else:
         problems += _check_fill(key, question)
 
@@ -862,6 +978,7 @@ def apply_seed(db: Session, bundle: SeedBundle, now: datetime) -> int:
                     "attachments": [],
                     "data_tables": content.get("data_tables") or [],
                     "safety": content.get("safety"),
+                    "proof": content.get("proof"),
                 },
                 answer_json={
                     "value": question["answer"]["value"],

@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 from e2e.flowbase import Flow
-from e2e.flows import admin_experiment, parent_weekly, student_experiment
+from e2e.flows import admin_experiment, parent_weekly, student_experiment, student_proof
 
 FLOWS: dict[str, Flow] = {
-    flow.name: flow for flow in (student_experiment.FLOW, admin_experiment.FLOW, parent_weekly.FLOW)
+    flow.name: flow
+    for flow in (
+        student_experiment.FLOW,
+        student_proof.FLOW,
+        admin_experiment.FLOW,
+        parent_weekly.FLOW,
+    )
 }
 
-__all__ = ["FLOWS", "admin_experiment", "parent_weekly", "student_experiment"]
+__all__ = ["FLOWS", "admin_experiment", "parent_weekly", "student_experiment", "student_proof"]

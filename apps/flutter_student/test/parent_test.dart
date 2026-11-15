@@ -298,14 +298,14 @@ void main() {
       await teardownTree(tester);
     });
 
-    testWidgets('解答题和实验题只说提交了几份，并说明它们不进比例', (tester) async {
+    testWidgets('解答题、实验题和证明题只说提交了几份，并说明它们不进比例', (tester) async {
       h.backend.weeklyTweak = (weekly) {
         weekly['written_attempts'] = 2;
         return weekly;
       };
       await openWeekly(tester);
 
-      expect(find.textContaining('解答题和实验题 2 份'), findsOneWidget);
+      expect(find.textContaining('解答题、实验题和证明题 2 份'), findsOneWidget);
       expect(find.textContaining('不自动评分'), findsWidgets);
       expect(find.textContaining('不计入上面的比例'), findsOneWidget);
       await teardownTree(tester);

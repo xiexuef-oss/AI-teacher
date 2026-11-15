@@ -15,6 +15,7 @@ import '../../core/theme.dart';
 import '../../core/widgets.dart';
 import 'answer_input.dart';
 import 'experiment_input.dart';
+import 'proof_input.dart';
 import 'ink/ink_canvas.dart';
 import 'self_check_card.dart';
 import 'solve_controller.dart';
@@ -613,6 +614,11 @@ class _QuestionPane extends StatelessWidget {
             ),
           ),
         ),
+        if (q.content.proof != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: ProofStatementBlock(proof: q.content.proof!),
+          ),
         if (q.content.safety != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -702,6 +708,18 @@ class _QuestionPane extends StatelessWidget {
           parts: c.parts,
           onCell: c.setCell,
           onPart: c.setPart,
+          enabled: enabled,
+        );
+      case AnswerMode.proof:
+        return ProofInput(
+          steps: c.steps,
+          structure: c.stepsRevision,
+          onText: c.setStepText,
+          onReason: c.setStepReason,
+          onAdd: c.addStep,
+          onRemove: c.removeStep,
+          onMove: c.moveStep,
+          canAdd: c.canAddStep,
           enabled: enabled,
         );
       default:

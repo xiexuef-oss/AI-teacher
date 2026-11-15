@@ -5,7 +5,7 @@
   "status": 201,
   "schema": "StudySession",
   "value": {
-    "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+    "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
     "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
     "question_version": 1,
     "origin": "task",
@@ -30,7 +30,7 @@
   },
   "body": {
     "data": {
-      "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+      "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
       "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
       "question_version": 1,
       "origin": "task",

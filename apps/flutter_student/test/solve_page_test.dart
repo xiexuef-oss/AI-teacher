@@ -1053,6 +1053,448 @@ void main() {
     });
   });
 
+  group('证明题', () {
+    late AppHarness w;
+    late String proofId;
+
+    setUp(() {
+      final backend = FakeBackend()
+        ..submitFixture = 'submit_proof'
+        ..selfCheckFixture = 'self_check_proof_pending'
+        ..installAppBasics()
+        ..installLearningFlow(questionFixture: 'question_proof');
+      w = AppHarness(backend: backend);
+      proofId = Fixtures.load().value('question_proof')['id'] as String;
+    });
+
+    Future<void> openProof(
+      WidgetTester tester, {
+      Size size = tabletLandscape,
+      double textScale = 1,
+    }) =>
+        open(tester, w, size: size, questionId: proofId, textScale: textScale);
+
+    /// 题面是按需建出来的列表：目标还没建出来时，先把列表拖到它出现（up 为往回拖），再对准它。
+    Future<void> reveal(
+      WidgetTester tester,
+      String name, {
+      bool up = false,
+    }) async {
+      if (key(name).evaluate().isEmpty) {
+        await tester.dragUntilVisible(
+          key(name),
+          key('solve.questionPane'),
+          Offset(0, up ? 300 : -300),
+        );
+      }
+      await tester.ensureVisible(key(name));
+      // 输入框聚焦时列表会自己滚一小段：等动画走完，再去点，不然按钮还在动，点不中
+      await settle(tester, frames: 4);
+    }
+
+    Future<void> tapKey(WidgetTester tester, String name) async {
+      await reveal(tester, name);
+      await tester.tap(key(name));
+      await tester.pump();
+    }
+
+    /// 第 [step] 步写文字，[reason] 不为空时再写依据。
+    Future<void> write(
+      WidgetTester tester,
+      int step,
+      String text, {
+      String? reason,
+    }) async {
+      await reveal(tester, 'proof.step.$step.text');
+      await tester.enterText(key('proof.step.$step.text'), text);
+      await tester.pump();
+      if (reason != null) {
+        await reveal(tester, 'proof.step.$step.reason');
+        await tester.enterText(key('proof.step.$step.reason'), reason);
+        await tester.pump();
+      }
+    }
+
+    Future<void> submit(WidgetTester tester) async {
+      await tapKey(tester, 'action.submit');
+      await settle(tester, frames: 12);
+    }
+
+    String fieldText(WidgetTester tester, String name) =>
+        tester.widget<TextField>(key(name)).controller!.text;
+
+    List<Map<String, dynamic>> points() =>
+        ((Fixtures.load().value('self_check_proof_pending')['points'] as List)
+            .cast<Map<String, dynamic>>());
+
+    testWidgets('题面：已知（编号）和求证；一张空白的步骤卡片；没有参考证明', (tester) async {
+      await openProof(tester);
+
+      expect(key('proof.statement'), findsOneWidget);
+      expect(find.text('已知'), findsOneWidget);
+      expect(find.text('求证'), findsOneWidget);
+      expect(key('proof.given.0'), findsOneWidget);
+      expect(key('proof.given.1'), findsOneWidget);
+      expect(key('proof.given.2'), findsNothing);
+      expect(find.text('①'), findsOneWidget);
+      expect(find.text('②'), findsOneWidget);
+      expect(key('proof.claim'), findsOneWidget);
+      // 一张空白卡片：文字和依据两个输入框
+      expect(key('proof.step.0.text'), findsOneWidget);
+      expect(key('proof.step.0.reason'), findsOneWidget);
+      expect(key('proof.step.1'), findsNothing);
+      expect(
+        tester.widget<IconButton>(key('proof.step.0.up')).onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<IconButton>(key('proof.step.0.down')).onPressed,
+        isNull,
+      );
+      expect(key('proof.addStep'), findsOneWidget);
+      expect(find.textContaining('每一步写上依据'), findsWidgets);
+      expect(find.textContaining('不自动评分'), findsOneWidget);
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNull,
+        reason: '什么都没写',
+      );
+      // 提交之前没有要点、没有参考证明，也不去要
+      expect(key('selfcheck.card'), findsNothing);
+      expect(key('selfcheck.proof'), findsNothing);
+      expect(find.text('参考证明'), findsNothing);
+      expect(w.backend.requestsTo('GET', '/self-check'), isEmpty);
+      expect(
+        find.textContaining('评分还没有开放'),
+        findsNothing,
+        reason: '不再是"还没开放"的说明',
+      );
+      await teardownTree(tester);
+    });
+
+    testWidgets('只写依据不能提交；写了这一步的内容才能提交', (tester) async {
+      await openProof(tester);
+
+      await write(tester, 0, '', reason: '已知');
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNull,
+      );
+      await write(tester, 0, '任取 x1<x2');
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNotNull,
+      );
+      await teardownTree(tester);
+    });
+
+    testWidgets('写步骤和依据：提交请求里是按顺序的步骤；提交后出现对照自查，步骤变成只读', (tester) async {
+      await openProof(tester);
+
+      await write(tester, 0, '任取 x1<x2', reason: '单调性的定义');
+      await tapKey(tester, 'proof.addStep');
+      await write(tester, 1, '作差通分');
+      await submit(tester);
+
+      final body = w.backend.bodyOf(
+        w.backend.requestsTo('POST', '/submit').single,
+      )!;
+      expect(body['answer'], {
+        'steps': [
+          {'text': '任取 x1<x2', 'reason': '单调性的定义'},
+          {'text': '作差通分', 'reason': ''},
+        ],
+      });
+      expect(key('selfcheck.card'), findsOneWidget);
+      expect(find.text('这道题不自动评分'), findsOneWidget);
+      // 提交之后输入框变成只读，写的内容还在；添加、删除、挪动的按钮都没有了
+      await reveal(tester, 'proof.step.0.text', up: true);
+      final field = tester.widget<TextField>(key('proof.step.0.text'));
+      expect(field.enabled, isFalse);
+      expect(field.controller!.text, '任取 x1<x2');
+      expect(fieldText(tester, 'proof.step.0.reason'), '单调性的定义');
+      expect(key('proof.addStep'), findsNothing);
+      expect(key('proof.step.0.remove'), findsNothing);
+      await teardownTree(tester);
+    });
+
+    testWidgets('添加、上移、下移、删除：卡片里的文字和依据一起动', (tester) async {
+      await openProof(tester);
+      await write(tester, 0, '甲', reason: '依据甲');
+      await tapKey(tester, 'proof.addStep');
+      await write(tester, 1, '乙', reason: '依据乙');
+      await tapKey(tester, 'proof.addStep');
+      await write(tester, 2, '丙', reason: '依据丙');
+
+      List<String> texts() => [
+        for (var i = 0; i < 3; i++) fieldText(tester, 'proof.step.$i.text'),
+      ];
+      List<String> reasons() => [
+        for (var i = 0; i < 3; i++) fieldText(tester, 'proof.step.$i.reason'),
+      ];
+      expect(texts(), ['甲', '乙', '丙']);
+      // 头一步不能上移，末一步不能下移
+      expect(
+        tester.widget<IconButton>(key('proof.step.0.up')).onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<IconButton>(key('proof.step.2.down')).onPressed,
+        isNull,
+      );
+
+      await tapKey(tester, 'proof.step.2.up');
+      expect(texts(), ['甲', '丙', '乙']);
+      expect(reasons(), ['依据甲', '依据丙', '依据乙']);
+
+      await tapKey(tester, 'proof.step.0.down');
+      expect(texts(), ['丙', '甲', '乙']);
+      expect(reasons(), ['依据丙', '依据甲', '依据乙']);
+
+      await tapKey(tester, 'proof.step.1.remove');
+      expect(key('proof.step.2'), findsNothing);
+      expect(fieldText(tester, 'proof.step.0.text'), '丙');
+      expect(fieldText(tester, 'proof.step.1.text'), '乙');
+      expect(fieldText(tester, 'proof.step.1.reason'), '依据乙');
+
+      // 删到只剩一步，再删就是清空，卡片不会消失
+      await tapKey(tester, 'proof.step.1.remove');
+      await tapKey(tester, 'proof.step.0.remove');
+      expect(key('proof.step.0'), findsOneWidget);
+      expect(key('proof.step.1'), findsNothing);
+      expect(fieldText(tester, 'proof.step.0.text'), '');
+      expect(fieldText(tester, 'proof.step.0.reason'), '');
+      await teardownTree(tester);
+    });
+
+    testWidgets('写到 30 步就不能再添加', (tester) async {
+      await openProof(tester);
+
+      for (var i = 0; i < 29; i++) {
+        await tapKey(tester, 'proof.addStep');
+      }
+
+      expect(key('proof.step.29'), findsOneWidget);
+      expect(
+        tester.widget<OutlinedButton>(key('proof.addStep')).onPressed,
+        isNull,
+      );
+      expect(find.text('最多 30 步'), findsOneWidget);
+      await teardownTree(tester);
+    });
+
+    testWidgets('符号栏把符号插到当前聚焦的输入框里（依据框也行），并同步到答案', (tester) async {
+      await openProof(tester);
+      await write(tester, 0, '3');
+      await reveal(tester, 'proof.step.0.reason');
+      await tester.tap(key('proof.step.0.reason'));
+      await tester.pump();
+      await tester.enterText(key('proof.step.0.reason'), '由');
+      await tester.pump();
+
+      await tester.tap(key('symbol.≤'));
+      await tester.pump();
+      expect(fieldText(tester, 'proof.step.0.reason'), '由≤');
+      expect(fieldText(tester, 'proof.step.0.text'), '3');
+
+      await tester.tap(key('proof.step.0.text'));
+      await tester.pump();
+      await tester.enterText(key('proof.step.0.text'), '3');
+      await tester.pump();
+      await tester.tap(key('symbol.∴'));
+      await tester.pump();
+      expect(fieldText(tester, 'proof.step.0.text'), '3∴');
+
+      await submit(tester);
+      expect(
+        w.backend.bodyOf(
+          w.backend.requestsTo('POST', '/submit').single,
+        )!['answer'],
+        {
+          'steps': [
+            {'text': '3∴', 'reason': '由≤'},
+          ],
+        },
+      );
+      await teardownTree(tester);
+    });
+
+    testWidgets('对照参考证明：你的证明和参考证明并排，参考证明每步带阶段和依据，没有对错', (tester) async {
+      await openProof(tester);
+      await write(tester, 0, '任取 x1<x2', reason: '单调性的定义');
+      await tapKey(tester, 'proof.addStep');
+      await write(tester, 1, '作差通分');
+      await tapKey(tester, 'proof.addStep'); // 末尾留一张空白卡片：不算"你的证明"
+      await submit(tester);
+      await reveal(tester, 'selfcheck.proof');
+
+      expect(find.text('对照参考证明'), findsOneWidget);
+      expect(find.textContaining('只是一种写法'), findsOneWidget);
+      // 你的证明：只列写了的步骤；没写依据的明说"没写"
+      expect(key('selfcheck.mine'), findsOneWidget);
+      expect(key('selfcheck.mine.0'), findsOneWidget);
+      expect(key('selfcheck.mine.1'), findsOneWidget);
+      expect(key('selfcheck.mine.2'), findsNothing);
+      expect(
+        find.descendant(
+          of: key('selfcheck.mine.0'),
+          matching: find.text('依据：单调性的定义'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: key('selfcheck.mine.1'),
+          matching: find.text('依据：没写'),
+        ),
+        findsOneWidget,
+      );
+      // 参考证明：五步，每一步有阶段标签
+      expect(key('selfcheck.refproof'), findsOneWidget);
+      final stages = ['前提', '构造', '推理', '推理', '结论'];
+      for (var i = 0; i < stages.length; i++) {
+        final step = key('selfcheck.refstep.$i');
+        await tester.ensureVisible(step);
+        await tester.pump();
+        expect(step, findsOneWidget, reason: '第 ${i + 1} 步');
+        expect(
+          find.descendant(of: step, matching: find.text(stages[i])),
+          findsOneWidget,
+          reason: '第 ${i + 1} 步的阶段',
+        );
+        expect(
+          find.descendant(of: step, matching: find.textContaining('依据')),
+          findsOneWidget,
+          reason: '第 ${i + 1} 步有依据',
+        );
+      }
+      expect(key('selfcheck.refstep.5'), findsNothing);
+      // 只是并排，不判对错
+      for (final word in ['对了', '错了', '回答正确', '回答错误', '得分']) {
+        expect(find.textContaining(word), findsNothing, reason: word);
+      }
+      await teardownTree(tester);
+    });
+
+    testWidgets('自查要点按证明阶段分组，标完才能保存，保存后只有计数', (tester) async {
+      await openProof(tester);
+      await write(tester, 0, '任取 x1<x2', reason: '单调性的定义');
+      await submit(tester);
+
+      for (final point in points()) {
+        await tester.ensureVisible(key('selfcheck.point.${point['key']}'));
+        await tester.pump();
+      }
+      // 分组标题：前提、构造、推理、结论、整份证明（阶段名在参考证明的标签里也出现，所以不止一处）
+      expect(find.text('整份证明'), findsOneWidget);
+      for (final heading in ['前提', '构造', '推理', '结论']) {
+        expect(find.text(heading), findsWidgets, reason: heading);
+      }
+      expect(find.text('整份解答'), findsNothing);
+      expect(find.text('第 1 问'), findsNothing);
+      expect(
+        tester.widget<FilledButton>(key('selfcheck.save')).onPressed,
+        isNull,
+        reason: '还没标完',
+      );
+      for (final point in points()) {
+        await tester.ensureVisible(key('selfcheck.${point['key']}.done'));
+        await tester.pump();
+        await tester.tap(key('selfcheck.${point['key']}.done'));
+        await tester.pump();
+      }
+      await tester.ensureVisible(key('selfcheck.save'));
+      await tester.pump();
+      await tester.tap(key('selfcheck.save'));
+      await settle(tester, frames: 12);
+
+      final saved = w.backend.requestsTo('PUT', '/self-check').single;
+      expect(
+        (w.backend.bodyOf(saved)!['marks'] as List).length,
+        points().length,
+      );
+      expect(find.textContaining('做到了 ${points().length}'), findsWidgets);
+      expect(find.textContaining('得分'), findsNothing, reason: '只有计数，没有分数');
+      await teardownTree(tester);
+    });
+
+    testWidgets('对照的两列：作答栏够宽时并排，窄时上下排', (tester) async {
+      Future<(Rect, Rect)> compare(Size size) async {
+        w = AppHarness(backend: w.backend);
+        await openProof(tester, size: size);
+        await write(tester, 0, '任取 x1<x2', reason: '单调性的定义');
+        await submit(tester);
+        await reveal(tester, 'selfcheck.proof');
+        final mine = tester.getRect(key('selfcheck.mine'));
+        final reference = tester.getRect(key('selfcheck.refproof'));
+        await teardownTree(tester);
+        return (mine, reference);
+      }
+
+      final (phoneMine, phoneReference) = await compare(phone);
+      expect(
+        phoneReference.top,
+        greaterThanOrEqualTo(phoneMine.bottom),
+        reason: '手机上上下排',
+      );
+
+      final (wideMine, wideReference) = await compare(tabletPortrait);
+      expect(wideReference.top, closeTo(wideMine.top, 1), reason: '竖屏平板上并排');
+      expect(wideReference.left, greaterThanOrEqualTo(wideMine.right));
+    });
+
+    for (final size in [tabletLandscape, tabletPortrait, phone]) {
+      testWidgets(
+        '字体放大 1.5 倍不溢出：${size.width.toInt()}×${size.height.toInt()}',
+        (tester) async {
+          await openProof(tester, size: size, textScale: 1.5);
+          expect(tester.takeException(), isNull);
+          await write(tester, 0, '任取 x1<x2', reason: '单调性的定义');
+          await tapKey(tester, 'proof.addStep');
+          await write(tester, 1, '作差通分');
+          expect(tester.takeException(), isNull);
+
+          await submit(tester);
+          await reveal(tester, 'selfcheck.proof');
+          expect(tester.takeException(), isNull);
+          await tester.ensureVisible(key('selfcheck.refstep.4'));
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+          await teardownTree(tester);
+        },
+      );
+    }
+
+    testWidgets('触控目标：上移、下移、删除、添加一步都不小于 48', (tester) async {
+      await openProof(tester);
+      await tapKey(tester, 'proof.addStep');
+      await tapKey(tester, 'proof.addStep');
+
+      for (final name in [
+        'proof.step.1.up',
+        'proof.step.1.down',
+        'proof.step.1.remove',
+        'proof.addStep',
+      ]) {
+        await reveal(tester, name);
+        final size = tester.getSize(key(name));
+        expect(size.width, greaterThanOrEqualTo(48), reason: name);
+        expect(size.height, greaterThanOrEqualTo(48), reason: name);
+      }
+      await teardownTree(tester);
+    });
+
+    testWidgets('读屏：上移、下移、删除按钮带第几步的名字', (tester) async {
+      await openProof(tester);
+      await tapKey(tester, 'proof.addStep');
+
+      expect(find.byTooltip('第 2 步上移'), findsOneWidget);
+      expect(find.byTooltip('第 1 步下移'), findsOneWidget);
+      expect(find.byTooltip('删除第 2 步'), findsOneWidget);
+      await teardownTree(tester);
+    });
+  });
+
   group('解答题', () {
     late AppHarness w;
     late String writtenId;

@@ -130,6 +130,37 @@ EXPERIMENT: dict[str, dict[str, Any]] = {
     },
 }
 
+
+def steps(*items: tuple[str, str]) -> dict[str, Any]:
+    """证明题的作答：一步一项 (这一步写了什么, 依据)，列表的顺序就是证明的顺序。"""
+    return {"steps": [{"text": text, "reason": reason} for text, reason in items]}
+
+
+# 每道证明题样题的一份作答（内容对不对不重要：证明题不自动评分）
+PROOF: dict[str, dict[str, Any]] = {
+    "math-ineq-diff-proof": steps(
+        ("因为 a>0，b>0，所以 ab>0。", "已知"),
+        ("a/b+b/a-2=(a-b)^2/(ab)", "通分，完全平方公式"),
+        ("(a-b)^2≥0，ab>0，所以差≥0，即 a/b+b/a≥2；等号当且仅当 a=b。", "平方非负"),
+    ),
+    "math-mono-def-proof": steps(
+        ("任取 x1<x2，都在 [1,+∞) 内。", "单调性的定义"),
+        ("f(x1)-f(x2)=(x1-x2)(x1x2-1)/(x1x2)", "作差，通分"),
+        ("x1-x2<0，x1x2>1，所以 f(x1)<f(x2)，f 在 [1,+∞) 上递增。", "符号法则"),
+    ),
+    "math-ineq-mul-proof": steps(
+        ("b>0，c>0。", "已知"),
+        ("ac>bc", "同乘正数 c"),
+        ("bc>bd", "同乘正数 b"),
+        ("所以 ac>bd。", "传递性"),
+    ),
+    "phys-work-energy-proof": steps(
+        ("合力就是 F。", "受力分析，水平面光滑"),
+        ("a=F/m，匀加速。", "牛顿第二定律"),
+        ("v2²-v1²=2as，代入得 Fs=½mv2²-½mv1²。", "匀变速直线运动的速度位移公式"),
+    ),
+}
+
 # 一页、一笔的最小手写稿
 INK: dict[str, Any] = {
     "version": 1,

@@ -126,6 +126,82 @@ void main() {
     expect(draft.hasContent, isTrue);
   });
 
+  test('证明题一步一步写的步骤随草稿一起存、一起读：顺序不变，空白卡片也留着', () async {
+    final draft = LocalDraft(
+      questionId: 'q1',
+      steps: const [
+        ProofStepDraft(text: '任取 x1<x2', reason: '单调性的定义'),
+        ProofStepDraft(),
+        ProofStepDraft(text: '所以 f(x1)<f(x2)'),
+      ],
+      savedAt: DateTime.utc(2026, 11, 10, 8),
+    );
+    expect(draft.hasContent, isTrue);
+
+    await store.writeDraft(draft);
+
+    final read = (await store.readDraft('q1'))!;
+    expect(read.steps.map((s) => (s.text, s.reason)), [
+      ('任取 x1<x2', '单调性的定义'),
+      ('', ''),
+      ('所以 f(x1)<f(x2)', ''),
+    ]);
+    expect(read.selected, isEmpty);
+    expect(read.parts, isEmpty);
+    expect(read.cells, isEmpty);
+  });
+
+  test('只有空白卡片不算有内容；只有依据、没有别的内容也算（不会被当成空草稿丢掉）', () {
+    LocalDraft draft(List<ProofStepDraft> steps) => LocalDraft(
+      questionId: 'q1',
+      steps: steps,
+      savedAt: DateTime.utc(2026, 11, 10, 8),
+    );
+
+    expect(
+      draft(const [ProofStepDraft(), ProofStepDraft(text: '  \n')]).hasContent,
+      isFalse,
+    );
+    expect(draft(const [ProofStepDraft(reason: '已知')]).hasContent, isTrue);
+    expect(draft(const [ProofStepDraft(text: '甲')]).hasContent, isTrue);
+  });
+
+  test('一张卡片是不是空白：文字和依据都没有才算', () {
+    expect(const ProofStepDraft().isBlank, isTrue);
+    expect(const ProofStepDraft(text: ' ', reason: '\t').isBlank, isTrue);
+    expect(const ProofStepDraft(text: '甲').isBlank, isFalse);
+    expect(const ProofStepDraft(reason: '乙').isBlank, isFalse);
+    expect(const ProofStepDraft(text: '甲').copyWith(reason: '乙').text, '甲');
+  });
+
+  test('证明题加入之前存下的草稿（有格子、没有步骤）仍然读得出来', () async {
+    await memory.write(
+      'u/u1/draft/q1',
+      jsonEncode({
+        'v': 1,
+        'questionId': 'q1',
+        'sessionId': null,
+        'attemptId': null,
+        'baseRevision': 0,
+        'dirty': true,
+        'answer': {
+          'selected': <String>[],
+          'blanks': <String, String>{},
+          'parts': <String, String>{},
+          'cells': {'t1.r1.v': '0.4'},
+        },
+        'strokes': null,
+        'savedAt': '2026-11-10T08:00:00.000Z',
+      }),
+    );
+
+    final read = (await store.readDraft('q1'))!;
+
+    expect(read.cells, {'t1.r1.v': '0.4'});
+    expect(read.steps, isEmpty);
+    expect(memory.data.keys, ['u/u1/draft/q1'], reason: '没有被当成坏草稿另存');
+  });
+
   test('解答题加入之后、实验题加入之前存下的草稿（有分小问、没有格子）仍然读得出来', () async {
     await memory.write(
       'u/u1/draft/q1',
@@ -309,6 +385,29 @@ void main() {
     );
     expect(read.content.dataTables.single.columns.single.unit, 'cm');
     expect(read.content.safety!.notes, ['纸面练习']);
+  });
+
+  test('证明题的已知和求证也在题目缓存里，断网时照样显示', () async {
+    final json = cachedQuestion();
+    (json['content'] as Map<String, dynamic>)['proof'] = {
+      'givens': ['\$a>0\$', '\$b>0\$'],
+      'claim': '\$ab>0\$',
+    };
+    await store.writeQuestion(Question.fromJson(json));
+
+    final read = (await store.readQuestion('q1'))!;
+
+    expect(read.content.proof!.givens, ['\$a>0\$', '\$b>0\$']);
+    expect(read.content.proof!.claim, '\$ab>0\$');
+  });
+
+  test('证明题加入之前缓存的题目（有数据表、没有 proof 这一项）仍然读得出来，已知和求证是空', () async {
+    memory.data['u/u1/question/q1'] = jsonEncode(cachedQuestion());
+
+    final read = (await store.readQuestion('q1'))!;
+
+    expect(read.title, '测试题');
+    expect(read.content.proof, isNull);
   });
 
   test('升级前缓存的题目（没有数据表这一项）读不懂时按没缓存处理，不崩溃', () async {

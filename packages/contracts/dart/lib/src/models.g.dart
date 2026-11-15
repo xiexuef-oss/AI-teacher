@@ -140,13 +140,14 @@ enum QuestionType {
   String toJson() => value;
 }
 
-/// 作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定； written（解答题）只保存作答，提交后给对照要点的自查，不自动评分； experiment（实验题）是带数据表和安全提示的主观题：数据表里留空的格子填在 `answer.cells`， 文字作答填在 `answer.parts`，和解答题一样不自动评分、提交后对照要点和参考数据自查。
+/// 作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定； written（解答题）只保存作答，提交后给对照要点的自查，不自动评分； experiment（实验题）是带数据表和安全提示的主观题：数据表里留空的格子填在 `answer.cells`， 文字作答填在 `answer.parts`，和解答题一样不自动评分、提交后对照要点和参考数据自查； proof（证明题）有"已知 / 求证"（`content.proof`），学生把证明写成一步一步（每一步带依据）填在 `answer.steps`， 同样不自动评分、提交后对照参考证明和要点自查。
 enum AnswerMode {
   singleChoice('single_choice'),
   multipleChoice('multiple_choice'),
   fill('fill'),
   written('written'),
   experiment('experiment'),
+  proof('proof'),
 
   /// 契约里新增、而这个版本的客户端还不认识的值。
   $unknown('');
@@ -1224,6 +1225,27 @@ class DataTable {
       };
 }
 
+/// 证明题的"已知"和"求证"。参考证明不在这里，只在提交之后随自查（`SelfCheck.reference_steps`）给出。
+class ProofStatement {
+  const ProofStatement({
+    required this.givens,
+    required this.claim,
+  });
+
+  final List<String> givens;
+  final String claim;
+
+  factory ProofStatement.fromJson(Map<String, dynamic> json) => ProofStatement(
+        givens: (json['givens'] as List<dynamic>).map((e) => e as String).toList(),
+        claim: json['claim'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'givens': givens,
+        'claim': claim,
+      };
+}
+
 class QuestionContent {
   const QuestionContent({
     required this.stem,
@@ -1233,6 +1255,7 @@ class QuestionContent {
     required this.attachments,
     required this.dataTables,
     this.safety,
+    this.proof,
   });
 
   final String stem;
@@ -1242,6 +1265,7 @@ class QuestionContent {
   final List<QuestionAttachment> attachments;
   final List<DataTable> dataTables;
   final ExperimentSafety? safety;
+  final ProofStatement? proof;
 
   factory QuestionContent.fromJson(Map<String, dynamic> json) => QuestionContent(
         stem: json['stem'] as String,
@@ -1251,6 +1275,7 @@ class QuestionContent {
         attachments: (json['attachments'] as List<dynamic>).map((e) => QuestionAttachment.fromJson(e as Map<String, dynamic>)).toList(),
         dataTables: (json['data_tables'] as List<dynamic>).map((e) => DataTable.fromJson(e as Map<String, dynamic>)).toList(),
         safety: json['safety'] == null ? null : ExperimentSafety.fromJson(json['safety'] as Map<String, dynamic>),
+        proof: json['proof'] == null ? null : ProofStatement.fromJson(json['proof'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
@@ -1261,6 +1286,7 @@ class QuestionContent {
         'attachments': attachments.map((e) => e.toJson()).toList(),
         'data_tables': dataTables.map((e) => e.toJson()).toList(),
         'safety': safety?.toJson(),
+        'proof': proof?.toJson(),
       };
 }
 
@@ -1650,13 +1676,35 @@ class AnswerPart {
       };
 }
 
-/// 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts， 实验题用 cells（数据表里留空的格子）和 parts（文字小问）。 解答题、实验题可以只写一部分，也可以只有笔迹（笔迹随草稿同步，不在这里）； 文字、格子和笔迹都没有时提交返回 422。
+/// 证明题作答里的一步。依据可以不写：写不写、写得对不对都不拦提交，也不判对错，只是自查清单里会问。
+class AnswerStep {
+  const AnswerStep({
+    required this.text,
+    required this.reason,
+  });
+
+  final String text;
+  final String reason;
+
+  factory AnswerStep.fromJson(Map<String, dynamic> json) => AnswerStep(
+        text: json['text'] as String,
+        reason: json['reason'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'reason': reason,
+      };
+}
+
+/// 按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts， 实验题用 cells（数据表里留空的格子）和 parts（文字小问），证明题用 steps（一步一步的证明）。 解答题、实验题、证明题可以只写一部分，也可以只有笔迹（笔迹随草稿同步，不在这里）； 文字、格子、步骤和笔迹都没有时提交返回 422。
 class AnswerPayload {
   const AnswerPayload({
     this.selectedOptions,
     this.blanks,
     this.parts,
     this.cells,
+    this.steps,
     this.text,
   });
 
@@ -1664,6 +1712,7 @@ class AnswerPayload {
   final List<AnswerBlank>? blanks;
   final List<AnswerPart>? parts;
   final List<AnswerCell>? cells;
+  final List<AnswerStep>? steps;
   final String? text;
 
   factory AnswerPayload.fromJson(Map<String, dynamic> json) => AnswerPayload(
@@ -1671,6 +1720,7 @@ class AnswerPayload {
         blanks: json['blanks'] == null ? null : (json['blanks'] as List<dynamic>).map((e) => AnswerBlank.fromJson(e as Map<String, dynamic>)).toList(),
         parts: json['parts'] == null ? null : (json['parts'] as List<dynamic>).map((e) => AnswerPart.fromJson(e as Map<String, dynamic>)).toList(),
         cells: json['cells'] == null ? null : (json['cells'] as List<dynamic>).map((e) => AnswerCell.fromJson(e as Map<String, dynamic>)).toList(),
+        steps: json['steps'] == null ? null : (json['steps'] as List<dynamic>).map((e) => AnswerStep.fromJson(e as Map<String, dynamic>)).toList(),
         text: json['text'] == null ? null : json['text'] as String,
       );
 
@@ -1679,6 +1729,7 @@ class AnswerPayload {
         if (blanks != null) 'blanks': blanks?.map((e) => e.toJson()).toList(),
         if (parts != null) 'parts': parts?.map((e) => e.toJson()).toList(),
         if (cells != null) 'cells': cells?.map((e) => e.toJson()).toList(),
+        if (steps != null) 'steps': steps?.map((e) => e.toJson()).toList(),
         if (text != null) 'text': text,
       };
 }
@@ -2017,6 +2068,25 @@ enum SelfCheckLevel {
   String toJson() => value;
 }
 
+/// 参考证明里一步的角色，对应 docs/06 的"拆解前提、构造、关键变形、结论"。 premise 前提（用了哪些已知条件）；construction 构造（引入辅助量、辅助线，或把式子改写成便于证明的形式）； reasoning 推理（一步一步推下去的关键步骤）；conclusion 结论（回到求证）。
+enum ProofStage {
+  premise('premise'),
+  construction('construction'),
+  reasoning('reasoning'),
+  conclusion('conclusion'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const ProofStage(this.value);
+  final String value;
+
+  static ProofStage fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => ProofStage.$unknown);
+
+  String toJson() => value;
+}
+
 /// 对照检查的一个要点。不带分值：这不是评分，只是一张自查清单。
 class SelfCheckPoint {
   const SelfCheckPoint({
@@ -2039,6 +2109,31 @@ class SelfCheckPoint {
         'key': key,
         'part': part$,
         'text': text,
+      };
+}
+
+/// 参考证明里的一步。只在提交之后随自查给出，只是对照用的参考：证明的写法不止一种，它不参与任何判定。
+class ProofReferenceStep {
+  const ProofReferenceStep({
+    required this.stage,
+    required this.text,
+    required this.reason,
+  });
+
+  final ProofStage stage;
+  final String text;
+  final String reason;
+
+  factory ProofReferenceStep.fromJson(Map<String, dynamic> json) => ProofReferenceStep(
+        stage: ProofStage.fromJson(json['stage'] as String),
+        text: json['text'] as String,
+        reason: json['reason'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'stage': stage.toJson(),
+        'text': text,
+        'reason': reason,
       };
 }
 
@@ -2112,6 +2207,7 @@ class SelfCheck {
     required this.attemptId,
     required this.points,
     required this.referenceCells,
+    required this.referenceSteps,
     required this.marks,
     required this.summary,
     this.savedAt,
@@ -2121,6 +2217,7 @@ class SelfCheck {
   final String attemptId;
   final List<SelfCheckPoint> points;
   final List<AnswerCell> referenceCells;
+  final List<ProofReferenceStep> referenceSteps;
   final List<SelfCheckMark> marks;
   final SelfCheckSummary summary;
   final DateTime? savedAt;
@@ -2130,6 +2227,7 @@ class SelfCheck {
         attemptId: json['attempt_id'] as String,
         points: (json['points'] as List<dynamic>).map((e) => SelfCheckPoint.fromJson(e as Map<String, dynamic>)).toList(),
         referenceCells: (json['reference_cells'] as List<dynamic>).map((e) => AnswerCell.fromJson(e as Map<String, dynamic>)).toList(),
+        referenceSteps: (json['reference_steps'] as List<dynamic>).map((e) => ProofReferenceStep.fromJson(e as Map<String, dynamic>)).toList(),
         marks: (json['marks'] as List<dynamic>).map((e) => SelfCheckMark.fromJson(e as Map<String, dynamic>)).toList(),
         summary: SelfCheckSummary.fromJson(json['summary'] as Map<String, dynamic>),
         savedAt: json['saved_at'] == null ? null : DateTime.parse(json['saved_at'] as String),
@@ -2140,6 +2238,7 @@ class SelfCheck {
         'attempt_id': attemptId,
         'points': points.map((e) => e.toJson()).toList(),
         'reference_cells': referenceCells.map((e) => e.toJson()).toList(),
+        'reference_steps': referenceSteps.map((e) => e.toJson()).toList(),
         'marks': marks.map((e) => e.toJson()).toList(),
         'summary': summary.toJson(),
         'saved_at': savedAt?.toUtc().toIso8601String(),
@@ -2480,7 +2579,7 @@ class ProgressBucket {
       };
 }
 
-/// 解答题和实验题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份， 以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
+/// 解答题、实验题和证明题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份， 以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
 class SubjectiveProgress {
   const SubjectiveProgress({
     required this.attempts,

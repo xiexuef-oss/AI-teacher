@@ -7,6 +7,7 @@ import type {
   AdminQuestionEdit,
   AdminSolutionInput,
   Grade,
+  ProofStage,
   SolutionKind,
 } from './api/types'
 
@@ -32,7 +33,14 @@ export interface SubquestionRow {
   answer: string
 }
 
-/** 解答题的一条自查要点。part 是它针对的小问的键，空字符串表示针对整份解答。不带分值：这不是评分。 */
+/** 证明题参考证明里的一步：阶段、这一步写了什么、依据。参考证明只用来给学生对照，不参与任何判定。 */
+export interface ProofStepRow {
+  stage: ProofStage
+  text: string
+  reason: string
+}
+
+/** 解答题、实验题、证明题的一条自查要点。part 是它针对的小问（证明题是证明阶段）的键，空字符串表示针对整份作答。不带分值：这不是评分。 */
 export interface PointRow {
   key: string
   part: string
@@ -70,6 +78,12 @@ export interface EditorForm {
   dataTablesJson: string
   /** 实验题留空格子的参考值（JSON 对象，键是"表键.行键.列键"）；小问的参考答案在小问那几行里。 */
   referenceCellsJson: string
+  /** 证明题的已知条件（界面上编号成 ①②③）。 */
+  givens: string[]
+  /** 证明题的求证。 */
+  claim: string
+  /** 证明题的参考证明：一行一步，顺序就是证明的顺序。 */
+  proofSteps: ProofStepRow[]
   rulesJson: string
   unitsJson: string
   concept: string
@@ -93,6 +107,8 @@ const CHOICE_MODES = new Set(['single_choice', 'multiple_choice'])
 const FILL_MODES = new Set(['fill'])
 const WRITTEN_MODES = new Set(['written'])
 const EXPERIMENT_MODES = new Set(['experiment'])
+const PROOF_MODES = new Set(['proof'])
+const STAGES: ProofStage[] = ['premise', 'construction', 'reasoning', 'conclusion']
 
 const pretty = (value: unknown): string => JSON.stringify(value ?? {}, null, 2)
 const orNull = (text: string): string | null => (text === '' ? null : text)
@@ -133,6 +149,22 @@ const isBlankRow = (...texts: string[]): boolean => texts.every((text) => text.t
 
 /** 留空格子的参考值的键是"表键.行键.列键"（表、行、列的键里不会有点）；小问的键没有点。 */
 const isCellKey = (key: string): boolean => key.split('.').length === 3
+
+/** 参考证明里的步骤；不是数组或形状不对的项一律忽略，阶段不认识的按 reasoning 显示（程序校验会指出来）。 */
+function referenceSteps(answers: Record<string, unknown>): ProofStepRow[] {
+  const steps = answers.steps
+  if (!Array.isArray(steps)) return []
+  return steps
+    .filter(
+      (step): step is { stage?: unknown; text: string; reason: string } =>
+        !!step && typeof step === 'object' && typeof step.text === 'string' && typeof step.reason === 'string',
+    )
+    .map((step) => ({
+      stage: STAGES.includes(step.stage as ProofStage) ? (step.stage as ProofStage) : 'reasoning',
+      text: step.text,
+      reason: step.reason,
+    }))
+}
 
 function solutionForm(detail: AdminQuestionDetail, kind: SolutionKind): SolutionForm {
   const found = detail.solutions.find((solution) => solution.kind === kind)
@@ -188,6 +220,9 @@ export function formFromDetail(detail: AdminQuestionDetail): EditorForm {
     safetyNotes: [...(safety?.notes ?? [])],
     dataTablesJson: JSON.stringify(detail.content.data_tables, null, 2),
     referenceCellsJson: pretty(cellReferences),
+    givens: [...(detail.content.proof?.givens ?? [])],
+    claim: detail.content.proof?.claim ?? '',
+    proofSteps: referenceSteps(answers),
     rulesJson: pretty(detail.answer.equivalence_rules),
     unitsJson: pretty(detail.answer.units),
     concept: detail.teaching.concept ?? '',
@@ -292,8 +327,11 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
   const units = parseObject('单位规则', form.unitsJson, errors)
   const written = WRITTEN_MODES.has(detail.answer_mode)
   const experiment = EXPERIMENT_MODES.has(detail.answer_mode)
-  // 解答题和实验题都分小问、有自查要点；它们的评分细则由"自查要点"那几行生成，其余题型是一段 JSON
-  const subjective = written || experiment
+  const proof = PROOF_MODES.has(detail.answer_mode)
+  // 解答题、实验题、证明题都有自查要点，它们的评分细则由"自查要点"那几行生成，其余题型是一段 JSON；
+  // 解答题和实验题还分小问，证明题没有小问
+  const subjective = written || experiment || proof
+  const withParts = written || experiment
   const rubric = subjective ? ({} as Obj) : parseObject('评分细则', form.rubricJson, errors)
 
   let visual: AdminQuestionEdit['teaching']['visual'] = null
@@ -325,7 +363,7 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
 
   // 解答题、实验题：小问和它们的参考答案是同一批行；整行都是空的就是没填，丢掉
   const subquestionRows = form.subquestions.filter((row) => !isBlankRow(row.key, row.stem, row.answer))
-  const subquestions = subjective
+  const subquestions = withParts
     ? subquestionRows.map((row) => ({
         key: row.key,
         stem: row.stem,
@@ -334,7 +372,18 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
         blanks: [],
       }))
     : detail.content.subquestions
-  if (subjective) value = Object.fromEntries(subquestionRows.map((row) => [row.key, row.answer]))
+  if (withParts) value = Object.fromEntries(subquestionRows.map((row) => [row.key, row.answer]))
+
+  // 证明题：已知、求证，以及参考证明（一行一步；整行都是空的就是没填，丢掉）
+  let proofStatement = detail.content.proof
+  if (proof) {
+    proofStatement = { givens: keep(form.givens), claim: form.claim }
+    value = {
+      steps: form.proofSteps
+        .filter((row) => !isBlankRow(row.text, row.reason))
+        .map((row) => ({ stage: row.stage, text: row.text, reason: row.reason })),
+    }
+  }
 
   // 实验题：数据表、安全提示，以及留空格子的参考值（和小问的参考答案放在同一个对象里）
   let dataTables = detail.content.data_tables
@@ -384,6 +433,7 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
         attachments: detail.content.attachments,
         data_tables: dataTables,
         safety,
+        proof: proofStatement,
       },
       answer: { value, equivalence_rules: rules, units },
       teaching: {

@@ -333,6 +333,166 @@ void main() {
     });
   });
 
+  group('证明题', () {
+    test('题面有已知和求证，没有参考证明，也没有任何答案相关的字段', () async {
+      serve('question_proof');
+      final question = await client.getQuestion(questionId: 'q');
+
+      expect(question.answerMode, AnswerMode.proof);
+      expect(question.type, QuestionType.proof);
+      final proof = question.content.proof;
+      expect(proof, isNotNull);
+      expect(proof!.givens, isNotEmpty);
+      expect(proof.claim, isNotEmpty);
+      expect(question.content.safety, isNull);
+      expect(question.content.dataTables, isEmpty);
+      expect(question.content.subquestions, isEmpty);
+      expect(question.judgingNote, contains('不自动评分'));
+      expect(question.judgingNote, contains('参考证明'));
+      expect(question.assists.hintLevels, 3);
+      final text = jsonEncode(question.toJson());
+      for (final forbidden in [
+        '"rubric"',
+        '"points"',
+        '"final_answer"',
+        '"reference_steps"',
+        '"reference_cells"',
+        '"steps"',
+        '"stage"',
+        '"value"',
+        '"answer"',
+      ]) {
+        expect(text.contains(forbidden), isFalse, reason: forbidden);
+      }
+    });
+
+    test('物理推导也是证明题', () async {
+      serve('question_proof_physics');
+      final question = await client.getQuestion(questionId: 'q');
+
+      expect(question.subject, Subject.physics);
+      expect(question.answerMode, AnswerMode.proof);
+      expect(question.content.proof!.givens, hasLength(2));
+    });
+
+    test('其他题型没有已知和求证', () async {
+      serve('question_experiment');
+      final question = await client.getQuestion(questionId: 'q');
+
+      expect(question.content.proof, isNull);
+    });
+
+    test('按步提交，每步带依据，不自动评分，事件说明"请自查"', () async {
+      serve('submit_proof');
+      final result = await client.submitAttempt(
+        attemptId: 'x',
+        body: const SubmitRequest(
+          answer: AnswerPayload(
+            steps: [
+              AnswerStep(text: '任取 x1<x2', reason: '单调性的定义'),
+              AnswerStep(text: '作差', reason: ''),
+            ],
+          ),
+        ),
+        idempotencyKey: 'submit-0005-abcd',
+      );
+
+      expect(jsonDecode(transport.seen.single.body!), {
+        'answer': {
+          'steps': [
+            {'text': '任取 x1<x2', 'reason': '单调性的定义'},
+            {'text': '作差', 'reason': ''},
+          ],
+        },
+      });
+      expect(result.evaluation.state, EvaluationState.pending);
+      expect(result.evaluation.outcome, EvaluationOutcome.undetermined);
+      expect(result.evaluation.isCorrect, isNull);
+      expect(result.reviewItem, isNull);
+      expect(
+          result.events.single.uncertainty.reasonCode, 'subjective_self_check');
+      expect(result.attempt.answer!.steps, isNotEmpty);
+    });
+
+    test('草稿可以带步骤：往返不丢，顺序不变', () async {
+      serve('draft_synced_proof');
+      final draft = await client.syncDraft(
+        attemptId: 'x',
+        body: const DraftSync(
+          baseRevision: 0,
+          answer: AnswerPayload(
+            steps: [
+              AnswerStep(text: '第一步', reason: '依据一'),
+              AnswerStep(text: '第二步', reason: ''),
+            ],
+          ),
+        ),
+        idempotencyKey: 'draft-0003-abcdef',
+      );
+
+      expect(draft.revision, 1);
+      final steps = draft.answer!.steps!;
+      expect(steps, hasLength(3));
+      expect(steps.first.text, startsWith('任取'));
+      expect(steps.last.reason, isEmpty, reason: '依据可以不写');
+    });
+
+    test('对照自查：提交后有要点和参考证明，要点按阶段分组，没有分数', () async {
+      serve('self_check_proof_before_submit');
+      await expectLater(
+        client.getSelfCheck(attemptId: 'x'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.statusCode, 'statusCode', 409)
+            .having((e) => e.code, 'code', 'attempt_not_submitted')),
+      );
+
+      serve('self_check_proof_pending');
+      final pending = await client.getSelfCheck(attemptId: 'x');
+      expect(pending.points, isNotEmpty);
+      expect(pending.referenceCells, isEmpty);
+      expect(pending.referenceSteps, isNotEmpty);
+      expect(pending.referenceSteps.first.stage, ProofStage.premise);
+      expect(pending.referenceSteps.last.stage, ProofStage.conclusion);
+      expect(pending.referenceSteps.every((s) => s.reason.isNotEmpty), isTrue,
+          reason: '参考证明每一步都有依据');
+      expect(pending.points.map((p) => p.part$).toSet(),
+          containsAll(['premise', 'construction', 'reasoning', 'conclusion']));
+      expect(pending.marks, isEmpty);
+      expect(pending.savedAt, isNull);
+      expect(jsonEncode(pending.toJson()).contains('score'), isFalse);
+
+      serve('self_check_proof_saved');
+      final saved = await client.saveSelfCheck(
+        attemptId: 'x',
+        body: SelfCheckSave(marks: [
+          for (final point in pending.points)
+            SelfCheckMark(pointKey: point.key, level: SelfCheckLevel.done),
+        ]),
+        idempotencyKey: 'self-check-0003',
+      );
+      expect(saved.referenceSteps, hasLength(pending.referenceSteps.length));
+      expect(saved.summary.total, pending.points.length);
+      expect(saved.savedAt, isNotNull);
+    });
+
+    test('解答题和实验题的自查没有参考证明', () async {
+      serve('self_check_pending');
+      final written = await client.getSelfCheck(attemptId: 'x');
+      serve('self_check_experiment_pending');
+      final experiment = await client.getSelfCheck(attemptId: 'x');
+
+      expect(written.referenceSteps, isEmpty);
+      expect(experiment.referenceSteps, isEmpty);
+    });
+
+    test('不认识的阶段落到 \$unknown，不抛异常', () {
+      final step = ProofReferenceStep.fromJson(
+          {'stage': 'brand_new_stage', 'text': 'x', 'reason': 'y'});
+
+      expect(step.stage, ProofStage.$unknown);
+    });
+  });
+
   test('学情里解答题只有计数，没有正确率', () async {
     serve('progress_summary');
     final progress = await client.getProgressSummary();

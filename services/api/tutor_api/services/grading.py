@@ -1,11 +1,11 @@
-"""客观题的确定性判定（单选、多选、填空），以及解答题、实验题的作答校验。
+"""客观题的确定性判定（单选、多选、填空），以及解答题、实验题、证明题的作答校验。
 
 三种结论：
 - verified：规则能确定对错；
 - uncertain：格式认不出、单位认不出、或确认不了等价——不算对也不算错，标记待复核；
-- pending：解答题和实验题不自动评分。它们只校验作答的形状，永远不给对错：
-  哪怕和参考答案一字不差（实验题哪怕每个格子都和参考数据一样）也不判对——
-  系统不冒充阅卷，学生提交后对照要点和参考数据自查（Q-06）。
+- pending：解答题、实验题和证明题不自动评分。它们只校验作答的形状，永远不给对错：
+  哪怕和参考答案一字不差（实验题哪怕每个格子都和参考数据一样，证明题哪怕每一步都和参考证明一样）也不判对——
+  系统不冒充阅卷，学生提交后对照要点、参考数据和参考证明自查（Q-06）。
 
 这里给出的是练习反馈，不是官方阅卷分数。多选题的判定方式来自每道题自己的 rubric，
 不写死任何地区的评分办法。
@@ -23,7 +23,7 @@ from tutor_api.services import mathparse
 
 MULTI_CHOICE_RULES = ("all_or_nothing", "partial_no_wrong")
 # 不自动评分、提交后由学生对照要点自查的作答方式（Q-06）：不进任何正确率，也不据此安排复测
-SUBJECTIVE_MODES = ("written", "experiment")
+SUBJECTIVE_MODES = ("written", "experiment", "proof")
 RULE_TYPES = ("numeric", "expression", "interval")
 
 _SAMPLES = 6
@@ -94,6 +94,7 @@ def _grade_choice(
         or answer.get("text") is not None
         or answer.get("parts") is not None
         or answer.get("cells") is not None
+        or answer.get("steps") is not None
     ):
         raise AnswerShapeError("answer", "选择题只需要提交 selected_options")
     if not selected:
@@ -324,6 +325,7 @@ def _grade_fill(
         or answer.get("text") is not None
         or answer.get("parts") is not None
         or answer.get("cells") is not None
+        or answer.get("steps") is not None
     ):
         raise AnswerShapeError("answer", "填空题只需要提交 blanks")
     if not submitted:
@@ -400,6 +402,7 @@ def _grade_written(content: dict[str, Any], answer: dict[str, Any], has_ink: boo
         or answer.get("blanks") is not None
         or answer.get("text") is not None
         or answer.get("cells") is not None
+        or answer.get("steps") is not None
     ):
         raise AnswerShapeError("answer", "解答题只需要按小问提交 parts")
     submitted = _checked_parts(content, answer)
@@ -438,6 +441,7 @@ def _grade_experiment(
         answer.get("selected_options") is not None
         or answer.get("blanks") is not None
         or answer.get("text") is not None
+        or answer.get("steps") is not None
     ):
         raise AnswerShapeError("answer", "实验题只需要提交 cells（数据表）和 parts（文字小问）")
     cells = answer.get("cells") or []
@@ -462,6 +466,39 @@ def _grade_experiment(
     )
 
 
+# ---------------------------------------------------------------- 证明题
+
+
+def _grade_proof(content: dict[str, Any], answer: dict[str, Any], has_ink: bool) -> GradeResult:
+    """证明题不评分：一步一步的证明只校验形状，哪怕和参考证明一字不差也不判对。
+
+    证明的写法不止一种，"像不像参考证明"和"证得对不对"没有关系；依据写没写、写得对不对也都不拦、不判，
+    只在提交后的自查要点里问。没有文字的步骤（只写了依据）不算"有内容"。
+    """
+    if (
+        answer.get("selected_options") is not None
+        or answer.get("blanks") is not None
+        or answer.get("text") is not None
+        or answer.get("parts") is not None
+        or answer.get("cells") is not None
+    ):
+        raise AnswerShapeError("answer", "证明题只需要提交 steps（一步一步的证明）")
+    submitted = answer.get("steps") or []
+    if not any(step["text"].strip() for step in submitted) and not has_ink:
+        raise AnswerShapeError(
+            "answer", "还没有写下证明：可以在作答区一步一步写，也可以手写，写完再提交"
+        )
+    return GradeResult(
+        "pending",
+        "undetermined",
+        None,
+        (),
+        "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+        review_required=True,
+        uncertainty_reason="subjective_self_check",
+    )
+
+
 def grade(
     *,
     answer_mode: str,
@@ -472,7 +509,7 @@ def grade(
     answer: dict[str, Any],
     has_ink: bool = False,
 ) -> GradeResult:
-    """has_ink：这份作答的草稿里有没有笔迹。只对解答题和实验题有意义——可以只手写、不打字。"""
+    """has_ink：这份作答的草稿里有没有笔迹。只对解答题、实验题和证明题有意义——可以只手写、不打字。"""
     if answer_mode in {"single_choice", "multiple_choice"}:
         return _grade_choice(answer_mode, content, answer_key, rubric, teaching, answer)
     if answer_mode == "fill":
@@ -481,4 +518,6 @@ def grade(
         return _grade_written(content, answer, has_ink)
     if answer_mode == "experiment":
         return _grade_experiment(content, answer, has_ink)
+    if answer_mode == "proof":
+        return _grade_proof(content, answer, has_ink)
     raise ValueError(f"未知的作答方式：{answer_mode!r}")

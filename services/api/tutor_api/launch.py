@@ -41,4 +41,5 @@ ANSWER_MODE_NAMES: dict[str, str] = {
     "fill": "填空题",
     "written": "解答题",
     "experiment": "实验题",
+    "proof": "证明题",
 }

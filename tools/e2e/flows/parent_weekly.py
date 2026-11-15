@@ -166,8 +166,8 @@ def run(ctx: Context) -> None:
         all(w in text for w in ("提示依赖率", "复测成功率", "辅助正确率")),
     )
     check(
-        f"解答题和实验题只说 {expected['written']} 份、不自动评分、不进比例",
-        f"解答题和实验题 {expected['written']} 份" in text and "不自动评分" in text,
+        f"解答题、实验题和证明题只说 {expected['written']} 份、不自动评分、不进比例",
+        f"解答题、实验题和证明题 {expected['written']} 份" in text and "不自动评分" in text,
     )
     check("趋势：上一周没有数据，暂时比不了", "暂时比不了" in text)
     check("按科目", "按科目" in text)

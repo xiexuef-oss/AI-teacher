@@ -1,0 +1,23 @@
+{
+  "name": "self_check_proof_before_submit",
+  "method": "GET",
+  "path": "/api/v1/attempts/00c23fe1-8d4d-4ee8-a70f-5d436233aab2/self-check",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "attempt_not_submitted",
+      "message": "提交之后才能对照要点自查",
+      "details": {},
+      "request_id": "acdbbd9beabc4072900d188526590096"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "attempt_not_submitted",
+      "message": "提交之后才能对照要点自查",
+      "details": {},
+      "request_id": "acdbbd9beabc4072900d188526590096"
+    }
+  }
+}

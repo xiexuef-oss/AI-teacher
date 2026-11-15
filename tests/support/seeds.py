@@ -45,8 +45,15 @@ EXPERIMENT_KEYS = {
     "phys-ohm-experiment",
     "chem-titration-experiment",
 }
-SUBJECTIVE_KEYS = WRITTEN_KEYS | EXPERIMENT_KEYS  # 不自动评分的题
-ALL_KEYS = OBJECTIVE_KEYS | WRITTEN_KEYS | EXPERIMENT_KEYS  # 所有已发布的样题
+# 证明题：有"已知 / 求证"，学生把证明写成一步一步（每步带依据），同样不自动评分，作答后对照参考证明和要点自查。都是通用题
+PROOF_KEYS = {
+    "math-ineq-diff-proof",
+    "math-mono-def-proof",
+    "math-ineq-mul-proof",
+    "phys-work-energy-proof",
+}
+SUBJECTIVE_KEYS = WRITTEN_KEYS | EXPERIMENT_KEYS | PROOF_KEYS  # 不自动评分的题
+ALL_KEYS = OBJECTIVE_KEYS | SUBJECTIVE_KEYS  # 所有已发布的样题
 GENERAL_KEYS = ALL_KEYS - SICHUAN_TAGGED - SICHUAN_LATER_YEARS - CHONGQING_TAGGED
 KEY_BY_ID = {qid(key): key for key in ALL_KEYS}
 

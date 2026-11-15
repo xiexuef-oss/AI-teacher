@@ -6,7 +6,7 @@
 - "正确"只指完全正确，多选的部分正确不算；
 - 提示依赖率、复测成功率、变式迁移率只看每次会话的第一份作答；
 - 分母小于 min_samples 时只给计数，rate 为 null，并标记 insufficient_data；
-- 解答题和实验题不自动评分，不进任何正确率，也不算"没能判定"。它们单独数：提交了几份、自查了几份、
+- 解答题、实验题和证明题不自动评分，不进任何正确率，也不算"没能判定"。它们单独数：提交了几份、自查了几份、
   自查里各档要点各有几个——这些是学生自己的记录，不折算成分数。
 """
 
@@ -91,7 +91,7 @@ def load_records(
 
 
 def verified_rows(records: Iterable[Any]) -> list[_Row]:
-    """只有确定判定的作答进比例；判不出来的、解答题和实验题都不算。"""
+    """只有确定判定的作答进比例；判不出来的、解答题、实验题和证明题都不算。"""
     return [
         _Row(
             attempt_no=attempt.attempt_no,
@@ -124,7 +124,7 @@ def subject_buckets(rows: list[_Row], min_samples: int) -> list[ProgressBucket]:
 
 
 def _subjective(db: Session, attempt_ids: list[str]) -> SubjectiveProgress:
-    """解答题和实验题只数不评：提交几份、自查几份、自查里各档要点各有几个。"""
+    """解答题、实验题和证明题只数不评：提交几份、自查几份、自查里各档要点各有几个。"""
     marks = (
         [
             row.marks_json

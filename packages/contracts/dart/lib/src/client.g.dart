@@ -231,7 +231,7 @@ class TutorApiClient {
     return SubmitResult.fromJson(data as Map<String, dynamic>);
   }
 
-  /// 解答题、实验题提交后的对照自查：要点，以及已保存的自评
+  /// 解答题、实验题、证明题提交后的对照自查：要点，以及已保存的自评
   Future<SelfCheck> getSelfCheck({
     required String attemptId,
     String? requestId,

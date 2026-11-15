@@ -10,7 +10,7 @@ import QuestionEditor from '../components/QuestionEditor.vue'
 import MathText from '../components/MathText.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { canEdit, DECISION_LABEL, HISTORY_LABEL, PART_LABEL } from '../decisions'
-import { formatTime, MODE_LABEL, shortId, SOLUTION_LABEL, SUBJECT_LABEL } from '../labels'
+import { formatTime, MODE_LABEL, PROOF_STAGES, shortId, SOLUTION_LABEL, STAGE_LABEL, SUBJECT_LABEL } from '../labels'
 import { useSession } from '../session'
 
 const route = useRoute()
@@ -25,11 +25,30 @@ const editing = ref(false)
 const id = computed(() => String(route.params.id ?? ''))
 const isWritten = computed(() => detail.value?.answer_mode === 'written')
 const isExperiment = computed(() => detail.value?.answer_mode === 'experiment')
-// 解答题和实验题：分小问作答，不自动评分，提交后对照要点自查
-const isSubjective = computed(() => isWritten.value || isExperiment.value)
+const isProof = computed(() => detail.value?.answer_mode === 'proof')
+// 解答题、实验题、证明题：不自动评分，提交后对照要点自查
+const isSubjective = computed(() => isWritten.value || isExperiment.value || isProof.value)
+
+interface ReferenceStep {
+  stage: string
+  text: string
+  reason: string
+}
+/** 证明题的参考证明：一步一行。形状不对的项忽略（程序校验会指出来）。 */
+const referenceSteps = computed<ReferenceStep[]>(() => {
+  const value = detail.value?.answer.value as { steps?: unknown } | null | undefined
+  if (!isProof.value || !value || !Array.isArray(value.steps)) return []
+  return (value.steps as Record<string, unknown>[])
+    .filter((step) => !!step && typeof step === 'object')
+    .map((step) => ({ stage: String(step.stage ?? ''), text: String(step.text ?? ''), reason: String(step.reason ?? '') }))
+})
+const stageName = (stage: string): string => STAGE_LABEL[stage as keyof typeof STAGE_LABEL] ?? stage
+const givenMark = (index: number): string => '①②③④⑤⑥⑦⑧'[index] ?? `(${index + 1})`
+
 const answerRows = computed<[string, string][]>(() => {
   const value = detail.value?.answer.value
   if (Array.isArray(value)) return [['正确选项', value.map(String).join('、')]]
+  if (isProof.value) return [] // 参考证明单独成表，见下面的 reference-steps
   if (value && typeof value === 'object') {
     // 实验题的参考答案里，键带点的是留空格子的参考值（表键.行键.列键），其余是各小问的参考答案
     const label = isExperiment.value
@@ -65,15 +84,23 @@ const pointGroups = computed<PointGroup[]>(() => {
   if (!Array.isArray(raw)) return []
   const groups = new Map<string, PointGroup>()
   const tableKeys = new Set((detail.value?.content.data_tables ?? []).map((table) => table.key))
-  const headingOf = (part: string): string =>
-    part === '' ? '整份解答' : tableKeys.has(part) ? `数据表 ${part}` : `第 ${part} 问`
+  const headingOf = (part: string): string => {
+    if (isProof.value) return part === '' ? '整份证明' : stageName(part)
+    return part === '' ? '整份解答' : tableKeys.has(part) ? `数据表 ${part}` : `第 ${part} 问`
+  }
   for (const item of raw as { key?: unknown; part?: unknown; text?: unknown }[]) {
     const part = typeof item.part === 'string' ? item.part : ''
     const group = groups.get(part) ?? { heading: headingOf(part), points: [] }
     group.points.push({ key: String(item.key ?? ''), text: String(item.text ?? '') })
     groups.set(part, group)
   }
-  const ordered = [...groups.entries()].sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : 0))
+  // 整份的放在最后；证明题的阶段按证明的先后排
+  const stages: string[] = [...PROOF_STAGES]
+  const rank = (part: string): number => {
+    if (part === '') return 99
+    return isProof.value && stages.includes(part) ? stages.indexOf(part) : 50
+  }
+  const ordered = [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b))
   return ordered.map(([, group]) => group)
 })
 const visualParams = computed(() =>
@@ -193,6 +220,18 @@ function saved(next: AdminQuestionDetail): void {
         <section class="card">
           <h2>题面</h2>
           <p class="stem"><MathText :text="detail.content.stem" /></p>
+          <div v-if="detail.content.proof" class="proof-view" data-testid="proof-view">
+            <template v-if="detail.content.proof.givens.length">
+              <h3 class="small">已知</h3>
+              <ul class="givens">
+                <li v-for="(given, index) in detail.content.proof.givens" :key="index" :data-testid="`given-${index}`">
+                  <strong>{{ givenMark(index) }}</strong> <MathText :text="given" />
+                </li>
+              </ul>
+            </template>
+            <h3 class="small">求证</h3>
+            <p data-testid="claim-view"><MathText :text="detail.content.proof.claim" /></p>
+          </div>
           <div v-if="detail.content.safety" class="notice warn small" data-testid="safety-view">
             <strong>实验安全提示（风险等级 {{ detail.content.safety.level }}）</strong>
             <ul>
@@ -251,6 +290,28 @@ function saved(next: AdminQuestionDetail): void {
 
         <section class="card">
           <h2>答案</h2>
+          <div v-if="isProof" data-testid="reference-steps">
+            <p class="muted small">参考证明：学生提交之后，把自己写的证明和它并排对照。只是一种写法，不参与任何判定。</p>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">步</th>
+                  <th scope="col">阶段</th>
+                  <th scope="col">这一步</th>
+                  <th scope="col">依据</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(step, index) in referenceSteps" :key="index" :data-testid="`ref-step-${index}`">
+                  <td>{{ index + 1 }}</td>
+                  <td>{{ stageName(step.stage) }}</td>
+                  <td><MathText :text="step.text" /></td>
+                  <td><MathText :text="step.reason" /></td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="referenceSteps.length === 0" class="bad">还没有参考证明。</p>
+          </div>
           <dl class="kv">
             <template v-for="[label, value] in answerRows" :key="label">
               <dt>{{ label }}</dt>
@@ -274,7 +335,7 @@ function saved(next: AdminQuestionDetail): void {
         <section v-if="isSubjective" class="card" data-testid="rubric-points">
           <h2>自查要点</h2>
           <p class="muted small">
-            提交后给学生对照自查的清单。{{ isExperiment ? '实验题' : '解答题' }}不自动评分，要点不带分值，不是评分标准；学生自己标"做到了 / 做到一部分 /
+            提交后给学生对照自查的清单。{{ MODE_LABEL[detail.answer_mode] }}不自动评分，要点不带分值，不是评分标准；学生自己标"做到了 / 做到一部分 /
             没做到"。
           </p>
           <template v-for="group in pointGroups" :key="group.heading">

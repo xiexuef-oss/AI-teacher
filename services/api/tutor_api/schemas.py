@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 RegionCode = Literal["CN-51", "CN-50"]
 Grade = Literal["G10", "G11", "G12"]
 Subject = Literal["math", "physics", "chemistry"]
-AnswerMode = Literal["single_choice", "multiple_choice", "fill", "written", "experiment"]
+AnswerMode = Literal["single_choice", "multiple_choice", "fill", "written", "experiment", "proof"]
 SourceCategory = Literal["gaokao_real", "mock_exam", "foundation", "ai_variant"]
 QuestionScope = Literal["all", "region", "general"]
 SessionOrigin = Literal["task", "practice", "review", "variant"]
@@ -217,6 +217,13 @@ class Subquestion(BaseModel):
     blanks: list[QuestionBlank] = Field(default_factory=list)
 
 
+class ProofStatement(BaseModel):
+    """证明题的已知和求证。参考证明不在这里，只在提交之后随自查给出。"""
+
+    givens: list[str] = Field(default_factory=list)
+    claim: str
+
+
 class QuestionContent(BaseModel):
     stem: str
     options: list[QuestionOption] = Field(default_factory=list)
@@ -225,6 +232,7 @@ class QuestionContent(BaseModel):
     attachments: list[QuestionAttachment] = Field(default_factory=list)
     data_tables: list[DataTable] = Field(default_factory=list)
     safety: ExperimentSafety | None = None
+    proof: ProofStatement | None = None
 
 
 class QuestionAssists(BaseModel):
@@ -491,11 +499,19 @@ class AnswerCell(_In):
     value: str = Field(max_length=40)
 
 
+class AnswerStep(_In):
+    """证明题作答里的一步。依据可以不写：写不写、写得对不对都不拦提交，也不判对错。"""
+
+    text: str = Field(max_length=1000)
+    reason: str = Field(max_length=400)
+
+
 class AnswerPayload(_In):
     selected_options: list[str] | None = Field(default=None, max_length=10)
     blanks: list[AnswerBlank] | None = Field(default=None, max_length=10)
     parts: list[AnswerPart] | None = Field(default=None, max_length=20)
     cells: list[AnswerCell] | None = Field(default=None, max_length=200)
+    steps: list[AnswerStep] | None = Field(default=None, max_length=30)
     text: str | None = Field(default=None, max_length=4000)
 
     @field_validator("selected_options")
@@ -636,11 +652,24 @@ class SelfCheckSummary(BaseModel):
     total: int
 
 
+ProofStage = Literal["premise", "construction", "reasoning", "conclusion"]
+
+
+class ProofReferenceStep(BaseModel):
+    """参考证明里的一步。只在提交之后给，只是对照用的参考，不参与任何判定。"""
+
+    stage: ProofStage
+    text: str
+    reason: str
+
+
 class SelfCheckOut(BaseModel):
     attempt_id: str
     points: list[SelfCheckPoint]
-    # 实验题数据表里留空格子的参考值，只在提交之后给；解答题为空
+    # 实验题数据表里留空格子的参考值，只在提交之后给；解答题、证明题为空
     reference_cells: list[AnswerCell]
+    # 证明题的参考证明，只在提交之后给；其他题型为空
+    reference_steps: list[ProofReferenceStep]
     marks: list[SelfCheckMark]
     summary: SelfCheckSummary
     saved_at: datetime | None
@@ -853,6 +882,13 @@ class DataTableIn(_In, DataTable):
     rows: list[DataTableRowIn] = Field(min_length=1, max_length=30)
 
 
+class ProofStatementIn(_In, ProofStatement):
+    givens: list[Annotated[str, Field(min_length=1, max_length=400)]] = Field(
+        default_factory=list, max_length=8
+    )
+    claim: str = Field(min_length=1, max_length=500)
+
+
 class QuestionContentIn(_In, QuestionContent):
     stem: Text4000
     options: list[QuestionOptionIn] = Field(default_factory=list, max_length=12)
@@ -861,6 +897,7 @@ class QuestionContentIn(_In, QuestionContent):
     attachments: list[QuestionAttachmentIn] = Field(default_factory=list, max_length=20)
     data_tables: list[DataTableIn] = Field(default_factory=list, max_length=5)
     safety: ExperimentSafetyIn | None = None
+    proof: ProofStatementIn | None = None
 
 
 class AdminAnswerIn(_In, AdminAnswer):

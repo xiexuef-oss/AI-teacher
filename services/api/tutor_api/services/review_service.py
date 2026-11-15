@@ -130,6 +130,7 @@ def _seed_shape(
             "subquestions": content.get("subquestions") or [],
             "data_tables": content.get("data_tables") or [],
             "safety": content.get("safety"),
+            "proof": content.get("proof"),
         },
         "answer": {
             "value": answer.get("value"),
@@ -775,6 +776,7 @@ def create_version(
                 "attachments": [item.model_dump() for item in content.attachments],
                 "data_tables": [item.model_dump() for item in content.data_tables],
                 "safety": content.safety.model_dump() if content.safety else None,
+                "proof": content.proof.model_dump() if content.proof else None,
                 "difficulty": body.difficulty,
                 "grade": body.grade,
                 "knowledge": sorted(codes),

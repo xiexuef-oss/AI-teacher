@@ -4,6 +4,27 @@ import 'package:tutor_contracts/tutor_contracts.dart';
 
 import '../../core/storage.dart';
 
+/// 证明题里的一步：这一步写了什么，以及依据。
+class ProofStepDraft {
+  const ProofStepDraft({this.text = '', this.reason = ''});
+
+  final String text;
+  final String reason;
+
+  /// 什么都没写（空白卡片）。
+  bool get isBlank => text.trim().isEmpty && reason.trim().isEmpty;
+
+  ProofStepDraft copyWith({String? text, String? reason}) =>
+      ProofStepDraft(text: text ?? this.text, reason: reason ?? this.reason);
+
+  Map<String, dynamic> toJson() => {'text': text, 'reason': reason};
+
+  factory ProofStepDraft.fromJson(Map<String, dynamic> json) => ProofStepDraft(
+    text: json['text'] as String,
+    reason: json['reason'] as String,
+  );
+}
+
 /// 本机保存的一份草稿：答案、笔迹，以及它对应的会话/作答和云端版本号。
 class LocalDraft {
   const LocalDraft({
@@ -16,6 +37,7 @@ class LocalDraft {
     this.blanks = const {},
     this.parts = const {},
     this.cells = const {},
+    this.steps = const [],
     this.strokes,
     required this.savedAt,
   });
@@ -40,6 +62,9 @@ class LocalDraft {
 
   /// 实验题数据表里学生填的格子，键是 "表键.行键.列键"。
   final Map<String, String> cells;
+
+  /// 证明题一步一步写的证明，顺序就是证明的顺序（空白卡片也留着，重新打开时界面和离开时一样）。
+  final List<ProofStepDraft> steps;
   final StrokeDoc? strokes;
   final DateTime savedAt;
 
@@ -48,6 +73,7 @@ class LocalDraft {
       blanks.values.any((v) => v.trim().isNotEmpty) ||
       parts.values.any((v) => v.trim().isNotEmpty) ||
       cells.values.any((v) => v.trim().isNotEmpty) ||
+      steps.any((s) => !s.isBlank) ||
       (strokes?.pages.any((p) => p.strokes.isNotEmpty) ?? false);
 
   Map<String, dynamic> toJson() => {
@@ -62,6 +88,7 @@ class LocalDraft {
       'blanks': blanks,
       'parts': parts,
       'cells': cells,
+      'steps': [for (final step in steps) step.toJson()],
     },
     'strokes': strokes?.toJson(),
     'savedAt': savedAt.toUtc().toIso8601String(),
@@ -85,6 +112,13 @@ class LocalDraft {
       cells: answer['cells'] == null
           ? const {}
           : Map<String, String>.from(answer['cells'] as Map),
+      // 证明题加入之前存下的草稿没有这一项
+      steps: answer['steps'] == null
+          ? const []
+          : [
+              for (final step in answer['steps'] as List<dynamic>)
+                ProofStepDraft.fromJson(Map<String, dynamic>.from(step as Map)),
+            ],
       strokes: json['strokes'] == null
           ? null
           : StrokeDoc.fromJson(json['strokes'] as Map<String, dynamic>),

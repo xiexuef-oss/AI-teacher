@@ -1,0 +1,139 @@
+{
+  "name": "question_proof_physics",
+  "method": "GET",
+  "path": "/api/v1/questions/13d106e6-2c0c-5012-b6a3-114f5a8a3342",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "13d106e6-2c0c-5012-b6a3-114f5a8a3342",
+    "subject": "physics",
+    "type": "proof",
+    "answer_mode": "proof",
+    "difficulty": 3,
+    "title": "推导动能定理",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "2053fee1-4138-5652-a77f-cb54d445d82f",
+        "code": "phys.kinematics.uniform_accel",
+        "title": "匀变速直线运动"
+      },
+      {
+        "id": "6348a8d6-0e5b-5263-bd97-93d9c2bf4b39",
+        "code": "phys.newton.second",
+        "title": "牛顿第二定律"
+      }
+    ],
+    "variant_of": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "质量为 $m$ 的物体放在光滑的水平面上，在一个水平恒力 $F$ 的作用下沿力的方向做直线运动。",
+      "options": [],
+      "blanks": [],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null,
+      "proof": {
+        "givens": [
+          "物体的速度由 $v_1$ 增大到 $v_2$",
+          "在这个过程中，物体的位移是 $s$"
+        ],
+        "claim": "从牛顿第二定律和匀变速直线运动的公式出发，推导：$Fs=\\dfrac{1}{2}mv_2^2-\\dfrac{1}{2}mv_1^2$。"
+      }
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": false
+    },
+    "judging_note": "证明题不自动评分：把证明一步一步写下来、每一步写上依据，提交后对照参考证明和要点自己检查一遍。证明的写法不止一种；这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+  },
+  "body": {
+    "data": {
+      "id": "13d106e6-2c0c-5012-b6a3-114f5a8a3342",
+      "subject": "physics",
+      "type": "proof",
+      "answer_mode": "proof",
+      "difficulty": 3,
+      "title": "推导动能定理",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "2053fee1-4138-5652-a77f-cb54d445d82f",
+          "code": "phys.kinematics.uniform_accel",
+          "title": "匀变速直线运动"
+        },
+        {
+          "id": "6348a8d6-0e5b-5263-bd97-93d9c2bf4b39",
+          "code": "phys.newton.second",
+          "title": "牛顿第二定律"
+        }
+      ],
+      "variant_of": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "质量为 $m$ 的物体放在光滑的水平面上，在一个水平恒力 $F$ 的作用下沿力的方向做直线运动。",
+        "options": [],
+        "blanks": [],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null,
+        "proof": {
+          "givens": [
+            "物体的速度由 $v_1$ 增大到 $v_2$",
+            "在这个过程中，物体的位移是 $s$"
+          ],
+          "claim": "从牛顿第二定律和匀变速直线运动的公式出发，推导：$Fs=\\dfrac{1}{2}mv_2^2-\\dfrac{1}{2}mv_1^2$。"
+        }
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": false
+      },
+      "judging_note": "证明题不自动评分：把证明一步一步写下来、每一步写上依据，提交后对照参考证明和要点自己检查一遍。证明的写法不止一种；这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+    }
+  }
+}

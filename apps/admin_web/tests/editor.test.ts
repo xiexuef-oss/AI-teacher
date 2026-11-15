@@ -5,7 +5,7 @@ import * as api from '../src/api/admin'
 import { ApiError } from '../src/api/client'
 import { clearSession, setSession } from '../src/session'
 import QuestionView from '../src/views/QuestionView.vue'
-import { AUTHOR, detail, experimentDetail, ME, QUESTION_ID, writtenDetail } from './fixtures'
+import { AUTHOR, detail, experimentDetail, ME, proofDetail, QUESTION_ID, writtenDetail } from './fixtures'
 
 vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
@@ -111,7 +111,7 @@ describe('编辑题目', () => {
 
   it('填了不合法的 JSON：列出原因，不能保存', async () => {
     mocked.getQuestion.mockResolvedValue(
-      detail({ answer_mode: 'fill', type: 'fill_blank', content: { stem: '填空 ____', options: [], blanks: [{ key: 'b1', label: null, unit_hint: null, placeholder: null }], subquestions: [], attachments: [], data_tables: [], safety: null }, answer: { value: { b1: '5' }, equivalence_rules: {}, units: {} } }),
+      detail({ answer_mode: 'fill', type: 'fill_blank', content: { stem: '填空 ____', options: [], blanks: [{ key: 'b1', label: null, unit_hint: null, placeholder: null }], subquestions: [], attachments: [], data_tables: [], safety: null, proof: null }, answer: { value: { b1: '5' }, equivalence_rules: {}, units: {} } }),
     )
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
@@ -379,5 +379,134 @@ describe('编辑实验题', () => {
 
     expect(wrapper.get('[data-testid="editor-errors"]').text()).toContain('数据表不是合法的 JSON')
     expect(wrapper.get('[data-testid="save"]').attributes('disabled')).toBeDefined()
+  })
+})
+
+describe('编辑证明题', () => {
+  async function openEditor(source = proofDetail()) {
+    mocked.getQuestion.mockResolvedValue(source)
+    const wrapper = await openPage()
+    await wrapper.get('[data-testid="edit"]').trigger('click')
+    return wrapper
+  }
+
+  it('编辑器里有已知与求证、参考证明和自查要点；没有选项、空位、小问、安全提示、数据表，也没有评分细则的 JSON', async () => {
+    const wrapper = await openEditor()
+
+    for (const block of ['proof-statement', 'proof-steps', 'points']) {
+      expect(wrapper.find(`[data-testid="${block}"]`).exists(), block).toBe(true)
+    }
+    for (const block of ['options', 'blanks', 'subquestions', 'safety', 'data-tables', 'rubric-json']) {
+      expect(wrapper.find(`[data-testid="${block}"]`).exists(), block).toBe(false)
+    }
+    expect(wrapper.get('[data-testid="claim"]').element).toHaveProperty('value', '$ac>bd$。')
+    expect(wrapper.get('[data-testid="proof-statement"]').text()).toContain('只在学生提交之后给出')
+    expect(wrapper.get('[data-testid="proof-steps"]').text()).toContain('最后一步必须是“结论”')
+    expect(wrapper.get('[data-testid="points"]').text()).toContain('不是评分')
+  })
+
+  it('参考证明一行一步：阶段、文字、依据都在；阶段下拉里是前提、构造、推理、结论', async () => {
+    const wrapper = await openEditor()
+
+    expect(wrapper.get('[data-testid="step-stage-1"]').element).toHaveProperty('value', 'construction')
+    expect(wrapper.get('[data-testid="step-text-3"]').element).toHaveProperty('value', '由 $ac>bc$ 和 $bc>bd$，得 $ac>bd$。')
+    expect(wrapper.get('[data-testid="step-reason-3"]').element).toHaveProperty('value', '不等式的传递性')
+    const options = wrapper.get('[data-testid="step-stage-0"]').findAll('option')
+    expect(options.map((option) => option.element.value)).toEqual(['premise', 'construction', 'reasoning', 'conclusion'])
+    expect(options.map((option) => option.text())).toEqual(['前提', '构造', '推理', '结论'])
+  })
+
+  it('每条要点的"所属"下拉里是四个证明阶段和"整份证明"', async () => {
+    const wrapper = await openEditor()
+
+    const options = wrapper.get('[data-testid="point-part-0"]').findAll('option')
+    expect(options.map((option) => option.element.value)).toEqual(['', 'premise', 'construction', 'reasoning', 'conclusion'])
+    expect(options[0]!.text()).toBe('整份证明')
+    expect(wrapper.get('[data-testid="point-part-1"]').element).toHaveProperty('value', 'construction')
+    expect(wrapper.get('[data-testid="point-part-4"]').element).toHaveProperty('value', '')
+  })
+
+  it('其他题型的编辑器里没有已知与求证和参考证明', async () => {
+    for (const source of [writtenDetail(), experimentDetail(), detail()]) {
+      const wrapper = await openEditor(source)
+      expect(wrapper.find('[data-testid="proof-statement"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="proof-steps"]').exists()).toBe(false)
+    }
+  })
+
+  it('没改动时不能保存', async () => {
+    const wrapper = await openEditor()
+
+    expect(wrapper.find('[data-testid="unchanged"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="save"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('改一步的依据再保存：请求里带着新的参考证明，已知和求证原样', async () => {
+    mocked.createQuestionVersion.mockResolvedValue(proofDetail({ version: 2, created_by: ME }))
+    const wrapper = await openEditor()
+
+    await wrapper.get('[data-testid="step-reason-2"]').setValue('（改）依据')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const body = mocked.createQuestionVersion.mock.calls[0]![2]
+    const steps = (body.answer.value as { steps: { reason: string }[] }).steps
+    expect(steps[2]!.reason).toBe('（改）依据')
+    expect(steps).toHaveLength(4)
+    expect(body.content.proof).toEqual(proofDetail().content.proof)
+  })
+
+  it('改求证、加一条已知再保存', async () => {
+    mocked.createQuestionVersion.mockResolvedValue(proofDetail({ version: 2, created_by: ME }))
+    const wrapper = await openEditor()
+
+    await wrapper.get('[data-testid="claim"]').setValue('（改）$ac>bd$')
+    const given = wrapper.get('[data-testid="proof-statement"]')
+    await given.findAll('button').find((button) => button.text() === '添加一条')!.trigger('click')
+    await given.findAll('textarea').at(-2)!.setValue('$a,b,c,d$ 都是实数')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const body = mocked.createQuestionVersion.mock.calls[0]![2]
+    expect(body.content.proof!.claim).toBe('（改）$ac>bd$')
+    expect(body.content.proof!.givens).toEqual(['$a>b>0$', '$c>d>0$', '$a,b,c,d$ 都是实数'])
+  })
+
+  it('添加一步、上移、下移、删除：参考证明跟着变', async () => {
+    mocked.createQuestionVersion.mockResolvedValue(proofDetail({ version: 2, created_by: ME }))
+    const wrapper = await openEditor()
+    const original = (proofDetail().answer.value as { steps: { text: string }[] }).steps.map((step) => step.text)
+
+    await wrapper.get('[data-testid="add-step"]').trigger('click')
+    await wrapper.get('[data-testid="step-text-4"]').setValue('补充的一步')
+    await wrapper.get('[data-testid="step-reason-4"]').setValue('补充的依据')
+    await wrapper.get('[data-testid="step-up-4"]').trigger('click') // 补充的一步 ↔ 原来的第 4 步
+    await wrapper.get('[data-testid="step-down-0"]').trigger('click') // 原来的第 1、2 步对调
+    await wrapper.get('[data-testid="step-delete-0"]').trigger('click') // 删掉现在的第一步（原来的第 2 步）
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const steps = (mocked.createQuestionVersion.mock.calls[0]![2].answer.value as { steps: { text: string }[] }).steps
+    expect(steps.map((step) => step.text)).toEqual([original[0], original[2], '补充的一步', original[3]])
+  })
+
+  it('第一步不能上移，最后一步不能下移', async () => {
+    const wrapper = await openEditor()
+
+    expect(wrapper.get('[data-testid="step-up-0"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="step-down-3"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="step-up-1"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('把一条要点改成针对另一个阶段', async () => {
+    mocked.createQuestionVersion.mockResolvedValue(proofDetail({ version: 2, created_by: ME }))
+    const wrapper = await openEditor()
+
+    await wrapper.get('[data-testid="point-part-0"]').setValue('conclusion')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    const points = (mocked.createQuestionVersion.mock.calls[0]![2].rubric as unknown as { points: { part: string | null }[] }).points
+    expect(points.map((point) => point.part)).toEqual(['conclusion', 'construction', 'reasoning', 'conclusion', null])
   })
 })

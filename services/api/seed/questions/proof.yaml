@@ -1,0 +1,276 @@
+# 证明题 · 自编工程样题（Q-05、Q-06）。
+# 没有经过学科审校，只用于在本机跑通"读已知和求证 → 一步一步写证明（每步写依据）→ 提交 → 对照参考证明和要点自查"这条流程；
+# 不是真题，也不代表任何地区的命题风格。化学没有证明题：高中化学没有这种题型，化学的"推断"另算。
+#
+# 证明题不自动评分（Q-06：低置信度弃判，不冒充官方阅卷）：证明的写法不止一种，"像不像参考证明"和"证得对不对"没有关系。
+# content.proof 是已知（givens，界面上编号成 ①②③）和求证（claim）；stem 只写背景。
+# answer.value.steps 是参考证明：每步有 stage（premise 前提 / construction 构造 / reasoning 推理 / conclusion 结论）、
+# text（这一步写了什么）和 reason（依据）。参考证明要示范"每一步有依据"，并以结论收尾；它只用来对照，不参与任何判定。
+# rubric.points 是提交之后给学生对照自查的要点：只写"要做到什么"，不带分值；part 是证明阶段之一，null 针对整份证明；
+# 参考证明里出现过的每个阶段至少要有一条。
+# 证明的关键构造和关键变形推不出自动的泄题标记，所以必须在 teaching.leak_markers 里自己列出：提示只给方向，不给式子。
+
+- key: math-ineq-diff-proof
+  subject: math
+  type: proof
+  answer_mode: proof
+  difficulty: 2
+  grade: G10
+  title: 证明一个含分式的不等式
+  knowledge: [math.inequality.basic, math.inequality.properties]
+  content:
+    stem: '设 $a$、$b$ 是两个实数。'
+    proof:
+      givens:
+        - '$a>0$'
+        - '$b>0$'
+      claim: '$\dfrac{a}{b}+\dfrac{b}{a}\ge 2$，并且等号当且仅当 $a=b$ 时成立。'
+  answer:
+    value:
+      steps:
+        - stage: premise
+          text: '因为 $a>0$，$b>0$，所以 $ab>0$，$\dfrac{a}{b}$ 与 $\dfrac{b}{a}$ 都有意义。'
+          reason: '已知 ①②；正数的积是正数'
+        - stage: construction
+          text: '作差并通分：$\dfrac{a}{b}+\dfrac{b}{a}-2=\dfrac{a^2+b^2-2ab}{ab}=\dfrac{(a-b)^2}{ab}$。'
+          reason: '通分；完全平方公式'
+        - stage: reasoning
+          text: '因为 $(a-b)^2\ge 0$，$ab>0$，所以 $\dfrac{(a-b)^2}{ab}\ge 0$。'
+          reason: '实数的平方非负；非负数除以正数，结果仍然非负'
+        - stage: conclusion
+          text: '所以 $\dfrac{a}{b}+\dfrac{b}{a}\ge 2$。又，差等于 $0$ 当且仅当 $(a-b)^2=0$，即 $a=b$，所以等号当且仅当 $a=b$ 时成立。'
+          reason: '上一步的结论；差为 $0$ 等价于两式相等'
+  rubric:
+    points:
+      - {key: p1, part: premise, text: '用到已知 $a>0$、$b>0$，说明 $ab>0$（分母不为零、符号确定）'}
+      - {key: p2, part: construction, text: '想到作差：用左边减去右边的 $2$，并通分成一个分式'}
+      - {key: p3, part: construction, text: '把分子整理成完全平方式（或写成"某个式子的平方"）'}
+      - {key: p4, part: reasoning, text: '说明分子 $\ge 0$、分母 $>0$，所以差 $\ge 0$'}
+      - {key: p5, part: conclusion, text: '回到要证的不等式，写出 $\dfrac{a}{b}+\dfrac{b}{a}\ge 2$'}
+      - {key: p6, part: conclusion, text: '讨论等号：差为 $0$ 当且仅当 $a=b$，并说明这就是等号成立的条件'}
+      - {key: p7, part: null, text: '每一步都写出依据（已知、公式或性质），前后步骤接得上'}
+  teaching:
+    concept: 用作差法证明不等式
+    leak_markers:
+      - '(a-b)^2'
+      - '(a-b)²'
+      - 'a^2+b^2-2ab'
+      - 'a²+b²-2ab'
+      - '(a-b)^2/(ab)'
+      - '\frac{(a-b)^2}{ab}'
+      - '\dfrac{(a-b)^2}{ab}'
+    hints:
+      - '要证明"左边 ≥ 右边"，有一个常用的办法：先看"左边减右边"是正还是负。这里"左边减右边"可以怎么化简？'
+      - '把差通分成一个分式。分母的符号可以由已知条件确定；再想想分子能变成什么样的式子，它的符号能不能一眼看出来？'
+      - '别忘了求证里的后半句：等号什么时候成立？差等于零时，分子要满足什么条件？'
+    concept_rephrase: '比较两个数的大小，可以看它们的差：差不小于零，就说明被减数不小于减数。要判断一个分式的符号，只要分别判断分子和分母的符号。'
+  solutions:
+    standard:
+      steps:
+        - '因为 $a>0$，$b>0$，所以 $ab>0$。'
+        - '作差：$\dfrac{a}{b}+\dfrac{b}{a}-2=\dfrac{a^2+b^2-2ab}{ab}=\dfrac{(a-b)^2}{ab}$。'
+        - '因为 $(a-b)^2\ge 0$，$ab>0$，所以 $\dfrac{(a-b)^2}{ab}\ge 0$，即 $\dfrac{a}{b}+\dfrac{b}{a}\ge 2$。'
+        - '差等于 $0$ 当且仅当 $(a-b)^2=0$，即 $a=b$，所以等号当且仅当 $a=b$ 时成立。'
+      final_answer: '得证：$\dfrac{a}{b}+\dfrac{b}{a}\ge 2$，等号当且仅当 $a=b$ 时成立。'
+      key_points:
+        - '证明"A ≥ B"常用作差：看 $A-B$ 与 $0$ 的大小'
+        - '判断分式的符号，要分别看分子和分母'
+
+- key: math-mono-def-proof
+  subject: math
+  type: proof
+  answer_mode: proof
+  difficulty: 3
+  grade: G10
+  title: 证明函数在区间上单调递增
+  knowledge: [math.function.monotonicity, math.inequality.properties]
+  content:
+    stem: '研究函数的单调性。'
+    proof:
+      givens:
+        - '函数 $f(x)=x+\dfrac{1}{x}$'
+        - '自变量 $x$ 的取值范围是 $[1,+\infty)$'
+      claim: '用单调性的定义证明：$f(x)$ 在区间 $[1,+\infty)$ 上单调递增。'
+  answer:
+    value:
+      steps:
+        - stage: premise
+          text: '任取 $x_1,x_2\in[1,+\infty)$，且 $x_1<x_2$。'
+          reason: '单调性的定义：在区间内任取两个自变量，设出它们的大小关系'
+        - stage: construction
+          text: '作差并通分、提取公因式：$f(x_1)-f(x_2)=(x_1-x_2)+\dfrac{x_2-x_1}{x_1x_2}=\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。'
+          reason: '作差；通分；提取公因式'
+        - stage: reasoning
+          text: '因为 $1\le x_1<x_2$，所以 $x_1-x_2<0$，$x_1x_2>0$，并且 $x_1x_2>1$，即 $x_1x_2-1>0$。'
+          reason: '已知 $x_1<x_2$；不等式的性质：$x_2>x_1\ge 1$，所以 $x_1x_2\ge x_2>1$'
+        - stage: reasoning
+          text: '所以 $f(x_1)-f(x_2)=\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}<0$，即 $f(x_1)<f(x_2)$。'
+          reason: '一负、一正、一正，积与商的符号法则'
+        - stage: conclusion
+          text: '所以 $f(x)$ 在区间 $[1,+\infty)$ 上单调递增。'
+          reason: '单调递增的定义：$x_1<x_2$ 时总有 $f(x_1)<f(x_2)$'
+  rubric:
+    points:
+      - {key: p1, part: premise, text: '按定义取值：在区间内任取 $x_1<x_2$，并交代它们都在 $[1,+\infty)$ 内'}
+      - {key: p2, part: construction, text: '作差 $f(x_1)-f(x_2)$，通分并因式分解，化成几个因式相乘（除）的形式'}
+      - {key: p3, part: reasoning, text: '逐个判断因式的符号；对 $x_1x_2-1$ 的符号要写出依据（用到 $x_1\ge 1$ 且 $x_1<x_2$）'}
+      - {key: p4, part: reasoning, text: '由各因式的符号得出 $f(x_1)-f(x_2)<0$，即 $f(x_1)<f(x_2)$'}
+      - {key: p5, part: conclusion, text: '回到定义，写出结论：$f(x)$ 在 $[1,+\infty)$ 上单调递增'}
+      - {key: p6, part: null, text: '每一步写出依据；没有只写"显然"就跳过符号判断'}
+  teaching:
+    concept: 用定义证明函数的单调性
+    leak_markers:
+      - '(x_1-x_2)(x_1x_2-1)'
+      - 'x_1x_2-1'
+      - 'x_1x_2>1'
+      - '\frac{x_2-x_1}{x_1x_2}'
+      - '\dfrac{x_2-x_1}{x_1x_2}'
+      - '(x_1-x_2)(1-'
+    hints:
+      - '按定义证明单调性，第一步是什么？在区间里任取两个数，先给它们设定大小关系。'
+      - '写出 $f(x_1)-f(x_2)$，把它化成能直接看出符号的形式：通分、提公因式，让差变成几个因式相乘再除以一个式子。'
+      - '判断各因式的符号时，要用到 $x_1$、$x_2$ 的取值范围。注意区间的左端点是 $1$，它会决定其中一个因式的符号。'
+    concept_rephrase: '单调递增的意思是：在这个区间里任取两个数，较大的那个对应的函数值也较大。用定义证明，就是证明"$x_1<x_2$ 时一定有 $f(x_1)<f(x_2)$"，办法是看 $f(x_1)-f(x_2)$ 的符号。'
+  solutions:
+    standard:
+      steps:
+        - '任取 $x_1,x_2\in[1,+\infty)$，且 $x_1<x_2$。'
+        - '$f(x_1)-f(x_2)=(x_1-x_2)+\dfrac{x_2-x_1}{x_1x_2}=\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。'
+        - '因为 $1\le x_1<x_2$，所以 $x_1-x_2<0$，$x_1x_2>1$（于是 $x_1x_2-1>0$），$x_1x_2>0$。'
+        - '所以 $f(x_1)-f(x_2)<0$，即 $f(x_1)<f(x_2)$，$f(x)$ 在 $[1,+\infty)$ 上单调递增。'
+      final_answer: '得证：$f(x)$ 在区间 $[1,+\infty)$ 上单调递增。'
+      key_points:
+        - '用定义证明单调性的步骤：取值、作差变形、判断符号、下结论'
+        - '判断符号时要用到区间的端点：这里 $x_1\ge 1$ 保证了 $x_1x_2>1$'
+
+- key: math-ineq-mul-proof
+  subject: math
+  type: proof
+  answer_mode: proof
+  difficulty: 2
+  grade: G10
+  title: 证明同向的正数不等式可以相乘
+  knowledge: [math.inequality.properties]
+  content:
+    stem: '证明不等式的一条性质。'
+    proof:
+      givens:
+        - '$a>b>0$'
+        - '$c>d>0$'
+      claim: '$ac>bd$。'
+  answer:
+    value:
+      steps:
+        - stage: premise
+          text: '由已知，$b>0$，$c>d>0$，所以 $c>0$。'
+          reason: '已知 ①②；$c>d>0$ 说明 $c$ 也是正数'
+        - stage: construction
+          text: '引入中间量 $bc$，先比较 $ac$ 与 $bc$：因为 $a>b$，$c>0$，所以 $ac>bc$。'
+          reason: '不等式的性质：不等式两边同乘一个正数，不等号的方向不变'
+        - stage: reasoning
+          text: '再比较 $bc$ 与 $bd$：因为 $c>d$，$b>0$，所以 $bc>bd$。'
+          reason: '不等式的性质：不等式两边同乘一个正数，不等号的方向不变'
+        - stage: conclusion
+          text: '由 $ac>bc$ 和 $bc>bd$，得 $ac>bd$。'
+          reason: '不等式的传递性：$m>n$，$n>p$，则 $m>p$'
+  rubric:
+    points:
+      - {key: p1, part: premise, text: '从已知得出 $b>0$、$c>0$（后面同乘要用到它们是正数）'}
+      - {key: p2, part: construction, text: '想到引入一个中间量（例如 $bc$）做桥梁，把一次比较拆成两次'}
+      - {key: p3, part: reasoning, text: '第一次比较：写出 $ac>bc$，依据是"同乘正数 $c$，方向不变"'}
+      - {key: p4, part: reasoning, text: '第二次比较：写出 $bc>bd$，依据是"同乘正数 $b$，方向不变"'}
+      - {key: p5, part: conclusion, text: '用传递性由 $ac>bc>bd$ 得出 $ac>bd$'}
+      - {key: p6, part: null, text: '每次同乘都交代了乘的数是正数；每一步都写出依据'}
+  teaching:
+    concept: 不等式的基本性质：同乘正数、传递性
+    leak_markers:
+      - 'ac>bc'
+      - 'bc>bd'
+      - 'ac>ad'
+      - 'ad>bd'
+    hints:
+      - '要比较 $ac$ 和 $bd$，只做一次"同乘"够不够？想一想：能不能先找一个"中间的量"，把一次比较拆成两次？'
+      - '每一次比较，都是在不等式的两边同乘一个数。这个数必须满足什么条件，不等号的方向才不变？这个条件从已知里怎么得到？'
+      - '两次比较各得到一个不等式；它们怎样连起来，才能得到想证的结论？'
+    concept_rephrase: '不等式 $m>n$ 两边同乘一个正数，方向不变；同乘一个负数，方向要反过来。所以每次同乘之前，都要先确认乘的数是正数。'
+  solutions:
+    standard:
+      steps:
+        - '由已知，$b>0$，且 $c>d>0$，所以 $c>0$。'
+        - '因为 $a>b$，$c>0$，所以 $ac>bc$。'
+        - '因为 $c>d$，$b>0$，所以 $bc>bd$。'
+        - '由 $ac>bc$ 和 $bc>bd$，得 $ac>bd$。'
+      final_answer: '得证：$ac>bd$。'
+      key_points:
+        - '同乘之前先确认乘的数是正数'
+        - '一次比较不够时，引入中间量拆成两次，再用传递性连起来'
+
+- key: phys-work-energy-proof
+  subject: physics
+  type: proof
+  answer_mode: proof
+  difficulty: 3
+  grade: G10
+  title: 推导动能定理
+  knowledge: [phys.newton.second, phys.kinematics.uniform_accel]
+  content:
+    stem: '质量为 $m$ 的物体放在光滑的水平面上，在一个水平恒力 $F$ 的作用下沿力的方向做直线运动。'
+    proof:
+      givens:
+        - '物体的速度由 $v_1$ 增大到 $v_2$'
+        - '在这个过程中，物体的位移是 $s$'
+      claim: '从牛顿第二定律和匀变速直线运动的公式出发，推导：$Fs=\dfrac{1}{2}mv_2^2-\dfrac{1}{2}mv_1^2$。'
+  answer:
+    value:
+      steps:
+        - stage: premise
+          text: '水平面光滑，没有摩擦力；竖直方向上重力与支持力平衡。所以物体受到的合力就是水平恒力 $F$，方向与运动方向相同。'
+          reason: '受力分析；题设水平面光滑'
+        - stage: reasoning
+          text: '由牛顿第二定律，物体的加速度 $a=\dfrac{F}{m}$，大小和方向都不变，所以物体做匀加速直线运动。'
+          reason: '牛顿第二定律 $F=ma$（$F$ 是合力）；合力恒定，加速度就恒定'
+        - stage: reasoning
+          text: '匀变速直线运动中，速度与位移的关系是 $v_2^2-v_1^2=2as$。'
+          reason: '匀变速直线运动的速度—位移公式'
+        - stage: reasoning
+          text: '把 $a=\dfrac{F}{m}$ 代入上式，得 $v_2^2-v_1^2=\dfrac{2Fs}{m}$。'
+          reason: '代入，消去加速度 $a$'
+        - stage: conclusion
+          text: '两边同乘 $\dfrac{m}{2}$，得 $Fs=\dfrac{1}{2}mv_2^2-\dfrac{1}{2}mv_1^2$。左边是合力做的功，右边是物体动能的变化，所以合力做的功等于物体动能的变化。'
+          reason: '等式的性质；功的定义 $W=Fs$（力与位移同向）'
+  rubric:
+    points:
+      - {key: p1, part: premise, text: '说明合力就是 $F$：竖直方向重力与支持力平衡，水平面光滑没有摩擦力'}
+      - {key: p2, part: reasoning, text: '用牛顿第二定律写出 $a=\dfrac{F}{m}$，并说明加速度恒定、物体做匀加速直线运动'}
+      - {key: p3, part: reasoning, text: '写出速度—位移关系 $v_2^2-v_1^2=2as$，并说明为什么可以用它'}
+      - {key: p4, part: reasoning, text: '把 $a$ 代入，消去加速度，得到只含 $F$、$m$、$s$ 和速度的式子'}
+      - {key: p5, part: conclusion, text: '整理成 $Fs=\dfrac{1}{2}mv_2^2-\dfrac{1}{2}mv_1^2$，并说明左边是合力做的功、右边是动能的变化'}
+      - {key: p6, part: null, text: '每一步写出依据（定律、公式或前面的步骤）；符号的含义交代清楚'}
+  teaching:
+    concept: 动能定理的推导：合力做的功等于动能的变化
+    leak_markers:
+      - 'v_2^2-v_1^2=2as'
+      - 'a=\frac{F}{m}'
+      - 'a=\dfrac{F}{m}'
+      - 'a=F/m'
+      - 'v_2^2-v_1^2=\frac{2Fs}{m}'
+      - 'v_2^2-v_1^2=\dfrac{2Fs}{m}'
+      - 'Fs=\frac{1}{2}mv_2^2'
+      - 'Fs=\dfrac{1}{2}mv_2^2'
+      - 'Fs=\frac12mv_2^2'
+    hints:
+      - '先弄清物体受哪些力、合力是多大：竖直方向上物体有没有加速度？水平方向上有没有别的力在起作用？'
+      - '有了合力，就能求加速度。再想一想：这是什么性质的运动？你学过的运动学公式里，哪一个同时包含速度、加速度和位移（而不含时间）？'
+      - '把加速度用力和质量表示出来，代入上面的运动学公式，再整理成"力乘位移"的样子。'
+    concept_rephrase: '合力对物体做的功，等于物体动能的变化——这条结论可以由牛顿第二定律加上运动学公式推出来：把"力"换成"质量乘加速度"，再用速度和位移的关系把加速度消掉。'
+  solutions:
+    standard:
+      steps:
+        - '水平面光滑，竖直方向的重力与支持力平衡，物体受到的合力就是水平恒力 $F$。'
+        - '由牛顿第二定律，加速度 $a=\dfrac{F}{m}$，恒定，所以物体做匀加速直线运动。'
+        - '由匀变速直线运动的速度—位移公式 $v_2^2-v_1^2=2as$，代入 $a=\dfrac{F}{m}$，得 $v_2^2-v_1^2=\dfrac{2Fs}{m}$。'
+        - '两边同乘 $\dfrac{m}{2}$，得 $Fs=\dfrac{1}{2}mv_2^2-\dfrac{1}{2}mv_1^2$，即合力做的功等于动能的变化。'
+      final_answer: '得证：$Fs=\dfrac{1}{2}mv_2^2-\dfrac{1}{2}mv_1^2$，合力做的功等于物体动能的变化。'
+      key_points:
+        - '先确定合力，再用牛顿第二定律求加速度'
+        - '不含时间的运动学公式：$v_2^2-v_1^2=2as$'

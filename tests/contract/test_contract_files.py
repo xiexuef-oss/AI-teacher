@@ -248,6 +248,9 @@ def test_question_schemas_cannot_carry_answers():
         "option_analysis",
         "rubric",
         "points",  # 解答题的自查要点
+        "steps",  # 证明题的参考证明（解法的步骤也叫这个名字）
+        "reference_steps",
+        "reference_cells",
     }
     for name in (
         "Question",
@@ -311,10 +314,25 @@ def test_question_payloads_cannot_reach_the_reference_data_of_an_experiment():
         assert "SelfCheck" not in reachable and "AnswerCell" not in reachable, name
 
 
+def test_question_payloads_cannot_reach_the_reference_proof():
+    """证明题的参考证明（reference_steps）只能在提交之后通过自查接口拿到：题目与作答前的任何接口都走不到它。"""
+    for name in ("Question", "QuestionSummary", "QuestionPage", "StudyTask", "TodayTasks"):
+        reachable = _reachable_schemas(name)
+        assert "reference_steps" not in _property_names(name), name
+        assert not {"SelfCheck", "ProofReferenceStep"} & reachable, name
+
+
 def test_questions_never_carry_a_field_called_value():
     """题目接口里不允许出现名为 value 的键：答案类的字段（空位的答案、格子里的数）都叫这个名字。
     所以题目给定的数据表格子叫 text，留空的格子 text 为 null。"""
-    for name in ("Question", "QuestionContent", "DataTable", "DataTableRow", "DataTableCell"):
+    for name in (
+        "Question",
+        "QuestionContent",
+        "DataTable",
+        "DataTableRow",
+        "DataTableCell",
+        "ProofStatement",
+    ):
         assert "value" not in _property_names(name), name
     cell = load_openapi()["components"]["schemas"]["DataTableCell"]
     assert set(cell["properties"]) == {"col", "text"} and cell["required"] == ["col", "text"]
@@ -344,6 +362,47 @@ def test_experiment_answers_use_cells_for_the_blank_table_cells():
     assert cell["required"] == ["table", "row", "col", "value"]
     assert cell["properties"]["value"]["maxLength"] <= 40
     assert all(cell["properties"][name]["maxLength"] <= 16 for name in ("table", "row", "col"))
+
+
+def test_proof_questions_carry_givens_and_a_claim_but_no_proof():
+    schemas = load_openapi()["components"]["schemas"]
+    content = schemas["QuestionContent"]
+    assert "proof" in content["required"]
+    assert content["properties"]["proof"]["oneOf"] == [
+        {"$ref": "#/components/schemas/ProofStatement"},
+        {"type": "null"},
+    ]
+    statement = schemas["ProofStatement"]
+    assert statement["required"] == ["givens", "claim"] and not statement["additionalProperties"]
+    assert set(statement["properties"]) == {"givens", "claim"}
+    assert statement["properties"]["givens"]["maxItems"] <= 8
+    assert statement["properties"]["claim"]["minLength"] >= 1
+    assert "proof" in schemas["AnswerMode"]["enum"] and "proof" in schemas["QuestionType"]["enum"]
+
+
+def test_proof_answers_use_steps_with_a_reason_for_each():
+    schemas = load_openapi()["components"]["schemas"]
+    payload = schemas["AnswerPayload"]["properties"]
+    assert payload["steps"]["items"] == {"$ref": "#/components/schemas/AnswerStep"}
+    assert payload["steps"]["maxItems"] <= 30
+    step = schemas["AnswerStep"]
+    assert step["required"] == ["text", "reason"] and not step["additionalProperties"]
+    assert step["properties"]["text"]["maxLength"] <= 1000
+    assert step["properties"]["reason"]["maxLength"] <= 400
+
+
+def test_the_self_check_carries_the_reference_proof_with_four_stages_and_no_score():
+    schemas = load_openapi()["components"]["schemas"]
+    check = schemas["SelfCheck"]
+    assert "reference_steps" in check["required"]
+    assert check["properties"]["reference_steps"]["items"] == {
+        "$ref": "#/components/schemas/ProofReferenceStep"
+    }
+    assert schemas["ProofStage"]["enum"] == ["premise", "construction", "reasoning", "conclusion"]
+    step = schemas["ProofReferenceStep"]
+    assert step["required"] == ["stage", "text", "reason"] and not step["additionalProperties"]
+    assert step["properties"]["stage"] == {"$ref": "#/components/schemas/ProofStage"}
+    assert not {"score", "points_earned", "weight"} & set(step["properties"])
 
 
 def test_the_self_check_carries_reference_cells_but_no_score():
@@ -396,6 +455,9 @@ def test_what_a_parent_can_see_never_reaches_questions_answers_or_drafts():
         "Attempt",
         "AnswerPayload",
         "AnswerPart",
+        "AnswerStep",
+        "ProofStatement",
+        "ProofReferenceStep",
         "Draft",
         "DraftSync",
         "Stroke",

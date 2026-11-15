@@ -51,13 +51,18 @@ WRITTEN_KEYS = (
 )
 
 
-def test_seed_covers_three_subjects_with_objective_written_and_experiment_modes(bundle):
+def test_seed_covers_three_subjects_with_objective_written_experiment_and_proof_modes(bundle):
     combos = {(q["subject"], q["answer_mode"]) for q in bundle.questions}
     assert combos == {
         (subject, mode)
         for subject in ("math", "physics", "chemistry")
         for mode in ("single_choice", "multiple_choice", "fill", "written")
-    } | {("physics", "experiment"), ("chemistry", "experiment")}  # 数学没有实验题
+    } | {
+        ("physics", "experiment"),
+        ("chemistry", "experiment"),  # 数学没有实验题
+        ("math", "proof"),
+        ("physics", "proof"),  # 化学没有证明题：高中化学没有这种题型
+    }
     written = {q["key"] for q in bundle.questions if q["answer_mode"] == "written"}
     assert written == set(WRITTEN_KEYS)
 

@@ -1,12 +1,12 @@
 {
   "name": "tutor_fast",
   "method": "POST",
-  "path": "/api/v1/tutor/sessions/3832e58a-7114-4e0b-a71c-0fab056f68fc/next",
+  "path": "/api/v1/tutor/sessions/d4196b2a-3ce8-4050-a179-931911e7e133/next",
   "status": 200,
   "schema": "TutorStep",
   "value": {
     "session": {
-      "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+      "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
       "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
       "question_version": 1,
       "origin": "task",
@@ -31,8 +31,8 @@
     },
     "events": [
       {
-        "id": "34981450-1e46-435b-9a84-02bb8599137b",
-        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "id": "2c377e2e-2765-45e2-b94f-e81cf4c91610",
+        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
         "seq_no": 5,
         "type": "fast",
         "created_at": "2026-11-10T08:00:00Z",
@@ -65,7 +65,7 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "f749256b49e340c48b6aa63475c2dfb7"
+          "request_id": "61e6eb9dd504446c882150deab37544e"
         }
       }
     ]
@@ -73,7 +73,7 @@
   "body": {
     "data": {
       "session": {
-        "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
         "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
         "question_version": 1,
         "origin": "task",
@@ -98,8 +98,8 @@
       },
       "events": [
         {
-          "id": "34981450-1e46-435b-9a84-02bb8599137b",
-          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+          "id": "2c377e2e-2765-45e2-b94f-e81cf4c91610",
+          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
           "seq_no": 5,
           "type": "fast",
           "created_at": "2026-11-10T08:00:00Z",
@@ -132,7 +132,7 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "f749256b49e340c48b6aa63475c2dfb7"
+            "request_id": "61e6eb9dd504446c882150deab37544e"
           }
         }
       ]

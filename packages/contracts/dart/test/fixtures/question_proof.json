@@ -1,0 +1,139 @@
+{
+  "name": "question_proof",
+  "method": "GET",
+  "path": "/api/v1/questions/ffc1ebf1-9bff-5a58-8cba-6a6f295cf534",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "ffc1ebf1-9bff-5a58-8cba-6a6f295cf534",
+    "subject": "math",
+    "type": "proof",
+    "answer_mode": "proof",
+    "difficulty": 3,
+    "title": "证明函数在区间上单调递增",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+        "code": "math.function.monotonicity",
+        "title": "函数的单调性"
+      },
+      {
+        "id": "b4d1e34e-7e4d-5523-9b72-7257e43f0f62",
+        "code": "math.inequality.properties",
+        "title": "不等式的基本性质"
+      }
+    ],
+    "variant_of": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "研究函数的单调性。",
+      "options": [],
+      "blanks": [],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null,
+      "proof": {
+        "givens": [
+          "函数 $f(x)=x+\\dfrac{1}{x}$",
+          "自变量 $x$ 的取值范围是 $[1,+\\infty)$"
+        ],
+        "claim": "用单调性的定义证明：$f(x)$ 在区间 $[1,+\\infty)$ 上单调递增。"
+      }
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": false
+    },
+    "judging_note": "证明题不自动评分：把证明一步一步写下来、每一步写上依据，提交后对照参考证明和要点自己检查一遍。证明的写法不止一种；这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+  },
+  "body": {
+    "data": {
+      "id": "ffc1ebf1-9bff-5a58-8cba-6a6f295cf534",
+      "subject": "math",
+      "type": "proof",
+      "answer_mode": "proof",
+      "difficulty": 3,
+      "title": "证明函数在区间上单调递增",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+          "code": "math.function.monotonicity",
+          "title": "函数的单调性"
+        },
+        {
+          "id": "b4d1e34e-7e4d-5523-9b72-7257e43f0f62",
+          "code": "math.inequality.properties",
+          "title": "不等式的基本性质"
+        }
+      ],
+      "variant_of": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "研究函数的单调性。",
+        "options": [],
+        "blanks": [],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null,
+        "proof": {
+          "givens": [
+            "函数 $f(x)=x+\\dfrac{1}{x}$",
+            "自变量 $x$ 的取值范围是 $[1,+\\infty)$"
+          ],
+          "claim": "用单调性的定义证明：$f(x)$ 在区间 $[1,+\\infty)$ 上单调递增。"
+        }
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": false
+      },
+      "judging_note": "证明题不自动评分：把证明一步一步写下来、每一步写上依据，提交后对照参考证明和要点自己检查一遍。证明的写法不止一种；这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+    }
+  }
+}

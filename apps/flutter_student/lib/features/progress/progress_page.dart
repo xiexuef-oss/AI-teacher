@@ -120,7 +120,7 @@ class ProgressPage extends ConsumerWidget {
   }
 }
 
-/// 解答题和实验题不自动评分，不进任何正确率：这里只有计数，都是学生自己对照要点标的。
+/// 解答题、实验题和证明题不自动评分，不进任何正确率：这里只有计数，都是学生自己对照要点标的。
 class _SubjectiveCard extends StatelessWidget {
   const _SubjectiveCard({required this.stats});
 
@@ -132,7 +132,7 @@ class _SubjectiveCard extends StatelessWidget {
     final checked = stats.selfChecked > 0;
     return Section(
       key: const ValueKey('progress.subjective'),
-      title: '解答题和实验题',
+      title: '解答题、实验题和证明题',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -151,7 +151,7 @@ class _SubjectiveCard extends StatelessWidget {
           ],
           const SizedBox(height: 8),
           Text(
-            '解答题和实验题不自动评分，这些是你自己对照要点标的，不是官方阅卷分数，也不计入上面的任何正确率。',
+            '解答题、实验题和证明题不自动评分，这些是你自己对照要点标的，不是官方阅卷分数，也不计入上面的任何正确率。',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
