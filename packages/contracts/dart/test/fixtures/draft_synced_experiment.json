@@ -1,0 +1,157 @@
+{
+  "name": "draft_synced_experiment",
+  "method": "PUT",
+  "path": "/api/v1/attempts/3ca51c8e-07f7-42a7-b57e-64516782c34d/draft",
+  "status": 200,
+  "schema": "Draft",
+  "value": {
+    "attempt_id": "3ca51c8e-07f7-42a7-b57e-64516782c34d",
+    "revision": 1,
+    "answer": {
+      "parts": [
+        {
+          "key": "1",
+          "text": "$T=0.10\\ \\text{s}$，平均速度等于距离除以 $T$。"
+        },
+        {
+          "key": "2",
+          "text": "用逐差法，$a=2.00\\ \\text{m/s}^2$。"
+        }
+      ],
+      "cells": [
+        {
+          "table": "t1",
+          "row": "r1",
+          "col": "v",
+          "value": "0.400"
+        },
+        {
+          "table": "t1",
+          "row": "r2",
+          "col": "v",
+          "value": "0.600"
+        },
+        {
+          "table": "t1",
+          "row": "r3",
+          "col": "v",
+          "value": "0.800"
+        },
+        {
+          "table": "t1",
+          "row": "r4",
+          "col": "v",
+          "value": "1.00"
+        },
+        {
+          "table": "t2",
+          "row": "r1",
+          "col": "val",
+          "value": "2.00"
+        }
+      ]
+    },
+    "strokes": {
+      "version": 1,
+      "pages": [
+        {
+          "width": 800.0,
+          "height": 1100.0,
+          "strokes": [
+            {
+              "color": "#1A1A1A",
+              "width": 2.5,
+              "points": [
+                10.0,
+                20.0,
+                0.0,
+                0.5,
+                14.0,
+                26.0,
+                16.0,
+                0.6
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "updated_at": "2026-11-11T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "attempt_id": "3ca51c8e-07f7-42a7-b57e-64516782c34d",
+      "revision": 1,
+      "answer": {
+        "parts": [
+          {
+            "key": "1",
+            "text": "$T=0.10\\ \\text{s}$，平均速度等于距离除以 $T$。"
+          },
+          {
+            "key": "2",
+            "text": "用逐差法，$a=2.00\\ \\text{m/s}^2$。"
+          }
+        ],
+        "cells": [
+          {
+            "table": "t1",
+            "row": "r1",
+            "col": "v",
+            "value": "0.400"
+          },
+          {
+            "table": "t1",
+            "row": "r2",
+            "col": "v",
+            "value": "0.600"
+          },
+          {
+            "table": "t1",
+            "row": "r3",
+            "col": "v",
+            "value": "0.800"
+          },
+          {
+            "table": "t1",
+            "row": "r4",
+            "col": "v",
+            "value": "1.00"
+          },
+          {
+            "table": "t2",
+            "row": "r1",
+            "col": "val",
+            "value": "2.00"
+          }
+        ]
+      },
+      "strokes": {
+        "version": 1,
+        "pages": [
+          {
+            "width": 800.0,
+            "height": 1100.0,
+            "strokes": [
+              {
+                "color": "#1A1A1A",
+                "width": 2.5,
+                "points": [
+                  10.0,
+                  20.0,
+                  0.0,
+                  0.5,
+                  14.0,
+                  26.0,
+                  16.0,
+                  0.6
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "updated_at": "2026-11-11T08:00:00Z"
+    }
+  }
+}

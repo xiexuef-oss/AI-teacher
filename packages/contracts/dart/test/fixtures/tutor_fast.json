@@ -1,0 +1,141 @@
+{
+  "name": "tutor_fast",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/3832e58a-7114-4e0b-a71c-0fab056f68fc/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+      "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "question_version": 1,
+      "origin": "task",
+      "state": "FAST",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": true,
+      "independent_ended": false,
+      "hint_level_revealed": 1,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "submitted_attempts": 1,
+      "last_event_seq": 5,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "34981450-1e46-435b-9a84-02bb8599137b",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "seq_no": 5,
+        "type": "fast",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "FAST",
+        "payload": {
+          "title": "快速解法",
+          "conditions": [
+            "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+            "定义域是全体实数，没有被限制在某个区间内"
+          ],
+          "steps": [
+            {
+              "text": "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。"
+            },
+            {
+              "text": "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+            }
+          ],
+          "final_answer": "B",
+          "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。",
+          "reviewed": true
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "f749256b49e340c48b6aa63475c2dfb7"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_version": 1,
+        "origin": "task",
+        "state": "FAST",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": true,
+        "independent_ended": false,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "submitted_attempts": 1,
+        "last_event_seq": 5,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "34981450-1e46-435b-9a84-02bb8599137b",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+          "seq_no": 5,
+          "type": "fast",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "FAST",
+          "payload": {
+            "title": "快速解法",
+            "conditions": [
+              "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+              "定义域是全体实数，没有被限制在某个区间内"
+            ],
+            "steps": [
+              {
+                "text": "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。"
+              },
+              {
+                "text": "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+              }
+            ],
+            "final_answer": "B",
+            "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。",
+            "reviewed": true
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "f749256b49e340c48b6aa63475c2dfb7"
+          }
+        }
+      ]
+    }
+  }
+}

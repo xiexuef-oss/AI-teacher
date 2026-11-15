@@ -1,0 +1,207 @@
+{
+  "name": "parent_weekly",
+  "method": "GET",
+  "path": "/api/v1/parents/students/c3162028-1e6c-4226-8e96-e799621a75dd/weekly",
+  "status": 200,
+  "schema": "ParentWeekly",
+  "value": {
+    "student_id": "c3162028-1e6c-4226-8e96-e799621a75dd",
+    "student_display_name": null,
+    "week_start": "2026-11-09",
+    "week_end": "2026-11-15",
+    "is_complete": false,
+    "generated_at": "2026-11-11T08:00:00Z",
+    "min_samples": 5,
+    "sessions_count": 7,
+    "attempts_count": 5,
+    "active_days": 2,
+    "independent": {
+      "numerator": 2,
+      "denominator": 2,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "assisted": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "hint_dependency": {
+      "numerator": 1,
+      "denominator": 3,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "retest_success": {
+      "numerator": 1,
+      "denominator": 1,
+      "rate": null,
+      "insufficient_data": true
+    },
+    "written_attempts": 1,
+    "independent_trend": "unknown",
+    "previous_week": {
+      "week_start": "2026-11-02",
+      "attempts_count": 0,
+      "independent": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null,
+        "insufficient_data": true
+      }
+    },
+    "by_subject": [
+      {
+        "key": "math",
+        "label": "数学",
+        "independent": {
+          "numerator": 2,
+          "denominator": 2,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 1,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "physics",
+        "label": "物理",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      {
+        "key": "chemistry",
+        "label": "化学",
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        },
+        "assisted": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      }
+    ],
+    "disclaimer": "这些数字来自练习反馈，不是官方成绩，也不代表短期内一定提分。样本少的时候只显示计数，比例是“信息不足”。周报只有汇总，不含具体题目、作答内容和草稿笔迹；解答题和实验题不自动评分，只数提交了几份。"
+  },
+  "body": {
+    "data": {
+      "student_id": "c3162028-1e6c-4226-8e96-e799621a75dd",
+      "student_display_name": null,
+      "week_start": "2026-11-09",
+      "week_end": "2026-11-15",
+      "is_complete": false,
+      "generated_at": "2026-11-11T08:00:00Z",
+      "min_samples": 5,
+      "sessions_count": 7,
+      "attempts_count": 5,
+      "active_days": 2,
+      "independent": {
+        "numerator": 2,
+        "denominator": 2,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "assisted": {
+        "numerator": 0,
+        "denominator": 1,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "hint_dependency": {
+        "numerator": 1,
+        "denominator": 3,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "retest_success": {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": null,
+        "insufficient_data": true
+      },
+      "written_attempts": 1,
+      "independent_trend": "unknown",
+      "previous_week": {
+        "week_start": "2026-11-02",
+        "attempts_count": 0,
+        "independent": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "insufficient_data": true
+        }
+      },
+      "by_subject": [
+        {
+          "key": "math",
+          "label": "数学",
+          "independent": {
+            "numerator": 2,
+            "denominator": 2,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 1,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "physics",
+          "label": "物理",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        },
+        {
+          "key": "chemistry",
+          "label": "化学",
+          "independent": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          },
+          "assisted": {
+            "numerator": 0,
+            "denominator": 0,
+            "rate": null,
+            "insufficient_data": true
+          }
+        }
+      ],
+      "disclaimer": "这些数字来自练习反馈，不是官方成绩，也不代表短期内一定提分。样本少的时候只显示计数，比例是“信息不足”。周报只有汇总，不含具体题目、作答内容和草稿笔迹；解答题和实验题不自动评分，只数提交了几份。"
+    }
+  }
+}

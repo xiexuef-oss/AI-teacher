@@ -1,0 +1,39 @@
+name: tutor_student
+description: "AI 理科私教学生端：平板横屏优先的做题、手写草稿与分层辅导。"
+publish_to: 'none'
+
+# 0.x：本切片只是本地原型，还没有在真机上验证，也没有发布计划。
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  flutter_riverpod: ^3.5.0
+  go_router: ^18.1.4
+  shared_preferences: ^2.5.6
+  flutter_math_fork: ^0.7.4
+  # 由 contracts/ 生成的 API 模型与客户端
+  tutor_contracts:
+    path: ../../packages/contracts/dart
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    # 中文回退字体：Web 版（CanvasKit）渲染中文要联网下载回退字体，网络受限时会显示成方块。
+    # 这是 Noto Sans SC 的裁剪子集（SIL OFL，许可见 assets/fonts/OFL.txt），
+    # 由 tools/build_cjk_font.py 生成。
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Subset.otf

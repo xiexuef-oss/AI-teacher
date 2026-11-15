@@ -1,0 +1,155 @@
+{
+  "name": "question_written",
+  "method": "GET",
+  "path": "/api/v1/questions/3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+    "subject": "math",
+    "type": "solution",
+    "answer_mode": "written",
+    "difficulty": 3,
+    "title": "含参二次函数的单调性与最值",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+        "code": "math.function.monotonicity",
+        "title": "函数的单调性"
+      },
+      {
+        "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+        "code": "math.quadratic.graph",
+        "title": "二次函数的图像与对称轴"
+      }
+    ],
+    "variant_of": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "已知二次函数 $f(x)=x^2-2ax+3$（$a$ 为常数）。",
+      "options": [],
+      "blanks": [],
+      "subquestions": [
+        {
+          "key": "1",
+          "stem": "若 $f(x)$ 在区间 $[1,+\\infty)$ 上单调递增，求 $a$ 的取值范围；",
+          "answer_mode": "written",
+          "options": [],
+          "blanks": []
+        },
+        {
+          "key": "2",
+          "stem": "当 $a=2$ 时，求 $f(x)$ 在区间 $[0,3]$ 上的最大值和最小值。",
+          "answer_mode": "written",
+          "options": [],
+          "blanks": []
+        }
+      ],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": false
+    },
+    "judging_note": "解答题不自动评分：提交后对照要点自己检查一遍。这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+  },
+  "body": {
+    "data": {
+      "id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+      "subject": "math",
+      "type": "solution",
+      "answer_mode": "written",
+      "difficulty": 3,
+      "title": "含参二次函数的单调性与最值",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+          "code": "math.function.monotonicity",
+          "title": "函数的单调性"
+        },
+        {
+          "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+          "code": "math.quadratic.graph",
+          "title": "二次函数的图像与对称轴"
+        }
+      ],
+      "variant_of": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "已知二次函数 $f(x)=x^2-2ax+3$（$a$ 为常数）。",
+        "options": [],
+        "blanks": [],
+        "subquestions": [
+          {
+            "key": "1",
+            "stem": "若 $f(x)$ 在区间 $[1,+\\infty)$ 上单调递增，求 $a$ 的取值范围；",
+            "answer_mode": "written",
+            "options": [],
+            "blanks": []
+          },
+          {
+            "key": "2",
+            "stem": "当 $a=2$ 时，求 $f(x)$ 在区间 $[0,3]$ 上的最大值和最小值。",
+            "answer_mode": "written",
+            "options": [],
+            "blanks": []
+          }
+        ],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": false
+      },
+      "judging_note": "解答题不自动评分：提交后对照要点自己检查一遍。这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+    }
+  }
+}

@@ -1,0 +1,58 @@
+[project]
+name = "ai-science-tutor"
+version = "0.1.0"
+description = "高中理科 AI 私教：后端 API 与模型网关（本地纵向切片）"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy>=2.0.30",
+    "pyyaml>=6.0",
+    "jsonschema>=4.22",
+    "referencing>=0.35",
+    "rfc3339-validator>=0.1.4",
+    "sympy>=1.13",
+    "httpx>=0.27",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "openapi-spec-validator>=0.7.1",
+    "sqlglot>=25",
+    "ruff>=0.6",
+    "fonttools>=4.68.0",
+]
+# 仅在对真实 MySQL 执行 tools/verify_migrations.py --mysql-url 时需要
+mysql = ["pymysql>=1.1", "cryptography>=42"]
+# 仅在跑浏览器联调 tools/e2e/run.py 时需要。版本钉死：每个版本对应固定的 Chromium 修订号，
+# 换版本要重新执行 `uv run --group e2e playwright install chromium`
+e2e = ["playwright==1.58.0"]
+
+[tool.uv]
+# 根工程只承载开发环境；服务代码通过 PYTHONPATH 引入，不做 editable 安装
+# （项目路径含中文，Python 3.12 以本地编码读取 .pth，editable 安装不可靠）。
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["services/api", "services/ai_gateway", "tools", "tests"]
+addopts = "-ra"
+filterwarnings = ["error::DeprecationWarning:tutor_api", "error::DeprecationWarning:ai_gateway"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["apps", "packages/contracts/dart"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = [
+    "B008",  # FastAPI 的 Depends() 默认参数写法
+    "E501",  # 行宽交给 ruff format；格式化器拆不开的长字符串（多为中文文案）不再报
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["tutor_api", "ai_gateway", "support", "verify_migrations", "e2e"]

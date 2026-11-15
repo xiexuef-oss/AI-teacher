@@ -1,0 +1,23 @@
+{
+  "name": "error_idempotency_conflict",
+  "method": "POST",
+  "path": "/api/v1/sessions",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "idempotency_key_conflict",
+      "message": "同一个 Idempotency-Key 已被用于另一个不同的请求",
+      "details": {},
+      "request_id": "115a6d60b24349b8be6807d267940998"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "idempotency_key_conflict",
+      "message": "同一个 Idempotency-Key 已被用于另一个不同的请求",
+      "details": {},
+      "request_id": "115a6d60b24349b8be6807d267940998"
+    }
+  }
+}

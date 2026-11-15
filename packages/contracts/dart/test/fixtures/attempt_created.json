@@ -1,0 +1,39 @@
+{
+  "name": "attempt_created",
+  "method": "POST",
+  "path": "/api/v1/attempts",
+  "status": 201,
+  "schema": "Attempt",
+  "value": {
+    "id": "7acb86c8-336d-42a0-8a51-882195b6d41b",
+    "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+    "attempt_no": 1,
+    "status": "draft",
+    "answer": null,
+    "draft_revision": 0,
+    "assisted": false,
+    "used_solution": false,
+    "independent": null,
+    "evaluation": null,
+    "submitted_at": null,
+    "created_at": "2026-11-10T08:00:00Z",
+    "updated_at": "2026-11-10T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "id": "7acb86c8-336d-42a0-8a51-882195b6d41b",
+      "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+      "attempt_no": 1,
+      "status": "draft",
+      "answer": null,
+      "draft_revision": 0,
+      "assisted": false,
+      "used_solution": false,
+      "independent": null,
+      "evaluation": null,
+      "submitted_at": null,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    }
+  }
+}

@@ -1,0 +1,118 @@
+# 待审样题：用来在本机演示和测试内容审核流程（PRD P0 第 9 条）。
+# 这几道题入库时是 draft，学生端看不到；审校员在审核后台二审、上线之后才会出现在练习里。
+# 和 published 的样题一样是自编工程样题，没有经过学科审校，不是真题，也不代表任何地区的命题风格。
+
+- key: math-abs-decreasing
+  subject: math
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 2
+  grade: G10
+  title: 绝对值函数的单调递减区间
+  knowledge: [math.function.monotonicity]
+  content:
+    stem: '函数 $f(x)=|x-1|$ 的单调递减区间是（　）'
+    options:
+      - {key: A, text: '$(-\infty,\,1]$'}
+      - {key: B, text: '$[1,\,+\infty)$'}
+      - {key: C, text: '$(-\infty,\,-1]$'}
+      - {key: D, text: '$[-1,\,+\infty)$'}
+  answer:
+    value: [A]
+  teaching:
+    concept: 函数的单调性
+    hints:
+      - '先去掉绝对值：当 $x\ge 1$ 和 $x<1$ 时，$f(x)$ 分别等于什么？'
+      - '这是两段一次函数。分别看每一段的斜率是正还是负。'
+      - '斜率为负的那一段，对应的自变量范围就是递减区间，注意端点 $x=1$ 属于哪一段。'
+    option_analysis:
+      A: '$x<1$ 时 $f(x)=1-x$，斜率为负，函数递减；在 $x=1$ 处函数值为 $0$，区间可以取到端点。'
+      B: '这是递增的那一段：$x\ge 1$ 时 $f(x)=x-1$，斜率为正。'
+      C: '把拐点当成了 $x=-1$，而 $|x-1|$ 的拐点在 $x=1$。'
+      D: '同时搞错了拐点的位置和单调的方向。'
+  solutions:
+    standard:
+      steps:
+        - '去绝对值：$x\ge 1$ 时 $f(x)=x-1$；$x<1$ 时 $f(x)=1-x$。'
+        - '$x<1$ 时斜率为 $-1$，函数递减；$x\ge 1$ 时斜率为 $1$，函数递增。'
+        - '在 $x=1$ 处 $f(1)=0$ 是最小值，所以递减区间是 $(-\infty,\,1]$。'
+      final_answer: 'A'
+      key_points:
+        - '分段函数的单调性要分段判断'
+        - '拐点处的端点可以包含在递减区间里'
+
+- key: phys-friction-uniform
+  subject: physics
+  type: fill_blank
+  answer_mode: fill
+  difficulty: 1
+  grade: G10
+  title: 匀速推动木箱时的摩擦力
+  knowledge: [phys.friction, phys.force.analysis]
+  content:
+    stem: '质量为 $5\ \text{kg}$ 的木箱放在水平地面上，用 $20\ \text{N}$ 的水平推力推着它做匀速直线运动。木箱受到的滑动摩擦力大小为 ____。（请写出单位）'
+    blanks:
+      - {key: b1, unit_hint: '需要写单位', placeholder: '数值和单位'}
+  answer:
+    value: {b1: '20'}
+    equivalence_rules:
+      b1: {type: numeric, rel_tol: 0.001}
+    units:
+      b1:
+        required: true
+        accepted: ['N', '牛', '牛顿']
+  teaching:
+    concept: 二力平衡与滑动摩擦力
+    hints:
+      - '木箱做匀速直线运动，它在水平方向上的合力是多少？'
+      - '水平方向只有推力和摩擦力两个力。合力为零，说明这两个力有什么关系？'
+      - '质量在这道题里用得上吗？想想滑动摩擦力是怎么来的，再决定。'
+  solutions:
+    standard:
+      steps:
+        - '木箱做匀速直线运动，处于平衡状态，水平方向合力为零。'
+        - '水平方向只有推力 $F$ 和滑动摩擦力 $f$，两者大小相等、方向相反。'
+        - '所以 $f=F=20\ \text{N}$，与质量无关。'
+      final_answer: '$20\ \text{N}$'
+      key_points:
+        - '匀速运动说明合力为零'
+        - '先判断是否平衡，再列方程'
+
+- key: chem-electrolyte-identify
+  subject: chemistry
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 1
+  grade: G10
+  title: 识别电解质
+  knowledge: [chem.ion.reaction]
+  content:
+    stem: '下列物质中，属于电解质的是（　）'
+    options:
+      - {key: A, text: '铜丝'}
+      - {key: B, text: '氯化钠固体'}
+      - {key: C, text: '酒精'}
+      - {key: D, text: '稀硫酸'}
+  answer:
+    value: [B]
+  teaching:
+    concept: 电解质与非电解质
+    hints:
+      - '电解质的定义里有两个关键词：“化合物”，以及“在水溶液中或熔融状态下能导电”。'
+      - '先排除不是化合物的选项：单质和混合物既不是电解质，也不是非电解质。'
+      - '剩下的化合物里，再看它在水溶液中或熔融状态下自己能不能电离出离子导电。'
+    option_analysis:
+      A: '铜是单质，能导电不等于是电解质——电解质必须是化合物。'
+      B: '氯化钠是化合物，溶于水或熔融时能电离出自由移动的离子而导电；固体本身不导电，不影响它是电解质。'
+      C: '酒精是化合物，但在水溶液中和熔融状态下都不电离，不能导电。'
+      D: '稀硫酸是混合物（硫酸的水溶液），混合物不是电解质；硫酸本身才是电解质。'
+  solutions:
+    standard:
+      steps:
+        - '电解质是在水溶液中或熔融状态下能导电的化合物。'
+        - '铜是单质、稀硫酸是混合物，都不属于电解质；酒精是化合物，但不电离。'
+        - '氯化钠是化合物，溶于水或熔融时能电离出离子而导电，属于电解质。'
+      final_answer: 'B'
+      key_points:
+        - '电解质必须是化合物'
+        - '能导电的物质不一定是电解质'

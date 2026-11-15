@@ -1,0 +1,239 @@
+{
+  "name": "tutor_understood",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/3832e58a-7114-4e0b-a71c-0fab056f68fc/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+      "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "question_version": 1,
+      "origin": "task",
+      "state": "DONE",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": true,
+      "independent_ended": false,
+      "hint_level_revealed": 1,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "submitted_attempts": 1,
+      "last_event_seq": 8,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "9bf3daa1-4103-405c-b3b1-c1a04bc5dba5",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "seq_no": 6,
+        "type": "ask",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "VARIANT",
+        "payload": {
+          "prompt": "要不要做一道变式题，检验是不是真的掌握了？",
+          "suggestions": [
+            {
+              "action": "start_variant",
+              "label": "做一道变式题",
+              "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+              "knowledge_id": null
+            },
+            {
+              "action": "finish",
+              "label": "先到这里",
+              "question_id": null,
+              "knowledge_id": null
+            }
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
+        }
+      },
+      {
+        "id": "5f9ab43c-6229-489f-987d-617df814b366",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "seq_no": 7,
+        "type": "notice",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "REVIEW_SCHEDULED",
+        "payload": {
+          "code": "review_scheduled",
+          "text": "已经安排了复测，到时候不看提示再做一遍，确认是真的会了。",
+          "due_at": "2026-11-11T08:00:00Z"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
+        }
+      },
+      {
+        "id": "1376accc-6bb9-4bb9-b9e5-2fb10f91c04a",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "seq_no": 8,
+        "type": "notice",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "DONE",
+        "payload": {
+          "code": "session_completed",
+          "text": "这道题先到这里。",
+          "due_at": null
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_version": 1,
+        "origin": "task",
+        "state": "DONE",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": true,
+        "independent_ended": false,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "submitted_attempts": 1,
+        "last_event_seq": 8,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "9bf3daa1-4103-405c-b3b1-c1a04bc5dba5",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+          "seq_no": 6,
+          "type": "ask",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "VARIANT",
+          "payload": {
+            "prompt": "要不要做一道变式题，检验是不是真的掌握了？",
+            "suggestions": [
+              {
+                "action": "start_variant",
+                "label": "做一道变式题",
+                "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+                "knowledge_id": null
+              },
+              {
+                "action": "finish",
+                "label": "先到这里",
+                "question_id": null,
+                "knowledge_id": null
+              }
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
+          }
+        },
+        {
+          "id": "5f9ab43c-6229-489f-987d-617df814b366",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+          "seq_no": 7,
+          "type": "notice",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "REVIEW_SCHEDULED",
+          "payload": {
+            "code": "review_scheduled",
+            "text": "已经安排了复测，到时候不看提示再做一遍，确认是真的会了。",
+            "due_at": "2026-11-11T08:00:00Z"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
+          }
+        },
+        {
+          "id": "1376accc-6bb9-4bb9-b9e5-2fb10f91c04a",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+          "seq_no": 8,
+          "type": "notice",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "DONE",
+          "payload": {
+            "code": "session_completed",
+            "text": "这道题先到这里。",
+            "due_at": null
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "c8358da1c7ec4ff5b06531faf14882c8"
+          }
+        }
+      ]
+    }
+  }
+}

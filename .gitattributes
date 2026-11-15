@@ -1,0 +1,14 @@
+# 统一用 LF：Dart、Python、YAML、SQL 都不需要 CRLF，Windows 上的自动换行转换会让生成文件与校验值对不上
+* text=auto eol=lf
+*.bat text eol=crlf
+
+# 二进制：不做换行转换
+*.otf binary
+*.ttf binary
+*.woff2 binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.docx binary
+*.pdf binary
+*.wasm binary

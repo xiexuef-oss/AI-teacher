@@ -1,0 +1,407 @@
+{
+  "name": "questions_page",
+  "method": "GET",
+  "path": "/api/v1/questions",
+  "status": 200,
+  "schema": "QuestionPage",
+  "value": {
+    "items": [
+      {
+        "id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "subject": "math",
+        "type": "single_choice",
+        "answer_mode": "single_choice",
+        "difficulty": 2,
+        "title": "二次函数的单调递增区间",
+        "source": {
+          "source_type": "self_authored",
+          "source_category": "foundation",
+          "source_name": "自编工程样题",
+          "source_year": null,
+          "source_license": "internal-engineering-sample",
+          "source_url": null,
+          "is_engineering_sample": true,
+          "label": "自编工程样题 · 未经学科审校"
+        },
+        "applicability": {
+          "scope": "region",
+          "label": "推荐适用：四川（工程测试标签）",
+          "recommended_regions": [
+            "CN-51"
+          ],
+          "origin_region_code": null,
+          "exam_year_from": 2027,
+          "exam_year_to": 2029,
+          "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+        },
+        "knowledge": [
+          {
+            "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+            "code": "math.function.monotonicity",
+            "title": "函数的单调性"
+          },
+          {
+            "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+            "code": "math.quadratic.graph",
+            "title": "二次函数的图像与对称轴"
+          }
+        ],
+        "variant_of": null
+      },
+      {
+        "id": "a94037e8-6c0c-554f-b4e6-d19d44a753b6",
+        "subject": "physics",
+        "type": "multiple_choice",
+        "answer_mode": "multiple_choice",
+        "difficulty": 2,
+        "title": "静止在粗糙斜面上的物块的受力",
+        "source": {
+          "source_type": "self_authored",
+          "source_category": "foundation",
+          "source_name": "自编工程样题",
+          "source_year": null,
+          "source_license": "internal-engineering-sample",
+          "source_url": null,
+          "is_engineering_sample": true,
+          "label": "自编工程样题 · 未经学科审校"
+        },
+        "applicability": {
+          "scope": "region",
+          "label": "推荐适用：四川（工程测试标签）",
+          "recommended_regions": [
+            "CN-51"
+          ],
+          "origin_region_code": null,
+          "exam_year_from": 2027,
+          "exam_year_to": 2029,
+          "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+        },
+        "knowledge": [
+          {
+            "id": "6a42bbb9-3ec9-5fe4-96d9-5a01a2720294",
+            "code": "phys.force.analysis",
+            "title": "受力分析"
+          },
+          {
+            "id": "14707112-5a79-5e73-a064-c4c119502d87",
+            "code": "phys.friction",
+            "title": "摩擦力"
+          }
+        ],
+        "variant_of": null
+      },
+      {
+        "id": "08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+        "subject": "math",
+        "type": "multiple_choice",
+        "answer_mode": "multiple_choice",
+        "difficulty": 2,
+        "title": "判断函数在区间上的单调性",
+        "source": {
+          "source_type": "self_authored",
+          "source_category": "foundation",
+          "source_name": "自编工程样题",
+          "source_year": null,
+          "source_license": "internal-engineering-sample",
+          "source_url": null,
+          "is_engineering_sample": true,
+          "label": "自编工程样题 · 未经学科审校"
+        },
+        "applicability": {
+          "scope": "general",
+          "label": "全国通用基础题",
+          "recommended_regions": [],
+          "origin_region_code": null,
+          "exam_year_from": null,
+          "exam_year_to": null,
+          "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+        },
+        "knowledge": [
+          {
+            "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+            "code": "math.function.monotonicity",
+            "title": "函数的单调性"
+          }
+        ],
+        "variant_of": null
+      },
+      {
+        "id": "9049cb91-19f2-561a-8772-0429ed301d27",
+        "subject": "math",
+        "type": "fill_blank",
+        "answer_mode": "fill",
+        "difficulty": 2,
+        "title": "和为定值时乘积的最大值",
+        "source": {
+          "source_type": "self_authored",
+          "source_category": "foundation",
+          "source_name": "自编工程样题",
+          "source_year": null,
+          "source_license": "internal-engineering-sample",
+          "source_url": null,
+          "is_engineering_sample": true,
+          "label": "自编工程样题 · 未经学科审校"
+        },
+        "applicability": {
+          "scope": "general",
+          "label": "全国通用基础题",
+          "recommended_regions": [],
+          "origin_region_code": null,
+          "exam_year_from": null,
+          "exam_year_to": null,
+          "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+        },
+        "knowledge": [
+          {
+            "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+            "code": "math.inequality.basic",
+            "title": "基本不等式"
+          }
+        ],
+        "variant_of": "1ec8713f-74a0-50d7-8d60-61df1a3f9f79"
+      },
+      {
+        "id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+        "subject": "math",
+        "type": "fill_blank",
+        "answer_mode": "fill",
+        "difficulty": 2,
+        "title": "开口向下的二次函数的单调递增区间",
+        "source": {
+          "source_type": "self_authored",
+          "source_category": "foundation",
+          "source_name": "自编工程样题",
+          "source_year": null,
+          "source_license": "internal-engineering-sample",
+          "source_url": null,
+          "is_engineering_sample": true,
+          "label": "自编工程样题 · 未经学科审校"
+        },
+        "applicability": {
+          "scope": "general",
+          "label": "全国通用基础题",
+          "recommended_regions": [],
+          "origin_region_code": null,
+          "exam_year_from": null,
+          "exam_year_to": null,
+          "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+        },
+        "knowledge": [
+          {
+            "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+            "code": "math.function.monotonicity",
+            "title": "函数的单调性"
+          },
+          {
+            "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+            "code": "math.quadratic.graph",
+            "title": "二次函数的图像与对称轴"
+          }
+        ],
+        "variant_of": "78d86cab-1ee9-5126-83af-c3125e4a0daf"
+      }
+    ],
+    "next_cursor": "eyJvIjogNX0"
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "subject": "math",
+          "type": "single_choice",
+          "answer_mode": "single_choice",
+          "difficulty": 2,
+          "title": "二次函数的单调递增区间",
+          "source": {
+            "source_type": "self_authored",
+            "source_category": "foundation",
+            "source_name": "自编工程样题",
+            "source_year": null,
+            "source_license": "internal-engineering-sample",
+            "source_url": null,
+            "is_engineering_sample": true,
+            "label": "自编工程样题 · 未经学科审校"
+          },
+          "applicability": {
+            "scope": "region",
+            "label": "推荐适用：四川（工程测试标签）",
+            "recommended_regions": [
+              "CN-51"
+            ],
+            "origin_region_code": null,
+            "exam_year_from": 2027,
+            "exam_year_to": 2029,
+            "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+          },
+          "knowledge": [
+            {
+              "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+              "code": "math.function.monotonicity",
+              "title": "函数的单调性"
+            },
+            {
+              "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+              "code": "math.quadratic.graph",
+              "title": "二次函数的图像与对称轴"
+            }
+          ],
+          "variant_of": null
+        },
+        {
+          "id": "a94037e8-6c0c-554f-b4e6-d19d44a753b6",
+          "subject": "physics",
+          "type": "multiple_choice",
+          "answer_mode": "multiple_choice",
+          "difficulty": 2,
+          "title": "静止在粗糙斜面上的物块的受力",
+          "source": {
+            "source_type": "self_authored",
+            "source_category": "foundation",
+            "source_name": "自编工程样题",
+            "source_year": null,
+            "source_license": "internal-engineering-sample",
+            "source_url": null,
+            "is_engineering_sample": true,
+            "label": "自编工程样题 · 未经学科审校"
+          },
+          "applicability": {
+            "scope": "region",
+            "label": "推荐适用：四川（工程测试标签）",
+            "recommended_regions": [
+              "CN-51"
+            ],
+            "origin_region_code": null,
+            "exam_year_from": 2027,
+            "exam_year_to": 2029,
+            "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+          },
+          "knowledge": [
+            {
+              "id": "6a42bbb9-3ec9-5fe4-96d9-5a01a2720294",
+              "code": "phys.force.analysis",
+              "title": "受力分析"
+            },
+            {
+              "id": "14707112-5a79-5e73-a064-c4c119502d87",
+              "code": "phys.friction",
+              "title": "摩擦力"
+            }
+          ],
+          "variant_of": null
+        },
+        {
+          "id": "08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+          "subject": "math",
+          "type": "multiple_choice",
+          "answer_mode": "multiple_choice",
+          "difficulty": 2,
+          "title": "判断函数在区间上的单调性",
+          "source": {
+            "source_type": "self_authored",
+            "source_category": "foundation",
+            "source_name": "自编工程样题",
+            "source_year": null,
+            "source_license": "internal-engineering-sample",
+            "source_url": null,
+            "is_engineering_sample": true,
+            "label": "自编工程样题 · 未经学科审校"
+          },
+          "applicability": {
+            "scope": "general",
+            "label": "全国通用基础题",
+            "recommended_regions": [],
+            "origin_region_code": null,
+            "exam_year_from": null,
+            "exam_year_to": null,
+            "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+          },
+          "knowledge": [
+            {
+              "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+              "code": "math.function.monotonicity",
+              "title": "函数的单调性"
+            }
+          ],
+          "variant_of": null
+        },
+        {
+          "id": "9049cb91-19f2-561a-8772-0429ed301d27",
+          "subject": "math",
+          "type": "fill_blank",
+          "answer_mode": "fill",
+          "difficulty": 2,
+          "title": "和为定值时乘积的最大值",
+          "source": {
+            "source_type": "self_authored",
+            "source_category": "foundation",
+            "source_name": "自编工程样题",
+            "source_year": null,
+            "source_license": "internal-engineering-sample",
+            "source_url": null,
+            "is_engineering_sample": true,
+            "label": "自编工程样题 · 未经学科审校"
+          },
+          "applicability": {
+            "scope": "general",
+            "label": "全国通用基础题",
+            "recommended_regions": [],
+            "origin_region_code": null,
+            "exam_year_from": null,
+            "exam_year_to": null,
+            "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+          },
+          "knowledge": [
+            {
+              "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+              "code": "math.inequality.basic",
+              "title": "基本不等式"
+            }
+          ],
+          "variant_of": "1ec8713f-74a0-50d7-8d60-61df1a3f9f79"
+        },
+        {
+          "id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+          "subject": "math",
+          "type": "fill_blank",
+          "answer_mode": "fill",
+          "difficulty": 2,
+          "title": "开口向下的二次函数的单调递增区间",
+          "source": {
+            "source_type": "self_authored",
+            "source_category": "foundation",
+            "source_name": "自编工程样题",
+            "source_year": null,
+            "source_license": "internal-engineering-sample",
+            "source_url": null,
+            "is_engineering_sample": true,
+            "label": "自编工程样题 · 未经学科审校"
+          },
+          "applicability": {
+            "scope": "general",
+            "label": "全国通用基础题",
+            "recommended_regions": [],
+            "origin_region_code": null,
+            "exam_year_from": null,
+            "exam_year_to": null,
+            "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+          },
+          "knowledge": [
+            {
+              "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+              "code": "math.function.monotonicity",
+              "title": "函数的单调性"
+            },
+            {
+              "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+              "code": "math.quadratic.graph",
+              "title": "二次函数的图像与对称轴"
+            }
+          ],
+          "variant_of": "78d86cab-1ee9-5126-83af-c3125e4a0daf"
+        }
+      ],
+      "next_cursor": "eyJvIjogNX0"
+    }
+  }
+}

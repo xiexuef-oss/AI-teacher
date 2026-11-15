@@ -1,0 +1,133 @@
+# 模型网关路由示例（docs/10）。
+#
+# 这份示例里所有外部供应商都处于禁用状态，只有本地 Mock 可用：
+#   - 供应商顺序沿用已冻结的策略（D-02）：阿里云百炼为主平台，DeepSeek 负责复杂推理，火山引擎方舟备选。
+#     这是接入与评测顺序，不是对任何模型准确率的断言。
+#   - 模型 ID、端点、密钥一律通过环境变量名引用（*_env），不写进仓库。
+#   - 价格为 null：报价需要负责人定期核验后填入，token 估算只用于预算，不是账单。
+#
+# 启用一个外部供应商需要同时满足：
+#   1. 环境变量 TUTOR_ALLOW_EXTERNAL_MODEL_CALLS=true；
+#   2. 该供应商 enabled: true；
+#   3. 该供应商 compliance_approved: true（数据处理协议、数据地域、未成年人相关要求已核验，Q-07）；
+#   4. 对应的 *_env 环境变量都已设置。
+# 任一条件不满足，网关都会跳过它。跨供应商回退只在同样通过合规核验的供应商之间进行。
+#
+# 实际使用时复制为 config/model_routes.yaml（已在 .gitignore 中）并设置 TUTOR_MODEL_ROUTES_PATH。
+version: 1
+
+defaults:
+  timeout_ms: 8000
+  # 同一供应商内的重试次数（不含首次调用）
+  max_retries: 1
+  circuit_breaker:
+    failure_threshold: 3
+    cooldown_seconds: 60
+
+budgets:
+  # 单次请求的估算成本上限（微元，1 元 = 1,000,000 微元）
+  per_request_max_cost_micros: 50000
+  # 每学生每日、平台每日的模型请求数上限；超过后使用审核解析或规则降级
+  student_daily_requests: 200
+  platform_daily_requests: 20000
+
+providers:
+  mock:
+    kind: mock
+    external: false
+    enabled: true
+    compliance_approved: true
+    # Mock 只允许在 local / dev 环境加载
+    environments: [local, dev]
+
+  bailian:
+    kind: openai_compatible
+    external: true
+    enabled: false
+    compliance_approved: false
+    base_url_env: BAILIAN_BASE_URL
+    api_key_env: BAILIAN_API_KEY
+    pricing:
+      input_per_1k_tokens_micros: null
+      output_per_1k_tokens_micros: null
+      image_unit_micros: null
+
+  deepseek:
+    kind: openai_compatible
+    external: true
+    enabled: false
+    compliance_approved: false
+    base_url_env: DEEPSEEK_BASE_URL
+    api_key_env: DEEPSEEK_API_KEY
+    pricing:
+      input_per_1k_tokens_micros: null
+      output_per_1k_tokens_micros: null
+      image_unit_micros: null
+
+  volcengine_ark:
+    kind: openai_compatible
+    external: true
+    enabled: false
+    compliance_approved: false
+    base_url_env: VOLCENGINE_ARK_BASE_URL
+    api_key_env: VOLCENGINE_ARK_API_KEY
+    pricing:
+      input_per_1k_tokens_micros: null
+      output_per_1k_tokens_micros: null
+      image_unit_micros: null
+
+# min_confidence：置信度缺失或低于该值的输出会被标记为"需要复核"（OCR 结果必须由学生确认）。
+# 下面的阈值是初始值，需要按评测结果调整。
+routes:
+  ocr_extract:
+    min_confidence: 0.85
+    candidates:
+      - {provider: bailian, model_env: BAILIAN_MODEL_VISION}
+      - {provider: mock, model: mock-ocr}
+
+  handwriting_understand:
+    min_confidence: 0.85
+    candidates:
+      - {provider: bailian, model_env: BAILIAN_MODEL_VISION}
+      - {provider: mock, model: mock-handwriting}
+
+  knowledge_classify:
+    candidates:
+      - {provider: bailian, model_env: BAILIAN_MODEL_LIGHT}
+      - {provider: mock, model: mock-classify}
+
+  tutor_hint:
+    candidates:
+      - {provider: bailian, model_env: BAILIAN_MODEL_TUTOR}
+      - {provider: volcengine_ark, model_env: VOLCENGINE_ARK_MODEL_GENERAL}
+      - {provider: mock, model: mock-tutor}
+
+  tutor_explain:
+    candidates:
+      - {provider: bailian, model_env: BAILIAN_MODEL_TUTOR}
+      - {provider: volcengine_ark, model_env: VOLCENGINE_ARK_MODEL_GENERAL}
+      - {provider: mock, model: mock-tutor}
+
+  complex_reasoning:
+    timeout_ms: 30000
+    candidates:
+      - {provider: deepseek, model_env: DEEPSEEK_MODEL_REASONING}
+      - {provider: bailian, model_env: BAILIAN_MODEL_TUTOR}
+      - {provider: mock, model: mock-reasoning}
+
+  solution_verify:
+    timeout_ms: 30000
+    min_confidence: 0.8
+    candidates:
+      - {provider: deepseek, model_env: DEEPSEEK_MODEL_REASONING}
+      - {provider: mock, model: mock-verify}
+
+  visual_spec:
+    candidates:
+      - {provider: bailian, model_env: BAILIAN_MODEL_TUTOR}
+      - {provider: mock, model: mock-visual}
+
+  review_plan:
+    candidates:
+      - {provider: bailian, model_env: BAILIAN_MODEL_LIGHT}
+      - {provider: mock, model: mock-review}

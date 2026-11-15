@@ -1,0 +1,115 @@
+{
+  "name": "tutor_fast_not_applicable",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/528093c2-90a6-424f-ac8d-25e20cfc06d9/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "528093c2-90a6-424f-ac8d-25e20cfc06d9",
+      "question_id": "08f2b6da-8e8a-5da4-866c-16ed0e079a87",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "INDEPENDENT_ATTEMPT",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": "f8395b3c-d06e-4978-ac4d-127fdfe70302",
+      "submitted_attempts": 0,
+      "last_event_seq": 1,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "8b34d444-8570-4566-b090-0b7ba54573fb",
+        "session_id": "528093c2-90a6-424f-ac8d-25e20cfc06d9",
+        "seq_no": 1,
+        "type": "notice",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "INDEPENDENT_ATTEMPT",
+        "payload": {
+          "code": "fast_not_applicable",
+          "text": "这道题没有经过审核的快速解法，请用常规解法。",
+          "due_at": null
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "08f2b6da-8e8a-5da4-866c-16ed0e079a87",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "ce57817c31b846b2863e8deafc410110"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "528093c2-90a6-424f-ac8d-25e20cfc06d9",
+        "question_id": "08f2b6da-8e8a-5da4-866c-16ed0e079a87",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "INDEPENDENT_ATTEMPT",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": "f8395b3c-d06e-4978-ac4d-127fdfe70302",
+        "submitted_attempts": 0,
+        "last_event_seq": 1,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "8b34d444-8570-4566-b090-0b7ba54573fb",
+          "session_id": "528093c2-90a6-424f-ac8d-25e20cfc06d9",
+          "seq_no": 1,
+          "type": "notice",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "INDEPENDENT_ATTEMPT",
+          "payload": {
+            "code": "fast_not_applicable",
+            "text": "这道题没有经过审核的快速解法，请用常规解法。",
+            "due_at": null
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "08f2b6da-8e8a-5da4-866c-16ed0e079a87",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "ce57817c31b846b2863e8deafc410110"
+          }
+        }
+      ]
+    }
+  }
+}

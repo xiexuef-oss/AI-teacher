@@ -1,0 +1,285 @@
+{
+  "name": "submit_correct",
+  "method": "POST",
+  "path": "/api/v1/attempts/9df4ebcc-a8bd-494a-997b-75a9add39753/submit",
+  "status": 200,
+  "schema": "SubmitResult",
+  "value": {
+    "attempt": {
+      "id": "9df4ebcc-a8bd-494a-997b-75a9add39753",
+      "session_id": "4cfee329-ccdd-4ecb-835d-b8a39541b49c",
+      "attempt_no": 1,
+      "status": "submitted",
+      "answer": {
+        "blanks": [
+          {
+            "key": "b1",
+            "value": "4"
+          }
+        ]
+      },
+      "draft_revision": 0,
+      "assisted": false,
+      "used_solution": false,
+      "independent": true,
+      "evaluation": {
+        "state": "verified",
+        "outcome": "correct",
+        "is_correct": true,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": false,
+        "feedback": [
+          {
+            "target": "overall",
+            "code": "correct",
+            "message": "回答正确。"
+          }
+        ],
+        "message": "回答正确。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "submitted_at": "2026-11-10T08:00:00Z",
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "evaluation": {
+      "state": "verified",
+      "outcome": "correct",
+      "is_correct": true,
+      "independent": true,
+      "assisted": false,
+      "used_solution": false,
+      "review_required": false,
+      "feedback": [
+        {
+          "target": "overall",
+          "code": "correct",
+          "message": "回答正确。"
+        }
+      ],
+      "message": "回答正确。",
+      "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+    },
+    "session": {
+      "id": "4cfee329-ccdd-4ecb-835d-b8a39541b49c",
+      "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "DIAGNOSED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "submitted_attempts": 1,
+      "last_event_seq": 1,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "4ea78b19-6cb1-4101-bf06-b0ea312f319f",
+        "session_id": "4cfee329-ccdd-4ecb-835d-b8a39541b49c",
+        "seq_no": 1,
+        "type": "diagnosis",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "DIAGNOSED",
+        "payload": {
+          "outcome": "correct",
+          "summary": "回答正确。",
+          "feedback": [
+            {
+              "target": "overall",
+              "code": "correct",
+              "message": "回答正确。"
+            }
+          ],
+          "knowledge": [
+            {
+              "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+              "code": "math.inequality.basic",
+              "title": "基本不等式"
+            }
+          ],
+          "suggestions": [
+            {
+              "action": "request_standard",
+              "label": "看看解法",
+              "question_id": null,
+              "knowledge_id": null
+            },
+            {
+              "action": "finish",
+              "label": "完成这道题",
+              "question_id": null,
+              "knowledge_id": null
+            }
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "e9cfdff1b8944ded819d26ba74675aa2"
+        }
+      }
+    ],
+    "review_item": null
+  },
+  "body": {
+    "data": {
+      "attempt": {
+        "id": "9df4ebcc-a8bd-494a-997b-75a9add39753",
+        "session_id": "4cfee329-ccdd-4ecb-835d-b8a39541b49c",
+        "attempt_no": 1,
+        "status": "submitted",
+        "answer": {
+          "blanks": [
+            {
+              "key": "b1",
+              "value": "4"
+            }
+          ]
+        },
+        "draft_revision": 0,
+        "assisted": false,
+        "used_solution": false,
+        "independent": true,
+        "evaluation": {
+          "state": "verified",
+          "outcome": "correct",
+          "is_correct": true,
+          "independent": true,
+          "assisted": false,
+          "used_solution": false,
+          "review_required": false,
+          "feedback": [
+            {
+              "target": "overall",
+              "code": "correct",
+              "message": "回答正确。"
+            }
+          ],
+          "message": "回答正确。",
+          "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+        },
+        "submitted_at": "2026-11-10T08:00:00Z",
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "evaluation": {
+        "state": "verified",
+        "outcome": "correct",
+        "is_correct": true,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": false,
+        "feedback": [
+          {
+            "target": "overall",
+            "code": "correct",
+            "message": "回答正确。"
+          }
+        ],
+        "message": "回答正确。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "session": {
+        "id": "4cfee329-ccdd-4ecb-835d-b8a39541b49c",
+        "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "DIAGNOSED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "submitted_attempts": 1,
+        "last_event_seq": 1,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "4ea78b19-6cb1-4101-bf06-b0ea312f319f",
+          "session_id": "4cfee329-ccdd-4ecb-835d-b8a39541b49c",
+          "seq_no": 1,
+          "type": "diagnosis",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "DIAGNOSED",
+          "payload": {
+            "outcome": "correct",
+            "summary": "回答正确。",
+            "feedback": [
+              {
+                "target": "overall",
+                "code": "correct",
+                "message": "回答正确。"
+              }
+            ],
+            "knowledge": [
+              {
+                "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+                "code": "math.inequality.basic",
+                "title": "基本不等式"
+              }
+            ],
+            "suggestions": [
+              {
+                "action": "request_standard",
+                "label": "看看解法",
+                "question_id": null,
+                "knowledge_id": null
+              },
+              {
+                "action": "finish",
+                "label": "完成这道题",
+                "question_id": null,
+                "knowledge_id": null
+              }
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "e9cfdff1b8944ded819d26ba74675aa2"
+          }
+        }
+      ],
+      "review_item": null
+    }
+  }
+}

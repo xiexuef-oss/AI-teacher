@@ -1,0 +1,2980 @@
+openapi: 3.1.0
+info:
+  title: AI 理科私教 API
+  version: 1.3.0-slice.1
+  summary: 高中数学、物理、化学 AI 私教的公开 API 契约（权威文件）
+  description: |
+    约定（docs/05）：
+
+    - Base 为 `/api/v1`；JSON UTF-8；时间一律 UTC ISO-8601；资源 ID 为 UUID。
+    - 成功响应 `{"data": ...}`；错误响应 `{"error": {"code", "message", "details", "request_id"}}`，不返回栈信息。
+    - 每个响应回显 `X-Request-Id`；请求未带时由服务端生成。
+    - 非幂等动作必须带 `Idempotency-Key`。同键同请求重放首次的响应（带 `Idempotency-Replayed: true`）；
+      同键不同请求返回 409 `idempotency_key_conflict`；缺少时返回 400 `idempotency_key_required`。
+    - 权限只来自 Bearer token 与持久授权。请求里的任何 student_id 都不是授权依据；访问他人资源返回 404。
+    - 删除或重命名字段是破坏性变更；新增字段默认可选，客户端忽略未知字段。
+    - 原型期：服务端开启本地身份 Mock 时只接受回环地址的请求，其他来源的任何请求都在进入具体操作之前
+      被拦截，返回 403 `loopback_only`（错误信封相同）。这是部署形态的限制，不逐个操作声明。
+
+    `x-implementation-status`：`implemented` 表示 ADR-006 本地纵向切片已实现；`planned` 表示只定了契约草案，
+    服务端目前返回 501 `not_implemented`，形状在实现前仍可调整。
+
+    教学事件（`TutorEvent`）的 payload 由 `contracts/tutor_event.schema.json` 约束，服务端下发前逐个校验。
+
+    练习反馈不是官方阅卷分数。判定不了的作答返回 `uncertain`，不算对也不算错。
+servers:
+  - url: /api/v1
+tags:
+  - {name: system, description: 健康检查与启动配置}
+  - {name: identity, description: 本地身份 Mock（仅原型期，须显式开启）}
+  - {name: profile, description: 学生资料与地区设置}
+  - {name: tasks, description: 今日任务}
+  - {name: questions, description: 题目}
+  - {name: sessions, description: 学习会话与教学事件}
+  - {name: attempts, description: 作答、草稿与提交}
+  - {name: tutor, description: 教学下一步}
+  - {name: reviews, description: 间隔复测}
+  - {name: progress, description: 学情}
+  - {name: media, description: 媒体上传与拍题（planned）}
+  - {name: parents, description: 家长周报与绑定授权：学生明确授权、可撤销；家长只看汇总}
+  - {name: admin, description: 内容审核（reviewer / admin）：题目 draft → reviewed → published，可撤回}
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [system]
+      summary: 服务健康状态与关键开关
+      x-implementation-status: implemented
+      security: []
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 服务可用
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Health'}
+
+  /meta/launch-config:
+    get:
+      operationId: getLaunchConfig
+      tags: [system]
+      summary: 首发地区、年级、学科、教材选项与考试年份估算
+      description: 引导页用。地区由用户手动选择，不根据定位推断；教材选项与省份无对应关系。
+      x-implementation-status: implemented
+      security: []
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 启动配置
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LaunchConfig'}
+
+  /dev/local-identities:
+    post:
+      operationId: createLocalIdentity
+      tags: [identity]
+      summary: 创建一个本地身份并返回随机 bearer
+      description: |
+        仅当服务端显式开启本地身份 Mock（且环境为 local）时可用，并且只接受回环地址的请求。
+        未开启时返回 404。token 只在本响应中出现一次，服务端只保存哈希。真实登录接口另行冻结（Q-03）。
+        默认创建学生；`role=reviewer` / `role=admin` 用来在本机联调内容审核后台，真实环境的角色由身份服务决定。
+      x-implementation-status: implemented
+      security: []
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: role
+          in: query
+          required: false
+          schema: {$ref: '#/components/schemas/LocalRole'}
+      responses:
+        '201':
+          description: 已创建
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LocalIdentity'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: 当前学生的资料
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 学生资料；尚未完成引导时 onboarding_completed 为 false
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/StudentProfile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    put:
+      operationId: updateProfile
+      tags: [profile]
+      summary: 保存地区、年级、学科、考试年份与教材版本
+      description: |
+        整体替换可编辑字段。`exam_year` 省略或为 null 时：若此前由用户手动设置过则保留，否则按年级估算
+        （学年以 9 月为起点）。教材版本可以为 null（暂不清楚）。切换地区不影响已产生的会话快照。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProfileUpdate'}
+      responses:
+        '200':
+          description: 保存后的资料
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/StudentProfile'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /tasks/today:
+    get:
+      operationId: getTodayTasks
+      tags: [tasks]
+      summary: 今日任务
+      description: 没有可推荐内容时 items 为空数组。任务由服务端按到期复测、薄弱点、变式与资料即时计算。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 今日任务
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/TodayTasks'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /questions:
+    get:
+      operationId: listQuestions
+      tags: [questions]
+      summary: 练习选题列表
+      description: |
+        只返回已发布且有使用许可的题目。`scope=region` 只要当前学生地区与考试年份适用的题；
+        `scope=general` 只要全国通用基础题；默认 `all` 时地区适用题排在前面。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: subject
+          in: query
+          schema: {$ref: '#/components/schemas/Subject'}
+        - name: answer_mode
+          in: query
+          schema: {$ref: '#/components/schemas/AnswerMode'}
+        - name: source_category
+          in: query
+          schema: {$ref: '#/components/schemas/SourceCategory'}
+        - name: scope
+          in: query
+          schema: {$ref: '#/components/schemas/QuestionScope'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 一页题目
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/QuestionPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /questions/{question_id}:
+    get:
+      operationId: getQuestion
+      tags: [questions]
+      summary: 题目与结构
+      description: 不包含答案、解法、提示原文与选项分析。未发布的题对学生返回 404。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+      responses:
+        '200':
+          description: 题目
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Question'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /sessions:
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: 为一道题开启学习会话
+      description: |
+        会话保存题目版本以及当时的地区、考试年份、教材版本快照。`origin=review` 必须带已到期的
+        `review_item_id`；复测会话在提交前不提供提示与解析。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SessionCreate'}
+      responses:
+        '201':
+          description: 已创建
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/StudySession'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /sessions/{session_id}:
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: 会话当前状态
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/SessionId'}
+      responses:
+        '200':
+          description: 会话
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/StudySession'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /sessions/{session_id}/events:
+    get:
+      operationId: listSessionEvents
+      tags: [sessions]
+      summary: 按 seq 恢复教学事件
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/SessionId'}
+        - name: after_seq
+          in: query
+          description: 只返回 seq_no 大于该值的事件。
+          schema: {type: integer, minimum: 0, default: 0}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 200, default: 100}
+      responses:
+        '200':
+          description: 事件列表，按 seq_no 升序
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/TutorEventPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /attempts:
+    post:
+      operationId: createAttempt
+      tags: [attempts]
+      summary: 在会话中新建一次作答草稿
+      description: 同一会话同时只能有一份未提交的作答；已存在时返回 409 `attempt_in_progress`，details.attempt_id 为它的 ID。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AttemptCreate'}
+      responses:
+        '201':
+          description: 已创建
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Attempt'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /attempts/{attempt_id}:
+    get:
+      operationId: getAttempt
+      tags: [attempts]
+      summary: 一次作答及其评估
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/AttemptId'}
+      responses:
+        '200':
+          description: 作答
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Attempt'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /attempts/{attempt_id}/draft:
+    get:
+      operationId: getDraft
+      tags: [attempts]
+      summary: 云端草稿（未提交的答案与笔迹）
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/AttemptId'}
+      responses:
+        '200':
+          description: 草稿
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Draft'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+    put:
+      operationId: syncDraft
+      tags: [attempts]
+      summary: 同步草稿
+      description: |
+        `base_revision` 必须等于服务端当前 revision，成功后 revision 加一。不相等返回 409
+        `draft_revision_conflict`，details 带 `server_revision` 与 `server_draft`，服务端不覆盖任何一方。
+        已提交的作答返回 409 `attempt_already_submitted`。请求体超过上限返回 413。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/AttemptId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DraftSync'}
+      responses:
+        '200':
+          description: 同步后的草稿
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Draft'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /attempts/{attempt_id}/submit:
+    post:
+      operationId: submitAttempt
+      tags: [attempts]
+      summary: 提交作答并返回评估状态
+      description: |
+        客观题同步判定。判定不了（例如填空等价性无法确认）时 `evaluation.state=uncertain`、`is_correct=null`。
+        解答题（`written`）和实验题（`experiment`）不自动评分：返回 `state=pending`、`outcome=undetermined`、
+        `is_correct=null`，并产生一条 `uncertainty` 事件（`reason_code=subjective_self_check`）；学生之后用
+        `/attempts/{attempt_id}/self-check` 对照要点自查。解答题没有文字（`answer.parts` 全空）
+        也没有已同步的笔迹时返回 422；实验题的 `answer.cells`（数据表里学生填的格子，只能是题目留空的）
+        与 `answer.parts` 都没有内容、也没有笔迹时同样返回 422。
+        同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
+        只有会话里第一次提交、且此前没有看过提示、图解或解析的作答才算 `independent=true`。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/AttemptId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SubmitRequest'}
+      responses:
+        '200':
+          description: 提交结果
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SubmitResult'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /attempts/{attempt_id}/self-check:
+    get:
+      operationId: getSelfCheck
+      tags: [attempts]
+      summary: 解答题、实验题提交后的对照自查：要点，以及已保存的自评
+      description: |
+        解答题和实验题不自动评分。提交之后，学生对照这份要点清单，给每一条标"做到了 / 做到一部分 / 没做到"。
+        要点只在作答已提交之后才给：提交之前返回 409 `attempt_not_submitted`，独立作答阶段不泄题；
+        实验题数据表里留空格子的参考值（`reference_cells`）同样只在提交之后才给。
+        不是解答题或实验题的作答返回 409 `self_check_not_applicable`。还没有保存过自评时 `marks` 为空、`saved_at` 为 null。
+        自查是学生自己做的记录，不是官方阅卷分数，也不计入任何正确率。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/AttemptId'}
+      responses:
+        '200':
+          description: 自查要点与已保存的自评
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SelfCheck'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+    put:
+      operationId: saveSelfCheck
+      tags: [attempts]
+      summary: 保存对照自查的结果
+      description: |
+        整体替换：每个要点必须恰好评一次，缺评、重复或不认识的要点返回 422。可以改过再保存。
+        同一幂等键重放返回同一结果。作答没有提交、或不是解答题、实验题的情形与 GET 相同，返回 409。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/AttemptId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SelfCheckSave'}
+      responses:
+        '200':
+          description: 保存后的自查
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SelfCheck'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /tutor/sessions/{session_id}/next:
+    post:
+      operationId: tutorNext
+      tags: [tutor]
+      summary: 教学下一步
+      description: |
+        - `request_hint`：只给下一层提示，不含答案。
+        - `request_standard` / `request_fast`：会话尚无已提交作答时，必须带 `confirm_end_independent=true`
+          明确结束独立作答，否则 409 `independent_attempt_in_progress`。没有审核过的快速解法时返回
+          `notice: fast_not_applicable`。
+        - `request_visual`：返回白名单模板与受限参数；题目没有图解时返回 `notice: visual_not_available`。
+        - `mark_confused`：第一次换种讲法，连续第二次给前置知识并推荐图解，第三次建议暂停并记录待人工帮助。
+        - `mark_understood`：已有提交时结束会话，并给出变式与复测安排。
+        - 复测会话提交前请求任何辅助返回 409 `hints_disabled_in_retest`。
+
+        模型不可用或输出未通过校验时返回 `fallback` 事件（HTTP 200），不伪造已完成的评分。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/SessionId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TutorAction'}
+      responses:
+        '200':
+          description: 本步产生的事件与更新后的会话
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/TutorStep'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /reviews/due:
+    get:
+      operationId: listDueReviews
+      tags: [reviews]
+      summary: 复测队列
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: scope
+          in: query
+          description: due 只返回已到期的；all 同时返回尚未到期的。
+          schema: {$ref: '#/components/schemas/ReviewScope'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 复测项，按到期时间升序
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ReviewPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /reviews/{review_id}/complete:
+    post:
+      operationId: completeReview
+      tags: [reviews]
+      summary: 用一次已判定的复测作答完成复测项
+      description: |
+        结果只取服务端对该作答的判定，不接受客户端自报。作答必须属于以该复测项开启的会话。
+        通过（独立且正确）进入下一档间隔，全部通过后 `mastered`；未通过回到第一档。
+        作答尚未判定或为 `uncertain` 时返回 409 `attempt_not_verified`。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/ReviewId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReviewComplete'}
+      responses:
+        '200':
+          description: 复测结果与下次安排
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ReviewCompletion'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /progress/summary:
+    get:
+      operationId: getProgressSummary
+      tags: [progress]
+      summary: 学情摘要
+      description: |
+        独立正确率 = 无提示且未看解析的正确作答数 / 无提示且未看解析的有效作答数；辅助正确率另算。
+        有效作答只含已确定判定（verified）的提交。样本数低于 `min_samples` 时 `rate=null`、
+        `insufficient_data=true`，不给伪精确百分比。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 学情摘要
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ProgressSummary'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /media/uploads:
+    post:
+      operationId: createMediaUpload
+      tags: [media]
+      summary: 获取短期上传 URL（planned）
+      x-implementation-status: planned
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MediaUploadRequest'}
+      responses:
+        '201':
+          description: 上传凭据
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaUpload'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+
+  /scans:
+    post:
+      operationId: createScan
+      tags: [media]
+      summary: 对已上传的单题图片启动 OCR（planned）
+      x-implementation-status: planned
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ScanCreate'}
+      responses:
+        '202':
+          description: 已接受，异步识别
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Scan'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+
+  /scans/{scan_id}:
+    get:
+      operationId: getScan
+      tags: [media]
+      summary: OCR 状态与可编辑题干（planned）
+      x-implementation-status: planned
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/ScanId'}
+      responses:
+        '200':
+          description: 识别结果；置信度低时 low_confidence 为 true，必须由学生确认
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Scan'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+
+  /scans/{scan_id}/confirm:
+    post:
+      operationId: confirmScan
+      tags: [media]
+      summary: 学生确认题干后关联已有题或生成待审题草案（planned）
+      description: 未经确认的 OCR 结果不得直接算作原题。
+      x-implementation-status: planned
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/ScanId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ScanConfirm'}
+      responses:
+        '200':
+          description: 确认结果
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ScanConfirmation'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+
+  /me/parent-invites:
+    post:
+      operationId: createParentInvite
+      tags: [parents]
+      summary: 学生生成一次性的家长邀请码（学生明确授权的第一步）
+      description: |
+        只有学生能调用。邀请码只在这个响应里出现一次，库里只存哈希；有效期见 `expires_at`（可配置，默认 24 小时），
+        用过一次就作废。再生成一个，会让这个学生之前还没被使用的邀请码立刻失效。
+        授权是学生自己做的、可以随时撤销（见 `revokeParentLink`）。这是原型阶段的授权方式：监护授权方案（Q-03）
+        冻结之前，它不代表任何法定的监护人核验。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '201':
+          description: 新的邀请码
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentInvite'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /me/parent-links:
+    get:
+      operationId: listParentLinks
+      tags: [parents]
+      summary: 学生看自己授权过哪些家长，以及有没有还没被使用的邀请码
+      description: 只列现在仍有效的授权；已经撤销的不再出现。不会再返回邀请码本身（它只在创建时出现一次）。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 授权列表
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentLinks'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /me/parent-links/{link_id}/revoke:
+    post:
+      operationId: revokeParentLink
+      tags: [parents]
+      summary: 学生撤销对一位家长的授权
+      description: |
+        撤销立刻生效：这位家长马上看不到这个学生，周报返回 404。只能撤销自己的授权；别人的、不存在的、
+        已经撤销过的都返回 404。之后想再让这位家长看，要重新生成邀请码、重新授权。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/LinkId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200':
+          description: 撤销后的授权记录
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentLink'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /parents/links:
+    post:
+      operationId: redeemParentInvite
+      tags: [parents]
+      summary: 家长输入学生给的邀请码，建立绑定
+      description: |
+        只有家长能调用。邀请码不对、已过期、已经被用过、已经被新的邀请码顶替，一律返回 404 `invite_invalid`，
+        不区分原因。已经绑定着这位学生时返回 409 `already_linked`（邀请码保持未使用）。
+        输入时的空格、短横线和大小写会被忽略。这一步没有做防暴力尝试的限流（docs/05 §5），真实上线前要补。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ParentInviteRedeem'}
+      responses:
+        '201':
+          description: 已建立的绑定
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentStudent'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /parents/students:
+    get:
+      operationId: listParentStudents
+      tags: [parents]
+      summary: 这位家长现在能看的学生
+      description: 只列授权仍然有效的学生，按绑定时间排序。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 学生列表
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentStudents'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /parents/students/{student_id}/weekly:
+    get:
+      operationId: getParentWeekly
+      tags: [parents]
+      summary: 已授权绑定学生某一周的汇总
+      description: |
+        只有家长能调用，并且这位学生已经明确授权、授权没有被撤销。否则一律返回 404——和学生不存在的响应完全一样。
+        只返回汇总：计数和比例，没有具体题目、作答内容、提示原文、草稿和笔迹，也没有每次练习的时间。
+        不是官方成绩，没有排名。`week_start` 不带时是当前这一周（周一到周日，按服务端配置的时区划分，默认 UTC+8）；
+        带的话必须是周一，并且这一周已经开始。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/StudentId'}
+        - {$ref: '#/components/parameters/WeekStart'}
+      responses:
+        '200':
+          description: 周报
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentWeekly'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /admin/questions:
+    get:
+      operationId: listAdminQuestions
+      tags: [admin]
+      summary: 审核队列：全部状态的题目
+      description: |
+        只有 reviewer 与 admin 可用，学生返回 403。与学生端的 `/questions` 不同，这里包含 draft、reviewed、
+        withdrawn 的题，并带每种状态的数量（受 subject、source_category 筛选影响，不受 status 影响）。
+        默认按更新时间从新到旧。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: status
+          in: query
+          required: false
+          schema: {$ref: '#/components/schemas/QuestionStatus'}
+        - name: subject
+          in: query
+          required: false
+          schema: {$ref: '#/components/schemas/Subject'}
+        - name: source_category
+          in: query
+          required: false
+          schema: {$ref: '#/components/schemas/SourceCategory'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 一页题目与各状态的数量
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/AdminQuestionPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /admin/questions/{question_id}:
+    get:
+      operationId: getAdminQuestion
+      tags: [admin]
+      summary: 审核用的题目全貌
+      description: |
+        含答案、解法、提示、选项分析、图解参数、评分规则、知识点、地区标记、各版本与审核历史，
+        以及程序校验（与样题入库同一套）发现的问题。只有 reviewer 与 admin 可用。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+      responses:
+        '200':
+          description: 题目全貌
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/AdminQuestionDetail'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /admin/questions/{question_id}/versions:
+    post:
+      operationId: createQuestionVersion
+      tags: [admin]
+      summary: 修改题目并产生新版本
+      description: |
+        整体替换可编辑的内容（题面、答案、教学辅助、解法、知识点、评分细则），产生新版本 `version + 1`，
+        旧版本原样保留（docs/07："修改题干或答案后增加版本，旧版本留痕"）。
+
+        - `draft`、`reviewed`、`withdrawn` 的题可以改；新版本回到 draft，审校人与解法确认全部清空，必须重新二审。
+          已上线的题要先下线（409 `invalid_transition`）：上线的内容不会被悄悄改掉。
+        - 没有任何改动时 422 `no_changes`，不产生空版本。
+        - 保存时不做程序校验：草稿可以是半成品。校验结果在详情的 `check_problems` 里，二审与上线之前必须清零。
+        - 做这次修改的人成为新版本的提交者，和其他提交者一样不能自己二审或上线。
+        - 学生已经开始的会话继续按开始时的版本判分与讲解，不受影响。
+
+        `expected_version` 与当前版本不一致时 409 `version_conflict`。每次修改写审计日志，同一个幂等键只生效一次。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminQuestionEdit'}
+      responses:
+        '201':
+          description: 新版本保存后的题目全貌
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/AdminQuestionDetail'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /admin/questions/{question_id}/versions/{version}:
+    get:
+      operationId: getQuestionVersion
+      tags: [admin]
+      summary: 题目某一个版本的完整内容
+      description: |
+        回看或对比旧版本用：返回这个版本在保存时的内容（题面、答案、教学辅助、解法及当时的审核标记、评分细则），
+        以及保存时的难度、年级、知识点。当前版本以题目现在的状态为准（二者一致）。
+        在"修改题目会同时记下旧版本的难度、年级、知识点"之前产生的旧版本没有这几项快照，返回的是题目现在的值。
+        只有 reviewer 与 admin 可用；题目或版本不存在返回 404。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+        - {$ref: '#/components/parameters/VersionNo'}
+      responses:
+        '200':
+          description: 这个版本的内容
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/AdminVersionSnapshot'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /admin/questions/{question_id}/review:
+    post:
+      operationId: reviewQuestion
+      tags: [admin]
+      summary: 审核决策
+      description: |
+        状态流转 draft → reviewed → published → withdrawn（docs/07）：
+
+        - `approve`：draft → reviewed。提交内容的人不能审自己的题（403 `self_review_forbidden`）；
+          程序校验有问题时 422 `content_checks_failed`（`details.problems` 列出问题）；
+          `solution_kinds` 里列出的解法被标记为已审核（缺省为标准解法）。没有列出的快速解法不会对学生可用。
+        - `reject`：draft / reviewed → draft，必须写 `comment`；已审核的标记全部撤销。
+        - `publish`：reviewed → published。再做一次程序校验；标准解法必须已审核。
+        - `withdraw`：published → withdrawn，必须写 `comment`；学生立即看不到这道题。withdrawn 是终态。
+
+        `expected_version` 是审核人看到的题目版本，与当前版本不一致时 409 `version_conflict`；
+        状态不允许这个决策时 409 `invalid_transition`。每次决策写审计日志，同一个幂等键只生效一次。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReviewDecision'}
+      responses:
+        '200':
+          description: 审核后的状态
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/QuestionReviewState'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 原型期为本地身份 Mock 发放的随机 token；真实登录方式待 Q-03 冻结。
+
+  parameters:
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。
+      schema: {type: string, minLength: 1, maxLength: 128, pattern: '^[A-Za-z0-9._:-]+$'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: 每次用户动作固定一个键，重试时复用。
+      schema: {type: string, minLength: 8, maxLength: 128, pattern: '^[A-Za-z0-9._:-]+$'}
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: 上一页返回的 next_cursor，不透明字符串。
+      schema: {type: string, minLength: 1, maxLength: 256}
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 50, default: 20}
+    QuestionId:
+      name: question_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    VersionNo:
+      name: version
+      in: path
+      required: true
+      description: 题目的版本号，从 1 开始。
+      schema: {type: integer, minimum: 1}
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    AttemptId:
+      name: attempt_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    ReviewId:
+      name: review_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    ScanId:
+      name: scan_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    StudentId:
+      name: student_id
+      in: path
+      required: true
+      description: 仅作为资源关联；是否可访问由 token 与绑定关系决定。
+      schema: {type: string, format: uuid}
+    LinkId:
+      name: link_id
+      in: path
+      required: true
+      description: 家长授权记录的 ID；只能撤销自己的。
+      schema: {type: string, format: uuid}
+    WeekStart:
+      name: week_start
+      in: query
+      required: false
+      description: 周报从哪一天开始；必须是周一，并且这一周已经开始。不带时是当前这一周。
+      schema: {type: string, format: date}
+
+  headers:
+    RequestId:
+      description: 请求 ID，服务端回显或生成。
+      schema: {type: string}
+    IdempotencyReplayed:
+      description: 值为 true 表示本响应是同一幂等键的重放。
+      schema: {type: string, enum: ['true']}
+
+  responses:
+    BadRequest:
+      description: 参数错误（如缺少 Idempotency-Key、游标无效）
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    Unauthorized:
+      description: 未认证或 token 无效
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    Forbidden:
+      description: 无权限：角色不对（学生调用审核接口、审核员调用学生接口），或违反了"提交者不能审自己的题"
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    NotFound:
+      description: 资源不存在，或不属于当前用户（防枚举）
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    Conflict:
+      description: 状态或版本冲突
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    PayloadTooLarge:
+      description: 载荷过大
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    Unprocessable:
+      description: 字段语义不合法
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    NotImplemented:
+      description: 契约已规划，本阶段未实现
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    ServiceUnavailable:
+      description: 模型或依赖服务不可用，且没有可用的降级内容
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+
+  schemas:
+    # ------------------------------------------------------------ 通用
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error: {$ref: '#/components/schemas/ErrorBody'}
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required: [code, message, details, request_id]
+      properties:
+        code:
+          type: string
+          description: |
+            机器可读的错误码，例如 idempotency_key_required、idempotency_key_conflict、unauthenticated、
+            forbidden、loopback_only、not_found、draft_revision_conflict、attempt_already_submitted、
+            attempt_in_progress、independent_attempt_in_progress、hints_disabled_in_retest、invalid_state、
+            review_not_due、attempt_not_verified、payload_too_large、validation_error、not_implemented、
+            model_unavailable；内容审核另有 self_review_forbidden、version_conflict、invalid_transition、
+            comment_required、content_checks_failed、solution_not_confirmed；修改题目另有 no_changes。
+        message: {type: string}
+        details: {$ref: '#/components/schemas/ErrorDetails'}
+        request_id: {type: string}
+    ErrorDetails:
+      type: object
+      description: 与错误码相关的结构化信息；没有时为空对象。
+      additionalProperties: true
+
+    RegionCode:
+      type: string
+      description: 首发地区：四川 CN-51、重庆 CN-50。
+      enum: [CN-51, CN-50]
+    Grade:
+      type: string
+      description: 高一 G10、高二 G11、高三 G12。
+      enum: [G10, G11, G12]
+    Subject:
+      type: string
+      enum: [math, physics, chemistry]
+    ExamYearSource:
+      type: string
+      description: estimated 表示按年级推算，user 表示用户手动设置。
+      enum: [estimated, user]
+    QuestionType:
+      type: string
+      description: 题型（考试意义上的类别）。
+      enum: [single_choice, multiple_choice, fill_blank, solution, proof, experiment, inference, process_flow, comprehensive]
+    AnswerMode:
+      type: string
+      description: |
+        作答区的渲染方式。single_choice、multiple_choice、fill 由服务端确定性判定；
+        written（解答题）只保存作答，提交后给对照要点的自查，不自动评分；
+        experiment（实验题）是带数据表和安全提示的主观题：数据表里留空的格子填在 `answer.cells`，
+        文字作答填在 `answer.parts`，和解答题一样不自动评分、提交后对照要点和参考数据自查。
+      enum: [single_choice, multiple_choice, fill, written, experiment]
+    SourceType:
+      type: string
+      enum: [self_authored, textbook_licensed, public_license, gaokao_licensed, ai_generated]
+    SourceCategory:
+      type: string
+      description: 学生可见的筛选分类：高考真题、模拟题、基础母题、AI 生成变式。
+      enum: [gaokao_real, mock_exam, foundation, ai_variant]
+    QuestionScope:
+      type: string
+      enum: [all, region, general]
+    ApplicabilityScope:
+      type: string
+      description: region 表示带有审核过的地区适用标记；general 表示全国通用基础题。
+      enum: [region, general]
+    TaskKind:
+      type: string
+      description: new_topic 新题（首次使用时为入门选题）；review_mistake 复习旧错题；retest 间隔复测；weak_point 薄弱点；variant 变式。
+      enum: [new_topic, review_mistake, retest, weak_point, variant]
+    SessionOrigin:
+      type: string
+      enum: [task, practice, review, variant]
+    SessionState:
+      type: string
+      description: docs/06 教学状态机，与 tutor_event.schema.json 的 SessionState 一致。
+      enum: [READY, INDEPENDENT_ATTEMPT, SUBMITTED, DIAGNOSED, HINTED, STANDARD, FAST, VISUAL, VARIANT, REVIEW_SCHEDULED, DONE, FALLBACK]
+    AttemptStatus:
+      type: string
+      enum: [draft, submitted]
+    EvaluationState:
+      type: string
+      description: verified 为确定判定；uncertain 为无法可靠判断（不给确定结论）；pending 为等待评分；error 为评分出错。
+      enum: [pending, verified, uncertain, error]
+    EvaluationOutcome:
+      type: string
+      enum: [correct, partially_correct, incorrect, undetermined]
+    FeedbackCode:
+      type: string
+      enum: [correct, wrong_option, missed_options, value_incorrect, unit_missing, unit_mismatch, format_unrecognized, equivalence_unconfirmed]
+    TutorActionType:
+      type: string
+      enum: [request_hint, request_standard, request_fast, request_visual, mark_understood, mark_confused]
+    TutorEventType:
+      type: string
+      enum: [diagnosis, hint, standard, fast, visual, ask, notice, uncertainty, fallback]
+    TutorEventSource:
+      type: string
+      enum: [reviewed_content, model, rule_engine]
+    ReviewStatus:
+      type: string
+      enum: [scheduled, mastered, paused]
+    ReviewResult:
+      type: string
+      enum: [passed, failed]
+    ReviewScope:
+      type: string
+      enum: [due, all]
+
+    # ------------------------------------------------------------ 系统
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, api_version, contract_version, environment, local_identity_mock, external_model_calls, server_time]
+      properties:
+        status: {type: string, enum: [ok]}
+        api_version: {type: string}
+        contract_version: {type: string}
+        environment: {type: string}
+        local_identity_mock: {type: boolean, description: 是否开启了本地身份 Mock。}
+        external_model_calls: {type: boolean, description: 是否允许调用外部模型供应商。}
+        server_time: {type: string, format: date-time}
+    LaunchConfig:
+      type: object
+      additionalProperties: false
+      required: [regions, grades, subjects, curriculum_versions, school_year_start_month, exam_year_min, exam_year_max]
+      properties:
+        regions:
+          type: array
+          items: {$ref: '#/components/schemas/RegionOption'}
+        grades:
+          type: array
+          items: {$ref: '#/components/schemas/GradeOption'}
+        subjects:
+          type: array
+          items: {$ref: '#/components/schemas/SubjectOption'}
+        curriculum_versions:
+          type: array
+          description: 可手动选择的教材版本。列表与省份无对应关系；不清楚时资料里留空。
+          items: {$ref: '#/components/schemas/CurriculumOption'}
+        school_year_start_month: {type: integer, minimum: 1, maximum: 12}
+        exam_year_min: {type: integer}
+        exam_year_max: {type: integer}
+    RegionOption:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: {$ref: '#/components/schemas/RegionCode'}
+        name: {type: string}
+    GradeOption:
+      type: object
+      additionalProperties: false
+      required: [code, name, estimated_exam_year]
+      properties:
+        code: {$ref: '#/components/schemas/Grade'}
+        name: {type: string}
+        estimated_exam_year: {type: integer, description: 按当前日期和 9 月学年起点估算的高考年份。}
+    SubjectOption:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: {$ref: '#/components/schemas/Subject'}
+        name: {type: string}
+    CurriculumOption:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 32}
+        name: {type: string}
+
+    # ------------------------------------------------------------ 身份与资料
+    LocalRole:
+      type: string
+      description: |
+        本地身份 Mock 可以发放的角色；缺省为 student。parent 只是本地联调用的 Mock 角色：学生自己授权、可以撤销，
+        不代表任何监护人核验——真实登录与监护授权方案（Q-03）冻结之前，这是唯一的家长身份来源。
+      enum: [student, parent, reviewer, admin]
+      default: student
+    LocalIdentity:
+      type: object
+      additionalProperties: false
+      required: [user_id, role, access_token, token_type]
+      properties:
+        user_id: {type: string, format: uuid}
+        role: {$ref: '#/components/schemas/LocalRole'}
+        access_token: {type: string, minLength: 32}
+        token_type: {type: string, enum: [Bearer]}
+    StudentProfile:
+      type: object
+      additionalProperties: false
+      required:
+        - user_id
+        - display_name
+        - region_code
+        - grade
+        - subjects
+        - exam_year
+        - exam_year_source
+        - exam_scheme_code
+        - curriculum_version
+        - onboarding_completed
+        - notices
+        - updated_at
+      properties:
+        user_id: {type: string, format: uuid}
+        display_name: {type: [string, 'null'], maxLength: 40}
+        region_code:
+          oneOf:
+            - {$ref: '#/components/schemas/RegionCode'}
+            - {type: 'null'}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        subjects:
+          type: array
+          items: {$ref: '#/components/schemas/Subject'}
+        exam_year: {type: [integer, 'null']}
+        exam_year_source:
+          oneOf:
+            - {$ref: '#/components/schemas/ExamYearSource'}
+            - {type: 'null'}
+        exam_scheme_code:
+          type: [string, 'null']
+          description: 考试制度版本。地区规则审核生效前保持 null，不由代码硬编码。
+        curriculum_version: {type: [string, 'null'], description: 教材版本；null 表示暂不清楚。}
+        onboarding_completed: {type: boolean, description: 已选择地区和至少一门学科。}
+        notices:
+          type: array
+          items: {$ref: '#/components/schemas/ProfileNotice'}
+        updated_at: {type: string, format: date-time}
+    ProfileNotice:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: {type: string, enum: [curriculum_unknown, grade_unknown, exam_year_estimated]}
+        message: {type: string}
+    ProfileUpdate:
+      type: object
+      additionalProperties: false
+      required: [region_code, subjects]
+      properties:
+        region_code: {$ref: '#/components/schemas/RegionCode'}
+        subjects:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/Subject'}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        exam_year: {type: [integer, 'null'], description: 省略或 null 表示沿用手动值或按年级估算。}
+        curriculum_version: {type: [string, 'null'], minLength: 1, maxLength: 32}
+        display_name: {type: [string, 'null'], minLength: 1, maxLength: 40}
+
+    # ------------------------------------------------------------ 任务与题目
+    TodayTasks:
+      type: object
+      additionalProperties: false
+      required: [date, items]
+      properties:
+        date: {type: string, format: date, description: 服务端 UTC 日期。}
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/StudyTask'}
+    StudyTask:
+      type: object
+      additionalProperties: false
+      required: [id, kind, title, reason, subject, question_id, review_item_id, applicability, estimated_minutes]
+      properties:
+        id: {type: string, format: uuid, description: 同一学生同一天同一任务的 ID 稳定，可用于记录跳过。}
+        kind: {$ref: '#/components/schemas/TaskKind'}
+        title: {type: string}
+        reason: {type: string, description: 为什么推荐这项任务。}
+        subject: {$ref: '#/components/schemas/Subject'}
+        question_id: {type: string, format: uuid}
+        review_item_id: {type: [string, 'null'], format: uuid}
+        applicability: {$ref: '#/components/schemas/Applicability'}
+        estimated_minutes: {type: integer, minimum: 1}
+    Applicability:
+      type: object
+      additionalProperties: false
+      required: [scope, label, recommended_regions, origin_region_code, exam_year_from, exam_year_to, disclaimer]
+      properties:
+        scope: {$ref: '#/components/schemas/ApplicabilityScope'}
+        label: {type: string, description: 展示给学生的来源适用性说明，例如"全国通用基础题"。}
+        recommended_regions:
+          type: array
+          items: {$ref: '#/components/schemas/RegionCode'}
+        origin_region_code: {type: [string, 'null'], description: 试题原始来源地区；自编题为 null。}
+        exam_year_from: {type: [integer, 'null']}
+        exam_year_to: {type: [integer, 'null']}
+        disclaimer: {type: string}
+    QuestionSource:
+      type: object
+      additionalProperties: false
+      required: [source_type, source_category, source_name, source_year, source_license, source_url, is_engineering_sample, label]
+      properties:
+        source_type: {$ref: '#/components/schemas/SourceType'}
+        source_category: {$ref: '#/components/schemas/SourceCategory'}
+        source_name: {type: [string, 'null']}
+        source_year: {type: [integer, 'null']}
+        source_license: {type: string}
+        source_url: {type: [string, 'null']}
+        is_engineering_sample: {type: boolean, description: 自编工程样题，未经学科审校。}
+        label: {type: string}
+    KnowledgeRef:
+      type: object
+      additionalProperties: false
+      required: [id, code, title]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        title: {type: string}
+    QuestionOption:
+      type: object
+      additionalProperties: false
+      required: [key, text]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 8}
+        text: {type: string, maxLength: 4000}
+    QuestionBlank:
+      type: object
+      additionalProperties: false
+      required: [key, label, unit_hint, placeholder]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16}
+        label: {type: [string, 'null']}
+        unit_hint: {type: [string, 'null'], description: 提示是否需要带单位。}
+        placeholder: {type: [string, 'null']}
+    QuestionAttachment:
+      type: object
+      additionalProperties: false
+      required: [kind, media_id, alt]
+      properties:
+        kind: {type: string, enum: [image, table]}
+        media_id: {type: [string, 'null'], format: uuid}
+        alt: {type: string}
+    Subquestion:
+      type: object
+      additionalProperties: false
+      required: [key, stem, answer_mode, options, blanks]
+      properties:
+        key: {type: string}
+        stem: {type: string, maxLength: 4000}
+        answer_mode: {$ref: '#/components/schemas/AnswerMode'}
+        options:
+          type: array
+          maxItems: 12
+          items: {$ref: '#/components/schemas/QuestionOption'}
+        blanks:
+          type: array
+          maxItems: 12
+          items: {$ref: '#/components/schemas/QuestionBlank'}
+    ExperimentSafetyLevel:
+      type: string
+      description: |
+        实验的风险分级。low 只涉及常规的低风险操作；medium 需要提醒防护措施；
+        high（高风险）现在不收录：还没有专项审核流程，程序校验会拦住它，不会发给学生。
+      enum: [low, medium, high]
+    ExperimentSafety:
+      type: object
+      additionalProperties: false
+      description: |
+        实验安全提示。每道实验题都必须有，上线前由审核员逐条确认。
+        这是纸面练习，不是操作指导：题目、提示和解法都不给现实操作的步骤诱导。
+      required: [level, notes]
+      properties:
+        level: {$ref: '#/components/schemas/ExperimentSafetyLevel'}
+        notes:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: {type: string, minLength: 1, maxLength: 200}
+    DataTableColumn:
+      type: object
+      additionalProperties: false
+      required: [key, label, unit]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16, pattern: '^[A-Za-z0-9_]+$'}
+        label: {type: string, minLength: 1, maxLength: 40}
+        unit: {type: [string, 'null'], maxLength: 16}
+    DataTableCell:
+      type: object
+      additionalProperties: false
+      required: [col, text]
+      properties:
+        col: {type: string, minLength: 1, maxLength: 16, description: '所在列的键，对应 columns[].key。'}
+        text:
+          type: [string, 'null']
+          maxLength: 40
+          description: |
+            题目给出的数据；null 表示留空，由学生填写（参考值只在提交之后随自查给出）。
+            字段不叫 value：题目接口里不允许出现名为 value 的键，答案类的字段都叫这个名字。
+    DataTableRow:
+      type: object
+      additionalProperties: false
+      required: [key, label, cells]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16, pattern: '^[A-Za-z0-9_]+$'}
+        label: {type: [string, 'null'], maxLength: 40}
+        cells:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items: {$ref: '#/components/schemas/DataTableCell'}
+    DataTable:
+      type: object
+      additionalProperties: false
+      description: 实验题的数据表。格子由 (表键, 行键, 列键) 唯一确定；text 为 null 的格子由学生填写。
+      required: [key, title, columns, rows]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16, pattern: '^[A-Za-z0-9_]+$'}
+        title: {type: string, minLength: 1, maxLength: 120}
+        columns:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items: {$ref: '#/components/schemas/DataTableColumn'}
+        rows:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items: {$ref: '#/components/schemas/DataTableRow'}
+    QuestionContent:
+      type: object
+      additionalProperties: false
+      required: [stem, options, blanks, subquestions, attachments, data_tables, safety]
+      properties:
+        stem: {type: string, maxLength: 4000, description: 题干。纯文本，行内公式用 $...$ 包裹的 LaTeX。}
+        options:
+          type: array
+          maxItems: 12
+          items: {$ref: '#/components/schemas/QuestionOption'}
+        blanks:
+          type: array
+          maxItems: 12
+          items: {$ref: '#/components/schemas/QuestionBlank'}
+        subquestions:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/Subquestion'}
+        attachments:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/QuestionAttachment'}
+        data_tables:
+          type: array
+          maxItems: 5
+          description: 实验题的数据表；其他题型为空数组。
+          items: {$ref: '#/components/schemas/DataTable'}
+        safety:
+          description: 实验题的安全提示；其他题型为 null。
+          oneOf:
+            - {$ref: '#/components/schemas/ExperimentSafety'}
+            - {type: 'null'}
+    QuestionAssists:
+      type: object
+      additionalProperties: false
+      required: [hint_levels, has_standard_solution, has_fast_solution, visual_available]
+      properties:
+        hint_levels: {type: integer, minimum: 0}
+        has_standard_solution: {type: boolean}
+        has_fast_solution: {type: boolean, description: 仅当存在带适用条件且审核过的快速解法时为 true。}
+        visual_available: {type: boolean}
+    QuestionSummary:
+      type: object
+      additionalProperties: false
+      required: [id, subject, type, answer_mode, difficulty, title, source, applicability, knowledge, variant_of]
+      properties:
+        id: {type: string, format: uuid}
+        subject: {$ref: '#/components/schemas/Subject'}
+        type: {$ref: '#/components/schemas/QuestionType'}
+        answer_mode: {$ref: '#/components/schemas/AnswerMode'}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        title: {type: string}
+        source: {$ref: '#/components/schemas/QuestionSource'}
+        applicability: {$ref: '#/components/schemas/Applicability'}
+        knowledge:
+          type: array
+          items: {$ref: '#/components/schemas/KnowledgeRef'}
+        variant_of: {type: [string, 'null'], format: uuid}
+    Question:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - subject
+        - type
+        - answer_mode
+        - difficulty
+        - title
+        - source
+        - applicability
+        - knowledge
+        - variant_of
+        - version
+        - grade
+        - content
+        - assists
+        - judging_note
+      properties:
+        id: {type: string, format: uuid}
+        subject: {$ref: '#/components/schemas/Subject'}
+        type: {$ref: '#/components/schemas/QuestionType'}
+        answer_mode: {$ref: '#/components/schemas/AnswerMode'}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        title: {type: string}
+        source: {$ref: '#/components/schemas/QuestionSource'}
+        applicability: {$ref: '#/components/schemas/Applicability'}
+        knowledge:
+          type: array
+          items: {$ref: '#/components/schemas/KnowledgeRef'}
+        variant_of: {type: [string, 'null'], format: uuid}
+        version: {type: integer, minimum: 1}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        content: {$ref: '#/components/schemas/QuestionContent'}
+        assists: {$ref: '#/components/schemas/QuestionAssists'}
+        judging_note: {type: [string, 'null'], description: 判定规则说明，例如多选题的判定方式。}
+    QuestionPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/QuestionSummary'}
+        next_cursor: {type: [string, 'null']}
+
+    # ------------------------------------------------------------ 会话
+    SessionCreate:
+      type: object
+      additionalProperties: false
+      required: [question_id, origin]
+      properties:
+        question_id: {type: string, format: uuid}
+        origin: {$ref: '#/components/schemas/SessionOrigin'}
+        review_item_id: {type: [string, 'null'], format: uuid, description: origin=review 时必填。}
+        parent_session_id: {type: [string, 'null'], format: uuid, description: origin=variant 时指向母题会话。}
+    StudySession:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - question_id
+        - question_version
+        - origin
+        - state
+        - review_item_id
+        - parent_session_id
+        - region_code_snapshot
+        - exam_year_snapshot
+        - curriculum_version_snapshot
+        - assisted
+        - used_solution
+        - independent_ended
+        - hint_level_revealed
+        - hint_levels_total
+        - confused_streak
+        - needs_human_help
+        - active_attempt_id
+        - submitted_attempts
+        - last_event_seq
+        - created_at
+        - updated_at
+      properties:
+        id: {type: string, format: uuid}
+        question_id: {type: string, format: uuid}
+        question_version: {type: integer, minimum: 1, description: 开启会话时的题目版本快照。}
+        origin: {$ref: '#/components/schemas/SessionOrigin'}
+        state: {$ref: '#/components/schemas/SessionState'}
+        review_item_id: {type: [string, 'null'], format: uuid}
+        parent_session_id: {type: [string, 'null'], format: uuid}
+        region_code_snapshot: {type: [string, 'null'], description: 学习时的地区快照，切换地区后不变。}
+        exam_year_snapshot: {type: [integer, 'null']}
+        curriculum_version_snapshot: {type: [string, 'null']}
+        assisted: {type: boolean, description: 本会话已使用过提示、图解、换种讲法或解析。}
+        used_solution: {type: boolean, description: 本会话已查看过常规或快速解法。}
+        independent_ended: {type: boolean, description: 学生已明确结束独立作答。}
+        hint_level_revealed: {type: integer, minimum: 0}
+        hint_levels_total: {type: integer, minimum: 0}
+        confused_streak: {type: integer, minimum: 0}
+        needs_human_help: {type: boolean}
+        active_attempt_id: {type: [string, 'null'], format: uuid, description: 未提交的作答草稿。}
+        submitted_attempts: {type: integer, minimum: 0}
+        last_event_seq: {type: integer, minimum: 0}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+
+    # ------------------------------------------------------------ 作答
+    AttemptCreate:
+      type: object
+      additionalProperties: false
+      required: [session_id]
+      properties:
+        session_id: {type: string, format: uuid}
+    AnswerBlank:
+      type: object
+      additionalProperties: false
+      required: [key, value]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16}
+        value: {type: string, maxLength: 200}
+    AnswerCell:
+      type: object
+      additionalProperties: false
+      description: 实验题数据表里的一个格子：学生填写的数（作答），或提交之后给出的参考值（自查）。
+      required: [table, row, col, value]
+      properties:
+        table: {type: string, minLength: 1, maxLength: 16, description: '数据表的键，对应 content.data_tables[].key。'}
+        row: {type: string, minLength: 1, maxLength: 16, description: '行键，对应 rows[].key。'}
+        col: {type: string, minLength: 1, maxLength: 16, description: '列键，对应 columns[].key。'}
+        value: {type: string, maxLength: 40}
+    AnswerPart:
+      type: object
+      additionalProperties: false
+      description: 解答题、实验题某一小问的文字作答。
+      required: [key, text]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16, description: '小问键，对应题目 content.subquestions 里的 key。'}
+        text: {type: string, maxLength: 4000}
+    AnswerPayload:
+      type: object
+      additionalProperties: false
+      description: |
+        按题目的 answer_mode 填写对应字段：选择题用 selected_options，填空题用 blanks，解答题用 parts，
+        实验题用 cells（数据表里留空的格子）和 parts（文字小问）。
+        解答题、实验题可以只写一部分，也可以只有笔迹（笔迹随草稿同步，不在这里）；
+        文字、格子和笔迹都没有时提交返回 422。
+      properties:
+        selected_options:
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: {type: string, minLength: 1, maxLength: 8}
+        blanks:
+          type: array
+          maxItems: 10
+          items: {$ref: '#/components/schemas/AnswerBlank'}
+        parts:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/AnswerPart'}
+        cells:
+          type: array
+          maxItems: 200
+          description: 实验题数据表里学生填写的格子；只能是题目留空的格子，同一个格子只能填一次。
+          items: {$ref: '#/components/schemas/AnswerCell'}
+        text: {type: [string, 'null'], maxLength: 4000}
+    Stroke:
+      type: object
+      additionalProperties: false
+      required: [color, width, points]
+      properties:
+        color: {type: string, pattern: '^#[0-9A-Fa-f]{6}$'}
+        width: {type: number, minimum: 0.5, maximum: 24}
+        points:
+          type: array
+          description: 扁平数组，每 4 个数为一个采样点：x、y（页面逻辑坐标）、t（距笔画起点的毫秒数）、p（压力 0~1，取不到时为 0.5）。
+          maxItems: 40000
+          items: {type: number}
+    StrokePage:
+      type: object
+      additionalProperties: false
+      required: [width, height, strokes]
+      properties:
+        width: {type: number, exclusiveMinimum: 0, maximum: 10000}
+        height: {type: number, exclusiveMinimum: 0, maximum: 10000}
+        strokes:
+          type: array
+          maxItems: 3000
+          items: {$ref: '#/components/schemas/Stroke'}
+    StrokeDoc:
+      type: object
+      additionalProperties: false
+      required: [version, pages]
+      properties:
+        version: {type: integer, enum: [1]}
+        pages:
+          type: array
+          maxItems: 20
+          items: {$ref: '#/components/schemas/StrokePage'}
+    Draft:
+      type: object
+      additionalProperties: false
+      required: [attempt_id, revision, answer, strokes, updated_at]
+      properties:
+        attempt_id: {type: string, format: uuid}
+        revision: {type: integer, minimum: 0, description: 单调递增；0 表示尚未同步过。}
+        answer:
+          oneOf:
+            - {$ref: '#/components/schemas/AnswerPayload'}
+            - {type: 'null'}
+        strokes:
+          oneOf:
+            - {$ref: '#/components/schemas/StrokeDoc'}
+            - {type: 'null'}
+        updated_at: {type: string, format: date-time}
+    DraftSync:
+      type: object
+      additionalProperties: false
+      required: [base_revision]
+      properties:
+        base_revision: {type: integer, minimum: 0}
+        answer:
+          oneOf:
+            - {$ref: '#/components/schemas/AnswerPayload'}
+            - {type: 'null'}
+        strokes:
+          oneOf:
+            - {$ref: '#/components/schemas/StrokeDoc'}
+            - {type: 'null'}
+    SubmitRequest:
+      type: object
+      additionalProperties: false
+      required: [answer]
+      properties:
+        answer: {$ref: '#/components/schemas/AnswerPayload'}
+        elapsed_ms: {type: [integer, 'null'], minimum: 0}
+    FeedbackItem:
+      type: object
+      additionalProperties: false
+      required: [target, code, message]
+      properties:
+        target: {type: string, description: 选项键、空位键或 overall。}
+        code: {$ref: '#/components/schemas/FeedbackCode'}
+        message: {type: string}
+    Evaluation:
+      type: object
+      additionalProperties: false
+      required: [state, outcome, is_correct, independent, assisted, used_solution, review_required, feedback, message, disclaimer]
+      properties:
+        state: {$ref: '#/components/schemas/EvaluationState'}
+        outcome: {$ref: '#/components/schemas/EvaluationOutcome'}
+        is_correct: {type: [boolean, 'null'], description: 仅 state=verified 时非 null；完全正确才为 true。}
+        independent: {type: boolean}
+        assisted: {type: boolean}
+        used_solution: {type: boolean}
+        review_required: {type: boolean, description: 需要人工复核或学生确认。}
+        feedback:
+          type: array
+          items: {$ref: '#/components/schemas/FeedbackItem'}
+        message: {type: string}
+        disclaimer: {type: string, description: 说明这是练习反馈而非官方阅卷分数。}
+    Attempt:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - session_id
+        - attempt_no
+        - status
+        - answer
+        - draft_revision
+        - assisted
+        - used_solution
+        - independent
+        - evaluation
+        - submitted_at
+        - created_at
+        - updated_at
+      properties:
+        id: {type: string, format: uuid}
+        session_id: {type: string, format: uuid}
+        attempt_no: {type: integer, minimum: 1}
+        status: {$ref: '#/components/schemas/AttemptStatus'}
+        answer:
+          oneOf:
+            - {$ref: '#/components/schemas/AnswerPayload'}
+            - {type: 'null'}
+        draft_revision: {type: integer, minimum: 0}
+        assisted: {type: boolean}
+        used_solution: {type: boolean}
+        independent: {type: [boolean, 'null'], description: 提交后才确定。}
+        evaluation:
+          oneOf:
+            - {$ref: '#/components/schemas/Evaluation'}
+            - {type: 'null'}
+        submitted_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    SubmitResult:
+      type: object
+      additionalProperties: false
+      required: [attempt, evaluation, session, events, review_item]
+      properties:
+        attempt: {$ref: '#/components/schemas/Attempt'}
+        evaluation: {$ref: '#/components/schemas/Evaluation'}
+        session: {$ref: '#/components/schemas/StudySession'}
+        events:
+          type: array
+          items: {$ref: '#/components/schemas/TutorEvent'}
+        review_item:
+          description: 答错或辅助答对时自动安排的复测项。
+          oneOf:
+            - {$ref: '#/components/schemas/ReviewItem'}
+            - {type: 'null'}
+
+    # ------------------------------------------------------------ 解答题、实验题自查
+    SelfCheckLevel:
+      type: string
+      description: 学生对照一个要点的自评：done 做到了，partial 做到一部分，missed 没做到。
+      enum: [done, partial, missed]
+    SelfCheckPoint:
+      type: object
+      additionalProperties: false
+      description: 对照检查的一个要点。不带分值：这不是评分，只是一张自查清单。
+      required: [key, part, text]
+      properties:
+        key: {type: string, minLength: 1, maxLength: 16}
+        part: {type: [string, 'null'], description: 对应的小问键或数据表键；null 表示对整份作答的要求。}
+        text: {type: string, maxLength: 200}
+    SelfCheckMark:
+      type: object
+      additionalProperties: false
+      required: [point_key, level]
+      properties:
+        point_key: {type: string, minLength: 1, maxLength: 16}
+        level: {$ref: '#/components/schemas/SelfCheckLevel'}
+    SelfCheckSave:
+      type: object
+      additionalProperties: false
+      required: [marks]
+      properties:
+        marks:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items: {$ref: '#/components/schemas/SelfCheckMark'}
+    SelfCheckSummary:
+      type: object
+      additionalProperties: false
+      description: 各档要点的个数。只是计数，不折算成分数。
+      required: [done, partial, missed, total]
+      properties:
+        done: {type: integer, minimum: 0}
+        partial: {type: integer, minimum: 0}
+        missed: {type: integer, minimum: 0}
+        total: {type: integer, minimum: 0, description: 要点总数；还没保存自评时 done、partial、missed 都是 0。}
+    SelfCheck:
+      type: object
+      additionalProperties: false
+      required: [attempt_id, points, reference_cells, marks, summary, saved_at, disclaimer]
+      properties:
+        attempt_id: {type: string, format: uuid}
+        points:
+          type: array
+          maxItems: 40
+          items: {$ref: '#/components/schemas/SelfCheckPoint'}
+        reference_cells:
+          type: array
+          maxItems: 200
+          description: |
+            实验题数据表里留空格子的参考值，让学生把自己填的数和它对照。只在提交之后给；
+            它只是对照用的参考，不是评分，也不参与任何判定。解答题为空数组。
+          items: {$ref: '#/components/schemas/AnswerCell'}
+        marks:
+          type: array
+          maxItems: 40
+          description: 已保存的自评；还没保存过时为空数组。
+          items: {$ref: '#/components/schemas/SelfCheckMark'}
+        summary: {$ref: '#/components/schemas/SelfCheckSummary'}
+        saved_at: {type: [string, 'null'], format: date-time}
+        disclaimer: {type: string, description: 说明自查是学生自己的记录，不是官方阅卷分数。}
+
+    # ------------------------------------------------------------ 教学
+    TutorAction:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action: {$ref: '#/components/schemas/TutorActionType'}
+        confirm_end_independent:
+          type: boolean
+          default: false
+          description: 提交前查看解析时必须为 true，表示学生明确结束独立作答。
+    TutorStep:
+      type: object
+      additionalProperties: false
+      required: [session, events]
+      properties:
+        session: {$ref: '#/components/schemas/StudySession'}
+        events:
+          type: array
+          items: {$ref: '#/components/schemas/TutorEvent'}
+    TutorEvent:
+      type: object
+      additionalProperties: false
+      description: 教学事件信封。payload 的结构按 type 由 contracts/tutor_event.schema.json 约束。
+      x-json-schema-file: tutor_event.schema.json
+      required: [id, session_id, seq_no, type, created_at, state_after, payload, meta]
+      properties:
+        id: {type: string, format: uuid}
+        session_id: {type: string, format: uuid}
+        seq_no: {type: integer, minimum: 1}
+        type: {$ref: '#/components/schemas/TutorEventType'}
+        created_at: {type: string, format: date-time}
+        state_after: {$ref: '#/components/schemas/SessionState'}
+        payload: {$ref: '#/components/schemas/TutorEventPayload'}
+        meta: {$ref: '#/components/schemas/TutorEventMeta'}
+    TutorEventPayload:
+      type: object
+      description: 见 tutor_event.schema.json 的 $defs/*Payload。
+      additionalProperties: true
+    TutorEventMeta:
+      type: object
+      additionalProperties: false
+      required: [schema_version, source, degraded, provider, model_id, prompt_version, question_id, question_version, trace_id, request_id]
+      properties:
+        schema_version: {type: string}
+        source: {$ref: '#/components/schemas/TutorEventSource'}
+        degraded: {type: boolean}
+        provider: {type: [string, 'null']}
+        model_id: {type: [string, 'null']}
+        prompt_version: {type: [string, 'null']}
+        question_id: {type: string, format: uuid}
+        question_version: {type: integer, minimum: 1}
+        trace_id: {type: [string, 'null']}
+        request_id: {type: string}
+    TutorEventPage:
+      type: object
+      additionalProperties: false
+      required: [items, last_seq]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/TutorEvent'}
+        last_seq: {type: integer, minimum: 0, description: 会话当前最大的 seq_no。}
+
+    # ------------------------------------------------------------ 复测
+    ReviewItem:
+      type: object
+      additionalProperties: false
+      required: [id, question_id, question_title, subject, status, stage, total_stages, due_at, is_due, last_result, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        question_id: {type: string, format: uuid}
+        question_title: {type: string}
+        subject: {$ref: '#/components/schemas/Subject'}
+        status: {$ref: '#/components/schemas/ReviewStatus'}
+        stage: {type: integer, minimum: 0, description: 已通过的复测档数。}
+        total_stages: {type: integer, minimum: 1}
+        due_at: {type: string, format: date-time}
+        is_due: {type: boolean}
+        last_result:
+          oneOf:
+            - {$ref: '#/components/schemas/ReviewResult'}
+            - {type: 'null'}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    ReviewPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ReviewItem'}
+        next_cursor: {type: [string, 'null']}
+    ReviewComplete:
+      type: object
+      additionalProperties: false
+      required: [attempt_id]
+      properties:
+        attempt_id: {type: string, format: uuid}
+    ReviewCompletion:
+      type: object
+      additionalProperties: false
+      required: [review_item, result, next_due_at]
+      properties:
+        review_item: {$ref: '#/components/schemas/ReviewItem'}
+        result: {$ref: '#/components/schemas/ReviewResult'}
+        next_due_at: {type: [string, 'null'], format: date-time}
+
+    # ------------------------------------------------------------ 学情
+    RateStat:
+      type: object
+      additionalProperties: false
+      required: [numerator, denominator, rate, insufficient_data]
+      properties:
+        numerator: {type: integer, minimum: 0}
+        denominator: {type: integer, minimum: 0}
+        rate: {type: [number, 'null'], minimum: 0, maximum: 1, description: 样本不足时为 null。}
+        insufficient_data: {type: boolean}
+    ProgressBucket:
+      type: object
+      additionalProperties: false
+      required: [key, label, independent, assisted]
+      properties:
+        key: {type: string}
+        label: {type: string}
+        independent: {$ref: '#/components/schemas/RateStat'}
+        assisted: {$ref: '#/components/schemas/RateStat'}
+    SubjectiveProgress:
+      type: object
+      additionalProperties: false
+      description: |
+        解答题和实验题不自动评分，所以不进任何正确率。这里只数：提交了几份、其中自查了几份，
+        以及自查里各档要点的个数（只统计已保存自查的作答）。这些都是学生自己的记录。
+      required: [attempts, self_checked, points_done, points_partial, points_missed]
+      properties:
+        attempts: {type: integer, minimum: 0, description: 已提交的解答题和实验题作答数。}
+        self_checked: {type: integer, minimum: 0, description: 其中保存了自查的作答数。}
+        points_done: {type: integer, minimum: 0}
+        points_partial: {type: integer, minimum: 0}
+        points_missed: {type: integer, minimum: 0}
+    ProgressSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - generated_at
+        - min_samples
+        - independent
+        - assisted
+        - hint_dependency
+        - retest_success
+        - variant_transfer
+        - uncertain_attempts
+        - subjective
+        - by_subject
+        - by_answer_mode
+        - by_difficulty
+        - disclaimer
+      properties:
+        generated_at: {type: string, format: date-time}
+        min_samples: {type: integer, minimum: 1}
+        independent: {$ref: '#/components/schemas/RateStat'}
+        assisted: {$ref: '#/components/schemas/RateStat'}
+        hint_dependency: {$ref: '#/components/schemas/RateStat'}
+        retest_success: {$ref: '#/components/schemas/RateStat'}
+        variant_transfer: {$ref: '#/components/schemas/RateStat'}
+        uncertain_attempts:
+          type: integer
+          minimum: 0
+          description: 客观题里未能确定判定、因此没有计入任何正确率的提交数。解答题和实验题本来就不自动评分，不算在这里。
+        subjective: {$ref: '#/components/schemas/SubjectiveProgress'}
+        by_subject:
+          type: array
+          items: {$ref: '#/components/schemas/ProgressBucket'}
+        by_answer_mode:
+          type: array
+          items: {$ref: '#/components/schemas/ProgressBucket'}
+        by_difficulty:
+          type: array
+          items: {$ref: '#/components/schemas/ProgressBucket'}
+        disclaimer: {type: string}
+
+    # ------------------------------------------------------------ planned：媒体与拍题
+    MediaUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [purpose, mime, size_bytes, sha256]
+      properties:
+        purpose: {type: string, enum: [scan, draft_backup]}
+        mime: {type: string, enum: [image/jpeg, image/png, image/webp]}
+        size_bytes: {type: integer, minimum: 1}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    MediaUpload:
+      type: object
+      additionalProperties: false
+      required: [media_id, upload_url, upload_method, expires_at, max_bytes]
+      properties:
+        media_id: {type: string, format: uuid}
+        upload_url: {type: string}
+        upload_method: {type: string, enum: [PUT]}
+        expires_at: {type: string, format: date-time}
+        max_bytes: {type: integer, minimum: 1}
+    ScanCreate:
+      type: object
+      additionalProperties: false
+      required: [media_id]
+      properties:
+        media_id: {type: string, format: uuid}
+    ScanExpression:
+      type: object
+      additionalProperties: false
+      required: [span_id, latex, confidence]
+      properties:
+        span_id: {type: string}
+        latex: {type: string}
+        confidence: {type: [number, 'null'], minimum: 0, maximum: 1}
+    Scan:
+      type: object
+      additionalProperties: false
+      required: [id, status, confidence, low_confidence, stem_text, expressions, matched_question_id, error_code]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [processing, needs_confirmation, confirmed, failed]}
+        confidence: {type: [number, 'null'], minimum: 0, maximum: 1}
+        low_confidence: {type: boolean}
+        stem_text: {type: [string, 'null']}
+        expressions:
+          type: array
+          items: {$ref: '#/components/schemas/ScanExpression'}
+        matched_question_id: {type: [string, 'null'], format: uuid}
+        error_code: {type: [string, 'null']}
+    ScanConfirm:
+      type: object
+      additionalProperties: false
+      required: [stem_text, expressions]
+      properties:
+        stem_text: {type: string, minLength: 1, maxLength: 4000}
+        expressions:
+          type: array
+          maxItems: 50
+          items: {$ref: '#/components/schemas/ScanExpression'}
+    ScanConfirmation:
+      type: object
+      additionalProperties: false
+      required: [scan, question_id, draft_question_id]
+      properties:
+        scan: {$ref: '#/components/schemas/Scan'}
+        question_id: {type: [string, 'null'], format: uuid, description: 匹配到的已发布题。}
+        draft_question_id: {type: [string, 'null'], format: uuid, description: 新建的待审题草案。}
+
+    # ------------------------------------------------------------ 家长：授权绑定与周报
+    ParentInvite:
+      type: object
+      additionalProperties: false
+      description: 学生生成的一次性邀请码。`code` 只在创建时出现这一次，之后任何接口都不会再返回它。
+      required: [id, code, created_at, expires_at]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string, minLength: 10, maxLength: 10, description: 十位，字母和数字；念给家长或写给家长看，不分大小写。}
+        created_at: {type: string, format: date-time, description: 学生明确授权的时间。}
+        expires_at: {type: string, format: date-time}
+    ParentInviteRedeem:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: {type: string, minLength: 1, maxLength: 40, description: 学生给的邀请码；空格、短横线和大小写会被忽略。}
+    PendingParentInvite:
+      type: object
+      additionalProperties: false
+      description: 一个还没被使用、也没过期的邀请码。这里看不到码本身。
+      required: [id, created_at, expires_at]
+      properties:
+        id: {type: string, format: uuid}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
+    ParentLink:
+      type: object
+      additionalProperties: false
+      description: 学生对一位家长的授权。
+      required: [id, parent_id, parent_label, consent_at, linked_at, revoked_at]
+      properties:
+        id: {type: string, format: uuid}
+        parent_id: {type: string, format: uuid}
+        parent_label: {type: [string, 'null'], description: 家长的称呼；没有设置时为 null。}
+        consent_at: {type: string, format: date-time, description: 学生明确授权的时间（生成这个邀请码的时间）。}
+        linked_at: {type: string, format: date-time, description: 家长输入邀请码、绑定完成的时间。}
+        revoked_at: {type: [string, 'null'], format: date-time, description: 撤销的时间；仍然有效时为 null。}
+    ParentLinks:
+      type: object
+      additionalProperties: false
+      required: [links, pending_invite]
+      properties:
+        links:
+          type: array
+          description: 现在仍然有效的授权。
+          items: {$ref: '#/components/schemas/ParentLink'}
+        pending_invite:
+          description: 还没被使用、也没过期的邀请码；没有时为 null。
+          oneOf:
+            - {$ref: '#/components/schemas/PendingParentInvite'}
+            - {type: 'null'}
+    ParentStudent:
+      type: object
+      additionalProperties: false
+      description: 家长能看的一位学生。
+      required: [student_id, display_name, linked_at]
+      properties:
+        student_id: {type: string, format: uuid}
+        display_name: {type: [string, 'null'], description: 学生自己设置的称呼；没有设置时为 null。}
+        linked_at: {type: string, format: date-time}
+    ParentStudents:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ParentStudent'}
+    WeeklyTrend:
+      type: string
+      description: 独立正确率和上一周比：up 高了，down 低了，flat 差不多（差距不到 5 个百分点），unknown 两周里有一周样本不足。
+      enum: [up, down, flat, unknown]
+    PreviousWeek:
+      type: object
+      additionalProperties: false
+      description: 上一周的几个数，用来看趋势。
+      required: [week_start, attempts_count, independent]
+      properties:
+        week_start: {type: string, format: date}
+        attempts_count: {type: integer, minimum: 0}
+        independent: {$ref: '#/components/schemas/RateStat'}
+    ParentWeekly:
+      type: object
+      additionalProperties: false
+      description: |
+        一位已授权学生某一周的汇总。只有计数和比例：没有具体题目、作答内容、提示原文、草稿和笔迹，
+        也没有每次练习的时间。周从周一到周日，按服务端配置的时区划分。样本少于 `min_samples` 的比例是 null，只给计数。
+        不是官方成绩，没有排名，也没有连续天数。
+      required:
+        - student_id
+        - student_display_name
+        - week_start
+        - week_end
+        - is_complete
+        - generated_at
+        - min_samples
+        - sessions_count
+        - attempts_count
+        - active_days
+        - independent
+        - assisted
+        - hint_dependency
+        - retest_success
+        - written_attempts
+        - independent_trend
+        - previous_week
+        - by_subject
+        - disclaimer
+      properties:
+        student_id: {type: string, format: uuid}
+        student_display_name: {type: [string, 'null']}
+        week_start: {type: string, format: date, description: 这一周的周一。}
+        week_end: {type: string, format: date, description: 这一周的周日。}
+        is_complete: {type: boolean, description: 这一周已经结束；当前这一周是 false。}
+        generated_at: {type: string, format: date-time}
+        min_samples: {type: integer, minimum: 1}
+        sessions_count: {type: integer, minimum: 0, description: 这一周开始的练习次数。}
+        attempts_count: {type: integer, minimum: 0, description: 这一周提交的作答数（含解答题）。}
+        active_days: {type: integer, minimum: 0, maximum: 7, description: 这一周有几天提交过作答。只是个数，没有连续天数。}
+        independent: {$ref: '#/components/schemas/RateStat'}
+        assisted: {$ref: '#/components/schemas/RateStat'}
+        hint_dependency: {$ref: '#/components/schemas/RateStat'}
+        retest_success: {$ref: '#/components/schemas/RateStat'}
+        written_attempts: {type: integer, minimum: 0, description: 这一周提交的解答题和实验题数（字段名沿用）。它们不自动评分，不进上面任何一个比例。}
+        independent_trend: {$ref: '#/components/schemas/WeeklyTrend'}
+        previous_week: {$ref: '#/components/schemas/PreviousWeek'}
+        by_subject:
+          type: array
+          items: {$ref: '#/components/schemas/ProgressBucket'}
+        disclaimer: {type: string}
+    QuestionStatus:
+      type: string
+      description: docs/07 的审校状态。draft 编辑中；reviewed 已独立二审；published 已上线；withdrawn 因问题下线（终态）。
+      enum: [draft, reviewed, published, withdrawn]
+    ReviewDecisionType:
+      type: string
+      description: approve 二审通过；reject 退回修改（须写原因）；publish 上线；withdraw 下线（须写原因）。
+      enum: [approve, reject, publish, withdraw]
+    SolutionKind:
+      type: string
+      enum: [standard, fast]
+    ReviewDecision:
+      type: object
+      additionalProperties: false
+      required: [decision, expected_version]
+      properties:
+        decision: {$ref: '#/components/schemas/ReviewDecisionType'}
+        expected_version:
+          type: integer
+          minimum: 1
+          description: 审核人看到的题目版本；与服务端当前版本不一致时返回 409 version_conflict。
+        comment: {type: [string, 'null'], maxLength: 2000}
+        solution_kinds:
+          type: array
+          description: approve 时审核人确认通过的解法；省略等同于只有 standard。快速解法必须在这里列出才会对学生可用。
+          items: {$ref: '#/components/schemas/SolutionKind'}
+    QuestionReviewState:
+      type: object
+      additionalProperties: false
+      required: [question_id, status, version, reviewed_by, updated_at]
+      properties:
+        question_id: {type: string, format: uuid}
+        status: {$ref: '#/components/schemas/QuestionStatus'}
+        version: {type: integer, minimum: 1}
+        reviewed_by: {type: [string, 'null'], format: uuid}
+        updated_at: {type: string, format: date-time}
+    AdminQuestionSummary:
+      type: object
+      additionalProperties: false
+      required: [id, subject, type, answer_mode, difficulty, title, status, version, source, created_by, reviewed_by, published_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        subject: {$ref: '#/components/schemas/Subject'}
+        type: {$ref: '#/components/schemas/QuestionType'}
+        answer_mode: {$ref: '#/components/schemas/AnswerMode'}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        title: {type: string}
+        status: {$ref: '#/components/schemas/QuestionStatus'}
+        version: {type: integer, minimum: 1}
+        source: {$ref: '#/components/schemas/QuestionSource'}
+        created_by: {type: [string, 'null'], format: uuid}
+        reviewed_by: {type: [string, 'null'], format: uuid}
+        published_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: string, format: date-time}
+    AdminStatusCounts:
+      type: object
+      additionalProperties: false
+      required: [draft, reviewed, published, withdrawn]
+      properties:
+        draft: {type: integer, minimum: 0}
+        reviewed: {type: integer, minimum: 0}
+        published: {type: integer, minimum: 0}
+        withdrawn: {type: integer, minimum: 0}
+    AdminQuestionPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor, status_counts]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/AdminQuestionSummary'}
+        next_cursor: {type: [string, 'null']}
+        status_counts: {$ref: '#/components/schemas/AdminStatusCounts'}
+    AdminAnswer:
+      type: object
+      additionalProperties: false
+      required: [value, equivalence_rules, units]
+      properties:
+        value:
+          description: '选择题为选项键数组；填空题为 {空位键: 标准答案}；解答题为 {小问键: 参考答案文字}；实验题为 {小问键: 参考答案文字, "表键.行键.列键": 参考值}，都只用于对照，不参与自动判定。'
+        equivalence_rules:
+          type: object
+          description: 填空题每个空位的等价判定规则。
+        units:
+          type: object
+          description: 填空题需要单位时的单位规则。
+    AdminVisual:
+      type: object
+      additionalProperties: false
+      required: [template_id, params, caption]
+      properties:
+        template_id: {type: string}
+        params:
+          type: object
+          additionalProperties: {type: number}
+        caption: {type: string}
+    AdminTeaching:
+      type: object
+      additionalProperties: false
+      required: [concept, hints, concept_rephrase, option_analysis, visual, leak_markers]
+      properties:
+        concept: {type: [string, 'null'], maxLength: 200}
+        hints:
+          type: array
+          maxItems: 8
+          items: {type: string, maxLength: 4000}
+        concept_rephrase: {type: [string, 'null'], maxLength: 4000}
+        option_analysis:
+          type: object
+          description: 选择题每个选项的分析，键是选项键。
+          additionalProperties: {type: string, maxLength: 4000}
+        visual:
+          oneOf:
+            - {$ref: '#/components/schemas/AdminVisual'}
+            - {type: 'null'}
+        leak_markers:
+          type: array
+          maxItems: 50
+          description: |
+            审校员额外补充的泄题标记（答案的写法太多、程序列不全时用，比如表达式的各种写法）。
+            系统还会自动加上由答案推出的标记，这里不包含它们。
+          items: {type: string, maxLength: 200}
+    AdminSolution:
+      type: object
+      additionalProperties: false
+      required: [kind, steps, final_answer, key_points, conditions, boundary, reviewed, reviewed_by]
+      properties:
+        kind: {$ref: '#/components/schemas/SolutionKind'}
+        steps:
+          type: array
+          items: {type: string}
+        final_answer: {type: string}
+        key_points:
+          type: array
+          items: {type: string}
+        conditions:
+          type: [array, 'null']
+          description: 快速解法的适用条件；标准解法为 null。
+          items: {type: string}
+        boundary: {type: [string, 'null'], description: 快速解法不适用的情形；标准解法为 null。}
+        reviewed: {type: boolean}
+        reviewed_by: {type: [string, 'null'], format: uuid}
+    AdminRegionTag:
+      type: object
+      additionalProperties: false
+      required: [recommended_region_code, origin_region_code, exam_year_from, exam_year_to, review_status, note]
+      properties:
+        recommended_region_code: {type: string}
+        origin_region_code: {type: [string, 'null']}
+        exam_year_from: {type: [integer, 'null']}
+        exam_year_to: {type: [integer, 'null']}
+        review_status: {type: string, description: 只有 approved 的标记会用于推荐。}
+        note: {type: [string, 'null']}
+    AdminQuestionVersion:
+      type: object
+      additionalProperties: false
+      required: [version, created_by, created_at]
+      properties:
+        version: {type: integer, minimum: 1}
+        created_by: {type: [string, 'null'], format: uuid}
+        created_at: {type: string, format: date-time}
+    AdminHistoryAction:
+      type: string
+      description: 审核决策，或者 edit（修改内容、产生新版本）。
+      enum: [approve, reject, publish, withdraw, edit]
+    AdminHistoryEntry:
+      type: object
+      additionalProperties: false
+      required: [id, action, actor_id, from_status, to_status, version, comment, changes, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        action: {$ref: '#/components/schemas/AdminHistoryAction'}
+        actor_id: {type: [string, 'null'], format: uuid}
+        changes:
+          type: [array, 'null']
+          description: edit 时改动了哪些部分（title、content、answer、teaching、solutions、knowledge、rubric、difficulty、grade）；其他动作为 null。
+          items: {type: string}
+        from_status:
+          oneOf:
+            - {$ref: '#/components/schemas/QuestionStatus'}
+            - {type: 'null'}
+        to_status:
+          oneOf:
+            - {$ref: '#/components/schemas/QuestionStatus'}
+            - {type: 'null'}
+        version: {type: [integer, 'null']}
+        comment: {type: [string, 'null']}
+        created_at: {type: string, format: date-time}
+    AdminSolutionInput:
+      type: object
+      additionalProperties: false
+      required: [kind, steps, final_answer, key_points, conditions, boundary]
+      properties:
+        kind: {$ref: '#/components/schemas/SolutionKind'}
+        steps:
+          type: array
+          maxItems: 30
+          items: {type: string, maxLength: 4000}
+        final_answer: {type: string, maxLength: 4000}
+        key_points:
+          type: array
+          maxItems: 20
+          items: {type: string, maxLength: 200}
+        conditions:
+          type: [array, 'null']
+          maxItems: 20
+          description: 快速解法的适用条件；标准解法传 null。
+          items: {type: string, maxLength: 4000}
+        boundary: {type: [string, 'null'], maxLength: 4000, description: 快速解法不适用的情形；标准解法传 null。}
+    AdminQuestionEdit:
+      type: object
+      additionalProperties: false
+      required: [expected_version, title, difficulty, grade, content, answer, teaching, solutions, knowledge, rubric]
+      description: |
+        可编辑内容的完整替换（不是补丁）：没打算改的部分原样传回。题型、学科、答题方式、来源和地区标记不在这里改。
+      properties:
+        expected_version:
+          type: integer
+          minimum: 1
+          description: 编辑者看到的题目版本；与服务端当前版本不一致时返回 409 version_conflict。
+        title: {type: string, minLength: 1, maxLength: 120}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        content: {$ref: '#/components/schemas/QuestionContent'}
+        answer: {$ref: '#/components/schemas/AdminAnswer'}
+        teaching: {$ref: '#/components/schemas/AdminTeaching'}
+        solutions:
+          type: array
+          maxItems: 2
+          items: {$ref: '#/components/schemas/AdminSolutionInput'}
+        knowledge:
+          type: array
+          maxItems: 20
+          description: 知识点 code（如 math.function.monotonicity），必须是已存在的知识点。
+          items: {type: string, maxLength: 64}
+        rubric: {type: object}
+        comment: {type: [string, 'null'], maxLength: 2000, description: 修改说明，写进审计与历史。}
+    AdminVersionSnapshot:
+      type: object
+      additionalProperties: false
+      description: 题目某一个版本里"可以被修改"的全部内容，对比两个版本用。
+      required:
+        - question_id
+        - version
+        - is_current
+        - created_by
+        - created_at
+        - title
+        - difficulty
+        - grade
+        - content
+        - answer
+        - teaching
+        - solutions
+        - knowledge
+        - rubric
+      properties:
+        question_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1}
+        is_current: {type: boolean, description: 是不是题目现在的版本。}
+        created_by: {type: [string, 'null'], format: uuid, description: 这个版本的提交者。}
+        created_at: {type: string, format: date-time}
+        title: {type: string}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        content: {$ref: '#/components/schemas/QuestionContent'}
+        answer: {$ref: '#/components/schemas/AdminAnswer'}
+        teaching: {$ref: '#/components/schemas/AdminTeaching'}
+        solutions:
+          type: array
+          description: 这个版本的解法，审核标记是这个版本当时的。
+          items: {$ref: '#/components/schemas/AdminSolution'}
+        knowledge:
+          type: array
+          description: 知识点 code，按字母顺序。
+          items: {type: string}
+        rubric: {type: object}
+    AdminQuestionDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - subject
+        - type
+        - answer_mode
+        - difficulty
+        - grade
+        - title
+        - status
+        - version
+        - source
+        - variant_of
+        - created_by
+        - reviewed_by
+        - published_at
+        - updated_at
+        - content
+        - answer
+        - teaching
+        - solutions
+        - rubric
+        - knowledge
+        - region_tags
+        - check_problems
+        - versions
+        - history
+      properties:
+        id: {type: string, format: uuid}
+        subject: {$ref: '#/components/schemas/Subject'}
+        type: {$ref: '#/components/schemas/QuestionType'}
+        answer_mode: {$ref: '#/components/schemas/AnswerMode'}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        title: {type: string}
+        status: {$ref: '#/components/schemas/QuestionStatus'}
+        version: {type: integer, minimum: 1}
+        source: {$ref: '#/components/schemas/QuestionSource'}
+        variant_of: {type: [string, 'null'], format: uuid}
+        created_by: {type: [string, 'null'], format: uuid}
+        reviewed_by: {type: [string, 'null'], format: uuid}
+        published_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: string, format: date-time}
+        content: {$ref: '#/components/schemas/QuestionContent'}
+        answer: {$ref: '#/components/schemas/AdminAnswer'}
+        teaching: {$ref: '#/components/schemas/AdminTeaching'}
+        solutions:
+          type: array
+          items: {$ref: '#/components/schemas/AdminSolution'}
+        rubric:
+          type: object
+        knowledge:
+          type: array
+          items: {$ref: '#/components/schemas/KnowledgeRef'}
+        region_tags:
+          type: array
+          items: {$ref: '#/components/schemas/AdminRegionTag'}
+        check_problems:
+          type: array
+          description: 程序校验（与样题入库同一套）发现的问题；为空表示通过。有问题时不能 approve 或 publish。
+          items: {type: string}
+        versions:
+          type: array
+          items: {$ref: '#/components/schemas/AdminQuestionVersion'}
+        history:
+          type: array
+          description: 审核决策，按时间从早到晚。
+          items: {$ref: '#/components/schemas/AdminHistoryEntry'}

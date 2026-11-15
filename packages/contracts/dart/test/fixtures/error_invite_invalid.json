@@ -1,0 +1,23 @@
+{
+  "name": "error_invite_invalid",
+  "method": "POST",
+  "path": "/api/v1/parents/links",
+  "status": 404,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "invite_invalid",
+      "message": "邀请码不对，或者已经过期、已经被用过",
+      "details": {},
+      "request_id": "4bee65621e9d49b986ed7c12f661cff3"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "invite_invalid",
+      "message": "邀请码不对，或者已经过期、已经被用过",
+      "details": {},
+      "request_id": "4bee65621e9d49b986ed7c12f661cff3"
+    }
+  }
+}

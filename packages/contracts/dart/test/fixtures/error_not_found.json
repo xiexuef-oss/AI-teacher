@@ -1,0 +1,23 @@
+{
+  "name": "error_not_found",
+  "method": "GET",
+  "path": "/api/v1/sessions/00000000-0000-4000-8000-000000000000",
+  "status": 404,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "not_found",
+      "message": "资源不存在",
+      "details": {},
+      "request_id": "954bde0459f54e2ca8439048df3807d5"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "not_found",
+      "message": "资源不存在",
+      "details": {},
+      "request_id": "954bde0459f54e2ca8439048df3807d5"
+    }
+  }
+}

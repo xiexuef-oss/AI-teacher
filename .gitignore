@@ -1,0 +1,44 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# 本地演示状态（SQLite、审计、缓存）
+var/
+
+# 密钥与本地配置
+.env
+.env.*
+!.env.example
+config/model_routes.yaml
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+apps/flutter_student/.idea/
+apps/flutter_student/android/.gradle/
+apps/flutter_student/android/local.properties
+apps/flutter_student/ios/Pods/
+apps/flutter_student/ios/.symlinks/
+*.iml
+
+# Node（admin_web 后续使用）
+node_modules/
+dist/
+
+# 原始题库与课程标准（约 8 GB 的第三方试卷文件，授权状态未确认，见 DECISIONS_PENDING Q-05）
+# 只留在本机，不进仓库。
+docs/*高考真题/
+docs/普通高中课程方案及20科课程标准*/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,267 @@
+# 物理 · 自编工程样题（Q-05）。
+# 没有经过学科审校，只用于在本机跑通流程；不是真题，也不代表任何地区的命题风格。
+# region_tags 只是用来测试地区筛选逻辑的工程标签（ADR-006 Q-09）。
+
+- key: phys-incline-accel
+  subject: physics
+  type: fill_blank
+  answer_mode: fill
+  difficulty: 2
+  grade: G10
+  title: 光滑斜面上物块的加速度
+  knowledge: [phys.newton.second, phys.force.analysis]
+  content:
+    stem: '质量为 $2\ \text{kg}$ 的物块沿倾角为 $30^\circ$ 的光滑固定斜面下滑，取 $g=10\ \text{m/s}^2$。物块加速度的大小为 ____。（请写出单位）'
+    blanks:
+      - {key: b1, unit_hint: '需要写单位', placeholder: '数值和单位'}
+  answer:
+    value: {b1: '5'}
+    equivalence_rules:
+      b1: {type: numeric, rel_tol: 0.001}
+    units:
+      b1:
+        required: true
+        accepted: ['m/s²', 'm/s^2', 'm/s2', 'm·s⁻²', 'm*s^-2', 'ms^-2', '米每二次方秒', '米/秒²', '米/秒^2', '米/二次方秒']
+  teaching:
+    concept: 牛顿第二定律
+    hints:
+      - '先画受力图：光滑斜面上的物块受到哪几个力？'
+      - '沿斜面方向和垂直斜面方向建立坐标系，把重力分解到这两个方向上。'
+      - '沿斜面方向只有重力的一个分力在起作用。对这个方向列牛顿第二定律，看看质量会不会被约掉。'
+    concept_rephrase: '牛顿第二定律可以这样理解：合力决定加速度，同样大小的合力推质量越大的物体，加速度越小。比如用 $6\ \text{N}$ 的水平合力推 $2\ \text{kg}$ 的小车，加速度是 $3\ \text{m/s}^2$；推 $3\ \text{kg}$ 的小车，就只有 $2\ \text{m/s}^2$。解题时先找出运动方向上的合力，再除以质量。'
+    visual:
+      template_id: force_diagram
+      params: {angle_deg: 30, mass: 2, mu: 0, g: 10}
+      caption: '拖动倾角，观察重力沿斜面的分力和加速度怎样变化；把 μ 调成 0 就是光滑斜面。'
+  solutions:
+    standard:
+      steps:
+        - '物块受重力 $mg$ 和斜面的支持力 $N$；斜面光滑，没有摩擦力。'
+        - '沿斜面方向，合力等于重力沿斜面的分力：$mg\sin 30^\circ=ma$。'
+        - '两边约去 $m$，得 $a=g\sin 30^\circ=10\times 0.5=5\ \text{m/s}^2$，方向沿斜面向下。'
+      final_answer: '$5\ \text{m/s}^2$'
+      key_points:
+        - '先受力分析再列方程'
+        - '光滑斜面上加速度与质量无关'
+    fast:
+      conditions:
+        - '斜面光滑（不计摩擦）且固定不动'
+        - '物块只受重力和支持力，没有其他外力'
+      steps:
+        - '光滑斜面上 $a=g\sin\theta$，与质量无关。'
+        - '$a=10\times\sin 30^\circ=5\ \text{m/s}^2$。'
+      final_answer: '$5\ \text{m/s}^2$'
+      boundary: '斜面粗糙时要减去摩擦力的作用，$a=g(\sin\theta-\mu\cos\theta)$；有拉力或推力时也不能直接套用。'
+
+- key: phys-incline-accel-v1
+  subject: physics
+  type: fill_blank
+  answer_mode: fill
+  difficulty: 3
+  grade: G10
+  title: 用字母表示光滑斜面上的加速度
+  knowledge: [phys.newton.second, phys.force.analysis]
+  variant_of: phys-incline-accel
+  content:
+    stem: '质量为 $m$ 的物块沿倾角为 $\theta$ 的光滑固定斜面下滑，重力加速度为 $g$。物块加速度的大小 $a=$ ____。（用题中字母表示）'
+    blanks:
+      - {key: b1, placeholder: '用 m、g、θ 表示'}
+  answer:
+    value: {b1: 'g*sin(theta)'}
+    equivalence_rules:
+      b1: {type: expression, variables: [g, theta, m]}
+  teaching:
+    concept: 牛顿第二定律
+    leak_markers: ['gsinθ', 'g\sin\theta', 'gsin\theta', 'g\sinθ', 'g·sinθ', 'g\cdot\sin\theta']
+    hints:
+      - '和数值题的做法一样，只是把数换成字母。先画受力图。'
+      - '把重力沿斜面和垂直斜面分解。沿斜面的那个分力，怎么用 $m$、$g$、$\theta$ 表示？'
+      - '对沿斜面方向列牛顿第二定律，等式两边有没有可以约掉的量？'
+    visual:
+      template_id: force_diagram
+      params: {angle_deg: 37, mass: 1, mu: 0, g: 9.8}
+      caption: '改变质量，看看加速度是否跟着变。'
+  solutions:
+    standard:
+      steps:
+        - '物块受重力 $mg$ 和支持力 $N$，没有摩擦力。'
+        - '沿斜面方向：$mg\sin\theta=ma$。'
+        - '约去 $m$，得 $a=g\sin\theta$。'
+      final_answer: '$g\sin\theta$'
+      key_points:
+        - '加速度与质量无关'
+
+- key: phys-newton2-force
+  subject: physics
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 1
+  grade: G10
+  title: 由合力求加速度
+  knowledge: [phys.newton.second]
+  content:
+    stem: '质量为 $4\ \text{kg}$ 的物体静止在光滑水平面上，受到大小为 $12\ \text{N}$ 的水平恒力作用。物体加速度的大小为（　）'
+    options:
+      - {key: A, text: '$0.33\ \text{m/s}^2$'}
+      - {key: B, text: '$3\ \text{m/s}^2$'}
+      - {key: C, text: '$16\ \text{m/s}^2$'}
+      - {key: D, text: '$48\ \text{m/s}^2$'}
+  answer:
+    value: [B]
+  teaching:
+    concept: 牛顿第二定律
+    hints:
+      - '先确定物体在水平方向上受到的合力是多少。竖直方向的力对水平方向的运动有影响吗？'
+      - '合力、质量、加速度三者由牛顿第二定律联系起来，写出这个关系式。'
+      - '代入前先核对单位：力用牛顿、质量用千克，算出来的加速度单位才是 $\text{m/s}^2$。'
+    option_analysis:
+      A: '把质量除以了力。加速度是合力除以质量，不是反过来。'
+      B: '水平方向的合力就是 $12\ \text{N}$，用合力除以质量即可。'
+      C: '把力和质量相加了，两者单位不同，不能相加。'
+      D: '把力和质量相乘了。检查一下单位：$\text{N}\cdot\text{kg}$ 不是加速度的单位。'
+  solutions:
+    standard:
+      steps:
+        - '竖直方向重力与支持力平衡；水平面光滑，水平方向的合力 $F=12\ \text{N}$。'
+        - '由牛顿第二定律 $F=ma$，得 $a=\dfrac{F}{m}=\dfrac{12}{4}=3\ \text{m/s}^2$。'
+      final_answer: B
+      key_points:
+        - '加速度等于合力除以质量'
+
+- key: phys-force-analysis
+  subject: physics
+  type: multiple_choice
+  answer_mode: multiple_choice
+  difficulty: 2
+  grade: G10
+  title: 静止在粗糙斜面上的物块的受力
+  knowledge: [phys.force.analysis, phys.friction]
+  region_tags:
+    - {region: CN-51, exam_year_from: 2027, exam_year_to: 2029}
+  content:
+    stem: '一物块静止在倾角为 $\theta$ 的粗糙固定斜面上。下列说法正确的有（　）'
+    options:
+      - {key: A, text: '物块受到重力、支持力和静摩擦力三个力的作用'}
+      - {key: B, text: '物块受到的静摩擦力方向沿斜面向上'}
+      - {key: C, text: '斜面对物块的支持力大小等于物块的重力'}
+      - {key: D, text: '物块还受到一个沿斜面向下的“下滑力”'}
+  answer:
+    value: [A, B]
+  rubric:
+    multi_choice_rule: partial_no_wrong
+  teaching:
+    concept: 受力分析
+    hints:
+      - '受力分析时，每画一个力都问一句：这个力的施力物体是谁？'
+      - '物块静止，说明沿斜面方向和垂直斜面方向的合力都为零。分别想想每个方向上有哪些力在互相平衡。'
+      - '把重力按沿斜面和垂直斜面两个方向分解。分力是用来代替重力做计算的，它们算不算物块额外受到的力？'
+    concept_rephrase: '受力分析就是把别的物体对它施加的力一个不漏、一个不多地找出来。可以按“一重、二弹、三摩擦”的顺序找，并且每个力都要说得出施力物体。比如放在水平桌面上的书，受重力（地球给的）和支持力（桌面给的）两个力；“压力”是书给桌面的，不算在书的受力里。'
+    option_analysis:
+      A: '重力由地球施加，支持力和静摩擦力由斜面施加，一共三个力。'
+      B: '重力沿斜面的分力使物块有向下滑的趋势，静摩擦力阻碍这种趋势，所以沿斜面向上。'
+      C: '垂直斜面方向上，支持力只与重力垂直斜面的分力平衡，大小是 $mg\cos\theta$，小于重力。'
+      D: '“下滑力”是重力沿斜面的分力，不是另外一个力。找不到施力物体的力不能画进受力图。'
+    visual:
+      template_id: force_diagram
+      params: {angle_deg: 30, mass: 2, mu: 0.8, g: 9.8}
+      caption: '倾角较小、摩擦因数较大时物块保持静止。拖动倾角，观察摩擦力怎样随重力沿斜面的分力变化。'
+  solutions:
+    standard:
+      steps:
+        - '物块静止，受力平衡。它受重力 $mg$、斜面的支持力 $N$ 和静摩擦力 $f$，共三个力，A 的说法成立。'
+        - '沿斜面方向：重力的分力 $mg\sin\theta$ 沿斜面向下，所以静摩擦力沿斜面向上，且 $f=mg\sin\theta$，B 的说法成立。'
+        - '垂直斜面方向：$N=mg\cos\theta<mg$，C 的说法不成立。'
+        - '“下滑力”只是重力的分力，没有单独的施力物体，不是物块额外受到的力，D 的说法不成立。'
+      final_answer: AB
+      key_points:
+        - '每个力都要有施力物体'
+        - '分力不是额外的力'
+
+- key: phys-vt-displacement
+  subject: physics
+  type: fill_blank
+  answer_mode: fill
+  difficulty: 2
+  grade: G10
+  title: 匀加速直线运动的位移
+  knowledge: [phys.kinematics.uniform_accel]
+  content:
+    stem: '物体以 $2\ \text{m/s}$ 的初速度做匀加速直线运动，加速度大小为 $3\ \text{m/s}^2$，方向与初速度相同。它在前 $4\ \text{s}$ 内的位移大小为 ____ $\text{m}$。'
+    blanks:
+      - {key: b1, placeholder: '填数值'}
+  answer:
+    value: {b1: '32'}
+    equivalence_rules:
+      b1: {type: numeric, rel_tol: 0.001}
+    units:
+      b1: {required: false, accepted: ['m', '米']}
+  teaching:
+    concept: 匀变速直线运动
+    hints:
+      - '先确认运动类型：加速度恒定，方向与初速度相同，这是哪一种运动？'
+      - '已知初速度、加速度和时间，求位移。哪个公式正好包含这四个量？'
+      - '代入时注意含时间平方的那一项，系数 $\dfrac{1}{2}$ 不要漏掉。'
+    visual:
+      template_id: motion_chart
+      params: {v0: 2, a: 3, t_max: 4}
+      caption: '速度—时间图线下方的面积就是位移。拖动加速度，观察这块面积怎样变化。'
+  solutions:
+    standard:
+      steps:
+        - '物体做匀加速直线运动，$v_0=2\ \text{m/s}$，$a=3\ \text{m/s}^2$，$t=4\ \text{s}$。'
+        - '由位移公式 $x=v_0t+\dfrac{1}{2}at^2=2\times 4+\dfrac{1}{2}\times 3\times 4^2$。'
+        - '$x=8+24=32\ \text{m}$。'
+      final_answer: '$32\ \text{m}$'
+      key_points:
+        - '位移公式 $x=v_0t+\dfrac{1}{2}at^2$'
+    fast:
+      conditions:
+        - '物体做匀变速直线运动（加速度恒定）'
+        - '已知或容易求出这段时间的初、末速度'
+      steps:
+        - '末速度 $v=v_0+at=2+3\times 4=14\ \text{m/s}$。'
+        - '匀变速直线运动的平均速度等于初、末速度的平均值：$\bar{v}=\dfrac{2+14}{2}=8\ \text{m/s}$。'
+        - '位移 $x=\bar{v}t=8\times 4=32\ \text{m}$。'
+      final_answer: '$32\ \text{m}$'
+      boundary: '加速度发生变化的运动，平均速度不等于初、末速度的平均值，不能这样算。'
+
+- key: phys-tape-accel
+  subject: physics
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 3
+  grade: G10
+  title: 由纸带数据求加速度
+  knowledge: [phys.experiment.tape, phys.kinematics.uniform_accel]
+  region_tags:
+    - {region: CN-50, exam_year_from: 2027, exam_year_to: 2029}
+  content:
+    stem: '在“探究小车速度随时间变化的规律”实验中，纸带上相邻两个计数点间的时间间隔为 $0.1\ \text{s}$，测得连续相等时间内的位移依次增加 $0.50\ \text{cm}$。小车加速度的大小约为（　）'
+    options:
+      - {key: A, text: '$0.05\ \text{m/s}^2$'}
+      - {key: B, text: '$0.50\ \text{m/s}^2$'}
+      - {key: C, text: '$5.0\ \text{m/s}^2$'}
+      - {key: D, text: '$50\ \text{m/s}^2$'}
+  answer:
+    value: [B]
+  teaching:
+    concept: 纸带数据处理
+    hints:
+      - '题目给的是“连续相等时间内位移的增加量”。匀变速直线运动中，这个增加量和加速度之间有一个固定关系。'
+      - '这个关系是 $\Delta x=aT^2$，其中 $T$ 是相邻计数点间的时间间隔。'
+      - '代入前把长度单位统一成米；分母是时间间隔的平方。'
+    option_analysis:
+      A: '分母用成了 $T$ 而不是 $T^2$。连续相等时间内的位移差满足 $\Delta x=aT^2$。'
+      B: '把 $0.50\ \text{cm}$ 换算成米，再除以时间间隔的平方。'
+      C: '既没有把厘米换算成米，分母也只用了 $T$。'
+      D: '公式用对了，但 $0.50\ \text{cm}$ 没有换算成米，得到的数值其实是以 $\text{cm/s}^2$ 为单位的。'
+  solutions:
+    standard:
+      steps:
+        - '小车做匀变速直线运动，连续相等时间 $T$ 内的位移之差恒定：$\Delta x=aT^2$。'
+        - '统一单位：$\Delta x=0.50\ \text{cm}=5.0\times 10^{-3}\ \text{m}$，$T=0.1\ \text{s}$。'
+        - '$a=\dfrac{\Delta x}{T^2}=\dfrac{5.0\times 10^{-3}}{(0.1)^2}=0.50\ \text{m/s}^2$。'
+      final_answer: B
+      key_points:
+        - '连续相等时间内的位移差等于 $aT^2$'
+        - '先统一单位'

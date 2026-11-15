@@ -1,0 +1,139 @@
+{
+  "name": "question_fill",
+  "method": "GET",
+  "path": "/api/v1/questions/bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+    "subject": "physics",
+    "type": "fill_blank",
+    "answer_mode": "fill",
+    "difficulty": 2,
+    "title": "光滑斜面上物块的加速度",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "6a42bbb9-3ec9-5fe4-96d9-5a01a2720294",
+        "code": "phys.force.analysis",
+        "title": "受力分析"
+      },
+      {
+        "id": "6348a8d6-0e5b-5263-bd97-93d9c2bf4b39",
+        "code": "phys.newton.second",
+        "title": "牛顿第二定律"
+      }
+    ],
+    "variant_of": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "质量为 $2\\ \\text{kg}$ 的物块沿倾角为 $30^\\circ$ 的光滑固定斜面下滑，取 $g=10\\ \\text{m/s}^2$。物块加速度的大小为 ____。（请写出单位）",
+      "options": [],
+      "blanks": [
+        {
+          "key": "b1",
+          "label": null,
+          "unit_hint": "需要写单位",
+          "placeholder": "数值和单位"
+        }
+      ],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": true,
+      "visual_available": true
+    },
+    "judging_note": null
+  },
+  "body": {
+    "data": {
+      "id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+      "subject": "physics",
+      "type": "fill_blank",
+      "answer_mode": "fill",
+      "difficulty": 2,
+      "title": "光滑斜面上物块的加速度",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "6a42bbb9-3ec9-5fe4-96d9-5a01a2720294",
+          "code": "phys.force.analysis",
+          "title": "受力分析"
+        },
+        {
+          "id": "6348a8d6-0e5b-5263-bd97-93d9c2bf4b39",
+          "code": "phys.newton.second",
+          "title": "牛顿第二定律"
+        }
+      ],
+      "variant_of": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "质量为 $2\\ \\text{kg}$ 的物块沿倾角为 $30^\\circ$ 的光滑固定斜面下滑，取 $g=10\\ \\text{m/s}^2$。物块加速度的大小为 ____。（请写出单位）",
+        "options": [],
+        "blanks": [
+          {
+            "key": "b1",
+            "label": null,
+            "unit_hint": "需要写单位",
+            "placeholder": "数值和单位"
+          }
+        ],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": true,
+        "visual_available": true
+      },
+      "judging_note": null
+    }
+  }
+}

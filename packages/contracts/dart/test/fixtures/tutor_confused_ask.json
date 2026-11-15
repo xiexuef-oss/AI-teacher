@@ -1,0 +1,139 @@
+{
+  "name": "tutor_confused_ask",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/551049da-1b8e-4f3d-8867-a5658dc463ea/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "551049da-1b8e-4f3d-8867-a5658dc463ea",
+      "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "HINTED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 2,
+      "needs_human_help": false,
+      "active_attempt_id": "7c280080-54c3-4c91-b014-4e3262615198",
+      "submitted_attempts": 0,
+      "last_event_seq": 2,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "fd46c298-4b02-4cc1-b26c-fd387a001fc6",
+        "session_id": "551049da-1b8e-4f3d-8867-a5658dc463ea",
+        "seq_no": 2,
+        "type": "ask",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": {
+          "prompt": "可能是前面的知识点没有接上。先确认下面的前置知识，再配合图解看一遍。",
+          "suggestions": [
+            {
+              "action": "review_prerequisite",
+              "label": "先复习：函数的概念与定义域",
+              "question_id": null,
+              "knowledge_id": "80dea622-89c8-5fec-82f4-021b970c9fa7"
+            },
+            {
+              "action": "request_visual",
+              "label": "看图理解",
+              "question_id": null,
+              "knowledge_id": null
+            }
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "4717c75bf46441ba82f450dc61a3b5cd"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "551049da-1b8e-4f3d-8867-a5658dc463ea",
+        "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "HINTED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 2,
+        "needs_human_help": false,
+        "active_attempt_id": "7c280080-54c3-4c91-b014-4e3262615198",
+        "submitted_attempts": 0,
+        "last_event_seq": 2,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "fd46c298-4b02-4cc1-b26c-fd387a001fc6",
+          "session_id": "551049da-1b8e-4f3d-8867-a5658dc463ea",
+          "seq_no": 2,
+          "type": "ask",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "HINTED",
+          "payload": {
+            "prompt": "可能是前面的知识点没有接上。先确认下面的前置知识，再配合图解看一遍。",
+            "suggestions": [
+              {
+                "action": "review_prerequisite",
+                "label": "先复习：函数的概念与定义域",
+                "question_id": null,
+                "knowledge_id": "80dea622-89c8-5fec-82f4-021b970c9fa7"
+              },
+              {
+                "action": "request_visual",
+                "label": "看图理解",
+                "question_id": null,
+                "knowledge_id": null
+              }
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "4717c75bf46441ba82f450dc61a3b5cd"
+          }
+        }
+      ]
+    }
+  }
+}

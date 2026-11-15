@@ -1,0 +1,23 @@
+{
+  "name": "error_missing_idempotency_key",
+  "method": "POST",
+  "path": "/api/v1/sessions",
+  "status": 400,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "idempotency_key_required",
+      "message": "这个操作需要 Idempotency-Key 请求头",
+      "details": {},
+      "request_id": "48cc3401a4a946e0b32045ea7e06175c"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "idempotency_key_required",
+      "message": "这个操作需要 Idempotency-Key 请求头",
+      "details": {},
+      "request_id": "48cc3401a4a946e0b32045ea7e06175c"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "tutor-admin-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI 理科私教 内容审核后台（docs/03 的 P11，PRD P0 第 9 条）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 5174 --strictPort",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "gen:api": "openapi-typescript ../../contracts/openapi.yaml -o src/api/schema.d.ts",
+    "check:api": "node scripts/check-api-types.mjs"
+  },
+  "dependencies": {
+    "katex": "^0.16.22",
+    "vue": "^3.5.45",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/katex": "^0.16.8",
+    "@types/node": "^22.20.5",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/test-utils": "^2.5.1",
+    "jsdom": "^29.1.1",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0",
+    "vue-tsc": "^3.3.14"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "name": "tutor_fallback",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/b0e8c03b-b400-4de8-8da7-38c429f24064/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "b0e8c03b-b400-4de8-8da7-38c429f24064",
+      "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "FALLBACK",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": null,
+      "exam_year_snapshot": null,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 1,
+      "needs_human_help": false,
+      "active_attempt_id": "98971222-76a8-40b3-8202-7da29f2dbd96",
+      "submitted_attempts": 0,
+      "last_event_seq": 1,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "d798144f-c13b-4532-b60a-e5eb0d5ad9b9",
+        "session_id": "b0e8c03b-b400-4de8-8da7-38c429f24064",
+        "seq_no": 1,
+        "type": "fallback",
+        "created_at": "2026-11-11T08:00:00Z",
+        "state_after": "FALLBACK",
+        "payload": {
+          "reason_code": "MODEL_UNAVAILABLE",
+          "text": "换种讲法暂时生成不了。可以先看图解，或者查看审核过的常规解法。",
+          "suggestions": [
+            {
+              "action": "request_visual",
+              "label": "看图理解",
+              "question_id": null,
+              "knowledge_id": null
+            },
+            {
+              "action": "request_hint",
+              "label": "给点提示",
+              "question_id": null,
+              "knowledge_id": null
+            },
+            {
+              "action": "request_standard",
+              "label": "看常规解法",
+              "question_id": null,
+              "knowledge_id": null
+            }
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": true,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+          "question_version": 1,
+          "trace_id": "cbb20d84eb9c4bf287465890e2f1514c",
+          "request_id": "605c3fd96d2b44b49aa7a92b74613197"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "b0e8c03b-b400-4de8-8da7-38c429f24064",
+        "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "FALLBACK",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": null,
+        "exam_year_snapshot": null,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 1,
+        "needs_human_help": false,
+        "active_attempt_id": "98971222-76a8-40b3-8202-7da29f2dbd96",
+        "submitted_attempts": 0,
+        "last_event_seq": 1,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "d798144f-c13b-4532-b60a-e5eb0d5ad9b9",
+          "session_id": "b0e8c03b-b400-4de8-8da7-38c429f24064",
+          "seq_no": 1,
+          "type": "fallback",
+          "created_at": "2026-11-11T08:00:00Z",
+          "state_after": "FALLBACK",
+          "payload": {
+            "reason_code": "MODEL_UNAVAILABLE",
+            "text": "换种讲法暂时生成不了。可以先看图解，或者查看审核过的常规解法。",
+            "suggestions": [
+              {
+                "action": "request_visual",
+                "label": "看图理解",
+                "question_id": null,
+                "knowledge_id": null
+              },
+              {
+                "action": "request_hint",
+                "label": "给点提示",
+                "question_id": null,
+                "knowledge_id": null
+              },
+              {
+                "action": "request_standard",
+                "label": "看常规解法",
+                "question_id": null,
+                "knowledge_id": null
+              }
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": true,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+            "question_version": 1,
+            "trace_id": "cbb20d84eb9c4bf287465890e2f1514c",
+            "request_id": "605c3fd96d2b44b49aa7a92b74613197"
+          }
+        }
+      ]
+    }
+  }
+}

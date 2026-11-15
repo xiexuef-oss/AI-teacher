@@ -1,0 +1,327 @@
+{
+  "name": "submit_incorrect",
+  "method": "POST",
+  "path": "/api/v1/attempts/7acb86c8-336d-42a0-8a51-882195b6d41b/submit",
+  "status": 200,
+  "schema": "SubmitResult",
+  "value": {
+    "attempt": {
+      "id": "7acb86c8-336d-42a0-8a51-882195b6d41b",
+      "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+      "attempt_no": 1,
+      "status": "submitted",
+      "answer": {
+        "selected_options": [
+          "A"
+        ]
+      },
+      "draft_revision": 1,
+      "assisted": true,
+      "used_solution": false,
+      "independent": false,
+      "evaluation": {
+        "state": "verified",
+        "outcome": "incorrect",
+        "is_correct": false,
+        "independent": false,
+        "assisted": true,
+        "used_solution": false,
+        "review_required": false,
+        "feedback": [
+          {
+            "target": "A",
+            "code": "wrong_option",
+            "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+          }
+        ],
+        "message": "这次没有答对，看看下面的分析。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "submitted_at": "2026-11-10T08:00:00Z",
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "evaluation": {
+      "state": "verified",
+      "outcome": "incorrect",
+      "is_correct": false,
+      "independent": false,
+      "assisted": true,
+      "used_solution": false,
+      "review_required": false,
+      "feedback": [
+        {
+          "target": "A",
+          "code": "wrong_option",
+          "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+        }
+      ],
+      "message": "这次没有答对，看看下面的分析。",
+      "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+    },
+    "session": {
+      "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+      "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "question_version": 1,
+      "origin": "task",
+      "state": "DIAGNOSED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 1,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "submitted_attempts": 1,
+      "last_event_seq": 3,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "3f32ef30-7968-4858-8b0b-395d310d6a9c",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "seq_no": 3,
+        "type": "diagnosis",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "DIAGNOSED",
+        "payload": {
+          "outcome": "incorrect",
+          "summary": "这次没有答对，看看下面的分析。",
+          "feedback": [
+            {
+              "target": "A",
+              "code": "wrong_option",
+              "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+            }
+          ],
+          "knowledge": [
+            {
+              "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+              "code": "math.function.monotonicity",
+              "title": "函数的单调性"
+            },
+            {
+              "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+              "code": "math.quadratic.graph",
+              "title": "二次函数的图像与对称轴"
+            }
+          ],
+          "suggestions": [
+            {
+              "action": "request_hint",
+              "label": "给点提示",
+              "question_id": null,
+              "knowledge_id": null
+            },
+            {
+              "action": "retry_attempt",
+              "label": "再试一次",
+              "question_id": null,
+              "knowledge_id": null
+            },
+            {
+              "action": "request_standard",
+              "label": "看常规解法",
+              "question_id": null,
+              "knowledge_id": null
+            }
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "3cf97d343b13452991075dfd75ca793c"
+        }
+      }
+    ],
+    "review_item": {
+      "id": "d203f12e-f0b0-4540-80d2-946356596a15",
+      "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "question_title": "二次函数的单调递增区间",
+      "subject": "math",
+      "status": "scheduled",
+      "stage": 0,
+      "total_stages": 3,
+      "due_at": "2026-11-11T08:00:00Z",
+      "is_due": false,
+      "last_result": null,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    }
+  },
+  "body": {
+    "data": {
+      "attempt": {
+        "id": "7acb86c8-336d-42a0-8a51-882195b6d41b",
+        "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "attempt_no": 1,
+        "status": "submitted",
+        "answer": {
+          "selected_options": [
+            "A"
+          ]
+        },
+        "draft_revision": 1,
+        "assisted": true,
+        "used_solution": false,
+        "independent": false,
+        "evaluation": {
+          "state": "verified",
+          "outcome": "incorrect",
+          "is_correct": false,
+          "independent": false,
+          "assisted": true,
+          "used_solution": false,
+          "review_required": false,
+          "feedback": [
+            {
+              "target": "A",
+              "code": "wrong_option",
+              "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+            }
+          ],
+          "message": "这次没有答对，看看下面的分析。",
+          "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+        },
+        "submitted_at": "2026-11-10T08:00:00Z",
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "evaluation": {
+        "state": "verified",
+        "outcome": "incorrect",
+        "is_correct": false,
+        "independent": false,
+        "assisted": true,
+        "used_solution": false,
+        "review_required": false,
+        "feedback": [
+          {
+            "target": "A",
+            "code": "wrong_option",
+            "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+          }
+        ],
+        "message": "这次没有答对，看看下面的分析。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "session": {
+        "id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_version": 1,
+        "origin": "task",
+        "state": "DIAGNOSED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "submitted_attempts": 1,
+        "last_event_seq": 3,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "3f32ef30-7968-4858-8b0b-395d310d6a9c",
+          "session_id": "3832e58a-7114-4e0b-a71c-0fab056f68fc",
+          "seq_no": 3,
+          "type": "diagnosis",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "DIAGNOSED",
+          "payload": {
+            "outcome": "incorrect",
+            "summary": "这次没有答对，看看下面的分析。",
+            "feedback": [
+              {
+                "target": "A",
+                "code": "wrong_option",
+                "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+              }
+            ],
+            "knowledge": [
+              {
+                "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+                "code": "math.function.monotonicity",
+                "title": "函数的单调性"
+              },
+              {
+                "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+                "code": "math.quadratic.graph",
+                "title": "二次函数的图像与对称轴"
+              }
+            ],
+            "suggestions": [
+              {
+                "action": "request_hint",
+                "label": "给点提示",
+                "question_id": null,
+                "knowledge_id": null
+              },
+              {
+                "action": "retry_attempt",
+                "label": "再试一次",
+                "question_id": null,
+                "knowledge_id": null
+              },
+              {
+                "action": "request_standard",
+                "label": "看常规解法",
+                "question_id": null,
+                "knowledge_id": null
+              }
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "3cf97d343b13452991075dfd75ca793c"
+          }
+        }
+      ],
+      "review_item": {
+        "id": "d203f12e-f0b0-4540-80d2-946356596a15",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_title": "二次函数的单调递增区间",
+        "subject": "math",
+        "status": "scheduled",
+        "stage": 0,
+        "total_stages": 3,
+        "due_at": "2026-11-11T08:00:00Z",
+        "is_due": false,
+        "last_result": null,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      }
+    }
+  }
+}

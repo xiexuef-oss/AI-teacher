@@ -1,0 +1,163 @@
+{
+  "name": "question_single_choice",
+  "method": "GET",
+  "path": "/api/v1/questions/78d86cab-1ee9-5126-83af-c3125e4a0daf",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+    "subject": "math",
+    "type": "single_choice",
+    "answer_mode": "single_choice",
+    "difficulty": 2,
+    "title": "二次函数的单调递增区间",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "region",
+      "label": "推荐适用：四川（工程测试标签）",
+      "recommended_regions": [
+        "CN-51"
+      ],
+      "origin_region_code": null,
+      "exam_year_from": 2027,
+      "exam_year_to": 2029,
+      "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+    },
+    "knowledge": [
+      {
+        "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+        "code": "math.function.monotonicity",
+        "title": "函数的单调性"
+      },
+      {
+        "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+        "code": "math.quadratic.graph",
+        "title": "二次函数的图像与对称轴"
+      }
+    ],
+    "variant_of": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+      "options": [
+        {
+          "key": "A",
+          "text": "$(-\\infty,1]$"
+        },
+        {
+          "key": "B",
+          "text": "$[1,+\\infty)$"
+        },
+        {
+          "key": "C",
+          "text": "$(-\\infty,-1]$"
+        },
+        {
+          "key": "D",
+          "text": "$[-1,+\\infty)$"
+        }
+      ],
+      "blanks": [],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": true,
+      "visual_available": true
+    },
+    "judging_note": null
+  },
+  "body": {
+    "data": {
+      "id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "subject": "math",
+      "type": "single_choice",
+      "answer_mode": "single_choice",
+      "difficulty": 2,
+      "title": "二次函数的单调递增区间",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "region",
+        "label": "推荐适用：四川（工程测试标签）",
+        "recommended_regions": [
+          "CN-51"
+        ],
+        "origin_region_code": null,
+        "exam_year_from": 2027,
+        "exam_year_to": 2029,
+        "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+      },
+      "knowledge": [
+        {
+          "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+          "code": "math.function.monotonicity",
+          "title": "函数的单调性"
+        },
+        {
+          "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+          "code": "math.quadratic.graph",
+          "title": "二次函数的图像与对称轴"
+        }
+      ],
+      "variant_of": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+        "options": [
+          {
+            "key": "A",
+            "text": "$(-\\infty,1]$"
+          },
+          {
+            "key": "B",
+            "text": "$[1,+\\infty)$"
+          },
+          {
+            "key": "C",
+            "text": "$(-\\infty,-1]$"
+          },
+          {
+            "key": "D",
+            "text": "$[-1,+\\infty)$"
+          }
+        ],
+        "blanks": [],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": true,
+        "visual_available": true
+      },
+      "judging_note": null
+    }
+  }
+}

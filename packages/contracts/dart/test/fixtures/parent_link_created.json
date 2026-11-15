@@ -1,0 +1,19 @@
+{
+  "name": "parent_link_created",
+  "method": "POST",
+  "path": "/api/v1/parents/links",
+  "status": 201,
+  "schema": "ParentStudent",
+  "value": {
+    "student_id": "c3162028-1e6c-4226-8e96-e799621a75dd",
+    "display_name": null,
+    "linked_at": "2026-11-11T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "student_id": "c3162028-1e6c-4226-8e96-e799621a75dd",
+      "display_name": null,
+      "linked_at": "2026-11-11T08:00:00Z"
+    }
+  }
+}

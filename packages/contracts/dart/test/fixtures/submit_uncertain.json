@@ -1,0 +1,231 @@
+{
+  "name": "submit_uncertain",
+  "method": "POST",
+  "path": "/api/v1/attempts/29d364c5-a514-486e-ad49-ce7c4defb065/submit",
+  "status": 200,
+  "schema": "SubmitResult",
+  "value": {
+    "attempt": {
+      "id": "29d364c5-a514-486e-ad49-ce7c4defb065",
+      "session_id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+      "attempt_no": 1,
+      "status": "submitted",
+      "answer": {
+        "blanks": [
+          {
+            "key": "b1",
+            "value": "500 cm/s²"
+          }
+        ]
+      },
+      "draft_revision": 0,
+      "assisted": false,
+      "used_solution": false,
+      "independent": true,
+      "evaluation": {
+        "state": "uncertain",
+        "outcome": "undetermined",
+        "is_correct": null,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": true,
+        "feedback": [
+          {
+            "target": "b1",
+            "code": "equivalence_unconfirmed",
+            "message": "没能识别答案里的单位，无法确认是否等价。"
+          }
+        ],
+        "message": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "submitted_at": "2026-11-10T08:00:00Z",
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "evaluation": {
+      "state": "uncertain",
+      "outcome": "undetermined",
+      "is_correct": null,
+      "independent": true,
+      "assisted": false,
+      "used_solution": false,
+      "review_required": true,
+      "feedback": [
+        {
+          "target": "b1",
+          "code": "equivalence_unconfirmed",
+          "message": "没能识别答案里的单位，无法确认是否等价。"
+        }
+      ],
+      "message": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+      "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+    },
+    "session": {
+      "id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+      "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "DIAGNOSED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "submitted_attempts": 1,
+      "last_event_seq": 1,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "0c6657cf-8804-4349-bbd4-77fc42c51e7f",
+        "session_id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+        "seq_no": 1,
+        "type": "uncertainty",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "DIAGNOSED",
+        "payload": {
+          "reason_code": "equivalence_unconfirmed",
+          "text": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+          "review_required": true
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "537c170213ae4d3e9255b5fedf7ef479"
+        }
+      }
+    ],
+    "review_item": null
+  },
+  "body": {
+    "data": {
+      "attempt": {
+        "id": "29d364c5-a514-486e-ad49-ce7c4defb065",
+        "session_id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+        "attempt_no": 1,
+        "status": "submitted",
+        "answer": {
+          "blanks": [
+            {
+              "key": "b1",
+              "value": "500 cm/s²"
+            }
+          ]
+        },
+        "draft_revision": 0,
+        "assisted": false,
+        "used_solution": false,
+        "independent": true,
+        "evaluation": {
+          "state": "uncertain",
+          "outcome": "undetermined",
+          "is_correct": null,
+          "independent": true,
+          "assisted": false,
+          "used_solution": false,
+          "review_required": true,
+          "feedback": [
+            {
+              "target": "b1",
+              "code": "equivalence_unconfirmed",
+              "message": "没能识别答案里的单位，无法确认是否等价。"
+            }
+          ],
+          "message": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+          "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+        },
+        "submitted_at": "2026-11-10T08:00:00Z",
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "evaluation": {
+        "state": "uncertain",
+        "outcome": "undetermined",
+        "is_correct": null,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": true,
+        "feedback": [
+          {
+            "target": "b1",
+            "code": "equivalence_unconfirmed",
+            "message": "没能识别答案里的单位，无法确认是否等价。"
+          }
+        ],
+        "message": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "session": {
+        "id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+        "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "DIAGNOSED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "submitted_attempts": 1,
+        "last_event_seq": 1,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "0c6657cf-8804-4349-bbd4-77fc42c51e7f",
+          "session_id": "57ae1fed-562f-4180-b452-6b9025fde72d",
+          "seq_no": 1,
+          "type": "uncertainty",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "DIAGNOSED",
+          "payload": {
+            "reason_code": "equivalence_unconfirmed",
+            "text": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+            "review_required": true
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "537c170213ae4d3e9255b5fedf7ef479"
+          }
+        }
+      ],
+      "review_item": null
+    }
+  }
+}

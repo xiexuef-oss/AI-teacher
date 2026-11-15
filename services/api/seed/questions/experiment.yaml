@@ -1,0 +1,299 @@
+# 实验题 · 自编工程样题（Q-05、Q-06）。
+# 没有经过学科审校，只用于在本机跑通"读数据表 → 填数据、写分析 → 提交 → 对照参考数据和要点自查"这条流程；
+# 不是真题，也不代表任何地区的命题风格。
+#
+# 实验题和解答题一样不自动评分（Q-06：低置信度弃判，不冒充官方阅卷）：
+# - content.data_tables：数据表。value 是 null 的格子留空，由学生填写；其余是题目给出的数据；
+# - content.safety：安全提示，每道实验题必须有，上线前由审核员确认；高风险的实验现在不收录；
+# - answer.value：{小问键: 参考答案文字, "表键.行键.列键": 留空格子的参考值}，只用来对照，不参与任何判定，
+#   学生只在提交之后才看得到参考值；
+# - rubric.points：提交之后给学生对照的自查要点，只写"要做到什么"，不带分值；part 可以是小问键、数据表键，
+#   null 表示针对整份作答。每个小问和每张有留空格子的表至少要有一条；
+# - teaching.leak_markers：文字答案推不出泄题标记，要自己列；留空格子的数值参考值会自动加进去。
+# 这三道题都是纸面练习，不是操作指导，只涉及低风险的常规实验。
+
+- key: phys-tape-experiment
+  subject: physics
+  type: experiment
+  answer_mode: experiment
+  difficulty: 3
+  grade: G10
+  title: 用纸带数据测小车的加速度
+  knowledge: [phys.experiment.tape, phys.kinematics.uniform_accel]
+  content:
+    stem: '用打点计时器研究小车沿斜面做匀加速直线运动。实验得到一条清晰的纸带，在纸带上依次取 $A$、$B$、$C$、$D$、$E$ 五个计数点，相邻两个计数点之间还有 $4$ 个点没有画出。打点计时器所用交流电的频率为 $50\ \text{Hz}$。用刻度尺量出相邻计数点间的距离，列在表 1 中。'
+    safety:
+      level: low
+      notes:
+        - '本题只处理已经得到的纸带数据，不需要动手操作。'
+        - '这是纸面练习，不是操作指导。真实做这个实验时，要听从老师的安排，通电后不要触碰仪器的运动部件。'
+    data_tables:
+      - key: t1
+        title: '表 1  相邻计数点间的距离与平均速度'
+        columns:
+          - {key: seg, label: 计数点间, unit: null}
+          - {key: x, label: 距离 x, unit: cm}
+          - {key: v, label: 平均速度, unit: 'm/s'}
+        rows:
+          - key: r1
+            label: null
+            cells: [{col: seg, text: AB}, {col: x, text: '4.00'}, {col: v, text: null}]
+          - key: r2
+            label: null
+            cells: [{col: seg, text: BC}, {col: x, text: '6.00'}, {col: v, text: null}]
+          - key: r3
+            label: null
+            cells: [{col: seg, text: CD}, {col: x, text: '8.00'}, {col: v, text: null}]
+          - key: r4
+            label: null
+            cells: [{col: seg, text: DE}, {col: x, text: '10.00'}, {col: v, text: null}]
+      - key: t2
+        title: '表 2  小车的加速度'
+        columns:
+          - {key: name, label: 物理量, unit: null}
+          - {key: val, label: 数值, unit: 'm/s²'}
+        rows:
+          - key: r1
+            label: null
+            cells: [{col: name, text: '加速度 a'}, {col: val, text: null}]
+    subquestions:
+      - {key: '1', stem: '求相邻计数点之间的时间间隔 $T$，并说明表 1 中"平均速度"是怎样算出来的，把四段的平均速度填入表 1；'}
+      - {key: '2', stem: '用逐差法求小车的加速度 $a$（结果保留三位有效数字），写出算式，并把结果填入表 2；'}
+      - {key: '3', stem: '写出这个实验中产生误差的两个原因。'}
+  answer:
+    value:
+      't1.r1.v': '0.400'
+      't1.r2.v': '0.600'
+      't1.r3.v': '0.800'
+      't1.r4.v': '1.00'
+      't2.r1.val': '2.00'
+      '1': '$T=0.10\ \text{s}$（周期 $0.02\ \text{s}$，相邻计数点之间隔了 $5$ 个周期）；平均速度等于这一段的距离除以 $T$，先把 cm 换成 m'
+      '2': '$a=\dfrac{(x_{CD}+x_{DE})-(x_{AB}+x_{BC})}{4T^2}=2.00\ \text{m/s}^2$'
+      '3': '（任答两条）纸带与限位孔之间有摩擦；刻度尺读数有误差；交流电的实际频率和标称的 $50\ \text{Hz}$ 有偏差；小车受到的阻力不严格恒定'
+  rubric:
+    points:
+      - {key: p1, part: t1, text: '把距离从 cm 换算成 m 之后再除以时间'}
+      - {key: p2, part: t1, text: '四段的平均速度都算出来了，填进表 1，位数合适'}
+      - {key: p3, part: '1', text: '说明 $T$ 是怎么得到的（打点周期和"隔了几个点"），并求出它的值'}
+      - {key: p4, part: '1', text: '说明平均速度 = 距离 ÷ 时间间隔'}
+      - {key: p5, part: '2', text: '指出相邻相等时间内的位移之差是恒量，写出逐差法的算式'}
+      - {key: p6, part: '2', text: '代入数据，算出加速度并写上单位'}
+      - {key: p7, part: t2, text: '加速度保留三位有效数字，填进表 2'}
+      - {key: p8, part: '3', text: '至少写出两条合理的误差原因'}
+      - {key: p9, part: null, text: '数据表填得完整，单位不漏，书写清楚'}
+  teaching:
+    concept: 纸带数据的处理与匀变速直线运动
+    leak_markers:
+      - 'T=0.10'
+      - 'T=0.1s'
+      - '0.10s'
+      - 'a=2.00'
+      - 'a=2.0'
+      - '2.00m/s'
+      - '加速度为2'
+      - '加速度是2'
+      - '加速度等于2'
+    hints:
+      - '先弄清时间：交流电的频率是 $50\ \text{Hz}$，打点周期是多少？相邻两个计数点之间隔了几个打点周期？'
+      - '表里的距离单位是 cm，而速度的单位是 m/s。一段时间内的平均速度等于这段时间内的位移除以这段时间，注意先把单位统一。'
+      - '看一看表 1 里相邻两段的距离：每一段都比前一段多出同样的量。它和加速度、时间间隔是什么关系？怎样用四段位移求加速度，才能让偶然误差小一些？'
+  solutions:
+    standard:
+      steps:
+        - '时间间隔：频率 $50\ \text{Hz}$，打点周期 $0.02\ \text{s}$；相邻计数点之间还有 $4$ 个点没有画出，所以相邻计数点之间隔了 $5$ 个周期，$T=0.10\ \text{s}$。'
+        - '平均速度 $\bar v=\dfrac{x}{T}$（距离先换成 m）：$\bar v_{AB}=\dfrac{0.0400}{0.10}=0.400\ \text{m/s}$，$\bar v_{BC}=0.600\ \text{m/s}$，$\bar v_{CD}=0.800\ \text{m/s}$，$\bar v_{DE}=1.00\ \text{m/s}$。'
+        - '相邻相等时间内的位移之差是恒量：$x_{BC}-x_{AB}=x_{CD}-x_{BC}=x_{DE}-x_{CD}=2.00\ \text{cm}=aT^2$，说明小车做匀加速直线运动。'
+        - '用逐差法（四段数据都用上，减小偶然误差）：$a=\dfrac{(x_{CD}+x_{DE})-(x_{AB}+x_{BC})}{4T^2}=\dfrac{(8.00+10.00-4.00-6.00)\times10^{-2}\ \text{m}}{4\times(0.10\ \text{s})^2}=2.00\ \text{m/s}^2$。'
+        - '误差来源：纸带与限位孔之间的摩擦，刻度尺的读数误差，交流电频率与 $50\ \text{Hz}$ 有偏差等。'
+      final_answer: '$T=0.10\ \text{s}$；平均速度依次为 $0.400$、$0.600$、$0.800$、$1.00\ \text{m/s}$；$a=2.00\ \text{m/s}^2$'
+      key_points:
+        - '距离的单位要先换算成 m 再算速度'
+        - '逐差法用四段位移，比只用其中两段更能减小偶然误差'
+
+- key: phys-ohm-experiment
+  subject: physics
+  type: experiment
+  answer_mode: experiment
+  difficulty: 3
+  grade: G11
+  title: 伏安法测量定值电阻的阻值
+  knowledge: [phys.circuit.ohm, phys.experiment.resistance]
+  content:
+    stem: '用伏安法测量一个定值电阻 $R_x$ 的阻值，$R_x$ 约为几十欧。所用电压表的内阻约为 $3\ \text{k}\Omega$，电流表的内阻约为 $0.5\ \Omega$。调节滑动变阻器，测得 $5$ 组电压 $U$ 和电流 $I$，数据列在表 1 中。'
+    safety:
+      level: low
+      notes:
+        - '电路实验要先检查接线，确认无误、滑动变阻器在安全位置之后才接通电源，不要用湿手碰电路。'
+        - '这是纸面练习，不是操作指导；真实实验请在老师指导下进行。'
+    data_tables:
+      - key: t1
+        title: '表 1  电压、电流与电阻'
+        columns:
+          - {key: u, label: 电压 U, unit: V}
+          - {key: i, label: 电流 I, unit: mA}
+          - {key: r, label: 电阻 R, unit: 'Ω'}
+        rows:
+          - key: r1
+            label: '第 1 组'
+            cells: [{col: u, text: '0.50'}, {col: i, text: '10.0'}, {col: r, text: null}]
+          - key: r2
+            label: '第 2 组'
+            cells: [{col: u, text: '1.00'}, {col: i, text: '20.1'}, {col: r, text: null}]
+          - key: r3
+            label: '第 3 组'
+            cells: [{col: u, text: '1.50'}, {col: i, text: '29.9'}, {col: r, text: null}]
+          - key: r4
+            label: '第 4 组'
+            cells: [{col: u, text: '2.00'}, {col: i, text: '40.2'}, {col: r, text: null}]
+          - key: r5
+            label: '第 5 组'
+            cells: [{col: u, text: '2.50'}, {col: i, text: '49.8'}, {col: r, text: null}]
+      - key: t2
+        title: '表 2  电阻的测量值'
+        columns:
+          - {key: val, label: 数值, unit: 'Ω'}
+        rows:
+          - key: r1
+            label: '五次测量值的平均值'
+            cells: [{col: val, text: null}]
+    subquestions:
+      - {key: '1', stem: '根据所给电表的内阻，判断电流表应该内接还是外接，并说明理由；'}
+      - {key: '2', stem: '这样测出的电阻值比真实值偏大还是偏小？简述原因。'}
+  answer:
+    value:
+      't1.r1.r': '50.0'
+      't1.r2.r': '49.8'
+      't1.r3.r': '50.2'
+      't1.r4.r': '49.8'
+      't1.r5.r': '50.2'
+      't2.r1.val': '50.0'
+      '1': '内接。$R_x^2=2500\ \Omega^2$ 大于 $R_AR_V=1500\ \Omega^2$（即 $R_x/R_A=100$ 大于 $R_V/R_x=60$），待测电阻相对较大，电流表分压的影响比电压表分流的影响小'
+      '2': '偏大。电流表内接时，电压表测的是 $R_x$ 和电流表两端的总电压，比 $R_x$ 两端的电压大，电流是真实的，所以 $R_{测}=\dfrac{U}{I}=R_x+R_A$ 偏大'
+  rubric:
+    points:
+      - {key: p1, part: t1, text: '每组用 $R=\dfrac{U}{I}$ 计算，电流的单位 mA 先换成 A'}
+      - {key: p2, part: t1, text: '五个电阻值保留三位有效数字，填进表 1'}
+      - {key: p3, part: t2, text: '对五个电阻值求平均，保留三位有效数字，填进表 2'}
+      - {key: p4, part: '1', text: '把待测电阻和电表内阻比较（比较 $R_x^2$ 与 $R_AR_V$，或比较 $R_x/R_A$ 与 $R_V/R_x$）'}
+      - {key: p5, part: '1', text: '得出结论：电流表内接，并说明理由'}
+      - {key: p6, part: '2', text: '判断测量值偏大'}
+      - {key: p7, part: '2', text: '说明原因：电压表测到的电压包含了电流表两端的电压'}
+      - {key: p8, part: null, text: '单位不漏，有效数字符合要求，书写清楚'}
+  teaching:
+    concept: 伏安法测电阻与电表接法的误差
+    leak_markers:
+      - '应内接'
+      - '应选内接'
+      - '应该内接'
+      - '采用内接'
+      - '测量值偏大'
+      - '测量值比真实值大'
+      - '测量值大于真实值'
+      - 'R=50'
+    hints:
+      - '先弄清单位：表里的电流是 mA，而电阻等于电压除以电流，要用 A 作单位。五组数据各算一个电阻，再取平均。'
+      - '电流表内接还是外接，要看待测电阻和两个电表的内阻比起来谁大谁小：待测电阻比较大时，电流表的分压影响小；比较小时，电压表的分流影响小。'
+      - '想一想：电流表内接时，电压表并联在哪两点之间？它测到的电压只是待测电阻两端的电压吗？由此看，算出来的电阻比真实的多了一部分还是少了一部分？'
+  solutions:
+    standard:
+      steps:
+        - '每组的电阻 $R=\dfrac{U}{I}$（电流先换成 A）：$R_1=\dfrac{0.50}{10.0\times10^{-3}}=50.0\ \Omega$，$R_2=49.8\ \Omega$，$R_3=50.2\ \Omega$，$R_4=49.8\ \Omega$，$R_5=50.2\ \Omega$。'
+        - '平均值：$\bar R=\dfrac{50.0+49.8+50.2+49.8+50.2}{5}=50.0\ \Omega$。'
+        - '（1）电表接法：$R_x^2\approx2500\ \Omega^2$，$R_AR_V=0.5\times3000=1500\ \Omega^2$，$R_x^2>R_AR_V$（也就是 $R_x/R_A=100>R_V/R_x=60$），待测电阻相对较大，电流表的分压影响更小，应当内接。'
+        - '（2）电流表内接时，电压表测的是 $R_x$ 与电流表串联后两端的总电压，比 $R_x$ 两端的电压大，而电流是通过 $R_x$ 的真实电流，所以 $R_{测}=\dfrac{U}{I}=R_x+R_A$，测量值偏大。'
+      final_answer: '$R$ 的平均值 $50.0\ \Omega$；电流表内接；测量值偏大（等于 $R_x+R_A$）'
+      key_points:
+        - '电流的单位先换成 A'
+        - '待测电阻较大用内接，较小用外接；内接测得的电阻偏大，外接偏小'
+
+- key: chem-titration-experiment
+  subject: chemistry
+  type: experiment
+  answer_mode: experiment
+  difficulty: 3
+  grade: G11
+  title: 用标准氢氧化钠溶液测定盐酸的浓度
+  knowledge: [chem.experiment.titration, chem.acid_base.neutralization, chem.lab.safety]
+  content:
+    stem: '用 $0.1000\ \text{mol/L}$ 的 $\text{NaOH}$ 标准溶液滴定 $20.00\ \text{mL}$ 未知浓度的盐酸，以酚酞作指示剂。重复滴定三次，碱式滴定管的读数列在表 1 中。'
+    safety:
+      level: low
+      notes:
+        - '稀盐酸和氢氧化钠溶液都有腐蚀性：真实实验要戴护目镜，不要入口；溅到皮肤或眼睛要立刻用大量清水冲洗，并告诉老师。'
+        - '本题只处理数据和分析，是纸面练习，不是操作指导；实验课上按老师的要求和实验室规程操作。'
+    data_tables:
+      - key: t1
+        title: '表 1  滴定管的读数'
+        columns:
+          - {key: v0, label: 滴定前读数, unit: mL}
+          - {key: v1, label: 滴定后读数, unit: mL}
+          - {key: dv, label: 消耗 NaOH 溶液的体积, unit: mL}
+        rows:
+          - key: r1
+            label: '第 1 次'
+            cells: [{col: v0, text: '0.10'}, {col: v1, text: '20.15'}, {col: dv, text: null}]
+          - key: r2
+            label: '第 2 次'
+            cells: [{col: v0, text: '0.00'}, {col: v1, text: '20.10'}, {col: dv, text: null}]
+          - key: r3
+            label: '第 3 次'
+            cells: [{col: v0, text: '0.20'}, {col: v1, text: '20.29'}, {col: dv, text: null}]
+      - key: t2
+        title: '表 2  结果'
+        columns:
+          - {key: val, label: 数值, unit: null}
+        rows:
+          - key: r1
+            label: '消耗 NaOH 溶液体积的平均值（mL）'
+            cells: [{col: val, text: null}]
+          - key: r2
+            label: '盐酸的物质的量浓度（mol/L）'
+            cells: [{col: val, text: null}]
+    subquestions:
+      - {key: '1', stem: '写出滴定终点时溶液的现象；'}
+      - {key: '2', stem: '如果滴定前碱式滴定管的尖嘴处有气泡，滴定后气泡消失，测得的盐酸浓度会偏高、偏低还是不变？说明理由。'}
+  answer:
+    value:
+      't1.r1.dv': '20.05'
+      't1.r2.dv': '20.10'
+      't1.r3.dv': '20.09'
+      't2.r1.val': '20.08'
+      't2.r2.val': '0.1004'
+      '1': '溶液由无色变成浅红色，并且半分钟（$30\ \text{s}$）内不褪色'
+      '2': '偏高。气泡消失时流下来的碱液有一部分用来填满尖嘴，记录的体积比实际进入锥形瓶的多，代入 $c_{酸}=\dfrac{c_{碱}V_{碱}}{V_{酸}}$ 算出的浓度偏高'
+  rubric:
+    points:
+      - {key: p1, part: t1, text: '每次的体积 = 滴定后读数 − 滴定前读数，保留两位小数'}
+      - {key: p2, part: t2, text: '对三次的体积求平均（三次数据接近，没有要舍去的）'}
+      - {key: p3, part: t2, text: '用 $c_{酸}V_{酸}=c_{碱}V_{碱}$ 求出盐酸的浓度，保留四位有效数字'}
+      - {key: p4, part: '1', text: '指出指示剂是酚酞，终点是溶液由无色变成浅红色'}
+      - {key: p5, part: '1', text: '写明"半分钟内不褪色"'}
+      - {key: p6, part: '2', text: '判断测得的浓度偏高'}
+      - {key: p7, part: '2', text: '说明原因：记录的碱液体积比实际进入锥形瓶的偏大'}
+      - {key: p8, part: null, text: '单位不漏，有效数字符合要求，书写清楚'}
+  teaching:
+    concept: 酸碱中和滴定的数据处理与误差分析
+    leak_markers:
+      - '0.1004'
+      - '20.08'
+      - '浅红色'
+      - '半分钟内不褪色'
+      - '30s内不褪色'
+      - '测得的浓度偏高'
+      - '结果偏高'
+      - '浓度偏高'
+    hints:
+      - '先处理数据：每一次消耗的 NaOH 溶液的体积，是用滴定后的读数减去滴定前的读数。三次数据里有没有特别偏离的？'
+      - '盐酸和氢氧化钠按 $1:1$ 反应，恰好完全反应时 $n(\text{H}^+)=n(\text{OH}^-)$，所以 $c_{酸}V_{酸}=c_{碱}V_{碱}$。'
+      - '分析误差，先比一比实际流进锥形瓶的碱液体积和你记录下来的体积：记录的体积变大还是变小，算出的浓度就往同一个方向变。'
+  solutions:
+    standard:
+      steps:
+        - '每次消耗的 NaOH 溶液体积：第 1 次 $20.15-0.10=20.05\ \text{mL}$，第 2 次 $20.10-0.00=20.10\ \text{mL}$，第 3 次 $20.29-0.20=20.09\ \text{mL}$，三次数据接近，没有要舍去的。'
+        - '平均体积 $\bar V=\dfrac{20.05+20.10+20.09}{3}=20.08\ \text{mL}$。'
+        - '$\text{HCl}+\text{NaOH}=\text{NaCl}+\text{H}_2\text{O}$，按 $1:1$ 反应：$c(\text{HCl})\times20.00\ \text{mL}=0.1000\ \text{mol/L}\times20.08\ \text{mL}$，所以 $c(\text{HCl})=0.1004\ \text{mol/L}$。'
+        - '（1）终点现象：溶液由无色变成浅红色，并且半分钟内不褪色。（2）偏高：气泡消失时流下来的碱液有一部分用来填满尖嘴，记录的体积比实际进入锥形瓶的多，算出的浓度偏高。'
+      final_answer: '平均体积 $20.08\ \text{mL}$；$c(\text{HCl})=0.1004\ \text{mol/L}$；终点是溶液由无色变成浅红色且半分钟内不褪色；偏高'
+      key_points:
+        - '体积用滴定后的读数减去滴定前的读数'
+        - '分析误差看"记录的碱液体积比实际进入的偏大还是偏小"'

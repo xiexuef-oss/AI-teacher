@@ -1,0 +1,399 @@
+{
+  "name": "question_experiment_titration",
+  "method": "GET",
+  "path": "/api/v1/questions/08f78db0-9c8e-5eee-9993-3e215e836f46",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "08f78db0-9c8e-5eee-9993-3e215e836f46",
+    "subject": "chemistry",
+    "type": "experiment",
+    "answer_mode": "experiment",
+    "difficulty": 3,
+    "title": "用标准氢氧化钠溶液测定盐酸的浓度",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "52130c04-2433-5089-8f6f-f38239bbc080",
+        "code": "chem.acid_base.neutralization",
+        "title": "酸碱中和反应"
+      },
+      {
+        "id": "574bfe10-60ee-51af-8db5-1bf04c021436",
+        "code": "chem.experiment.titration",
+        "title": "酸碱中和滴定"
+      },
+      {
+        "id": "0b6a19bd-5920-5413-ac75-f33a351b7b2b",
+        "code": "chem.lab.safety",
+        "title": "实验基本操作与安全"
+      }
+    ],
+    "variant_of": null,
+    "version": 1,
+    "grade": "G11",
+    "content": {
+      "stem": "用 $0.1000\\ \\text{mol/L}$ 的 $\\text{NaOH}$ 标准溶液滴定 $20.00\\ \\text{mL}$ 未知浓度的盐酸，以酚酞作指示剂。重复滴定三次，碱式滴定管的读数列在表 1 中。",
+      "options": [],
+      "blanks": [],
+      "subquestions": [
+        {
+          "key": "1",
+          "stem": "写出滴定终点时溶液的现象；",
+          "answer_mode": "written",
+          "options": [],
+          "blanks": []
+        },
+        {
+          "key": "2",
+          "stem": "如果滴定前碱式滴定管的尖嘴处有气泡，滴定后气泡消失，测得的盐酸浓度会偏高、偏低还是不变？说明理由。",
+          "answer_mode": "written",
+          "options": [],
+          "blanks": []
+        }
+      ],
+      "attachments": [],
+      "data_tables": [
+        {
+          "key": "t1",
+          "title": "表 1  滴定管的读数",
+          "columns": [
+            {
+              "key": "v0",
+              "label": "滴定前读数",
+              "unit": "mL"
+            },
+            {
+              "key": "v1",
+              "label": "滴定后读数",
+              "unit": "mL"
+            },
+            {
+              "key": "dv",
+              "label": "消耗 NaOH 溶液的体积",
+              "unit": "mL"
+            }
+          ],
+          "rows": [
+            {
+              "key": "r1",
+              "label": "第 1 次",
+              "cells": [
+                {
+                  "col": "v0",
+                  "text": "0.10"
+                },
+                {
+                  "col": "v1",
+                  "text": "20.15"
+                },
+                {
+                  "col": "dv",
+                  "text": null
+                }
+              ]
+            },
+            {
+              "key": "r2",
+              "label": "第 2 次",
+              "cells": [
+                {
+                  "col": "v0",
+                  "text": "0.00"
+                },
+                {
+                  "col": "v1",
+                  "text": "20.10"
+                },
+                {
+                  "col": "dv",
+                  "text": null
+                }
+              ]
+            },
+            {
+              "key": "r3",
+              "label": "第 3 次",
+              "cells": [
+                {
+                  "col": "v0",
+                  "text": "0.20"
+                },
+                {
+                  "col": "v1",
+                  "text": "20.29"
+                },
+                {
+                  "col": "dv",
+                  "text": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "t2",
+          "title": "表 2  结果",
+          "columns": [
+            {
+              "key": "val",
+              "label": "数值",
+              "unit": null
+            }
+          ],
+          "rows": [
+            {
+              "key": "r1",
+              "label": "消耗 NaOH 溶液体积的平均值（mL）",
+              "cells": [
+                {
+                  "col": "val",
+                  "text": null
+                }
+              ]
+            },
+            {
+              "key": "r2",
+              "label": "盐酸的物质的量浓度（mol/L）",
+              "cells": [
+                {
+                  "col": "val",
+                  "text": null
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "safety": {
+        "level": "low",
+        "notes": [
+          "稀盐酸和氢氧化钠溶液都有腐蚀性：真实实验要戴护目镜，不要入口；溅到皮肤或眼睛要立刻用大量清水冲洗，并告诉老师。",
+          "本题只处理数据和分析，是纸面练习，不是操作指导；实验课上按老师的要求和实验室规程操作。"
+        ]
+      }
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": false
+    },
+    "judging_note": "实验题不自动评分：数据表里的数和文字作答提交后，对照参考数据和要点自己检查一遍。这是练习用的自查，不是官方阅卷分数，也不会计入正确率；题目是纸面练习，不是操作指导。"
+  },
+  "body": {
+    "data": {
+      "id": "08f78db0-9c8e-5eee-9993-3e215e836f46",
+      "subject": "chemistry",
+      "type": "experiment",
+      "answer_mode": "experiment",
+      "difficulty": 3,
+      "title": "用标准氢氧化钠溶液测定盐酸的浓度",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "52130c04-2433-5089-8f6f-f38239bbc080",
+          "code": "chem.acid_base.neutralization",
+          "title": "酸碱中和反应"
+        },
+        {
+          "id": "574bfe10-60ee-51af-8db5-1bf04c021436",
+          "code": "chem.experiment.titration",
+          "title": "酸碱中和滴定"
+        },
+        {
+          "id": "0b6a19bd-5920-5413-ac75-f33a351b7b2b",
+          "code": "chem.lab.safety",
+          "title": "实验基本操作与安全"
+        }
+      ],
+      "variant_of": null,
+      "version": 1,
+      "grade": "G11",
+      "content": {
+        "stem": "用 $0.1000\\ \\text{mol/L}$ 的 $\\text{NaOH}$ 标准溶液滴定 $20.00\\ \\text{mL}$ 未知浓度的盐酸，以酚酞作指示剂。重复滴定三次，碱式滴定管的读数列在表 1 中。",
+        "options": [],
+        "blanks": [],
+        "subquestions": [
+          {
+            "key": "1",
+            "stem": "写出滴定终点时溶液的现象；",
+            "answer_mode": "written",
+            "options": [],
+            "blanks": []
+          },
+          {
+            "key": "2",
+            "stem": "如果滴定前碱式滴定管的尖嘴处有气泡，滴定后气泡消失，测得的盐酸浓度会偏高、偏低还是不变？说明理由。",
+            "answer_mode": "written",
+            "options": [],
+            "blanks": []
+          }
+        ],
+        "attachments": [],
+        "data_tables": [
+          {
+            "key": "t1",
+            "title": "表 1  滴定管的读数",
+            "columns": [
+              {
+                "key": "v0",
+                "label": "滴定前读数",
+                "unit": "mL"
+              },
+              {
+                "key": "v1",
+                "label": "滴定后读数",
+                "unit": "mL"
+              },
+              {
+                "key": "dv",
+                "label": "消耗 NaOH 溶液的体积",
+                "unit": "mL"
+              }
+            ],
+            "rows": [
+              {
+                "key": "r1",
+                "label": "第 1 次",
+                "cells": [
+                  {
+                    "col": "v0",
+                    "text": "0.10"
+                  },
+                  {
+                    "col": "v1",
+                    "text": "20.15"
+                  },
+                  {
+                    "col": "dv",
+                    "text": null
+                  }
+                ]
+              },
+              {
+                "key": "r2",
+                "label": "第 2 次",
+                "cells": [
+                  {
+                    "col": "v0",
+                    "text": "0.00"
+                  },
+                  {
+                    "col": "v1",
+                    "text": "20.10"
+                  },
+                  {
+                    "col": "dv",
+                    "text": null
+                  }
+                ]
+              },
+              {
+                "key": "r3",
+                "label": "第 3 次",
+                "cells": [
+                  {
+                    "col": "v0",
+                    "text": "0.20"
+                  },
+                  {
+                    "col": "v1",
+                    "text": "20.29"
+                  },
+                  {
+                    "col": "dv",
+                    "text": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "t2",
+            "title": "表 2  结果",
+            "columns": [
+              {
+                "key": "val",
+                "label": "数值",
+                "unit": null
+              }
+            ],
+            "rows": [
+              {
+                "key": "r1",
+                "label": "消耗 NaOH 溶液体积的平均值（mL）",
+                "cells": [
+                  {
+                    "col": "val",
+                    "text": null
+                  }
+                ]
+              },
+              {
+                "key": "r2",
+                "label": "盐酸的物质的量浓度（mol/L）",
+                "cells": [
+                  {
+                    "col": "val",
+                    "text": null
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "safety": {
+          "level": "low",
+          "notes": [
+            "稀盐酸和氢氧化钠溶液都有腐蚀性：真实实验要戴护目镜，不要入口；溅到皮肤或眼睛要立刻用大量清水冲洗，并告诉老师。",
+            "本题只处理数据和分析，是纸面练习，不是操作指导；实验课上按老师的要求和实验室规程操作。"
+          ]
+        }
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": false
+      },
+      "judging_note": "实验题不自动评分：数据表里的数和文字作答提交后，对照参考数据和要点自己检查一遍。这是练习用的自查，不是官方阅卷分数，也不会计入正确率；题目是纸面练习，不是操作指导。"
+    }
+  }
+}

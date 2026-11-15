@@ -1,0 +1,175 @@
+{
+  "name": "tasks_today_next_day",
+  "method": "GET",
+  "path": "/api/v1/tasks/today",
+  "status": 200,
+  "schema": "TodayTasks",
+  "value": {
+    "date": "2026-11-11",
+    "items": [
+      {
+        "id": "3dfe6f76-f7c4-565c-ae3c-fb73401bc71c",
+        "kind": "variant",
+        "title": "变式：开口向下的二次函数的单调递增区间",
+        "reason": "你做过它的母题，换个问法检验一下是不是真的掌握了。",
+        "subject": "math",
+        "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+        "review_item_id": null,
+        "applicability": {
+          "scope": "general",
+          "label": "全国通用基础题",
+          "recommended_regions": [],
+          "origin_region_code": null,
+          "exam_year_from": null,
+          "exam_year_to": null,
+          "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+        },
+        "estimated_minutes": 5
+      },
+      {
+        "id": "30a50d58-cd1c-5fc0-b24e-62e45da1ac76",
+        "kind": "new_topic",
+        "title": "判断函数在区间上的单调性",
+        "reason": "按你选择的学科继续练习。",
+        "subject": "math",
+        "question_id": "08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+        "review_item_id": null,
+        "applicability": {
+          "scope": "general",
+          "label": "全国通用基础题",
+          "recommended_regions": [],
+          "origin_region_code": null,
+          "exam_year_from": null,
+          "exam_year_to": null,
+          "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+        },
+        "estimated_minutes": 5
+      },
+      {
+        "id": "a9f76987-b357-52ae-beb0-4ad0a2edb744",
+        "kind": "new_topic",
+        "title": "静止在粗糙斜面上的物块的受力",
+        "reason": "按你选择的学科继续练习。",
+        "subject": "physics",
+        "question_id": "a94037e8-6c0c-554f-b4e6-d19d44a753b6",
+        "review_item_id": null,
+        "applicability": {
+          "scope": "region",
+          "label": "推荐适用：四川（工程测试标签）",
+          "recommended_regions": [
+            "CN-51"
+          ],
+          "origin_region_code": null,
+          "exam_year_from": 2027,
+          "exam_year_to": 2029,
+          "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+        },
+        "estimated_minutes": 5
+      },
+      {
+        "id": "3437c8a4-aec8-5e8e-bb2d-cb1aff77afb0",
+        "kind": "new_topic",
+        "title": "由碳酸钙质量求二氧化碳质量",
+        "reason": "按你选择的学科继续练习。",
+        "subject": "chemistry",
+        "question_id": "eb6592f7-34f3-58db-9b1f-ea832ab7fb61",
+        "review_item_id": null,
+        "applicability": {
+          "scope": "general",
+          "label": "全国通用基础题",
+          "recommended_regions": [],
+          "origin_region_code": null,
+          "exam_year_from": null,
+          "exam_year_to": null,
+          "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+        },
+        "estimated_minutes": 5
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "date": "2026-11-11",
+      "items": [
+        {
+          "id": "3dfe6f76-f7c4-565c-ae3c-fb73401bc71c",
+          "kind": "variant",
+          "title": "变式：开口向下的二次函数的单调递增区间",
+          "reason": "你做过它的母题，换个问法检验一下是不是真的掌握了。",
+          "subject": "math",
+          "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+          "review_item_id": null,
+          "applicability": {
+            "scope": "general",
+            "label": "全国通用基础题",
+            "recommended_regions": [],
+            "origin_region_code": null,
+            "exam_year_from": null,
+            "exam_year_to": null,
+            "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+          },
+          "estimated_minutes": 5
+        },
+        {
+          "id": "30a50d58-cd1c-5fc0-b24e-62e45da1ac76",
+          "kind": "new_topic",
+          "title": "判断函数在区间上的单调性",
+          "reason": "按你选择的学科继续练习。",
+          "subject": "math",
+          "question_id": "08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+          "review_item_id": null,
+          "applicability": {
+            "scope": "general",
+            "label": "全国通用基础题",
+            "recommended_regions": [],
+            "origin_region_code": null,
+            "exam_year_from": null,
+            "exam_year_to": null,
+            "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+          },
+          "estimated_minutes": 5
+        },
+        {
+          "id": "a9f76987-b357-52ae-beb0-4ad0a2edb744",
+          "kind": "new_topic",
+          "title": "静止在粗糙斜面上的物块的受力",
+          "reason": "按你选择的学科继续练习。",
+          "subject": "physics",
+          "question_id": "a94037e8-6c0c-554f-b4e6-d19d44a753b6",
+          "review_item_id": null,
+          "applicability": {
+            "scope": "region",
+            "label": "推荐适用：四川（工程测试标签）",
+            "recommended_regions": [
+              "CN-51"
+            ],
+            "origin_region_code": null,
+            "exam_year_from": 2027,
+            "exam_year_to": 2029,
+            "disclaimer": "自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。"
+          },
+          "estimated_minutes": 5
+        },
+        {
+          "id": "3437c8a4-aec8-5e8e-bb2d-cb1aff77afb0",
+          "kind": "new_topic",
+          "title": "由碳酸钙质量求二氧化碳质量",
+          "reason": "按你选择的学科继续练习。",
+          "subject": "chemistry",
+          "question_id": "eb6592f7-34f3-58db-9b1f-ea832ab7fb61",
+          "review_item_id": null,
+          "applicability": {
+            "scope": "general",
+            "label": "全国通用基础题",
+            "recommended_regions": [],
+            "origin_region_code": null,
+            "exam_year_from": null,
+            "exam_year_to": null,
+            "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+          },
+          "estimated_minutes": 5
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "parent_links_none",
+  "method": "GET",
+  "path": "/api/v1/me/parent-links",
+  "status": 200,
+  "schema": "ParentLinks",
+  "value": {
+    "links": [],
+    "pending_invite": null
+  },
+  "body": {
+    "data": {
+      "links": [],
+      "pending_invite": null
+    }
+  }
+}

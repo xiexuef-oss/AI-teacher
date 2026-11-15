@@ -1,0 +1,39 @@
+{
+  "name": "error_validation",
+  "method": "PUT",
+  "path": "/api/v1/profile",
+  "status": 422,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "validation_error",
+      "message": "请求字段不合法",
+      "details": {
+        "errors": [
+          {
+            "field": "region_code",
+            "message": "Input should be 'CN-51' or 'CN-50'",
+            "type": "literal_error"
+          }
+        ]
+      },
+      "request_id": "8f98bdf2ea394981bac3b6f647708fc8"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "validation_error",
+      "message": "请求字段不合法",
+      "details": {
+        "errors": [
+          {
+            "field": "region_code",
+            "message": "Input should be 'CN-51' or 'CN-50'",
+            "type": "literal_error"
+          }
+        ]
+      },
+      "request_id": "8f98bdf2ea394981bac3b6f647708fc8"
+    }
+  }
+}
