@@ -1,0 +1,23 @@
+{
+  "name": "scan_content",
+  "method": "PUT",
+  "path": "/api/v1/scans/uploads/d323d0d9-1716-40de-ab72-2369a54d511c/content",
+  "status": 200,
+  "schema": "MediaAssetInfo",
+  "value": {
+    "media_id": "d323d0d9-1716-40de-ab72-2369a54d511c",
+    "mime": "image/png",
+    "size_bytes": 1435,
+    "sha256": "49f456f0f1c47e4ec88d57f9cac605096227aa142c504ff9c017c686eabfd32c",
+    "expires_at": "2026-11-10T10:00:00+00:00"
+  },
+  "body": {
+    "data": {
+      "media_id": "d323d0d9-1716-40de-ab72-2369a54d511c",
+      "mime": "image/png",
+      "size_bytes": 1435,
+      "sha256": "49f456f0f1c47e4ec88d57f9cac605096227aa142c504ff9c017c686eabfd32c",
+      "expires_at": "2026-11-10T10:00:00+00:00"
+    }
+  }
+}

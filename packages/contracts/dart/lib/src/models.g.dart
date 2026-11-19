@@ -47,6 +47,255 @@ class ErrorBody {
       };
 }
 
+class DiagnosticRevision {
+  const DiagnosticRevision({
+    required this.expectedRevision,
+  });
+
+  final int expectedRevision;
+
+  factory DiagnosticRevision.fromJson(Map<String, dynamic> json) => DiagnosticRevision(
+        expectedRevision: (json['expected_revision'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_revision': expectedRevision,
+      };
+}
+
+class DiagnosticCreate {
+  const DiagnosticCreate({
+    required this.subject,
+    required this.expectedRevision,
+    required this.expectedProfileRevision,
+  });
+
+  final Subject subject;
+  final int expectedRevision;
+  final int expectedProfileRevision;
+
+  factory DiagnosticCreate.fromJson(Map<String, dynamic> json) => DiagnosticCreate(
+        subject: Subject.fromJson(json['subject'] as String),
+        expectedRevision: (json['expected_revision'] as num).toInt(),
+        expectedProfileRevision: (json['expected_profile_revision'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'subject': subject.toJson(),
+        'expected_revision': expectedRevision,
+        'expected_profile_revision': expectedProfileRevision,
+      };
+}
+
+class DiagnosticScope {
+  const DiagnosticScope({
+    required this.profileRevision,
+    required this.regionCode,
+    this.grade,
+    this.examYear,
+    this.curriculumVersion,
+  });
+
+  final int profileRevision;
+  final RegionCode regionCode;
+  final Grade? grade;
+  final int? examYear;
+  final String? curriculumVersion;
+
+  factory DiagnosticScope.fromJson(Map<String, dynamic> json) => DiagnosticScope(
+        profileRevision: (json['profile_revision'] as num).toInt(),
+        regionCode: RegionCode.fromJson(json['region_code'] as String),
+        grade: json['grade'] == null ? null : Grade.fromJson(json['grade'] as String),
+        examYear: json['exam_year'] == null ? null : (json['exam_year'] as num).toInt(),
+        curriculumVersion: json['curriculum_version'] == null ? null : json['curriculum_version'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'profile_revision': profileRevision,
+        'region_code': regionCode.toJson(),
+        'grade': grade?.toJson(),
+        'exam_year': examYear,
+        'curriculum_version': curriculumVersion,
+      };
+}
+
+class DiagnosticSubmission {
+  const DiagnosticSubmission({
+    required this.attemptId,
+    required this.independent,
+    required this.evaluationState,
+    this.isCorrect,
+  });
+
+  final String attemptId;
+  final bool independent;
+  final EvaluationState evaluationState;
+  final bool? isCorrect;
+
+  factory DiagnosticSubmission.fromJson(Map<String, dynamic> json) => DiagnosticSubmission(
+        attemptId: json['attempt_id'] as String,
+        independent: json['independent'] as bool,
+        evaluationState: EvaluationState.fromJson(json['evaluation_state'] as String),
+        isCorrect: json['is_correct'] == null ? null : json['is_correct'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'attempt_id': attemptId,
+        'independent': independent,
+        'evaluation_state': evaluationState.toJson(),
+        'is_correct': isCorrect,
+      };
+}
+
+class DiagnosticItem {
+  const DiagnosticItem({
+    required this.position,
+    required this.question,
+    required this.questionVersion,
+    this.sessionId,
+    this.submission,
+  });
+
+  final int position;
+  final QuestionSummary question;
+  final int questionVersion;
+  final String? sessionId;
+  final DiagnosticSubmission? submission;
+
+  factory DiagnosticItem.fromJson(Map<String, dynamic> json) => DiagnosticItem(
+        position: (json['position'] as num).toInt(),
+        question: QuestionSummary.fromJson(json['question'] as Map<String, dynamic>),
+        questionVersion: (json['question_version'] as num).toInt(),
+        sessionId: json['session_id'] == null ? null : json['session_id'] as String,
+        submission: json['submission'] == null ? null : DiagnosticSubmission.fromJson(json['submission'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'position': position,
+        'question': question.toJson(),
+        'question_version': questionVersion,
+        'session_id': sessionId,
+        'submission': submission?.toJson(),
+      };
+}
+
+/// 仅关联会话首份提交的本轮计数；uncertain/pending不算对错。独立正确、独立不正确、借助提示和未确认四类互斥，总和等于submitted。不推算掌握度、分数或正确率。
+class DiagnosticSummary {
+  const DiagnosticSummary({
+    required this.submitted,
+    required this.independentCorrect,
+    required this.independentIncorrect,
+    required this.assisted,
+    required this.unconfirmed,
+  });
+
+  final int submitted;
+  final int independentCorrect;
+  final int independentIncorrect;
+  final int assisted;
+  final int unconfirmed;
+
+  factory DiagnosticSummary.fromJson(Map<String, dynamic> json) => DiagnosticSummary(
+        submitted: (json['submitted'] as num).toInt(),
+        independentCorrect: (json['independent_correct'] as num).toInt(),
+        independentIncorrect: (json['independent_incorrect'] as num).toInt(),
+        assisted: (json['assisted'] as num).toInt(),
+        unconfirmed: (json['unconfirmed'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'submitted': submitted,
+        'independent_correct': independentCorrect,
+        'independent_incorrect': independentIncorrect,
+        'assisted': assisted,
+        'unconfirmed': unconfirmed,
+      };
+}
+
+class DiagnosticRun {
+  const DiagnosticRun({
+    required this.id,
+    required this.subject,
+    required this.scope,
+    required this.status,
+    required this.items,
+    required this.summary,
+    required this.createdAt,
+    this.abandonedAt,
+  });
+
+  final String id;
+  final Subject subject;
+  final DiagnosticScope scope;
+  final String status;
+  final List<DiagnosticItem> items;
+  final DiagnosticSummary summary;
+  final DateTime createdAt;
+  final DateTime? abandonedAt;
+
+  factory DiagnosticRun.fromJson(Map<String, dynamic> json) => DiagnosticRun(
+        id: json['id'] as String,
+        subject: Subject.fromJson(json['subject'] as String),
+        scope: DiagnosticScope.fromJson(json['scope'] as Map<String, dynamic>),
+        status: json['status'] as String,
+        items: (json['items'] as List<dynamic>).map((e) => DiagnosticItem.fromJson(e as Map<String, dynamic>)).toList(),
+        summary: DiagnosticSummary.fromJson(json['summary'] as Map<String, dynamic>),
+        createdAt: DateTime.parse(json['created_at'] as String),
+        abandonedAt: json['abandoned_at'] == null ? null : DateTime.parse(json['abandoned_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'subject': subject.toJson(),
+        'scope': scope.toJson(),
+        'status': status,
+        'items': items.map((e) => e.toJson()).toList(),
+        'summary': summary.toJson(),
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'abandoned_at': abandonedAt?.toUtc().toIso8601String(),
+      };
+}
+
+class DiagnosticHistoryPage {
+  const DiagnosticHistoryPage({
+    required this.items,
+    this.nextCursor,
+  });
+
+  final List<DiagnosticRun> items;
+  final String? nextCursor;
+
+  factory DiagnosticHistoryPage.fromJson(Map<String, dynamic> json) => DiagnosticHistoryPage(
+        items: (json['items'] as List<dynamic>).map((e) => DiagnosticRun.fromJson(e as Map<String, dynamic>)).toList(),
+        nextCursor: json['next_cursor'] == null ? null : json['next_cursor'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+        'next_cursor': nextCursor,
+      };
+}
+
+class DiagnosticWorkspace {
+  const DiagnosticWorkspace({
+    required this.revision,
+    this.run,
+  });
+
+  final int revision;
+  final DiagnosticRun? run;
+
+  factory DiagnosticWorkspace.fromJson(Map<String, dynamic> json) => DiagnosticWorkspace(
+        revision: (json['revision'] as num).toInt(),
+        run: json['run'] == null ? null : DiagnosticRun.fromJson(json['run'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'revision': revision,
+        'run': run?.toJson(),
+      };
+}
+
 /// 首发地区：四川 CN-51、重庆 CN-50。
 enum RegionCode {
   cn51('CN-51'),
@@ -693,8 +942,330 @@ class LocalIdentity {
       };
 }
 
+class LearningPackPdf {
+  const LearningPackPdf({
+    required this.revision,
+    required this.sha256,
+    required this.contentBase64,
+  });
+
+  final int revision;
+  final String sha256;
+  final String contentBase64;
+
+  factory LearningPackPdf.fromJson(Map<String, dynamic> json) => LearningPackPdf(
+        revision: (json['revision'] as num).toInt(),
+        sha256: json['sha256'] as String,
+        contentBase64: json['content_base64'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'revision': revision,
+        'sha256': sha256,
+        'content_base64': contentBase64,
+      };
+}
+
+class PaperReviewSchedule {
+  const PaperReviewSchedule({
+    required this.items,
+  });
+
+  final List<PaperReviewScheduleItem> items;
+
+  factory PaperReviewSchedule.fromJson(Map<String, dynamic> json) => PaperReviewSchedule(
+        items: (json['items'] as List<dynamic>).map((e) => PaperReviewScheduleItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class PaperReviewScheduleItem {
+  const PaperReviewScheduleItem({
+    required this.knowledgeId,
+    required this.title,
+    required this.stage,
+    required this.dueOn,
+    required this.estimatedAnchor,
+  });
+
+  final String knowledgeId;
+  final String title;
+  final int stage;
+  final String dueOn;
+  final bool estimatedAnchor;
+
+  factory PaperReviewScheduleItem.fromJson(Map<String, dynamic> json) => PaperReviewScheduleItem(
+        knowledgeId: json['knowledge_id'] as String,
+        title: json['title'] as String,
+        stage: (json['stage'] as num).toInt(),
+        dueOn: json['due_on'] as String,
+        estimatedAnchor: json['estimated_anchor'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'knowledge_id': knowledgeId,
+        'title': title,
+        'stage': stage,
+        'due_on': dueOn,
+        'estimated_anchor': estimatedAnchor,
+      };
+}
+
+class LearningPackHistory {
+  const LearningPackHistory({
+    required this.ids,
+    this.nextCursor,
+  });
+
+  final List<String> ids;
+  final String? nextCursor;
+
+  factory LearningPackHistory.fromJson(Map<String, dynamic> json) => LearningPackHistory(
+        ids: (json['ids'] as List<dynamic>).map((e) => e as String).toList(),
+        nextCursor: json['next_cursor'] == null ? null : json['next_cursor'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'ids': ids,
+        if (nextCursor != null) 'next_cursor': nextCursor,
+      };
+}
+
+class LearningPackItems {
+  const LearningPackItems({
+    required this.items,
+  });
+
+  final List<LearningPackItem> items;
+
+  factory LearningPackItems.fromJson(Map<String, dynamic> json) => LearningPackItems(
+        items: (json['items'] as List<dynamic>).map((e) => LearningPackItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class LearningPackItem {
+  const LearningPackItem({
+    required this.revision,
+    required this.code,
+    required this.questionVersionId,
+  });
+
+  final int revision;
+  final String code;
+  final String questionVersionId;
+
+  factory LearningPackItem.fromJson(Map<String, dynamic> json) => LearningPackItem(
+        revision: (json['revision'] as num).toInt(),
+        code: json['code'] as String,
+        questionVersionId: json['question_version_id'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'revision': revision,
+        'code': code,
+        'question_version_id': questionVersionId,
+      };
+}
+
+class LearningPackReturnRecord {
+  const LearningPackReturnRecord({
+    this.transcriptRevision,
+    required this.item,
+    required this.transcript,
+    required this.confirmedAt,
+  });
+
+  final int? transcriptRevision;
+  final LearningPackItem item;
+  final String transcript;
+  final DateTime confirmedAt;
+
+  factory LearningPackReturnRecord.fromJson(Map<String, dynamic> json) => LearningPackReturnRecord(
+        transcriptRevision: json['transcript_revision'] == null ? null : (json['transcript_revision'] as num).toInt(),
+        item: LearningPackItem.fromJson(json['item'] as Map<String, dynamic>),
+        transcript: json['transcript'] as String,
+        confirmedAt: DateTime.parse(json['confirmed_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (transcriptRevision != null) 'transcript_revision': transcriptRevision,
+        'item': item.toJson(),
+        'transcript': transcript,
+        'confirmed_at': confirmedAt.toUtc().toIso8601String(),
+      };
+}
+
+class LearningPackCorrection {
+  const LearningPackCorrection({
+    required this.expectedRevision,
+    required this.transcript,
+  });
+
+  final int expectedRevision;
+  final String transcript;
+
+  factory LearningPackCorrection.fromJson(Map<String, dynamic> json) => LearningPackCorrection(
+        expectedRevision: (json['expected_revision'] as num).toInt(),
+        transcript: json['transcript'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_revision': expectedRevision,
+        'transcript': transcript,
+      };
+}
+
+class LearningPackReturnRequest {
+  const LearningPackReturnRequest({
+    required this.transcript,
+    this.completedOn,
+    this.independence,
+    this.photoIds,
+  });
+
+  final String transcript;
+  final String? completedOn;
+  final String? independence;
+  final List<String>? photoIds;
+
+  factory LearningPackReturnRequest.fromJson(Map<String, dynamic> json) => LearningPackReturnRequest(
+        transcript: json['transcript'] as String,
+        completedOn: json['completed_on'] == null ? null : json['completed_on'] as String,
+        independence: json['independence'] == null ? null : json['independence'] as String,
+        photoIds: json['photo_ids'] == null ? null : (json['photo_ids'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'transcript': transcript,
+        if (completedOn != null) 'completed_on': completedOn,
+        if (independence != null) 'independence': independence,
+        if (photoIds != null) 'photo_ids': photoIds,
+      };
+}
+
+class LearningPackRequest {
+  const LearningPackRequest({
+    required this.schoolMinutes,
+  });
+
+  final int schoolMinutes;
+
+  factory LearningPackRequest.fromJson(Map<String, dynamic> json) => LearningPackRequest(
+        schoolMinutes: (json['school_minutes'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'school_minutes': schoolMinutes,
+      };
+}
+
+class LearningJobStatus {
+  const LearningJobStatus({
+    required this.id,
+    required this.status,
+    required this.attempts,
+    this.packResult,
+    this.reviews,
+  });
+
+  final String id;
+  final String status;
+  final int attempts;
+  final String? packResult;
+  final List<PaperReviewPlanItem>? reviews;
+
+  factory LearningJobStatus.fromJson(Map<String, dynamic> json) => LearningJobStatus(
+        id: json['id'] as String,
+        status: json['status'] as String,
+        attempts: (json['attempts'] as num).toInt(),
+        packResult: json['pack_result'] == null ? null : json['pack_result'] as String,
+        reviews: json['reviews'] == null ? null : (json['reviews'] as List<dynamic>).map((e) => PaperReviewPlanItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'status': status,
+        'attempts': attempts,
+        if (packResult != null) 'pack_result': packResult,
+        if (reviews != null) 'reviews': reviews?.map((e) => e.toJson()).toList(),
+      };
+}
+
+class PaperReviewPlanItem {
+  const PaperReviewPlanItem({
+    required this.knowledgeId,
+    required this.title,
+    required this.originalDueOn,
+    this.suggestedOn,
+    this.deferredReason,
+  });
+
+  final String knowledgeId;
+  final String title;
+  final String originalDueOn;
+  final String? suggestedOn;
+  final String? deferredReason;
+
+  factory PaperReviewPlanItem.fromJson(Map<String, dynamic> json) => PaperReviewPlanItem(
+        knowledgeId: json['knowledge_id'] as String,
+        title: json['title'] as String,
+        originalDueOn: json['original_due_on'] as String,
+        suggestedOn: json['suggested_on'] == null ? null : json['suggested_on'] as String,
+        deferredReason: json['deferred_reason'] == null ? null : json['deferred_reason'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'knowledge_id': knowledgeId,
+        'title': title,
+        'original_due_on': originalDueOn,
+        if (suggestedOn != null) 'suggested_on': suggestedOn,
+        if (deferredReason != null) 'deferred_reason': deferredReason,
+      };
+}
+
+class LearningSettings {
+  const LearningSettings({
+    required this.mode,
+    required this.weeklyMinutes,
+    required this.weekdays,
+    this.schoolProgress,
+    this.examScope,
+  });
+
+  final String mode;
+  final int weeklyMinutes;
+  final List<int> weekdays;
+  final String? schoolProgress;
+  final String? examScope;
+
+  factory LearningSettings.fromJson(Map<String, dynamic> json) => LearningSettings(
+        mode: json['mode'] as String,
+        weeklyMinutes: (json['weekly_minutes'] as num).toInt(),
+        weekdays: (json['weekdays'] as List<dynamic>).map((e) => (e as num).toInt()).toList(),
+        schoolProgress: json['school_progress'] == null ? null : json['school_progress'] as String,
+        examScope: json['exam_scope'] == null ? null : json['exam_scope'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'mode': mode,
+        'weekly_minutes': weeklyMinutes,
+        'weekdays': weekdays,
+        if (schoolProgress != null) 'school_progress': schoolProgress,
+        if (examScope != null) 'exam_scope': examScope,
+      };
+}
+
 class StudentProfile {
   const StudentProfile({
+    this.revision,
+    this.learningSettings,
     required this.userId,
     this.displayName,
     this.regionCode,
@@ -709,6 +1280,8 @@ class StudentProfile {
     required this.updatedAt,
   });
 
+  final int? revision;
+  final LearningSettings? learningSettings;
   final String userId;
   final String? displayName;
   final RegionCode? regionCode;
@@ -723,6 +1296,8 @@ class StudentProfile {
   final DateTime updatedAt;
 
   factory StudentProfile.fromJson(Map<String, dynamic> json) => StudentProfile(
+        revision: json['revision'] == null ? null : (json['revision'] as num).toInt(),
+        learningSettings: json['learning_settings'] == null ? null : LearningSettings.fromJson(json['learning_settings'] as Map<String, dynamic>),
         userId: json['user_id'] as String,
         displayName: json['display_name'] == null ? null : json['display_name'] as String,
         regionCode: json['region_code'] == null ? null : RegionCode.fromJson(json['region_code'] as String),
@@ -738,6 +1313,8 @@ class StudentProfile {
       );
 
   Map<String, dynamic> toJson() => {
+        if (revision != null) 'revision': revision,
+        if (learningSettings != null) 'learning_settings': learningSettings?.toJson(),
         'user_id': userId,
         'display_name': displayName,
         'region_code': regionCode?.toJson(),
@@ -775,6 +1352,8 @@ class ProfileNotice {
 
 class ProfileUpdate {
   const ProfileUpdate({
+    this.learningSettings,
+    required this.expectedRevision,
     required this.regionCode,
     required this.subjects,
     this.grade,
@@ -783,6 +1362,8 @@ class ProfileUpdate {
     this.displayName,
   });
 
+  final LearningSettings? learningSettings;
+  final int expectedRevision;
   final RegionCode regionCode;
   final List<Subject> subjects;
   final Grade? grade;
@@ -791,6 +1372,8 @@ class ProfileUpdate {
   final String? displayName;
 
   factory ProfileUpdate.fromJson(Map<String, dynamic> json) => ProfileUpdate(
+        learningSettings: json['learning_settings'] == null ? null : LearningSettings.fromJson(json['learning_settings'] as Map<String, dynamic>),
+        expectedRevision: (json['expected_revision'] as num).toInt(),
         regionCode: RegionCode.fromJson(json['region_code'] as String),
         subjects: (json['subjects'] as List<dynamic>).map((e) => Subject.fromJson(e as String)).toList(),
         grade: json['grade'] == null ? null : Grade.fromJson(json['grade'] as String),
@@ -800,6 +1383,8 @@ class ProfileUpdate {
       );
 
   Map<String, dynamic> toJson() => {
+        if (learningSettings != null) 'learning_settings': learningSettings?.toJson(),
+        'expected_revision': expectedRevision,
         'region_code': regionCode.toJson(),
         'subjects': subjects.map((e) => e.toJson()).toList(),
         if (grade != null) 'grade': grade?.toJson(),
@@ -812,19 +1397,71 @@ class ProfileUpdate {
 class TodayTasks {
   const TodayTasks({
     required this.date,
+    this.coldStart,
     required this.items,
   });
 
   final String date;
+  final bool? coldStart;
   final List<StudyTask> items;
 
   factory TodayTasks.fromJson(Map<String, dynamic> json) => TodayTasks(
         date: json['date'] as String,
+        coldStart: json['cold_start'] == null ? null : json['cold_start'] as bool,
         items: (json['items'] as List<dynamic>).map((e) => StudyTask.fromJson(e as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
         'date': date,
+        if (coldStart != null) 'cold_start': coldStart,
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class QuestionTopic {
+  const QuestionTopic({
+    required this.id,
+    required this.code,
+    required this.title,
+    required this.subject,
+    required this.questionCount,
+  });
+
+  final String id;
+  final String code;
+  final String title;
+  final Subject subject;
+  final int questionCount;
+
+  factory QuestionTopic.fromJson(Map<String, dynamic> json) => QuestionTopic(
+        id: json['id'] as String,
+        code: json['code'] as String,
+        title: json['title'] as String,
+        subject: Subject.fromJson(json['subject'] as String),
+        questionCount: (json['question_count'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'title': title,
+        'subject': subject.toJson(),
+        'question_count': questionCount,
+      };
+}
+
+class QuestionTopicPage {
+  const QuestionTopicPage({
+    required this.items,
+  });
+
+  final List<QuestionTopic> items;
+
+  factory QuestionTopicPage.fromJson(Map<String, dynamic> json) => QuestionTopicPage(
+        items: (json['items'] as List<dynamic>).map((e) => QuestionTopic.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
         'items': items.map((e) => e.toJson()).toList(),
       };
 }
@@ -914,6 +1551,72 @@ class Applicability {
         'exam_year_from': examYearFrom,
         'exam_year_to': examYearTo,
         'disclaimer': disclaimer,
+      };
+}
+
+/// 导入时校验归属及页序后的来源位置声明；不含原文、预览或文件访问凭据，不承诺精确文本对应。
+class QuestionOriginLocation {
+  const QuestionOriginLocation({
+    required this.fileSha256,
+    required this.fileKind,
+    required this.locatorKind,
+    required this.index,
+    this.declaredBlock,
+  });
+
+  final String fileSha256;
+  final DocImportFileKind fileKind;
+  final String locatorKind;
+  final int index;
+  final int? declaredBlock;
+
+  factory QuestionOriginLocation.fromJson(Map<String, dynamic> json) => QuestionOriginLocation(
+        fileSha256: json['file_sha256'] as String,
+        fileKind: DocImportFileKind.fromJson(json['file_kind'] as String),
+        locatorKind: json['locator_kind'] as String,
+        index: (json['index'] as num).toInt(),
+        declaredBlock: json['declared_block'] == null ? null : (json['declared_block'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'file_sha256': fileSha256,
+        'file_kind': fileKind.toJson(),
+        'locator_kind': locatorKind,
+        'index': index,
+        'declared_block': declaredBlock,
+      };
+}
+
+/// 此题目版本的导入来源快照。原文件仍按临时任务期限管理，本记录仅有元数据；来源声明不等于版权审校或精确引文。
+class QuestionProvenance {
+  const QuestionProvenance({
+    required this.sourceSnapshot,
+    required this.origins,
+    required this.relation,
+    this.parentVersion,
+    required this.access,
+  });
+
+  final QuestionSource sourceSnapshot;
+  final List<QuestionOriginLocation> origins;
+  final String relation;
+  final int? parentVersion;
+  final String access;
+
+  factory QuestionProvenance.fromJson(Map<String, dynamic> json) => QuestionProvenance(
+        sourceSnapshot: QuestionSource.fromJson(json['source_snapshot'] as Map<String, dynamic>),
+        origins: (json['origins'] as List<dynamic>).map((e) => QuestionOriginLocation.fromJson(e as Map<String, dynamic>)).toList(),
+        relation: json['relation'] as String,
+        parentVersion: json['parent_version'] == null ? null : (json['parent_version'] as num).toInt(),
+        access: json['access'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'source_snapshot': sourceSnapshot.toJson(),
+        'origins': origins.map((e) => e.toJson()).toList(),
+        'relation': relation,
+        'parent_version': parentVersion,
+        'access': access,
       };
 }
 
@@ -1372,6 +2075,7 @@ class QuestionSummary {
 
 class Question {
   const Question({
+    this.provenance,
     required this.id,
     required this.subject,
     required this.type,
@@ -1389,6 +2093,7 @@ class Question {
     this.judgingNote,
   });
 
+  final QuestionProvenance? provenance;
   final String id;
   final Subject subject;
   final QuestionType type;
@@ -1406,6 +2111,7 @@ class Question {
   final String? judgingNote;
 
   factory Question.fromJson(Map<String, dynamic> json) => Question(
+        provenance: json['provenance'] == null ? null : QuestionProvenance.fromJson(json['provenance'] as Map<String, dynamic>),
         id: json['id'] as String,
         subject: Subject.fromJson(json['subject'] as String),
         type: QuestionType.fromJson(json['type'] as String),
@@ -1424,6 +2130,7 @@ class Question {
       );
 
   Map<String, dynamic> toJson() => {
+        if (provenance != null) 'provenance': provenance?.toJson(),
         'id': id,
         'subject': subject.toJson(),
         'type': type.toJson(),
@@ -1465,18 +2172,21 @@ class QuestionPage {
 class SessionCreate {
   const SessionCreate({
     required this.questionId,
+    this.expectedQuestionVersion,
     required this.origin,
     this.reviewItemId,
     this.parentSessionId,
   });
 
   final String questionId;
+  final int? expectedQuestionVersion;
   final SessionOrigin origin;
   final String? reviewItemId;
   final String? parentSessionId;
 
   factory SessionCreate.fromJson(Map<String, dynamic> json) => SessionCreate(
         questionId: json['question_id'] as String,
+        expectedQuestionVersion: json['expected_question_version'] == null ? null : (json['expected_question_version'] as num).toInt(),
         origin: SessionOrigin.fromJson(json['origin'] as String),
         reviewItemId: json['review_item_id'] == null ? null : json['review_item_id'] as String,
         parentSessionId: json['parent_session_id'] == null ? null : json['parent_session_id'] as String,
@@ -1484,6 +2194,7 @@ class SessionCreate {
 
   Map<String, dynamic> toJson() => {
         'question_id': questionId,
+        if (expectedQuestionVersion != null) 'expected_question_version': expectedQuestionVersion,
         'origin': origin.toJson(),
         if (reviewItemId != null) 'review_item_id': reviewItemId,
         if (parentSessionId != null) 'parent_session_id': parentSessionId,
@@ -1510,6 +2221,7 @@ class StudySession {
     required this.confusedStreak,
     required this.needsHumanHelp,
     this.activeAttemptId,
+    this.firstSubmittedAttemptId,
     required this.submittedAttempts,
     required this.lastEventSeq,
     required this.createdAt,
@@ -1534,6 +2246,7 @@ class StudySession {
   final int confusedStreak;
   final bool needsHumanHelp;
   final String? activeAttemptId;
+  final String? firstSubmittedAttemptId;
   final int submittedAttempts;
   final int lastEventSeq;
   final DateTime createdAt;
@@ -1558,6 +2271,7 @@ class StudySession {
         confusedStreak: (json['confused_streak'] as num).toInt(),
         needsHumanHelp: json['needs_human_help'] as bool,
         activeAttemptId: json['active_attempt_id'] == null ? null : json['active_attempt_id'] as String,
+        firstSubmittedAttemptId: json['first_submitted_attempt_id'] == null ? null : json['first_submitted_attempt_id'] as String,
         submittedAttempts: (json['submitted_attempts'] as num).toInt(),
         lastEventSeq: (json['last_event_seq'] as num).toInt(),
         createdAt: DateTime.parse(json['created_at'] as String),
@@ -1583,6 +2297,7 @@ class StudySession {
         'confused_streak': confusedStreak,
         'needs_human_help': needsHumanHelp,
         'active_attempt_id': activeAttemptId,
+        if (firstSubmittedAttemptId != null) 'first_submitted_attempt_id': firstSubmittedAttemptId,
         'submitted_attempts': submittedAttempts,
         'last_event_seq': lastEventSeq,
         'created_at': createdAt.toUtc().toIso8601String(),
@@ -1862,19 +2577,23 @@ class SubmitRequest {
   const SubmitRequest({
     required this.answer,
     this.elapsedMs,
+    this.expectedDraftRevision,
   });
 
   final AnswerPayload answer;
   final int? elapsedMs;
+  final int? expectedDraftRevision;
 
   factory SubmitRequest.fromJson(Map<String, dynamic> json) => SubmitRequest(
         answer: AnswerPayload.fromJson(json['answer'] as Map<String, dynamic>),
         elapsedMs: json['elapsed_ms'] == null ? null : (json['elapsed_ms'] as num).toInt(),
+        expectedDraftRevision: json['expected_draft_revision'] == null ? null : (json['expected_draft_revision'] as num).toInt(),
       );
 
   Map<String, dynamic> toJson() => {
         'answer': answer.toJson(),
         if (elapsedMs != null) 'elapsed_ms': elapsedMs,
+        if (expectedDraftRevision != null) 'expected_draft_revision': expectedDraftRevision,
       };
 }
 
@@ -1959,6 +2678,9 @@ class Attempt {
     required this.id,
     required this.sessionId,
     required this.attemptNo,
+    this.submissionNo,
+    this.copiedFromAttemptId,
+    this.copiedFromRevision,
     required this.status,
     this.answer,
     required this.draftRevision,
@@ -1974,6 +2696,9 @@ class Attempt {
   final String id;
   final String sessionId;
   final int attemptNo;
+  final int? submissionNo;
+  final String? copiedFromAttemptId;
+  final int? copiedFromRevision;
   final AttemptStatus status;
   final AnswerPayload? answer;
   final int draftRevision;
@@ -1989,6 +2714,9 @@ class Attempt {
         id: json['id'] as String,
         sessionId: json['session_id'] as String,
         attemptNo: (json['attempt_no'] as num).toInt(),
+        submissionNo: json['submission_no'] == null ? null : (json['submission_no'] as num).toInt(),
+        copiedFromAttemptId: json['copied_from_attempt_id'] == null ? null : json['copied_from_attempt_id'] as String,
+        copiedFromRevision: json['copied_from_revision'] == null ? null : (json['copied_from_revision'] as num).toInt(),
         status: AttemptStatus.fromJson(json['status'] as String),
         answer: json['answer'] == null ? null : AnswerPayload.fromJson(json['answer'] as Map<String, dynamic>),
         draftRevision: (json['draft_revision'] as num).toInt(),
@@ -2005,6 +2733,9 @@ class Attempt {
         'id': id,
         'session_id': sessionId,
         'attempt_no': attemptNo,
+        if (submissionNo != null) 'submission_no': submissionNo,
+        if (copiedFromAttemptId != null) 'copied_from_attempt_id': copiedFromAttemptId,
+        if (copiedFromRevision != null) 'copied_from_revision': copiedFromRevision,
         'status': status.toJson(),
         'answer': answer?.toJson(),
         'draft_revision': draftRevision,
@@ -2015,6 +2746,130 @@ class Attempt {
         'submitted_at': submittedAt?.toUtc().toIso8601String(),
         'created_at': createdAt.toUtc().toIso8601String(),
         'updated_at': updatedAt.toUtc().toIso8601String(),
+      };
+}
+
+class DraftCopyCreate {
+  const DraftCopyCreate({
+    required this.sourceRevision,
+    this.answer,
+    this.strokes,
+  });
+
+  final int sourceRevision;
+  final AnswerPayload? answer;
+  final StrokeDoc? strokes;
+
+  factory DraftCopyCreate.fromJson(Map<String, dynamic> json) => DraftCopyCreate(
+        sourceRevision: (json['source_revision'] as num).toInt(),
+        answer: json['answer'] == null ? null : AnswerPayload.fromJson(json['answer'] as Map<String, dynamic>),
+        strokes: json['strokes'] == null ? null : StrokeDoc.fromJson(json['strokes'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'source_revision': sourceRevision,
+        'answer': answer?.toJson(),
+        'strokes': strokes?.toJson(),
+      };
+}
+
+class DraftCopy {
+  const DraftCopy({
+    required this.session,
+    required this.attempt,
+    required this.draft,
+  });
+
+  final StudySession session;
+  final Attempt attempt;
+  final Draft draft;
+
+  factory DraftCopy.fromJson(Map<String, dynamic> json) => DraftCopy(
+        session: StudySession.fromJson(json['session'] as Map<String, dynamic>),
+        attempt: Attempt.fromJson(json['attempt'] as Map<String, dynamic>),
+        draft: Draft.fromJson(json['draft'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'session': session.toJson(),
+        'attempt': attempt.toJson(),
+        'draft': draft.toJson(),
+      };
+}
+
+class QuestionDraftRef {
+  const QuestionDraftRef({
+    required this.sessionId,
+    required this.attemptId,
+    required this.questionVersion,
+    required this.attemptNo,
+    required this.draftRevision,
+    this.copiedFromAttemptId,
+    this.copiedFromRevision,
+    required this.origin,
+    this.reviewItemId,
+    required this.sessionState,
+    required this.updatedAt,
+  });
+
+  final String sessionId;
+  final String attemptId;
+  final int questionVersion;
+  final int attemptNo;
+  final int draftRevision;
+  final String? copiedFromAttemptId;
+  final int? copiedFromRevision;
+  final SessionOrigin origin;
+  final String? reviewItemId;
+  final SessionState sessionState;
+  final DateTime updatedAt;
+
+  factory QuestionDraftRef.fromJson(Map<String, dynamic> json) => QuestionDraftRef(
+        sessionId: json['session_id'] as String,
+        attemptId: json['attempt_id'] as String,
+        questionVersion: (json['question_version'] as num).toInt(),
+        attemptNo: (json['attempt_no'] as num).toInt(),
+        draftRevision: (json['draft_revision'] as num).toInt(),
+        copiedFromAttemptId: json['copied_from_attempt_id'] == null ? null : json['copied_from_attempt_id'] as String,
+        copiedFromRevision: json['copied_from_revision'] == null ? null : (json['copied_from_revision'] as num).toInt(),
+        origin: SessionOrigin.fromJson(json['origin'] as String),
+        reviewItemId: json['review_item_id'] == null ? null : json['review_item_id'] as String,
+        sessionState: SessionState.fromJson(json['session_state'] as String),
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'session_id': sessionId,
+        'attempt_id': attemptId,
+        'question_version': questionVersion,
+        'attempt_no': attemptNo,
+        'draft_revision': draftRevision,
+        'copied_from_attempt_id': copiedFromAttemptId,
+        'copied_from_revision': copiedFromRevision,
+        'origin': origin.toJson(),
+        'review_item_id': reviewItemId,
+        'session_state': sessionState.toJson(),
+        'updated_at': updatedAt.toUtc().toIso8601String(),
+      };
+}
+
+class QuestionDraftPage {
+  const QuestionDraftPage({
+    required this.items,
+    this.nextCursor,
+  });
+
+  final List<QuestionDraftRef> items;
+  final String? nextCursor;
+
+  factory QuestionDraftPage.fromJson(Map<String, dynamic> json) => QuestionDraftPage(
+        items: (json['items'] as List<dynamic>).map((e) => QuestionDraftRef.fromJson(e as Map<String, dynamic>)).toList(),
+        nextCursor: json['next_cursor'] == null ? null : json['next_cursor'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+        'next_cursor': nextCursor,
       };
 }
 
@@ -2286,6 +3141,97 @@ class TutorStep {
       };
 }
 
+/// 固定题版本白名单文本块的范围；Unicode codepoint左闭右开。摘要为完整原文UTF-8 SHA-256，不做归一化。服务端必须另验start < end及实际长度、权限和审核范围。
+class ContentSpanRef {
+  const ContentSpanRef({
+    required this.blockId,
+    required this.blockSha256,
+    required this.start,
+    required this.end,
+  });
+
+  final String blockId;
+  final String blockSha256;
+  final int start;
+  final int end;
+
+  factory ContentSpanRef.fromJson(Map<String, dynamic> json) => ContentSpanRef(
+        blockId: json['block_id'] as String,
+        blockSha256: json['block_sha256'] as String,
+        start: json['start'] as int,
+        end: json['end'] as int,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'block_id': blockId,
+        'block_sha256': blockSha256,
+        'start': start,
+        'end': end,
+      };
+}
+
+/// 服务端在事件meta固定question_id/question_version下授权解析的快照。索引均为版本内原序1-based ordinal；不包含任意URL或原始文件定位。
+class ResolvedContentSpan {
+  const ResolvedContentSpan({
+    required this.blockId,
+    required this.blockSha256,
+    required this.start,
+    required this.end,
+    required this.blockText,
+    required this.label,
+  });
+
+  final String blockId;
+  final String blockSha256;
+  final int start;
+  final int end;
+  final String blockText;
+  final String label;
+
+  factory ResolvedContentSpan.fromJson(Map<String, dynamic> json) => ResolvedContentSpan(
+        blockId: json['block_id'] as String,
+        blockSha256: json['block_sha256'] as String,
+        start: json['start'] as int,
+        end: json['end'] as int,
+        blockText: json['block_text'] as String,
+        label: json['label'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'block_id': blockId,
+        'block_sha256': blockSha256,
+        'start': start,
+        'end': end,
+        'block_text': blockText,
+        'label': label,
+      };
+}
+
+/// 随题版本独立审校的教学引用注记。independent_safe仅为声明，不能绕过内容可见性、整块防泄题和完整解析门控；编辑使摘要失效时必须清除或重审。
+class TeachingReferenceLink {
+  const TeachingReferenceLink({
+    required this.targetBlockId,
+    required this.sourceSpan,
+    required this.independentSafe,
+  });
+
+  final String targetBlockId;
+  final ContentSpanRef sourceSpan;
+  final bool independentSafe;
+
+  factory TeachingReferenceLink.fromJson(Map<String, dynamic> json) => TeachingReferenceLink(
+        targetBlockId: json['target_block_id'] as String,
+        sourceSpan: ContentSpanRef.fromJson(json['source_span'] as Map<String, dynamic>),
+        independentSafe: json['independent_safe'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'target_block_id': targetBlockId,
+        'source_span': sourceSpan.toJson(),
+        'independent_safe': independentSafe,
+      };
+}
+
 /// 教学事件信封。payload 的结构按 type 由 contracts/tutor_event.schema.json 约束。
 class TutorEvent {
   const TutorEvent({
@@ -2297,6 +3243,7 @@ class TutorEvent {
     required this.stateAfter,
     required this.payload,
     required this.meta,
+    this.references,
   });
 
   final String id;
@@ -2307,6 +3254,7 @@ class TutorEvent {
   final SessionState stateAfter;
   final Map<String, dynamic> payload;
   final TutorEventMeta meta;
+  final List<ResolvedContentSpan>? references;
 
   factory TutorEvent.fromJson(Map<String, dynamic> json) => TutorEvent(
         id: json['id'] as String,
@@ -2317,6 +3265,7 @@ class TutorEvent {
         stateAfter: SessionState.fromJson(json['state_after'] as String),
         payload: Map<String, dynamic>.from(json['payload'] as Map),
         meta: TutorEventMeta.fromJson(json['meta'] as Map<String, dynamic>),
+        references: json.containsKey('references') ? _decodeReferences(json) : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2328,7 +3277,30 @@ class TutorEvent {
         'state_after': stateAfter.toJson(),
         'payload': payload,
         'meta': meta.toJson(),
+        if (references != null) 'references': references?.map((e) => e.toJson()).toList(),
       };
+
+  // 损坏的引用局部降级，保留事件正文；无效占位由客户端显示为引用不可用。
+  static List<ResolvedContentSpan> _decodeReferences(Map<String, dynamic> json) {
+    const unavailable = ResolvedContentSpan(blockId: '', blockSha256: '',
+      start: -1, end: 0, blockText: '', label: '');
+    try {
+      final raw = json['references'];
+      final version = (json['meta'] as Map)['question_version'];
+      if (version is! int || version < 1 || json['seq_no'] is! int ||
+          raw is! List || raw.length > 8) return const [unavailable];
+      const keys = {'block_id', 'block_sha256', 'start', 'end', 'block_text', 'label'};
+      final result = <ResolvedContentSpan>[];
+      for (final item in raw) {
+        if (item is! Map<String, dynamic> || item.length != keys.length ||
+            !keys.every(item.containsKey)) return const [unavailable];
+        result.add(ResolvedContentSpan.fromJson(item));
+      }
+      return result;
+    } catch (_) {
+      return const [unavailable];
+    }
+  }
 }
 
 class TutorEventMeta {
@@ -2459,6 +3431,587 @@ class ReviewItem {
         'is_due': isDue,
         'last_result': lastResult?.toJson(),
         'created_at': createdAt.toUtc().toIso8601String(),
+        'updated_at': updatedAt.toUtc().toIso8601String(),
+      };
+}
+
+class ExportSelfCheck {
+  const ExportSelfCheck({
+    required this.attemptId,
+    required this.marks,
+    required this.savedAt,
+  });
+
+  final String attemptId;
+  final List<SelfCheckMark> marks;
+  final DateTime savedAt;
+
+  factory ExportSelfCheck.fromJson(Map<String, dynamic> json) => ExportSelfCheck(
+        attemptId: json['attempt_id'] as String,
+        marks: (json['marks'] as List<dynamic>).map((e) => SelfCheckMark.fromJson(e as Map<String, dynamic>)).toList(),
+        savedAt: DateTime.parse(json['saved_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'attempt_id': attemptId,
+        'marks': marks.map((e) => e.toJson()).toList(),
+        'saved_at': savedAt.toUtc().toIso8601String(),
+      };
+}
+
+class ExportReviewHistory {
+  const ExportReviewHistory({
+    required this.reviewId,
+    required this.firstAttemptId,
+    required this.questionId,
+    required this.state,
+    this.result,
+    this.completedAt,
+  });
+
+  final String reviewId;
+  final String firstAttemptId;
+  final String questionId;
+  final String state;
+  final String? result;
+  final DateTime? completedAt;
+
+  factory ExportReviewHistory.fromJson(Map<String, dynamic> json) => ExportReviewHistory(
+        reviewId: json['review_id'] as String,
+        firstAttemptId: json['first_attempt_id'] as String,
+        questionId: json['question_id'] as String,
+        state: json['state'] as String,
+        result: json['result'] == null ? null : json['result'] as String,
+        completedAt: json['completed_at'] == null ? null : DateTime.parse(json['completed_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'review_id': reviewId,
+        'first_attempt_id': firstAttemptId,
+        'question_id': questionId,
+        'state': state,
+        'result': result,
+        'completed_at': completedAt?.toUtc().toIso8601String(),
+      };
+}
+
+class ExportLearningSession {
+  const ExportLearningSession({
+    required this.session,
+    required this.attempts,
+    required this.drafts,
+    required this.selfChecks,
+    required this.events,
+  });
+
+  final StudySession session;
+  final List<Attempt> attempts;
+  final List<Draft> drafts;
+  final List<ExportSelfCheck> selfChecks;
+  final List<TutorEvent> events;
+
+  factory ExportLearningSession.fromJson(Map<String, dynamic> json) => ExportLearningSession(
+        session: StudySession.fromJson(json['session'] as Map<String, dynamic>),
+        attempts: (json['attempts'] as List<dynamic>).map((e) => Attempt.fromJson(e as Map<String, dynamic>)).toList(),
+        drafts: (json['drafts'] as List<dynamic>).map((e) => Draft.fromJson(e as Map<String, dynamic>)).toList(),
+        selfChecks: (json['self_checks'] as List<dynamic>).map((e) => ExportSelfCheck.fromJson(e as Map<String, dynamic>)).toList(),
+        events: (json['events'] as List<dynamic>).map((e) => TutorEvent.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'session': session.toJson(),
+        'attempts': attempts.map((e) => e.toJson()).toList(),
+        'drafts': drafts.map((e) => e.toJson()).toList(),
+        'self_checks': selfChecks.map((e) => e.toJson()).toList(),
+        'events': events.map((e) => e.toJson()).toList(),
+      };
+}
+
+class ExportParentAccessLink {
+  const ExportParentAccessLink({
+    required this.id,
+    required this.authorizationRevision,
+    required this.consentAt,
+    this.revokedAt,
+    required this.createdAt,
+  });
+
+  final String id;
+  final int authorizationRevision;
+  final DateTime consentAt;
+  final DateTime? revokedAt;
+  final DateTime createdAt;
+
+  factory ExportParentAccessLink.fromJson(Map<String, dynamic> json) => ExportParentAccessLink(
+        id: json['id'] as String,
+        authorizationRevision: (json['authorization_revision'] as num).toInt(),
+        consentAt: DateTime.parse(json['consent_at'] as String),
+        revokedAt: json['revoked_at'] == null ? null : DateTime.parse(json['revoked_at'] as String),
+        createdAt: DateTime.parse(json['created_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'authorization_revision': authorizationRevision,
+        'consent_at': consentAt.toUtc().toIso8601String(),
+        'revoked_at': revokedAt?.toUtc().toIso8601String(),
+        'created_at': createdAt.toUtc().toIso8601String(),
+      };
+}
+
+class ExportParentAccessInvite {
+  const ExportParentAccessInvite({
+    required this.id,
+    required this.expiresAt,
+    this.redeemedAt,
+    this.revokedAt,
+    required this.createdAt,
+  });
+
+  final String id;
+  final DateTime expiresAt;
+  final DateTime? redeemedAt;
+  final DateTime? revokedAt;
+  final DateTime createdAt;
+
+  factory ExportParentAccessInvite.fromJson(Map<String, dynamic> json) => ExportParentAccessInvite(
+        id: json['id'] as String,
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+        redeemedAt: json['redeemed_at'] == null ? null : DateTime.parse(json['redeemed_at'] as String),
+        revokedAt: json['revoked_at'] == null ? null : DateTime.parse(json['revoked_at'] as String),
+        createdAt: DateTime.parse(json['created_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+        'redeemed_at': redeemedAt?.toUtc().toIso8601String(),
+        'revoked_at': revokedAt?.toUtc().toIso8601String(),
+        'created_at': createdAt.toUtc().toIso8601String(),
+      };
+}
+
+/// 本人现存的家长访问授权和邀请元数据；不含家长身份、邀请码或哈希。绑定重新授权覆盖旧时间，不能推定完整历史或法定监护关系；导出不恢复、不撤销授权。
+class ExportParentAccessRecords {
+  const ExportParentAccessRecords({
+    required this.historyComplete,
+    required this.links,
+    required this.invites,
+  });
+
+  final bool historyComplete;
+  final List<ExportParentAccessLink> links;
+  final List<ExportParentAccessInvite> invites;
+
+  factory ExportParentAccessRecords.fromJson(Map<String, dynamic> json) => ExportParentAccessRecords(
+        historyComplete: json['history_complete'] as bool,
+        links: (json['links'] as List<dynamic>).map((e) => ExportParentAccessLink.fromJson(e as Map<String, dynamic>)).toList(),
+        invites: (json['invites'] as List<dynamic>).map((e) => ExportParentAccessInvite.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'history_complete': historyComplete,
+        'links': links.map((e) => e.toJson()).toList(),
+        'invites': invites.map((e) => e.toJson()).toList(),
+      };
+}
+
+/// 本人现存拍题文字快照；状态保留保存值，expires_at是原有效期。media_id只是原图引用，不保证图片存在或可读，不包含原图字节、存储路径或内部payload字段。
+class ExportStoredScan {
+  const ExportStoredScan({
+    required this.mediaId,
+    required this.expiresAt,
+    required this.scan,
+  });
+
+  final String mediaId;
+  final DateTime expiresAt;
+  final Scan scan;
+
+  factory ExportStoredScan.fromJson(Map<String, dynamic> json) => ExportStoredScan(
+        mediaId: json['media_id'] as String,
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+        scan: Scan.fromJson(json['scan'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'media_id': mediaId,
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+        'scan': scan.toJson(),
+      };
+}
+
+/// 当前可访问学生用途媒体档案；内含状态清单，明确排除过期/删除、审核用途及已清理历史。false标记不能改为完整历史或全局快照承诺。
+class StudentMediaExport {
+  const StudentMediaExport({
+    required this.formatVersion,
+    required this.scope,
+    required this.ownerId,
+    required this.exportedAt,
+    required this.historyComplete,
+    required this.consistentSnapshot,
+    required this.objectsCount,
+    required this.filesCount,
+    required this.sizeBytes,
+    required this.sha256,
+    required this.archiveBase64,
+  });
+
+  final int formatVersion;
+  final String scope;
+  final String ownerId;
+  final DateTime exportedAt;
+  final bool historyComplete;
+  final bool consistentSnapshot;
+  final int objectsCount;
+  final int filesCount;
+  final int sizeBytes;
+  final String sha256;
+  final String archiveBase64;
+
+  factory StudentMediaExport.fromJson(Map<String, dynamic> json) => StudentMediaExport(
+        formatVersion: (json['format_version'] as num).toInt(),
+        scope: json['scope'] as String,
+        ownerId: json['owner_id'] as String,
+        exportedAt: DateTime.parse(json['exported_at'] as String),
+        historyComplete: json['history_complete'] as bool,
+        consistentSnapshot: json['consistent_snapshot'] as bool,
+        objectsCount: (json['objects_count'] as num).toInt(),
+        filesCount: (json['files_count'] as num).toInt(),
+        sizeBytes: (json['size_bytes'] as num).toInt(),
+        sha256: json['sha256'] as String,
+        archiveBase64: json['archive_base64'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'format_version': formatVersion,
+        'scope': scope,
+        'owner_id': ownerId,
+        'exported_at': exportedAt.toUtc().toIso8601String(),
+        'history_complete': historyComplete,
+        'consistent_snapshot': consistentSnapshot,
+        'objects_count': objectsCount,
+        'files_count': filesCount,
+        'size_bytes': sizeBytes,
+        'sha256': sha256,
+        'archive_base64': archiveBase64,
+      };
+}
+
+class StudentMediaArchiveObject {
+  const StudentMediaArchiveObject({
+    required this.mediaId,
+    required this.purpose,
+    this.mime,
+    required this.sizeBytes,
+    required this.sha256,
+    required this.expiresAt,
+    required this.state,
+    this.fileName,
+    required this.availability,
+  });
+
+  final String mediaId;
+  final String purpose;
+  final String? mime;
+  final int sizeBytes;
+  final String sha256;
+  final DateTime expiresAt;
+  final String state;
+  final String? fileName;
+  final String availability;
+
+  factory StudentMediaArchiveObject.fromJson(Map<String, dynamic> json) => StudentMediaArchiveObject(
+        mediaId: json['media_id'] as String,
+        purpose: json['purpose'] as String,
+        mime: json['mime'] == null ? null : json['mime'] as String,
+        sizeBytes: (json['size_bytes'] as num).toInt(),
+        sha256: json['sha256'] as String,
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+        state: json['state'] as String,
+        fileName: json['file_name'] == null ? null : json['file_name'] as String,
+        availability: json['availability'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'media_id': mediaId,
+        'purpose': purpose,
+        'mime': mime,
+        'size_bytes': sizeBytes,
+        'sha256': sha256,
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+        'state': state,
+        'file_name': fileName,
+        'availability': availability,
+      };
+}
+
+/// ZIP内自包含范围清单，不是完整历史或跨对象快照；未上传/待确认只列状态。
+class StudentMediaArchiveManifest {
+  const StudentMediaArchiveManifest({
+    required this.formatVersion,
+    required this.scope,
+    required this.ownerId,
+    required this.exportedAt,
+    required this.historyComplete,
+    required this.consistentSnapshot,
+    required this.objectsCount,
+    required this.filesCount,
+    required this.objects,
+    required this.excluded,
+  });
+
+  final int formatVersion;
+  final String scope;
+  final String ownerId;
+  final DateTime exportedAt;
+  final bool historyComplete;
+  final bool consistentSnapshot;
+  final int objectsCount;
+  final int filesCount;
+  final List<StudentMediaArchiveObject> objects;
+  final List<String> excluded;
+
+  factory StudentMediaArchiveManifest.fromJson(Map<String, dynamic> json) => StudentMediaArchiveManifest(
+        formatVersion: (json['format_version'] as num).toInt(),
+        scope: json['scope'] as String,
+        ownerId: json['owner_id'] as String,
+        exportedAt: DateTime.parse(json['exported_at'] as String),
+        historyComplete: json['history_complete'] as bool,
+        consistentSnapshot: json['consistent_snapshot'] as bool,
+        objectsCount: (json['objects_count'] as num).toInt(),
+        filesCount: (json['files_count'] as num).toInt(),
+        objects: (json['objects'] as List<dynamic>).map((e) => StudentMediaArchiveObject.fromJson(e as Map<String, dynamic>)).toList(),
+        excluded: (json['excluded'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'format_version': formatVersion,
+        'scope': scope,
+        'owner_id': ownerId,
+        'exported_at': exportedAt.toUtc().toIso8601String(),
+        'history_complete': historyComplete,
+        'consistent_snapshot': consistentSnapshot,
+        'objects_count': objectsCount,
+        'files_count': filesCount,
+        'objects': objects.map((e) => e.toJson()).toList(),
+        'excluded': excluded,
+      };
+}
+
+class ExportModelCall {
+  const ExportModelCall({
+    required this.createdAt,
+    required this.taskType,
+    required this.status,
+    required this.providerCalls,
+    this.inputTokens,
+    this.outputTokens,
+    this.imageUnits,
+    this.estimatedCostMicros,
+  });
+
+  final DateTime createdAt;
+  final String taskType;
+  final String status;
+  final int providerCalls;
+  final int? inputTokens;
+  final int? outputTokens;
+  final int? imageUnits;
+  final int? estimatedCostMicros;
+
+  factory ExportModelCall.fromJson(Map<String, dynamic> json) => ExportModelCall(
+        createdAt: DateTime.parse(json['created_at'] as String),
+        taskType: json['task_type'] as String,
+        status: json['status'] as String,
+        providerCalls: (json['provider_calls'] as num).toInt(),
+        inputTokens: json['input_tokens'] == null ? null : (json['input_tokens'] as num).toInt(),
+        outputTokens: json['output_tokens'] == null ? null : (json['output_tokens'] as num).toInt(),
+        imageUnits: json['image_units'] == null ? null : (json['image_units'] as num).toInt(),
+        estimatedCostMicros: json['estimated_cost_micros'] == null ? null : (json['estimated_cost_micros'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'task_type': taskType,
+        'status': status,
+        'provider_calls': providerCalls,
+        'input_tokens': inputTokens,
+        'output_tokens': outputTokens,
+        'image_units': imageUnits,
+        'estimated_cost_micros': estimatedCostMicros,
+      };
+}
+
+class ExportModelBudgetDay {
+  const ExportModelBudgetDay({
+    required this.usageDate,
+    required this.requestCount,
+    required this.estimatedCostMicros,
+    required this.updatedAt,
+  });
+
+  final String usageDate;
+  final int requestCount;
+  final int estimatedCostMicros;
+  final DateTime updatedAt;
+
+  factory ExportModelBudgetDay.fromJson(Map<String, dynamic> json) => ExportModelBudgetDay(
+        usageDate: json['usage_date'] as String,
+        requestCount: (json['request_count'] as num).toInt(),
+        estimatedCostMicros: (json['estimated_cost_micros'] as num).toInt(),
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'usage_date': usageDate,
+        'request_count': requestCount,
+        'estimated_cost_micros': estimatedCostMicros,
+        'updated_at': updatedAt.toUtc().toIso8601String(),
+      };
+}
+
+/// 当前服务端伪名对应的现存调用元数据和student预算桶；不含平台预算、内部调用恢复记录或提示词。无法追溯旧密钥伪名，不代表完整历史。预算估算及保守预占不是实际账单，不得与调用估算相加。
+class ExportModelUsage {
+  const ExportModelUsage({
+    required this.historyComplete,
+    required this.identityScope,
+    required this.costsAreBilling,
+    required this.calls,
+    required this.budgetDays,
+  });
+
+  final bool historyComplete;
+  final String identityScope;
+  final bool costsAreBilling;
+  final List<ExportModelCall> calls;
+  final List<ExportModelBudgetDay> budgetDays;
+
+  factory ExportModelUsage.fromJson(Map<String, dynamic> json) => ExportModelUsage(
+        historyComplete: json['history_complete'] as bool,
+        identityScope: json['identity_scope'] as String,
+        costsAreBilling: json['costs_are_billing'] as bool,
+        calls: (json['calls'] as List<dynamic>).map((e) => ExportModelCall.fromJson(e as Map<String, dynamic>)).toList(),
+        budgetDays: (json['budget_days'] as List<dynamic>).map((e) => ExportModelBudgetDay.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'history_complete': historyComplete,
+        'identity_scope': identityScope,
+        'costs_are_billing': costsAreBilling,
+        'calls': calls.map((e) => e.toJson()).toList(),
+        'budget_days': budgetDays.map((e) => e.toJson()).toList(),
+      };
+}
+
+class StudentLearningExport {
+  const StudentLearningExport({
+    this.modelUsage,
+    this.parentAccessRecords,
+    this.storedScanRecords,
+    this.diagnosticRuns,
+    this.diagnosticWorkspace,
+    required this.formatVersion,
+    required this.scope,
+    required this.exportedAt,
+    required this.profile,
+    required this.sessions,
+    required this.reviews,
+    required this.reviewHistory,
+    required this.excluded,
+  });
+
+  final ExportModelUsage? modelUsage;
+  final ExportParentAccessRecords? parentAccessRecords;
+  final List<ExportStoredScan>? storedScanRecords;
+  final List<DiagnosticRun>? diagnosticRuns;
+  final DiagnosticWorkspace? diagnosticWorkspace;
+  final int formatVersion;
+  final String scope;
+  final DateTime exportedAt;
+  final StudentProfile profile;
+  final List<ExportLearningSession> sessions;
+  final List<ReviewItem> reviews;
+  final List<ExportReviewHistory> reviewHistory;
+  final List<String> excluded;
+
+  factory StudentLearningExport.fromJson(Map<String, dynamic> json) => StudentLearningExport(
+        modelUsage: json['model_usage'] == null ? null : ExportModelUsage.fromJson(json['model_usage'] as Map<String, dynamic>),
+        parentAccessRecords: json['parent_access_records'] == null ? null : ExportParentAccessRecords.fromJson(json['parent_access_records'] as Map<String, dynamic>),
+        storedScanRecords: json['stored_scan_records'] == null ? null : (json['stored_scan_records'] as List<dynamic>).map((e) => ExportStoredScan.fromJson(e as Map<String, dynamic>)).toList(),
+        diagnosticRuns: json['diagnostic_runs'] == null ? null : (json['diagnostic_runs'] as List<dynamic>).map((e) => DiagnosticRun.fromJson(e as Map<String, dynamic>)).toList(),
+        diagnosticWorkspace: json['diagnostic_workspace'] == null ? null : DiagnosticWorkspace.fromJson(json['diagnostic_workspace'] as Map<String, dynamic>),
+        formatVersion: (json['format_version'] as num).toInt(),
+        scope: json['scope'] as String,
+        exportedAt: DateTime.parse(json['exported_at'] as String),
+        profile: StudentProfile.fromJson(json['profile'] as Map<String, dynamic>),
+        sessions: (json['sessions'] as List<dynamic>).map((e) => ExportLearningSession.fromJson(e as Map<String, dynamic>)).toList(),
+        reviews: (json['reviews'] as List<dynamic>).map((e) => ReviewItem.fromJson(e as Map<String, dynamic>)).toList(),
+        reviewHistory: (json['review_history'] as List<dynamic>).map((e) => ExportReviewHistory.fromJson(e as Map<String, dynamic>)).toList(),
+        excluded: (json['excluded'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (modelUsage != null) 'model_usage': modelUsage?.toJson(),
+        if (parentAccessRecords != null) 'parent_access_records': parentAccessRecords?.toJson(),
+        if (storedScanRecords != null) 'stored_scan_records': storedScanRecords?.map((e) => e.toJson()).toList(),
+        if (diagnosticRuns != null) 'diagnostic_runs': diagnosticRuns?.map((e) => e.toJson()).toList(),
+        if (diagnosticWorkspace != null) 'diagnostic_workspace': diagnosticWorkspace?.toJson(),
+        'format_version': formatVersion,
+        'scope': scope,
+        'exported_at': exportedAt.toUtc().toIso8601String(),
+        'profile': profile.toJson(),
+        'sessions': sessions.map((e) => e.toJson()).toList(),
+        'reviews': reviews.map((e) => e.toJson()).toList(),
+        'review_history': reviewHistory.map((e) => e.toJson()).toList(),
+        'excluded': excluded,
+      };
+}
+
+class ReviewState {
+  const ReviewState({
+    required this.id,
+    required this.questionId,
+    required this.status,
+    required this.stage,
+    required this.totalStages,
+    required this.dueAt,
+    this.lastResult,
+    this.lastAttemptId,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String questionId;
+  final ReviewStatus status;
+  final int stage;
+  final int totalStages;
+  final DateTime dueAt;
+  final ReviewResult? lastResult;
+  final String? lastAttemptId;
+  final DateTime updatedAt;
+
+  factory ReviewState.fromJson(Map<String, dynamic> json) => ReviewState(
+        id: json['id'] as String,
+        questionId: json['question_id'] as String,
+        status: ReviewStatus.fromJson(json['status'] as String),
+        stage: (json['stage'] as num).toInt(),
+        totalStages: (json['total_stages'] as num).toInt(),
+        dueAt: DateTime.parse(json['due_at'] as String),
+        lastResult: json['last_result'] == null ? null : ReviewResult.fromJson(json['last_result'] as String),
+        lastAttemptId: json['last_attempt_id'] == null ? null : json['last_attempt_id'] as String,
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'question_id': questionId,
+        'status': status.toJson(),
+        'stage': stage,
+        'total_stages': totalStages,
+        'due_at': dueAt.toUtc().toIso8601String(),
+        'last_result': lastResult?.toJson(),
+        'last_attempt_id': lastAttemptId,
         'updated_at': updatedAt.toUtc().toIso8601String(),
       };
 }
@@ -2676,6 +4229,473 @@ class ProgressSummary {
       };
 }
 
+class MediaReviewConfirmation {
+  const MediaReviewConfirmation({
+    required this.expectedVersion,
+    required this.sha256,
+    required this.confirmed,
+  });
+
+  final int expectedVersion;
+  final String sha256;
+  final bool confirmed;
+
+  factory MediaReviewConfirmation.fromJson(Map<String, dynamic> json) => MediaReviewConfirmation(
+        expectedVersion: (json['expected_version'] as num).toInt(),
+        sha256: json['sha256'] as String,
+        confirmed: json['confirmed'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_version': expectedVersion,
+        'sha256': sha256,
+        'confirmed': confirmed,
+      };
+}
+
+class MediaReviewDeclaration {
+  const MediaReviewDeclaration({
+    required this.questionId,
+    required this.version,
+    required this.mediaId,
+    required this.sha256,
+    required this.actorId,
+    required this.expiresAt,
+  });
+
+  final String questionId;
+  final int version;
+  final String mediaId;
+  final String sha256;
+  final String actorId;
+  final DateTime expiresAt;
+
+  factory MediaReviewDeclaration.fromJson(Map<String, dynamic> json) => MediaReviewDeclaration(
+        questionId: json['question_id'] as String,
+        version: (json['version'] as num).toInt(),
+        mediaId: json['media_id'] as String,
+        sha256: json['sha256'] as String,
+        actorId: json['actor_id'] as String,
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'question_id': questionId,
+        'version': version,
+        'media_id': mediaId,
+        'sha256': sha256,
+        'actor_id': actorId,
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+      };
+}
+
+class SchoolMaterialConfirmationRequest {
+  const SchoolMaterialConfirmationRequest({
+    required this.sourceRevision,
+    required this.items,
+  });
+
+  final String sourceRevision;
+  final List<SchoolMaterialConfirmedItem> items;
+
+  factory SchoolMaterialConfirmationRequest.fromJson(Map<String, dynamic> json) => SchoolMaterialConfirmationRequest(
+        sourceRevision: json['source_revision'] as String,
+        items: (json['items'] as List<dynamic>).map((e) => SchoolMaterialConfirmedItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'source_revision': sourceRevision,
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class SchoolMaterialConfirmedItem {
+  const SchoolMaterialConfirmedItem({
+    required this.text,
+    required this.pages,
+  });
+
+  final String text;
+  final List<int> pages;
+
+  factory SchoolMaterialConfirmedItem.fromJson(Map<String, dynamic> json) => SchoolMaterialConfirmedItem(
+        text: json['text'] as String,
+        pages: (json['pages'] as List<dynamic>).map((e) => (e as num).toInt()).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'pages': pages,
+      };
+}
+
+class SchoolMaterialConfirmationReceipt {
+  const SchoolMaterialConfirmationReceipt({
+    required this.sourceRevision,
+    required this.itemCount,
+  });
+
+  final String sourceRevision;
+  final int itemCount;
+
+  factory SchoolMaterialConfirmationReceipt.fromJson(Map<String, dynamic> json) => SchoolMaterialConfirmationReceipt(
+        sourceRevision: json['source_revision'] as String,
+        itemCount: (json['item_count'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'source_revision': sourceRevision,
+        'item_count': itemCount,
+      };
+}
+
+class SchoolMaterialCandidates {
+  const SchoolMaterialCandidates({
+    this.sourceRevision,
+    this.confirmedItems,
+    required this.items,
+  });
+
+  final String? sourceRevision;
+  final List<SchoolMaterialConfirmedItem>? confirmedItems;
+  final List<SchoolMaterialCandidate> items;
+
+  factory SchoolMaterialCandidates.fromJson(Map<String, dynamic> json) => SchoolMaterialCandidates(
+        sourceRevision: json['source_revision'] == null ? null : json['source_revision'] as String,
+        confirmedItems: json['confirmed_items'] == null ? null : (json['confirmed_items'] as List<dynamic>).map((e) => SchoolMaterialConfirmedItem.fromJson(e as Map<String, dynamic>)).toList(),
+        items: (json['items'] as List<dynamic>).map((e) => SchoolMaterialCandidate.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        if (sourceRevision != null) 'source_revision': sourceRevision,
+        if (confirmedItems != null) 'confirmed_items': confirmedItems?.map((e) => e.toJson()).toList(),
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class SchoolMaterialCandidate {
+  const SchoolMaterialCandidate({
+    required this.text,
+    required this.locations,
+    required this.warnings,
+  });
+
+  final String text;
+  final List<SchoolMaterialCandidateLocation> locations;
+  final List<String> warnings;
+
+  factory SchoolMaterialCandidate.fromJson(Map<String, dynamic> json) => SchoolMaterialCandidate(
+        text: json['text'] as String,
+        locations: (json['locations'] as List<dynamic>).map((e) => SchoolMaterialCandidateLocation.fromJson(e as Map<String, dynamic>)).toList(),
+        warnings: (json['warnings'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'locations': locations.map((e) => e.toJson()).toList(),
+        'warnings': warnings,
+      };
+}
+
+class SchoolMaterialCandidateLocation {
+  const SchoolMaterialCandidateLocation({
+    required this.page,
+    this.block,
+  });
+
+  final int page;
+  final int? block;
+
+  factory SchoolMaterialCandidateLocation.fromJson(Map<String, dynamic> json) => SchoolMaterialCandidateLocation(
+        page: (json['page'] as num).toInt(),
+        block: json['block'] == null ? null : (json['block'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'page': page,
+        'block': block,
+      };
+}
+
+class SchoolMaterialPages {
+  const SchoolMaterialPages({
+    required this.pages,
+  });
+
+  final List<SchoolMaterialPage> pages;
+
+  factory SchoolMaterialPages.fromJson(Map<String, dynamic> json) => SchoolMaterialPages(
+        pages: (json['pages'] as List<dynamic>).map((e) => SchoolMaterialPage.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'pages': pages.map((e) => e.toJson()).toList(),
+      };
+}
+
+class SchoolMaterialPage {
+  const SchoolMaterialPage({
+    required this.pageNumber,
+    required this.text,
+    required this.needsOcr,
+    this.revision,
+  });
+
+  final int pageNumber;
+  final String text;
+  final bool needsOcr;
+  final int? revision;
+
+  factory SchoolMaterialPage.fromJson(Map<String, dynamic> json) => SchoolMaterialPage(
+        pageNumber: (json['page_number'] as num).toInt(),
+        text: json['text'] as String,
+        needsOcr: json['needs_ocr'] as bool,
+        revision: json['revision'] == null ? null : (json['revision'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'page_number': pageNumber,
+        'text': text,
+        'needs_ocr': needsOcr,
+        if (revision != null) 'revision': revision,
+      };
+}
+
+class SchoolMaterialCorrectionReceipt {
+  const SchoolMaterialCorrectionReceipt({
+    required this.pageNumber,
+    required this.revision,
+  });
+
+  final int pageNumber;
+  final int revision;
+
+  factory SchoolMaterialCorrectionReceipt.fromJson(Map<String, dynamic> json) => SchoolMaterialCorrectionReceipt(
+        pageNumber: (json['page_number'] as num).toInt(),
+        revision: (json['revision'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'page_number': pageNumber,
+        'revision': revision,
+      };
+}
+
+class SchoolMaterialPageCorrection {
+  const SchoolMaterialPageCorrection({
+    required this.expectedRevision,
+    required this.text,
+  });
+
+  final int expectedRevision;
+  final String text;
+
+  factory SchoolMaterialPageCorrection.fromJson(Map<String, dynamic> json) => SchoolMaterialPageCorrection(
+        expectedRevision: (json['expected_revision'] as num).toInt(),
+        text: json['text'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_revision': expectedRevision,
+        'text': text,
+      };
+}
+
+class SchoolMaterialSubmitRequest {
+  const SchoolMaterialSubmitRequest({
+    required this.mediaId,
+  });
+
+  final String mediaId;
+
+  factory SchoolMaterialSubmitRequest.fromJson(Map<String, dynamic> json) => SchoolMaterialSubmitRequest(
+        mediaId: json['media_id'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'media_id': mediaId,
+      };
+}
+
+class SchoolMaterialUploadRequest {
+  const SchoolMaterialUploadRequest({
+    required this.mime,
+    required this.sizeBytes,
+    required this.sha256,
+  });
+
+  final String mime;
+  final int sizeBytes;
+  final String sha256;
+
+  factory SchoolMaterialUploadRequest.fromJson(Map<String, dynamic> json) => SchoolMaterialUploadRequest(
+        mime: json['mime'] as String,
+        sizeBytes: (json['size_bytes'] as num).toInt(),
+        sha256: json['sha256'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'mime': mime,
+        'size_bytes': sizeBytes,
+        'sha256': sha256,
+      };
+}
+
+class SchoolMaterialSource {
+  const SchoolMaterialSource({
+    required this.mediaId,
+    required this.mime,
+    required this.sizeBytes,
+    required this.sha256,
+    required this.expiresAt,
+    required this.pageCount,
+  });
+
+  final String mediaId;
+  final String mime;
+  final int sizeBytes;
+  final String sha256;
+  final DateTime expiresAt;
+  final int pageCount;
+
+  factory SchoolMaterialSource.fromJson(Map<String, dynamic> json) => SchoolMaterialSource(
+        mediaId: json['media_id'] as String,
+        mime: json['mime'] as String,
+        sizeBytes: (json['size_bytes'] as num).toInt(),
+        sha256: json['sha256'] as String,
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+        pageCount: (json['page_count'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'media_id': mediaId,
+        'mime': mime,
+        'size_bytes': sizeBytes,
+        'sha256': sha256,
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+        'page_count': pageCount,
+      };
+}
+
+class MediaBlobUpload {
+  const MediaBlobUpload({
+    required this.contentBase64,
+  });
+
+  final String contentBase64;
+
+  factory MediaBlobUpload.fromJson(Map<String, dynamic> json) => MediaBlobUpload(
+        contentBase64: json['content_base64'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'content_base64': contentBase64,
+      };
+}
+
+class MediaConfirm {
+  const MediaConfirm({
+    required this.sha256,
+  });
+
+  final String sha256;
+
+  factory MediaConfirm.fromJson(Map<String, dynamic> json) => MediaConfirm(
+        sha256: json['sha256'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'sha256': sha256,
+      };
+}
+
+class MediaDelete {
+  const MediaDelete();
+
+
+  factory MediaDelete.fromJson(Map<String, dynamic> json) => MediaDelete(
+      );
+
+  Map<String, dynamic> toJson() => {
+      };
+}
+
+class MediaAssetInfo {
+  const MediaAssetInfo({
+    required this.mediaId,
+    required this.mime,
+    required this.sizeBytes,
+    required this.sha256,
+    required this.expiresAt,
+  });
+
+  final String mediaId;
+  final String mime;
+  final int sizeBytes;
+  final String sha256;
+  final DateTime expiresAt;
+
+  factory MediaAssetInfo.fromJson(Map<String, dynamic> json) => MediaAssetInfo(
+        mediaId: json['media_id'] as String,
+        mime: json['mime'] as String,
+        sizeBytes: (json['size_bytes'] as num).toInt(),
+        sha256: json['sha256'] as String,
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'media_id': mediaId,
+        'mime': mime,
+        'size_bytes': sizeBytes,
+        'sha256': sha256,
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+      };
+}
+
+class MediaContent {
+  const MediaContent({
+    required this.mediaId,
+    required this.mime,
+    required this.contentBase64,
+  });
+
+  final String mediaId;
+  final String mime;
+  final String contentBase64;
+
+  factory MediaContent.fromJson(Map<String, dynamic> json) => MediaContent(
+        mediaId: json['media_id'] as String,
+        mime: json['mime'] as String,
+        contentBase64: json['content_base64'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'media_id': mediaId,
+        'mime': mime,
+        'content_base64': contentBase64,
+      };
+}
+
+class MediaDeleted {
+  const MediaDeleted({
+    required this.mediaId,
+    required this.deleted,
+  });
+
+  final String mediaId;
+  final bool deleted;
+
+  factory MediaDeleted.fromJson(Map<String, dynamic> json) => MediaDeleted(
+        mediaId: json['media_id'] as String,
+        deleted: json['deleted'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'media_id': mediaId,
+        'deleted': deleted,
+      };
+}
+
 class MediaUploadRequest {
   const MediaUploadRequest({
     required this.purpose,
@@ -2786,6 +4806,7 @@ class Scan {
     required this.expressions,
     this.matchedQuestionId,
     this.errorCode,
+    this.mockNotice,
   });
 
   final String id;
@@ -2796,6 +4817,7 @@ class Scan {
   final List<ScanExpression> expressions;
   final String? matchedQuestionId;
   final String? errorCode;
+  final String? mockNotice;
 
   factory Scan.fromJson(Map<String, dynamic> json) => Scan(
         id: json['id'] as String,
@@ -2806,6 +4828,7 @@ class Scan {
         expressions: (json['expressions'] as List<dynamic>).map((e) => ScanExpression.fromJson(e as Map<String, dynamic>)).toList(),
         matchedQuestionId: json['matched_question_id'] == null ? null : json['matched_question_id'] as String,
         errorCode: json['error_code'] == null ? null : json['error_code'] as String,
+        mockNotice: json['mock_notice'] == null ? null : json['mock_notice'] as String,
       );
 
   Map<String, dynamic> toJson() => {
@@ -2817,6 +4840,7 @@ class Scan {
         'expressions': expressions.map((e) => e.toJson()).toList(),
         'matched_question_id': matchedQuestionId,
         'error_code': errorCode,
+        if (mockNotice != null) 'mock_notice': mockNotice,
       };
 }
 
@@ -2867,18 +4891,21 @@ class ScanConfirmation {
 /// 学生生成的一次性邀请码。`code` 只在创建时出现这一次，之后任何接口都不会再返回它。
 class ParentInvite {
   const ParentInvite({
+    this.parentInviteRevision,
     required this.id,
     required this.code,
     required this.createdAt,
     required this.expiresAt,
   });
 
+  final int? parentInviteRevision;
   final String id;
   final String code;
   final DateTime createdAt;
   final DateTime expiresAt;
 
   factory ParentInvite.fromJson(Map<String, dynamic> json) => ParentInvite(
+        parentInviteRevision: json['parent_invite_revision'] == null ? null : (json['parent_invite_revision'] as num).toInt(),
         id: json['id'] as String,
         code: json['code'] as String,
         createdAt: DateTime.parse(json['created_at'] as String),
@@ -2886,10 +4913,43 @@ class ParentInvite {
       );
 
   Map<String, dynamic> toJson() => {
+        if (parentInviteRevision != null) 'parent_invite_revision': parentInviteRevision,
         'id': id,
         'code': code,
         'created_at': createdAt.toUtc().toIso8601String(),
         'expires_at': expiresAt.toUtc().toIso8601String(),
+      };
+}
+
+class ParentInviteCreate {
+  const ParentInviteCreate({
+    required this.expectedParentInviteRevision,
+  });
+
+  final int expectedParentInviteRevision;
+
+  factory ParentInviteCreate.fromJson(Map<String, dynamic> json) => ParentInviteCreate(
+        expectedParentInviteRevision: (json['expected_parent_invite_revision'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_parent_invite_revision': expectedParentInviteRevision,
+      };
+}
+
+class ParentLinkRevoke {
+  const ParentLinkRevoke({
+    required this.expectedAuthorizationRevision,
+  });
+
+  final int expectedAuthorizationRevision;
+
+  factory ParentLinkRevoke.fromJson(Map<String, dynamic> json) => ParentLinkRevoke(
+        expectedAuthorizationRevision: (json['expected_authorization_revision'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_authorization_revision': expectedAuthorizationRevision,
       };
 }
 
@@ -2937,6 +4997,7 @@ class PendingParentInvite {
 /// 学生对一位家长的授权。
 class ParentLink {
   const ParentLink({
+    this.authorizationRevision,
     required this.id,
     required this.parentId,
     this.parentLabel,
@@ -2945,6 +5006,7 @@ class ParentLink {
     this.revokedAt,
   });
 
+  final int? authorizationRevision;
   final String id;
   final String parentId;
   final String? parentLabel;
@@ -2953,6 +5015,7 @@ class ParentLink {
   final DateTime? revokedAt;
 
   factory ParentLink.fromJson(Map<String, dynamic> json) => ParentLink(
+        authorizationRevision: json['authorization_revision'] == null ? null : (json['authorization_revision'] as num).toInt(),
         id: json['id'] as String,
         parentId: json['parent_id'] as String,
         parentLabel: json['parent_label'] == null ? null : json['parent_label'] as String,
@@ -2962,6 +5025,7 @@ class ParentLink {
       );
 
   Map<String, dynamic> toJson() => {
+        if (authorizationRevision != null) 'authorization_revision': authorizationRevision,
         'id': id,
         'parent_id': parentId,
         'parent_label': parentLabel,
@@ -2973,19 +5037,23 @@ class ParentLink {
 
 class ParentLinks {
   const ParentLinks({
+    this.parentInviteRevision,
     required this.links,
     this.pendingInvite,
   });
 
+  final int? parentInviteRevision;
   final List<ParentLink> links;
   final PendingParentInvite? pendingInvite;
 
   factory ParentLinks.fromJson(Map<String, dynamic> json) => ParentLinks(
+        parentInviteRevision: json['parent_invite_revision'] == null ? null : (json['parent_invite_revision'] as num).toInt(),
         links: (json['links'] as List<dynamic>).map((e) => ParentLink.fromJson(e as Map<String, dynamic>)).toList(),
         pendingInvite: json['pending_invite'] == null ? null : PendingParentInvite.fromJson(json['pending_invite'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
+        if (parentInviteRevision != null) 'parent_invite_revision': parentInviteRevision,
         'links': links.map((e) => e.toJson()).toList(),
         'pending_invite': pendingInvite?.toJson(),
       };
@@ -3076,9 +5144,66 @@ class PreviousWeek {
       };
 }
 
+class PaperWeeklySummary {
+  const PaperWeeklySummary({
+    required this.confirmed,
+    required this.awaitingAssessment,
+    required this.lateReturns,
+    required this.unknownCompletionDate,
+    required this.independent,
+    required this.assisted,
+  });
+
+  final int confirmed;
+  final int awaitingAssessment;
+  final int lateReturns;
+  final int unknownCompletionDate;
+  final RateStat independent;
+  final RateStat assisted;
+
+  factory PaperWeeklySummary.fromJson(Map<String, dynamic> json) => PaperWeeklySummary(
+        confirmed: (json['confirmed'] as num).toInt(),
+        awaitingAssessment: (json['awaiting_assessment'] as num).toInt(),
+        lateReturns: (json['late_returns'] as num).toInt(),
+        unknownCompletionDate: (json['unknown_completion_date'] as num).toInt(),
+        independent: RateStat.fromJson(json['independent'] as Map<String, dynamic>),
+        assisted: RateStat.fromJson(json['assisted'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'confirmed': confirmed,
+        'awaiting_assessment': awaitingAssessment,
+        'late_returns': lateReturns,
+        'unknown_completion_date': unknownCompletionDate,
+        'independent': independent.toJson(),
+        'assisted': assisted.toJson(),
+      };
+}
+
+class ParentWeeklySnapshot {
+  const ParentWeeklySnapshot({
+    required this.revision,
+    required this.report,
+  });
+
+  final int revision;
+  final ParentWeekly report;
+
+  factory ParentWeeklySnapshot.fromJson(Map<String, dynamic> json) => ParentWeeklySnapshot(
+        revision: (json['revision'] as num).toInt(),
+        report: ParentWeekly.fromJson(json['report'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'revision': revision,
+        'report': report.toJson(),
+      };
+}
+
 /// 一位已授权学生某一周的汇总。只有计数和比例：没有具体题目、作答内容、提示原文、草稿和笔迹， 也没有每次练习的时间。周从周一到周日，按服务端配置的时区划分。样本少于 `min_samples` 的比例是 null，只给计数。 不是官方成绩，没有排名，也没有连续天数。
 class ParentWeekly {
   const ParentWeekly({
+    this.paper,
     required this.studentId,
     this.studentDisplayName,
     required this.weekStart,
@@ -3100,6 +5225,7 @@ class ParentWeekly {
     required this.disclaimer,
   });
 
+  final PaperWeeklySummary? paper;
   final String studentId;
   final String? studentDisplayName;
   final String weekStart;
@@ -3121,6 +5247,7 @@ class ParentWeekly {
   final String disclaimer;
 
   factory ParentWeekly.fromJson(Map<String, dynamic> json) => ParentWeekly(
+        paper: json['paper'] == null ? null : PaperWeeklySummary.fromJson(json['paper'] as Map<String, dynamic>),
         studentId: json['student_id'] as String,
         studentDisplayName: json['student_display_name'] == null ? null : json['student_display_name'] as String,
         weekStart: json['week_start'] as String,
@@ -3143,6 +5270,7 @@ class ParentWeekly {
       );
 
   Map<String, dynamic> toJson() => {
+        if (paper != null) 'paper': paper?.toJson(),
         'student_id': studentId,
         'student_display_name': studentDisplayName,
         'week_start': weekStart,
@@ -3219,20 +5347,147 @@ enum SolutionKind {
   String toJson() => value;
 }
 
+class ReviewBatchItem {
+  const ReviewBatchItem({
+    required this.expectedReviewRevision,
+    required this.questionId,
+    required this.expectedVersion,
+    required this.decision,
+    required this.confirmed,
+    this.comment,
+    this.solutionKinds,
+  });
+
+  final int expectedReviewRevision;
+  final String questionId;
+  final int expectedVersion;
+  final ReviewDecisionType decision;
+  final bool confirmed;
+  final String? comment;
+  final List<SolutionKind>? solutionKinds;
+
+  factory ReviewBatchItem.fromJson(Map<String, dynamic> json) => ReviewBatchItem(
+        expectedReviewRevision: (json['expected_review_revision'] as num).toInt(),
+        questionId: json['question_id'] as String,
+        expectedVersion: (json['expected_version'] as num).toInt(),
+        decision: ReviewDecisionType.fromJson(json['decision'] as String),
+        confirmed: json['confirmed'] as bool,
+        comment: json['comment'] == null ? null : json['comment'] as String,
+        solutionKinds: json['solution_kinds'] == null ? null : (json['solution_kinds'] as List<dynamic>).map((e) => SolutionKind.fromJson(e as String)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_review_revision': expectedReviewRevision,
+        'question_id': questionId,
+        'expected_version': expectedVersion,
+        'decision': decision.toJson(),
+        'confirmed': confirmed,
+        if (comment != null) 'comment': comment,
+        if (solutionKinds != null) 'solution_kinds': solutionKinds?.map((e) => e.toJson()).toList(),
+      };
+}
+
+class ReviewBatch {
+  const ReviewBatch({
+    required this.items,
+  });
+
+  final List<ReviewBatchItem> items;
+
+  factory ReviewBatch.fromJson(Map<String, dynamic> json) => ReviewBatch(
+        items: (json['items'] as List<dynamic>).map((e) => ReviewBatchItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class ReviewBatchError {
+  const ReviewBatchError({
+    required this.status,
+    required this.code,
+    required this.message,
+  });
+
+  final int status;
+  final String code;
+  final String message;
+
+  factory ReviewBatchError.fromJson(Map<String, dynamic> json) => ReviewBatchError(
+        status: (json['status'] as num).toInt(),
+        code: json['code'] as String,
+        message: json['message'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'status': status,
+        'code': code,
+        'message': message,
+      };
+}
+
+class ReviewBatchResultItem {
+  const ReviewBatchResultItem({
+    required this.questionId,
+    required this.status,
+    this.state,
+    this.error,
+  });
+
+  final String questionId;
+  final String status;
+  final QuestionReviewState? state;
+  final ReviewBatchError? error;
+
+  factory ReviewBatchResultItem.fromJson(Map<String, dynamic> json) => ReviewBatchResultItem(
+        questionId: json['question_id'] as String,
+        status: json['status'] as String,
+        state: json['state'] == null ? null : QuestionReviewState.fromJson(json['state'] as Map<String, dynamic>),
+        error: json['error'] == null ? null : ReviewBatchError.fromJson(json['error'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'question_id': questionId,
+        'status': status,
+        'state': state?.toJson(),
+        'error': error?.toJson(),
+      };
+}
+
+class ReviewBatchResult {
+  const ReviewBatchResult({
+    required this.items,
+  });
+
+  final List<ReviewBatchResultItem> items;
+
+  factory ReviewBatchResult.fromJson(Map<String, dynamic> json) => ReviewBatchResult(
+        items: (json['items'] as List<dynamic>).map((e) => ReviewBatchResultItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
 class ReviewDecision {
   const ReviewDecision({
+    required this.expectedReviewRevision,
     required this.decision,
     required this.expectedVersion,
     this.comment,
     this.solutionKinds,
   });
 
+  final int expectedReviewRevision;
   final ReviewDecisionType decision;
   final int expectedVersion;
   final String? comment;
   final List<SolutionKind>? solutionKinds;
 
   factory ReviewDecision.fromJson(Map<String, dynamic> json) => ReviewDecision(
+        expectedReviewRevision: (json['expected_review_revision'] as num).toInt(),
         decision: ReviewDecisionType.fromJson(json['decision'] as String),
         expectedVersion: (json['expected_version'] as num).toInt(),
         comment: json['comment'] == null ? null : json['comment'] as String,
@@ -3240,6 +5495,7 @@ class ReviewDecision {
       );
 
   Map<String, dynamic> toJson() => {
+        'expected_review_revision': expectedReviewRevision,
         'decision': decision.toJson(),
         'expected_version': expectedVersion,
         if (comment != null) 'comment': comment,
@@ -3249,6 +5505,7 @@ class ReviewDecision {
 
 class QuestionReviewState {
   const QuestionReviewState({
+    this.reviewRevision,
     required this.questionId,
     required this.status,
     required this.version,
@@ -3256,6 +5513,7 @@ class QuestionReviewState {
     required this.updatedAt,
   });
 
+  final int? reviewRevision;
   final String questionId;
   final QuestionStatus status;
   final int version;
@@ -3263,6 +5521,7 @@ class QuestionReviewState {
   final DateTime updatedAt;
 
   factory QuestionReviewState.fromJson(Map<String, dynamic> json) => QuestionReviewState(
+        reviewRevision: json['review_revision'] == null ? null : (json['review_revision'] as num).toInt(),
         questionId: json['question_id'] as String,
         status: QuestionStatus.fromJson(json['status'] as String),
         version: (json['version'] as num).toInt(),
@@ -3271,6 +5530,7 @@ class QuestionReviewState {
       );
 
   Map<String, dynamic> toJson() => {
+        if (reviewRevision != null) 'review_revision': reviewRevision,
         'question_id': questionId,
         'status': status.toJson(),
         'version': version,
@@ -3281,6 +5541,7 @@ class QuestionReviewState {
 
 class AdminQuestionSummary {
   const AdminQuestionSummary({
+    this.reviewRevision,
     required this.id,
     required this.subject,
     required this.type,
@@ -3296,6 +5557,7 @@ class AdminQuestionSummary {
     required this.updatedAt,
   });
 
+  final int? reviewRevision;
   final String id;
   final Subject subject;
   final QuestionType type;
@@ -3311,6 +5573,7 @@ class AdminQuestionSummary {
   final DateTime updatedAt;
 
   factory AdminQuestionSummary.fromJson(Map<String, dynamic> json) => AdminQuestionSummary(
+        reviewRevision: json['review_revision'] == null ? null : (json['review_revision'] as num).toInt(),
         id: json['id'] as String,
         subject: Subject.fromJson(json['subject'] as String),
         type: QuestionType.fromJson(json['type'] as String),
@@ -3327,6 +5590,7 @@ class AdminQuestionSummary {
       );
 
   Map<String, dynamic> toJson() => {
+        if (reviewRevision != null) 'review_revision': reviewRevision,
         'id': id,
         'subject': subject.toJson(),
         'type': type.toJson(),
@@ -3445,6 +5709,7 @@ class AdminVisual {
 
 class AdminTeaching {
   const AdminTeaching({
+    this.referenceLinks,
     this.concept,
     required this.hints,
     this.conceptRephrase,
@@ -3453,6 +5718,7 @@ class AdminTeaching {
     required this.leakMarkers,
   });
 
+  final List<TeachingReferenceLink>? referenceLinks;
   final String? concept;
   final List<String> hints;
   final String? conceptRephrase;
@@ -3461,6 +5727,7 @@ class AdminTeaching {
   final List<String> leakMarkers;
 
   factory AdminTeaching.fromJson(Map<String, dynamic> json) => AdminTeaching(
+        referenceLinks: json['reference_links'] == null ? null : (json['reference_links'] as List<dynamic>).map((e) => TeachingReferenceLink.fromJson(e as Map<String, dynamic>)).toList(),
         concept: json['concept'] == null ? null : json['concept'] as String,
         hints: (json['hints'] as List<dynamic>).map((e) => e as String).toList(),
         conceptRephrase: json['concept_rephrase'] == null ? null : json['concept_rephrase'] as String,
@@ -3470,6 +5737,7 @@ class AdminTeaching {
       );
 
   Map<String, dynamic> toJson() => {
+        if (referenceLinks != null) 'reference_links': referenceLinks?.map((e) => e.toJson()).toList(),
         'concept': concept,
         'hints': hints,
         'concept_rephrase': conceptRephrase,
@@ -3590,6 +5858,7 @@ enum AdminHistoryAction {
   publish('publish'),
   withdraw('withdraw'),
   edit('edit'),
+  import$('import'),
 
   /// 契约里新增、而这个版本的客户端还不认识的值。
   $unknown('');
@@ -3690,6 +5959,7 @@ class AdminSolutionInput {
 /// 可编辑内容的完整替换（不是补丁）：没打算改的部分原样传回。题型、学科、答题方式、来源和地区标记不在这里改。
 class AdminQuestionEdit {
   const AdminQuestionEdit({
+    required this.expectedReviewRevision,
     required this.expectedVersion,
     required this.title,
     required this.difficulty,
@@ -3703,6 +5973,7 @@ class AdminQuestionEdit {
     this.comment,
   });
 
+  final int expectedReviewRevision;
   final int expectedVersion;
   final String title;
   final int difficulty;
@@ -3716,6 +5987,7 @@ class AdminQuestionEdit {
   final String? comment;
 
   factory AdminQuestionEdit.fromJson(Map<String, dynamic> json) => AdminQuestionEdit(
+        expectedReviewRevision: (json['expected_review_revision'] as num).toInt(),
         expectedVersion: (json['expected_version'] as num).toInt(),
         title: json['title'] as String,
         difficulty: (json['difficulty'] as num).toInt(),
@@ -3730,6 +6002,7 @@ class AdminQuestionEdit {
       );
 
   Map<String, dynamic> toJson() => {
+        'expected_review_revision': expectedReviewRevision,
         'expected_version': expectedVersion,
         'title': title,
         'difficulty': difficulty,
@@ -3744,9 +6017,803 @@ class AdminQuestionEdit {
       };
 }
 
+/// 单题草稿内容；不含审核状态、提交者和版本号。
+class AdminQuestionDraft {
+  const AdminQuestionDraft({
+    required this.title,
+    required this.difficulty,
+    this.grade,
+    required this.content,
+    required this.answer,
+    required this.teaching,
+    required this.solutions,
+    required this.knowledge,
+    required this.rubric,
+    this.comment,
+  });
+
+  final String title;
+  final int difficulty;
+  final Grade? grade;
+  final QuestionContent content;
+  final AdminAnswer answer;
+  final AdminTeaching teaching;
+  final List<AdminSolutionInput> solutions;
+  final List<String> knowledge;
+  final Map<String, dynamic> rubric;
+  final String? comment;
+
+  factory AdminQuestionDraft.fromJson(Map<String, dynamic> json) => AdminQuestionDraft(
+        title: json['title'] as String,
+        difficulty: (json['difficulty'] as num).toInt(),
+        grade: json['grade'] == null ? null : Grade.fromJson(json['grade'] as String),
+        content: QuestionContent.fromJson(json['content'] as Map<String, dynamic>),
+        answer: AdminAnswer.fromJson(json['answer'] as Map<String, dynamic>),
+        teaching: AdminTeaching.fromJson(json['teaching'] as Map<String, dynamic>),
+        solutions: (json['solutions'] as List<dynamic>).map((e) => AdminSolutionInput.fromJson(e as Map<String, dynamic>)).toList(),
+        knowledge: (json['knowledge'] as List<dynamic>).map((e) => e as String).toList(),
+        rubric: Map<String, dynamic>.from(json['rubric'] as Map),
+        comment: json['comment'] == null ? null : json['comment'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'difficulty': difficulty,
+        'grade': grade?.toJson(),
+        'content': content.toJson(),
+        'answer': answer.toJson(),
+        'teaching': teaching.toJson(),
+        'solutions': solutions.map((e) => e.toJson()).toList(),
+        'knowledge': knowledge,
+        'rubric': rubric,
+        if (comment != null) 'comment': comment,
+      };
+}
+
+class AdminImportSource {
+  const AdminImportSource({
+    required this.sourceType,
+    required this.sourceCategory,
+    required this.sourceName,
+    this.sourceYear,
+    required this.sourceLicense,
+    this.sourceUrl,
+  });
+
+  final String sourceType;
+  final SourceCategory sourceCategory;
+  final String sourceName;
+  final int? sourceYear;
+  final String sourceLicense;
+  final String? sourceUrl;
+
+  factory AdminImportSource.fromJson(Map<String, dynamic> json) => AdminImportSource(
+        sourceType: json['source_type'] as String,
+        sourceCategory: SourceCategory.fromJson(json['source_category'] as String),
+        sourceName: json['source_name'] as String,
+        sourceYear: json['source_year'] == null ? null : (json['source_year'] as num).toInt(),
+        sourceLicense: json['source_license'] as String,
+        sourceUrl: json['source_url'] == null ? null : json['source_url'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'source_type': sourceType,
+        'source_category': sourceCategory.toJson(),
+        'source_name': sourceName,
+        'source_year': sourceYear,
+        'source_license': sourceLicense,
+        'source_url': sourceUrl,
+      };
+}
+
+enum DocImportJobStatus {
+  uploading('uploading'),
+  queued('queued'),
+  processing('processing'),
+  needsReview('needs_review'),
+  completed('completed'),
+  partialFailure('partial_failure'),
+  failed('failed'),
+  cancelled('cancelled'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const DocImportJobStatus(this.value);
+  final String value;
+
+  static DocImportJobStatus fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => DocImportJobStatus.$unknown);
+
+  String toJson() => value;
+}
+
+enum DocImportFileStatus {
+  pending('pending'),
+  processing('processing'),
+  ready('ready'),
+  needsOcr('needs_ocr'),
+  failed('failed'),
+  cancelled('cancelled'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const DocImportFileStatus(this.value);
+  final String value;
+
+  static DocImportFileStatus fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => DocImportFileStatus.$unknown);
+
+  String toJson() => value;
+}
+
+enum DocImportFileKind {
+  pdf('pdf'),
+  docx('docx'),
+  doc('doc'),
+  png('png'),
+  jpeg('jpeg'),
+  json('json'),
+
+  /// 契约里新增、而这个版本的客户端还不认识的值。
+  $unknown('');
+
+  const DocImportFileKind(this.value);
+  final String value;
+
+  static DocImportFileKind fromJson(String value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => DocImportFileKind.$unknown);
+
+  String toJson() => value;
+}
+
+class DocImportOptions {
+  const DocImportOptions({
+    required this.serverTime,
+    required this.creationDeadline,
+    required this.maxFileBytes,
+    required this.maxJobBytes,
+    required this.maxFiles,
+    required this.maxPages,
+    required this.maxCandidates,
+    required this.temporaryTtlMinutes,
+    required this.fileKinds,
+    required this.ocrMode,
+    required this.docConverterAvailable,
+  });
+
+  final DateTime serverTime;
+  final DateTime creationDeadline;
+  final int maxFileBytes;
+  final int maxJobBytes;
+  final int maxFiles;
+  final int maxPages;
+  final int maxCandidates;
+  final int temporaryTtlMinutes;
+  final List<DocImportFileKind> fileKinds;
+  final String ocrMode;
+  final bool docConverterAvailable;
+
+  factory DocImportOptions.fromJson(Map<String, dynamic> json) => DocImportOptions(
+        serverTime: DateTime.parse(json['server_time'] as String),
+        creationDeadline: DateTime.parse(json['creation_deadline'] as String),
+        maxFileBytes: (json['max_file_bytes'] as num).toInt(),
+        maxJobBytes: (json['max_job_bytes'] as num).toInt(),
+        maxFiles: (json['max_files'] as num).toInt(),
+        maxPages: (json['max_pages'] as num).toInt(),
+        maxCandidates: (json['max_candidates'] as num).toInt(),
+        temporaryTtlMinutes: (json['temporary_ttl_minutes'] as num).toInt(),
+        fileKinds: (json['file_kinds'] as List<dynamic>).map((e) => DocImportFileKind.fromJson(e as String)).toList(),
+        ocrMode: json['ocr_mode'] as String,
+        docConverterAvailable: json['doc_converter_available'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'server_time': serverTime.toUtc().toIso8601String(),
+        'creation_deadline': creationDeadline.toUtc().toIso8601String(),
+        'max_file_bytes': maxFileBytes,
+        'max_job_bytes': maxJobBytes,
+        'max_files': maxFiles,
+        'max_pages': maxPages,
+        'max_candidates': maxCandidates,
+        'temporary_ttl_minutes': temporaryTtlMinutes,
+        'file_kinds': fileKinds.map((e) => e.toJson()).toList(),
+        'ocr_mode': ocrMode,
+        'doc_converter_available': docConverterAvailable,
+      };
+}
+
+class DocImportDefaults {
+  const DocImportDefaults({
+    required this.subject,
+    required this.answerMode,
+    required this.source,
+  });
+
+  final Subject subject;
+  final AnswerMode answerMode;
+  final AdminImportSource source;
+
+  factory DocImportDefaults.fromJson(Map<String, dynamic> json) => DocImportDefaults(
+        subject: Subject.fromJson(json['subject'] as String),
+        answerMode: AnswerMode.fromJson(json['answer_mode'] as String),
+        source: AdminImportSource.fromJson(json['source'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'subject': subject.toJson(),
+        'answer_mode': answerMode.toJson(),
+        'source': source.toJson(),
+      };
+}
+
+class DocImportJobCreate {
+  const DocImportJobCreate({
+    required this.creationDeadline,
+    required this.title,
+    required this.defaults,
+  });
+
+  final DateTime creationDeadline;
+  final String title;
+  final DocImportDefaults defaults;
+
+  factory DocImportJobCreate.fromJson(Map<String, dynamic> json) => DocImportJobCreate(
+        creationDeadline: DateTime.parse(json['creation_deadline'] as String),
+        title: json['title'] as String,
+        defaults: DocImportDefaults.fromJson(json['defaults'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'creation_deadline': creationDeadline.toUtc().toIso8601String(),
+        'title': title,
+        'defaults': defaults.toJson(),
+      };
+}
+
+class DocImportJobSummary {
+  const DocImportJobSummary({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.revision,
+    required this.fileCount,
+    required this.processedFiles,
+    required this.candidateCount,
+    required this.confirmedCount,
+    required this.importedCount,
+    required this.failedCount,
+    this.message,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final String title;
+  final DocImportJobStatus status;
+  final int revision;
+  final int fileCount;
+  final int processedFiles;
+  final int candidateCount;
+  final int confirmedCount;
+  final int importedCount;
+  final int failedCount;
+  final String? message;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime expiresAt;
+
+  factory DocImportJobSummary.fromJson(Map<String, dynamic> json) => DocImportJobSummary(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        status: DocImportJobStatus.fromJson(json['status'] as String),
+        revision: (json['revision'] as num).toInt(),
+        fileCount: (json['file_count'] as num).toInt(),
+        processedFiles: (json['processed_files'] as num).toInt(),
+        candidateCount: (json['candidate_count'] as num).toInt(),
+        confirmedCount: (json['confirmed_count'] as num).toInt(),
+        importedCount: (json['imported_count'] as num).toInt(),
+        failedCount: (json['failed_count'] as num).toInt(),
+        message: json['message'] == null ? null : json['message'] as String,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'status': status.toJson(),
+        'revision': revision,
+        'file_count': fileCount,
+        'processed_files': processedFiles,
+        'candidate_count': candidateCount,
+        'confirmed_count': confirmedCount,
+        'imported_count': importedCount,
+        'failed_count': failedCount,
+        'message': message,
+        'created_at': createdAt.toUtc().toIso8601String(),
+        'updated_at': updatedAt.toUtc().toIso8601String(),
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+      };
+}
+
+class DocImportPage {
+  const DocImportPage({
+    required this.number,
+    required this.text,
+    required this.method,
+    required this.warnings,
+    this.confidence,
+    required this.mediaRefs,
+  });
+
+  final int number;
+  final String text;
+  final String method;
+  final List<String> warnings;
+  final double? confidence;
+  final List<String> mediaRefs;
+
+  factory DocImportPage.fromJson(Map<String, dynamic> json) => DocImportPage(
+        number: (json['number'] as num).toInt(),
+        text: json['text'] as String,
+        method: json['method'] as String,
+        warnings: (json['warnings'] as List<dynamic>).map((e) => e as String).toList(),
+        confidence: json['confidence'] == null ? null : (json['confidence'] as num).toDouble(),
+        mediaRefs: (json['media_refs'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'number': number,
+        'text': text,
+        'method': method,
+        'warnings': warnings,
+        'confidence': confidence,
+        'media_refs': mediaRefs,
+      };
+}
+
+class DocImportFile {
+  const DocImportFile({
+    required this.id,
+    required this.filename,
+    required this.kind,
+    required this.mediaType,
+    required this.sizeBytes,
+    required this.sha256,
+    required this.status,
+    required this.problems,
+    required this.pages,
+    required this.originalAvailable,
+  });
+
+  final String id;
+  final String filename;
+  final DocImportFileKind kind;
+  final String mediaType;
+  final int sizeBytes;
+  final String sha256;
+  final DocImportFileStatus status;
+  final List<String> problems;
+  final List<DocImportPage> pages;
+  final bool originalAvailable;
+
+  factory DocImportFile.fromJson(Map<String, dynamic> json) => DocImportFile(
+        id: json['id'] as String,
+        filename: json['filename'] as String,
+        kind: DocImportFileKind.fromJson(json['kind'] as String),
+        mediaType: json['media_type'] as String,
+        sizeBytes: (json['size_bytes'] as num).toInt(),
+        sha256: json['sha256'] as String,
+        status: DocImportFileStatus.fromJson(json['status'] as String),
+        problems: (json['problems'] as List<dynamic>).map((e) => e as String).toList(),
+        pages: (json['pages'] as List<dynamic>).map((e) => DocImportPage.fromJson(e as Map<String, dynamic>)).toList(),
+        originalAvailable: json['original_available'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'filename': filename,
+        'kind': kind.toJson(),
+        'media_type': mediaType,
+        'size_bytes': sizeBytes,
+        'sha256': sha256,
+        'status': status.toJson(),
+        'problems': problems,
+        'pages': pages.map((e) => e.toJson()).toList(),
+        'original_available': originalAvailable,
+      };
+}
+
+class DocImportLocation {
+  const DocImportLocation({
+    required this.fileId,
+    required this.page,
+    this.block,
+  });
+
+  final String fileId;
+  final int page;
+  final int? block;
+
+  factory DocImportLocation.fromJson(Map<String, dynamic> json) => DocImportLocation(
+        fileId: json['file_id'] as String,
+        page: (json['page'] as num).toInt(),
+        block: json['block'] == null ? null : (json['block'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'file_id': fileId,
+        'page': page,
+        'block': block,
+      };
+}
+
+class DocImportItemError {
+  const DocImportItemError({
+    required this.code,
+    required this.message,
+  });
+
+  final String code;
+  final String message;
+
+  factory DocImportItemError.fromJson(Map<String, dynamic> json) => DocImportItemError(
+        code: json['code'] as String,
+        message: json['message'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'message': message,
+      };
+}
+
+class DocImportCandidate {
+  const DocImportCandidate({
+    required this.id,
+    required this.title,
+    required this.text,
+    required this.locations,
+    required this.warnings,
+    this.payload,
+    required this.confirmed,
+    this.confirmedBy,
+    this.questionId,
+    this.error,
+  });
+
+  final String id;
+  final String title;
+  final String text;
+  final List<DocImportLocation> locations;
+  final List<String> warnings;
+  final AdminQuestionImport? payload;
+  final bool confirmed;
+  final String? confirmedBy;
+  final String? questionId;
+  final DocImportItemError? error;
+
+  factory DocImportCandidate.fromJson(Map<String, dynamic> json) => DocImportCandidate(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        text: json['text'] as String,
+        locations: (json['locations'] as List<dynamic>).map((e) => DocImportLocation.fromJson(e as Map<String, dynamic>)).toList(),
+        warnings: (json['warnings'] as List<dynamic>).map((e) => e as String).toList(),
+        payload: json['payload'] == null ? null : AdminQuestionImport.fromJson(json['payload'] as Map<String, dynamic>),
+        confirmed: json['confirmed'] as bool,
+        confirmedBy: json['confirmed_by'] == null ? null : json['confirmed_by'] as String,
+        questionId: json['question_id'] == null ? null : json['question_id'] as String,
+        error: json['error'] == null ? null : DocImportItemError.fromJson(json['error'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'text': text,
+        'locations': locations.map((e) => e.toJson()).toList(),
+        'warnings': warnings,
+        'payload': payload?.toJson(),
+        'confirmed': confirmed,
+        'confirmed_by': confirmedBy,
+        'question_id': questionId,
+        'error': error?.toJson(),
+      };
+}
+
+class DocImportCandidateInput {
+  const DocImportCandidateInput({
+    this.id,
+    required this.title,
+    required this.text,
+    required this.locations,
+    this.payload,
+    required this.confirmed,
+  });
+
+  final String? id;
+  final String title;
+  final String text;
+  final List<DocImportLocation> locations;
+  final AdminQuestionImport? payload;
+  final bool confirmed;
+
+  factory DocImportCandidateInput.fromJson(Map<String, dynamic> json) => DocImportCandidateInput(
+        id: json['id'] == null ? null : json['id'] as String,
+        title: json['title'] as String,
+        text: json['text'] as String,
+        locations: (json['locations'] as List<dynamic>).map((e) => DocImportLocation.fromJson(e as Map<String, dynamic>)).toList(),
+        payload: json['payload'] == null ? null : AdminQuestionImport.fromJson(json['payload'] as Map<String, dynamic>),
+        confirmed: json['confirmed'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'text': text,
+        'locations': locations.map((e) => e.toJson()).toList(),
+        'payload': payload?.toJson(),
+        'confirmed': confirmed,
+      };
+}
+
+class DocImportJobDetail {
+  const DocImportJobDetail({
+    required this.job,
+    required this.defaults,
+    required this.files,
+    required this.candidates,
+  });
+
+  final DocImportJobSummary job;
+  final DocImportDefaults defaults;
+  final List<DocImportFile> files;
+  final List<DocImportCandidate> candidates;
+
+  factory DocImportJobDetail.fromJson(Map<String, dynamic> json) => DocImportJobDetail(
+        job: DocImportJobSummary.fromJson(json['job'] as Map<String, dynamic>),
+        defaults: DocImportDefaults.fromJson(json['defaults'] as Map<String, dynamic>),
+        files: (json['files'] as List<dynamic>).map((e) => DocImportFile.fromJson(e as Map<String, dynamic>)).toList(),
+        candidates: (json['candidates'] as List<dynamic>).map((e) => DocImportCandidate.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'job': job.toJson(),
+        'defaults': defaults.toJson(),
+        'files': files.map((e) => e.toJson()).toList(),
+        'candidates': candidates.map((e) => e.toJson()).toList(),
+      };
+}
+
+class DocImportJobPage {
+  const DocImportJobPage({
+    required this.items,
+    this.nextCursor,
+  });
+
+  final List<DocImportJobSummary> items;
+  final String? nextCursor;
+
+  factory DocImportJobPage.fromJson(Map<String, dynamic> json) => DocImportJobPage(
+        items: (json['items'] as List<dynamic>).map((e) => DocImportJobSummary.fromJson(e as Map<String, dynamic>)).toList(),
+        nextCursor: json['next_cursor'] == null ? null : json['next_cursor'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+        'next_cursor': nextCursor,
+      };
+}
+
+class DocImportRevision {
+  const DocImportRevision({
+    required this.expectedRevision,
+  });
+
+  final int expectedRevision;
+
+  factory DocImportRevision.fromJson(Map<String, dynamic> json) => DocImportRevision(
+        expectedRevision: (json['expected_revision'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_revision': expectedRevision,
+      };
+}
+
+/// 本地原型通过有界 Base64 JSON 上传单个文件，多文件逐个提交；文件名只作显示，不作为存储路径。
+class DocImportUpload {
+  const DocImportUpload({
+    required this.expectedRevision,
+    required this.filename,
+    required this.contentBase64,
+  });
+
+  final int expectedRevision;
+  final String filename;
+  final String contentBase64;
+
+  factory DocImportUpload.fromJson(Map<String, dynamic> json) => DocImportUpload(
+        expectedRevision: (json['expected_revision'] as num).toInt(),
+        filename: json['filename'] as String,
+        contentBase64: json['content_base64'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_revision': expectedRevision,
+        'filename': filename,
+        'content_base64': contentBase64,
+      };
+}
+
+class DocImportUploadResult {
+  const DocImportUploadResult({
+    required this.job,
+    required this.file,
+  });
+
+  final DocImportJobSummary job;
+  final DocImportFile file;
+
+  factory DocImportUploadResult.fromJson(Map<String, dynamic> json) => DocImportUploadResult(
+        job: DocImportJobSummary.fromJson(json['job'] as Map<String, dynamic>),
+        file: DocImportFile.fromJson(json['file'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'job': job.toJson(),
+        'file': file.toJson(),
+      };
+}
+
+class DocImportContent {
+  const DocImportContent({
+    required this.filename,
+    required this.mediaType,
+    required this.contentBase64,
+  });
+
+  final String filename;
+  final String mediaType;
+  final String contentBase64;
+
+  factory DocImportContent.fromJson(Map<String, dynamic> json) => DocImportContent(
+        filename: json['filename'] as String,
+        mediaType: json['media_type'] as String,
+        contentBase64: json['content_base64'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'filename': filename,
+        'media_type': mediaType,
+        'content_base64': contentBase64,
+      };
+}
+
+/// 整体替换候选题工作区，支持人工拆分、合并与排序；新项 id=null；已导入项不可改写或删除。确认来自当前 token。
+class DocImportCandidatesEdit {
+  const DocImportCandidatesEdit({
+    required this.expectedRevision,
+    required this.items,
+  });
+
+  final int expectedRevision;
+  final List<DocImportCandidateInput> items;
+
+  factory DocImportCandidatesEdit.fromJson(Map<String, dynamic> json) => DocImportCandidatesEdit(
+        expectedRevision: (json['expected_revision'] as num).toInt(),
+        items: (json['items'] as List<dynamic>).map((e) => DocImportCandidateInput.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_revision': expectedRevision,
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class DocImportSubmit {
+  const DocImportSubmit({
+    required this.expectedRevision,
+    required this.candidateIds,
+  });
+
+  final int expectedRevision;
+  final List<String> candidateIds;
+
+  factory DocImportSubmit.fromJson(Map<String, dynamic> json) => DocImportSubmit(
+        expectedRevision: (json['expected_revision'] as num).toInt(),
+        candidateIds: (json['candidate_ids'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'expected_revision': expectedRevision,
+        'candidate_ids': candidateIds,
+      };
+}
+
+class DocImportBatchItem {
+  const DocImportBatchItem({
+    required this.candidateId,
+    this.questionId,
+    required this.status,
+    this.error,
+  });
+
+  final String candidateId;
+  final String? questionId;
+  final String status;
+  final DocImportItemError? error;
+
+  factory DocImportBatchItem.fromJson(Map<String, dynamic> json) => DocImportBatchItem(
+        candidateId: json['candidate_id'] as String,
+        questionId: json['question_id'] == null ? null : json['question_id'] as String,
+        status: json['status'] as String,
+        error: json['error'] == null ? null : DocImportItemError.fromJson(json['error'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'candidate_id': candidateId,
+        'question_id': questionId,
+        'status': status,
+        'error': error?.toJson(),
+      };
+}
+
+class DocImportBatchResult {
+  const DocImportBatchResult({
+    required this.job,
+    required this.items,
+  });
+
+  final DocImportJobSummary job;
+  final List<DocImportBatchItem> items;
+
+  factory DocImportBatchResult.fromJson(Map<String, dynamic> json) => DocImportBatchResult(
+        job: DocImportJobSummary.fromJson(json['job'] as Map<String, dynamic>),
+        items: (json['items'] as List<dynamic>).map((e) => DocImportBatchItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'job': job.toJson(),
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class AdminQuestionImport {
+  const AdminQuestionImport({
+    required this.subject,
+    required this.answerMode,
+    required this.source,
+    required this.question,
+  });
+
+  final Subject subject;
+  final AnswerMode answerMode;
+  final AdminImportSource source;
+  final AdminQuestionDraft question;
+
+  factory AdminQuestionImport.fromJson(Map<String, dynamic> json) => AdminQuestionImport(
+        subject: Subject.fromJson(json['subject'] as String),
+        answerMode: AnswerMode.fromJson(json['answer_mode'] as String),
+        source: AdminImportSource.fromJson(json['source'] as Map<String, dynamic>),
+        question: AdminQuestionDraft.fromJson(json['question'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'subject': subject.toJson(),
+        'answer_mode': answerMode.toJson(),
+        'source': source.toJson(),
+        'question': question.toJson(),
+      };
+}
+
 /// 题目某一个版本里"可以被修改"的全部内容，对比两个版本用。
 class AdminVersionSnapshot {
   const AdminVersionSnapshot({
+    this.provenance,
     required this.questionId,
     required this.version,
     required this.isCurrent,
@@ -3763,6 +6830,7 @@ class AdminVersionSnapshot {
     required this.rubric,
   });
 
+  final QuestionProvenance? provenance;
   final String questionId;
   final int version;
   final bool isCurrent;
@@ -3779,6 +6847,7 @@ class AdminVersionSnapshot {
   final Map<String, dynamic> rubric;
 
   factory AdminVersionSnapshot.fromJson(Map<String, dynamic> json) => AdminVersionSnapshot(
+        provenance: json['provenance'] == null ? null : QuestionProvenance.fromJson(json['provenance'] as Map<String, dynamic>),
         questionId: json['question_id'] as String,
         version: (json['version'] as num).toInt(),
         isCurrent: json['is_current'] as bool,
@@ -3796,6 +6865,7 @@ class AdminVersionSnapshot {
       );
 
   Map<String, dynamic> toJson() => {
+        if (provenance != null) 'provenance': provenance?.toJson(),
         'question_id': questionId,
         'version': version,
         'is_current': isCurrent,
@@ -3815,6 +6885,8 @@ class AdminVersionSnapshot {
 
 class AdminQuestionDetail {
   const AdminQuestionDetail({
+    this.provenance,
+    this.reviewRevision,
     required this.id,
     required this.subject,
     required this.type,
@@ -3842,6 +6914,8 @@ class AdminQuestionDetail {
     required this.history,
   });
 
+  final QuestionProvenance? provenance;
+  final int? reviewRevision;
   final String id;
   final Subject subject;
   final QuestionType type;
@@ -3869,6 +6943,8 @@ class AdminQuestionDetail {
   final List<AdminHistoryEntry> history;
 
   factory AdminQuestionDetail.fromJson(Map<String, dynamic> json) => AdminQuestionDetail(
+        provenance: json['provenance'] == null ? null : QuestionProvenance.fromJson(json['provenance'] as Map<String, dynamic>),
+        reviewRevision: json['review_revision'] == null ? null : (json['review_revision'] as num).toInt(),
         id: json['id'] as String,
         subject: Subject.fromJson(json['subject'] as String),
         type: QuestionType.fromJson(json['type'] as String),
@@ -3897,6 +6973,8 @@ class AdminQuestionDetail {
       );
 
   Map<String, dynamic> toJson() => {
+        if (provenance != null) 'provenance': provenance?.toJson(),
+        if (reviewRevision != null) 'review_revision': reviewRevision,
         'id': id,
         'subject': subject.toJson(),
         'type': type.toJson(),

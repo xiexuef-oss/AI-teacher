@@ -727,6 +727,19 @@ def _check_question(
         problems += _check_fill(key, question)
 
     teaching = question.get("teaching") or {}
+    if teaching.get("reference_links"):
+        from tutor_api.services.content_references import validate_links
+
+        try:
+            validate_links(
+                question.get("content") or {},
+                teaching,
+                question.get("solutions") or {},
+                question.get("rubric"),
+                question.get("answer"),
+            )
+        except (ValueError, TypeError, KeyError) as error:
+            problems.append(f"{key}: teaching.reference_links {error}")
     hints = teaching.get("hints")
     if (
         not isinstance(hints, list)

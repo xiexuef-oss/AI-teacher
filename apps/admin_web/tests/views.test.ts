@@ -1,5 +1,6 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {installBrowserStorage,flushRecovery as flushPromises} from './support/browser-storage'
+import { mount,enableAutoUnmount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../src/api/admin'
 import { ApiError } from '../src/api/client'
@@ -21,6 +22,8 @@ import {
   writtenDetail,
 } from './fixtures'
 
+enableAutoUnmount(afterEach)
+
 vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
   createLocalIdentity: vi.fn(),
@@ -37,6 +40,7 @@ function makeRouter() {
     routes: [
       { path: '/login', name: 'login', component: LoginView },
       { path: '/', name: 'queue', component: QueueView },
+      { path: '/import', name: 'import', component: { template: '<div />' } },
       { path: '/questions/:id', name: 'question', component: QuestionView },
       { path: '/questions/:id/compare', name: 'compare', component: { template: '<div />' } },
     ],
@@ -53,6 +57,7 @@ async function mountAt(path: string) {
 }
 
 beforeEach(() => {
+  installBrowserStorage()
   vi.resetAllMocks()
   clearSession()
   setSession({ token: 'tok', userId: ME, role: 'reviewer' })
@@ -446,6 +451,7 @@ describe('题目审核页', () => {
     expect(body).toEqual({
       decision: 'approve',
       expected_version: 1,
+      expected_review_revision: 1,
       comment: '解法没问题',
       solution_kinds: ['standard', 'fast'],
     })
@@ -473,6 +479,7 @@ describe('题目审核页', () => {
     expect(mocked.reviewQuestion.mock.calls[0]![2]).toEqual({
       decision: 'approve',
       expected_version: 1,
+      expected_review_revision: 1,
       solution_kinds: ['standard'],
     })
   })
@@ -508,6 +515,7 @@ describe('题目审核页', () => {
     expect(mocked.reviewQuestion.mock.calls[0]![2]).toEqual({
       decision: 'reject',
       expected_version: 1,
+      expected_review_revision: 1,
       comment: '第二步缺少前提',
     })
   })
@@ -566,9 +574,11 @@ describe('题目审核页', () => {
 
     await submit.trigger('click')
     await flushPromises()
-    await submit.trigger('click')
+    await wrapper.get('[data-testid="review-retry"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="comment"]').setValue('补充一句备注')
+    await wrapper.get('[data-testid="review-release"]').trigger('click')
+    await flushPromises()
     await submit.trigger('click')
     await flushPromises()
 
@@ -577,3 +587,5 @@ describe('题目审核页', () => {
     expect(keys[2]).not.toBe(keys[0])
   })
 })
+
+

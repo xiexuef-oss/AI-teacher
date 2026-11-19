@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { createLocalIdentity, getHealth } from '../api/admin'
 import { ApiError } from '../api/client'
 import type { Health, LocalRole } from '../api/types'
-import { setSession } from '../session'
+import { SessionPersistenceError, setSession } from '../session'
 
 const router = useRouter()
 const health = ref<Health | null>(null)
@@ -34,7 +34,7 @@ async function signIn(role: Extract<LocalRole, 'reviewer' | 'admin'>): Promise<v
     message.value =
       error instanceof ApiError && error.status === 404
         ? '服务端没有开启本地身份 Mock。真实登录方式还没有定（Q-03），暂时只能在本机开发环境里用。'
-        : error instanceof ApiError
+        : error instanceof ApiError || error instanceof SessionPersistenceError
           ? error.message
           : '登录失败'
   } finally {

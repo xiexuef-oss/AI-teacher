@@ -1,0 +1,27 @@
+{
+  "name": "school_material_pages",
+  "method": "GET",
+  "path": "/api/v1/school-materials/218235b6-9bff-46e8-8417-d0b3faafd96a/pages",
+  "status": 200,
+  "schema": "SchoolMaterialPages",
+  "value": {
+    "pages": [
+      {
+        "page_number": 1,
+        "text": "",
+        "needs_ocr": true
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "pages": [
+        {
+          "page_number": 1,
+          "text": "",
+          "needs_ocr": true
+        }
+      ]
+    }
+  }
+}

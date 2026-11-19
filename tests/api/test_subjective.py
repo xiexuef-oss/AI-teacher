@@ -29,6 +29,7 @@ from support.flows import (
     tutor_error,
 )
 from support.seeds import KEY_BY_ID, WRITTEN_KEYS, qid
+from tutor_api.services import grading
 from tutor_api.services.content_seed import load_seed
 
 MATH = "math-quadratic-param-written"
@@ -631,8 +632,13 @@ def test_a_new_student_is_not_started_on_a_written_question(onboarded, db):
 
 
 def test_written_questions_are_recommended_once_the_objective_ones_are_done(onboarded):
-    for key in ("chem-conservation-co2", "chem-conservation-h2", "chem-ion-inference"):
-        solve(onboarded, key)  # 对这个学生可发的化学选择题与填空题都做完了
+    available = onboarded.data(
+        "GET", "/questions", params={"subject": "chemistry", "limit": 50}
+    )["items"]
+    objective = [q for q in available if q["answer_mode"] not in grading.SUBJECTIVE_MODES]
+    assert objective
+    for question in objective:
+        solve(onboarded, KEY_BY_ID[question["id"]])
 
     tasks = onboarded.data("GET", "/tasks/today")["items"]
 

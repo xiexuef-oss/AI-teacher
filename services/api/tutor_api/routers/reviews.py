@@ -7,10 +7,11 @@ from fastapi.responses import JSONResponse
 
 from tutor_api.deps import Ctx, ok, student_ctx
 from tutor_api.idempotency import run_idempotent
-from tutor_api.schemas import ReviewCompleteIn, ReviewScope
+from tutor_api.private_route import PrivateRoute
+from tutor_api.schemas import ReviewCompleteIn, ReviewScope, ReviewStateOut
 from tutor_api.services import review_scheduler
 
-router = APIRouter()
+router = APIRouter(route_class=PrivateRoute)
 
 
 @router.get("/reviews/due")
@@ -30,6 +31,24 @@ def list_due_reviews(
         settings=ctx.settings,
     )
     return ok(page)
+
+
+@router.get("/reviews/{review_id}/state")
+def get_review_state(review_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
+    item = review_scheduler.get_owned_item(ctx.db, ctx.student_id, str(review_id))
+    return ok(
+        ReviewStateOut(
+            id=item.id,
+            question_id=item.question_id,
+            status=item.status,
+            stage=item.stage,
+            total_stages=len(ctx.settings.review_intervals),
+            due_at=item.due_at,
+            last_result=item.last_result,
+            last_attempt_id=item.last_attempt_id,
+            updated_at=item.updated_at,
+        )
+    )
 
 
 @router.post("/reviews/{review_id}/complete")

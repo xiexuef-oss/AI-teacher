@@ -1,14 +1,81 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tutor_contracts/tutor_contracts.dart'
+    show
+        Question,
+        SessionCreate,
+        SessionOrigin,
+        RawResponse,
+        ApiException,
+        TutorApiClient,
+        ApiCore,
+        TutorAction,
+        TutorActionType,
+        SubmitRequest,
+        AnswerPayload;
+import 'package:tutor_student/features/solve/draft_store.dart';
 import 'package:tutor_student/core/adaptive_split.dart';
 import 'package:tutor_student/core/theme.dart';
+import 'package:tutor_student/core/widgets.dart';
 
 import 'support/app_harness.dart';
 import 'support/fake_backend.dart';
+
+class DoneHeldBackend extends FakeBackend {
+  final entered = Completer<void>(), release = Completer<void>();
+  bool hold = true;
+  @override
+  Future<RawResponse> send({
+    required String method,
+    required Uri uri,
+    required Map<String, String> headers,
+    String? body,
+  }) async {
+    final response = await super.send(
+      method: method,
+      uri: uri,
+      headers: headers,
+      body: body,
+    );
+    if (hold && method == 'POST' && uri.path.endsWith('/next')) {
+      hold = false;
+      entered.complete();
+      await release.future;
+    }
+    return response;
+  }
+}
+
+class ReviewLostBackend extends FakeBackend {
+  bool lose = true;
+  @override
+  Future<RawResponse> send({
+    required String method,
+    required Uri uri,
+    required Map<String, String> headers,
+    String? body,
+  }) async {
+    final result = await super.send(
+      method: method,
+      uri: uri,
+      headers: headers,
+      body: body,
+    );
+    if (lose &&
+        method == 'POST' &&
+        uri.path.endsWith('/complete') &&
+        result.statusCode == 200) {
+      lose = false;
+      throw ApiException.network('successful review reply lost');
+    }
+    return result;
+  }
+}
 
 Finder key(String name) => find.byKey(ValueKey(name));
 
@@ -46,6 +113,430 @@ double paneWidth(WidgetTester tester, String name) =>
 void main() {
   late AppHarness h;
   setUp(() => h = AppHarness());
+
+  testWidgets(
+    'DONE resource refresh leaves only completion controls and preserves readonly local input',
+    (tester) async {
+      final backend = DoneHeldBackend()
+        ..installAppBasics()
+        ..installParentFlow()
+        ..installLearningFlow()
+        ..submitFixture = 'submit_correct';
+      h = AppHarness(backend: backend);
+      try {
+        await open(tester, h);
+        await choose(tester, 'A');
+        await tester.tap(key('action.hint'));
+        await settle(tester, frames: 4);
+        expect(backend.entered.isCompleted, isTrue);
+        final api = TutorApiClient(
+          ApiCore(
+            baseUrl: 'http://127.0.0.1:8000',
+            transport: backend,
+            tokenProvider: () => 'local-test-token',
+          ),
+        );
+        final id = backend.fixtures.value('attempt_created')['id'] as String;
+        final sid = backend.fixtures.value('session_created')['id'] as String;
+        await api.submitAttempt(
+          attemptId: id,
+          body: const SubmitRequest(
+            answer: AnswerPayload(selectedOptions: ['B']),
+          ),
+          idempotencyKey: 'remote-widget-submit',
+        );
+        await choose(tester, 'C');
+        await api.tutorNext(
+          sessionId: sid,
+          body: const TutorAction(
+            action: TutorActionType.requestStandard,
+            confirmEndIndependent: true,
+          ),
+          idempotencyKey: 'remote-widget-standard',
+        );
+        await api.tutorNext(
+          sessionId: sid,
+          body: const TutorAction(action: TutorActionType.markUnderstood),
+          idempotencyKey: 'remote-widget-understood',
+        );
+        backend.release.complete();
+        await settle(tester, frames: 20);
+        expect(key('action.done'), findsOneWidget);
+        for (final name in [
+          'submit',
+          'hint',
+          'visual',
+          'giveUp',
+          'standard',
+          'fast',
+          'understood',
+          'retry',
+        ]) {
+          expect(key('action.$name'), findsNothing);
+        }
+        tester
+            .widget<ListView>(key('solve.questionPane'))
+            .controller!
+            .jumpTo(0);
+        await tester.pump();
+        expect(tester.widget<InkWell>(key('option.C')).onTap, isNull);
+        expect(find.textContaining('本机输入不据此判定'), findsOneWidget);
+        expect(backend.submittedAnswer, {
+          'selected_options': ['B'],
+        });
+        final ownerKey = h.store.data.keys.singleWhere(
+          (key) => key.contains('/draft-bundle/'),
+        );
+        final owner = ownerKey.split('/')[1];
+        final saved = await DraftStore(h.store, owner)
+            .forAttempt(id)
+            .readDraft(
+              backend.fixtures.value('question_single_choice')['id'] as String,
+            );
+        expect(saved!.selected, ['C']);
+      } finally {
+        if (!backend.release.isCompleted) backend.release.complete();
+        await teardownTree(tester);
+      }
+    },
+  );
+
+  testWidgets(
+    '303B lost review completion has an explicit recovery after restart without a second stage',
+    (tester) async {
+      final backend = ReviewLostBackend()
+        ..installAppBasics()
+        ..installParentFlow()
+        ..installLearningFlow()
+        ..submitFixture = 'submit_correct';
+      h = AppHarness(backend: backend);
+      try {
+        await open(tester, h, origin: 'review', reviewItemId: 'review-item-1');
+        await choose(tester, 'B');
+        await tester.tap(key('action.submit'));
+        await settle(tester, frames: 20);
+        final original = backend.requestsTo('POST', r'/complete$').single;
+        expect(backend.reviewState('review-item-1')['stage'], 1);
+        await teardownTree(tester);
+        await open(tester, h, origin: 'review', reviewItemId: 'review-item-1');
+        expect(key('action.recoverReview'), findsOneWidget);
+        await tester.tap(key('action.recoverReview'));
+        await settle(tester, frames: 20);
+        final retry = backend.requestsTo('POST', r'/complete$').last;
+        expect(
+          retry.headers['Idempotency-Key'],
+          original.headers['Idempotency-Key'],
+        );
+        expect(retry.body, original.body);
+        expect(backend.reviewState('review-item-1')['stage'], 1);
+        expect(backend.reviewHistory.length, 1);
+      } finally {
+        await teardownTree(tester);
+      }
+    },
+  );
+
+  testWidgets(
+    '303A recovery shows A result separately and exposes B continuation',
+    (tester) async {
+      await open(tester, h);
+      await choose(tester, 'A');
+      h.backend.failNextOn(r'/submit$', 503, 'internal_error');
+      await tester.tap(key('action.submit'));
+      await settle(tester, frames: 16);
+      expect(key('action.recoverSubmission'), findsOneWidget);
+      await choose(tester, 'B');
+      final writes = h.backend.requestsTo('POST', r'/submit$').length;
+      await settle(tester, frames: 16);
+      expect(h.backend.requestsTo('POST', r'/submit$').length, writes);
+      await tester.tap(key('action.recoverSubmission'));
+      await settle(tester, frames: 16);
+      expect(find.text('未提交续稿（与上次提交分别保存）'), findsOneWidget);
+      await tester.tap(find.text('查看与继续续稿'));
+      await settle(tester);
+      expect(find.text('选项：B'), findsOneWidget);
+      final semantics = tester.ensureSemantics();
+      try {
+        await tester.pump();
+        expect(find.bySemanticsLabel('选项：B'), findsOneWidget);
+      } finally {
+        semantics.dispose();
+      }
+      await tester.tap(find.text('在原会话继续此稿'));
+      await settle(tester, frames: 16);
+      expect(key('action.submit'), findsOneWidget);
+      expect(h.backend.sessionsCreated, 1);
+      expect(h.backend.attemptsCreated, 2);
+      await teardownTree(tester);
+    },
+  );
+
+  testWidgets(
+    'explicit new workspace normalizes route and reload resumes the new active',
+    (tester) async {
+      useSize(tester, tabletLandscape);
+      h.signInAs(role: 'student', userId: 'user-1', token: 'token-for-tests');
+      h.backend.sessionOrigin = 'practice';
+      final q =
+          h.backend.fixtures.value('question_single_choice')['id'] as String;
+      final oldSession =
+          h.backend.fixtures.value('session_created')['id'] as String;
+      final oldAttempt =
+          h.backend.fixtures.value('attempt_created')['id'] as String;
+      await tester.pumpWidget(h.app());
+      await settle(tester, frames: 16);
+      final router = GoRouterOf.of(tester);
+      router.go(
+        '/questions/$q/solve?origin=practice&session=$oldSession&attempt=$oldAttempt',
+      );
+      await settle(tester, frames: 16);
+      await choose(tester, 'C');
+      await tester.tap(key('action.submit'));
+      await settle(tester, frames: 16);
+      h.backend.failNextOn(r'/attempts$', 409, 'attempt_in_progress');
+      await tester.ensureVisible(key('action.retry'));
+      await tester.tap(key('action.retry'));
+      await settle(tester, frames: 16);
+      expect(key('creation.openLatest'), findsOneWidget);
+      final newSession = h.backend.fixtures.value('session_created')
+        ..['id'] = 'new-session'
+        ..['origin'] = 'practice';
+      final newAttempt = h.backend.fixtures.value('attempt_created')
+        ..['id'] = 'new-attempt'
+        ..['session_id'] = 'new-session';
+      h.backend.on(
+        'POST',
+        '/sessions',
+        (_) => okResponse(newSession, status: 201),
+      );
+      h.backend.on(
+        'GET',
+        '/sessions/new-session',
+        (_) => okResponse(newSession),
+      );
+      h.backend.on(
+        'POST',
+        '/attempts',
+        (_) => okResponse(newAttempt, status: 201),
+      );
+      h.backend.on(
+        'GET',
+        '/attempts/new-attempt',
+        (_) => okResponse(newAttempt),
+      );
+      await tester.ensureVisible(key('creation.openLatest'));
+      await tester.tap(key('creation.openLatest'));
+      await settle(tester, frames: 24);
+      final normalized = router.routeInformationProvider.value.uri;
+      expect(normalized.queryParameters['session'], isNull);
+      expect(normalized.queryParameters['attempt'], isNull);
+      expect(normalized.queryParameters['origin'], 'practice');
+      expect(
+        (await DraftStore(h.store, 'user-1').readActive(q))!.attemptId,
+        'new-attempt',
+      );
+      // Leave immediately after input, before the two-second autosave.
+      await choose(tester, 'A');
+      await teardownTree(tester);
+      expect(
+        (await DraftStore(
+          h.store,
+          'user-1',
+        ).forAttempt('new-attempt').readDraft(q))!.selected,
+        ['A'],
+      );
+      final creations = h.backend.requestsTo('POST', r'/sessions$').length;
+      await tester.pumpWidget(h.app());
+      await settle(tester, frames: 16);
+      GoRouterOf.of(tester).go(normalized.toString());
+      await settle(tester, frames: 16);
+      expect(key('solve.page'), findsOneWidget);
+      expect(
+        (await DraftStore(h.store, 'user-1').readActive(q))!.attemptId,
+        'new-attempt',
+      );
+      expect(h.backend.requestsTo('POST', r'/sessions$').length, creations);
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+      await teardownTree(tester);
+    },
+  );
+
+  testWidgets(
+    'version conflict opens a blank latest workspace while the original remains reachable',
+    (tester) async {
+      final original = h.backend.fixtures.value('question_single_choice');
+      h.backend.failNextOn('/sessions', 503, 'temporary_unavailable');
+      await open(tester, h);
+      h.backend.offline = true;
+      await choose(tester, 'C');
+      await tester.pump(const Duration(seconds: 3));
+      await settle(tester);
+      await teardownTree(tester);
+      h.backend.offline = false;
+      final latest = {...original, 'version': 2, 'title': '新版题面（测试）'};
+      h.backend.on('GET', '/questions/[^/]+', (_) => okResponse(latest));
+      h.backend.on(
+        'POST',
+        '/sessions',
+        (_) => errorResponse(409, 'question_version_conflict'),
+      );
+      await open(tester, h);
+      expect(find.textContaining('question_version_conflict'), findsWidgets);
+      final session = {
+        ...h.backend.fixtures.value('session_created'),
+        'question_version': 2,
+        'origin': 'practice',
+      };
+      h.backend.on(
+        'POST',
+        '/sessions',
+        (_) => okResponse(session, status: 201),
+      );
+      h.backend.on('GET', '/sessions/[^/]+', (_) => okResponse(session));
+      await tester.ensureVisible(key('creation.openLatest'));
+      await tester.tap(key('creation.openLatest'));
+      await settle(tester, frames: 16);
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNull,
+      );
+      await tester.tap(key('workspace.archives'));
+      await settle(tester);
+      expect(find.text('本机旧稿（只读）'), findsOneWidget);
+      await tester.tap(find.text(original['title'] as String));
+      await settle(tester);
+      expect(find.textContaining('题目版本 1'), findsOneWidget);
+      expect(find.text('选择：C'), findsOneWidget);
+      await tester.tap(find.text('关闭'));
+      await settle(tester);
+      await teardownTree(tester);
+    },
+  );
+
+  testWidgets(
+    'unknown origin stays read only and explicit latest preserves the old answer',
+    (tester) async {
+      final raw = h.backend.fixtures.value('question_single_choice');
+      final question = Question.fromJson(raw);
+      final store = DraftStore(h.store, 'user-1');
+      await store.writeQuestion(question);
+      await store.writeDraft(
+        LocalDraft(
+          questionId: question.id,
+          selected: const ['C'],
+          savedAt: DateTime.now(),
+        ),
+      );
+      await open(tester, h);
+      expect(find.textContaining('缓存题面不能证明旧稿的来源版本'), findsOneWidget);
+      expect(tester.widget<InkWell>(key('option.B')).onTap, isNull);
+      expect(h.backend.sessionsCreated, 0);
+      final source = store.forLocal(
+        await store.readOrCreateLocalId(question.id),
+      );
+      final latest = {...raw, 'version': 2};
+      final session = {
+        ...h.backend.fixtures.value('session_created'),
+        'question_version': 2,
+        'origin': 'practice',
+      };
+      h.backend.on('GET', '/questions/[^/]+', (_) => okResponse(latest));
+      h.backend.on(
+        'POST',
+        '/sessions',
+        (_) => okResponse(session, status: 201),
+      );
+      h.backend.on('GET', '/sessions/[^/]+', (_) => okResponse(session));
+      await tester.ensureVisible(key('creation.openLatest'));
+      await tester.tap(key('creation.openLatest'));
+      await settle(tester, frames: 16);
+      expect(find.textContaining('缓存题面不能证明旧稿的来源版本'), findsNothing);
+      expect(
+        find.byType(ErrorView),
+        findsNothing,
+        reason: find.byType(ErrorView).evaluate().isEmpty
+            ? ''
+            : tester.widget<ErrorView>(find.byType(ErrorView)).error.toString(),
+      );
+      expect(
+        tester.widget<FilledButton>(key('action.submit')).onPressed,
+        isNull,
+      );
+      expect((await source.readDraft(question.id))!.selected, ['C']);
+      await teardownTree(tester);
+    },
+  );
+
+  testWidgets('failed local promotion shows a save warning and never submits', (
+    tester,
+  ) async {
+    final question = h.backend.fixtures.value('question_single_choice');
+    h.store.data['u/user-1/question/${question['id']}'] = jsonEncode(question);
+    final root = DraftStore(h.store, 'user-1');
+    final id = await root.readOrCreateLocalId(question['id'] as String);
+    final local = root.forLocal(id);
+    await local.claimScope(question['id'] as String);
+    await local.saveWorkspaceContext(
+      question['id'] as String,
+      DraftWorkspaceContext(
+        workspaceId: id,
+        question: Question.fromJson(question),
+        sessionBody: SessionCreate(
+          questionId: question['id'] as String,
+          origin: SessionOrigin.practice,
+          expectedQuestionVersion: question['version'] as int,
+        ).toJson(),
+      ),
+    );
+    h.backend.offline = true;
+    await open(tester, h);
+    await choose(tester, 'C');
+    await tester.pump(const Duration(seconds: 3));
+    await settle(tester);
+    h.backend.offline = false;
+    h.store.failWrites = true;
+    await tester.tap(key('action.submit'));
+    await settle(tester);
+    expect(find.textContaining('这台设备保存草稿失败'), findsOneWidget);
+    expect(
+      h.backend.requests.where((r) => r.uri.path.endsWith('/submit')),
+      isEmpty,
+    );
+    h.store.failWrites = false;
+    await teardownTree(tester);
+  });
+
+  testWidgets(
+    'a corrupt attempt bundle displays a blocking error without syncing',
+    (tester) async {
+      h.signInAs(role: 'student', userId: 'user-1');
+      final session = h.backend.fixtures.value('session_created');
+      final attempt = h.backend.fixtures.value('attempt_created');
+      final question =
+          h.backend.fixtures.value('question_single_choice')['id'] as String;
+      h.store.data['u/user-1/active/$question'] = jsonEncode({
+        'sessionId': session['id'],
+        'attemptId': attempt['id'],
+      });
+      final keyName = 'u/user-1/draft-bundle/$question';
+      h.store.data[keyName] = 'not-json';
+      await open(tester, h);
+      expect(find.byType(ErrorView), findsOneWidget);
+      expect(key('action.submit'), findsNothing);
+      expect(h.store.data[keyName], 'not-json');
+      expect(
+        h.backend.requests.where(
+          (r) => r.method == 'PUT' || r.uri.path.endsWith('/submit'),
+        ),
+        isEmpty,
+      );
+      await teardownTree(tester);
+    },
+  );
 
   group('布局断点', () {
     testWidgets('≥900：题目 42% / 草稿 58%，并排', (tester) async {
@@ -336,6 +827,9 @@ void main() {
 
     testWidgets('看图理解：图解出现在时间线里，滑块可以拖', (tester) async {
       await open(tester, h);
+      await choose(tester, 'A');
+      await tester.tap(key('action.submit'));
+      await settle(tester);
 
       await tester.tap(key('action.visual'));
       await settle(tester);
@@ -401,6 +895,21 @@ void main() {
   });
 
   group('断网与冲突', () {
+    testWidgets('缓存题目离线打开，恢复同步后不再提示没有网络', (tester) async {
+      await open(tester, h);
+      await teardownTree(tester);
+      h.backend.offline = true;
+      await open(tester, h);
+      expect(find.textContaining('没有网络：显示的是上次保存的题目'), findsOneWidget);
+
+      h.backend.offline = false;
+      await tester.tap(key('banner.retry'));
+      await settle(tester);
+      expect(find.text('已保存 · 已同步'), findsOneWidget);
+      expect(find.textContaining('没有网络：显示的是上次保存的题目'), findsNothing);
+      await teardownTree(tester);
+    });
+
     testWidgets('断网：顶栏变成"未同步"，出现重试按钮，草稿照常保存在本机', (tester) async {
       await open(tester, h);
       h.backend.offline = true;
@@ -417,7 +926,10 @@ void main() {
         findsOneWidget,
       );
       expect(key('banner.retry'), findsOneWidget);
-      expect(h.store.data.keys.any((k) => k.contains('/draft/')), isTrue);
+      expect(
+        h.store.data.keys.any((k) => k.contains('/draft-bundle/')),
+        isTrue,
+      );
 
       h.backend.offline = false;
       await tester.tap(key('banner.retry'));
@@ -463,6 +975,11 @@ void main() {
       expect(find.text('这份草稿在别处有了更新'), findsOneWidget);
       expect(find.textContaining('你这边：选了 B'), findsOneWidget);
       expect(find.textContaining('云端的：选了 D'), findsOneWidget);
+      expect(find.text('创建独立云端副本'), findsOneWidget);
+      expect(
+        tester.widget<OutlinedButton>(key('banner.createCopy')).onPressed,
+        isNotNull,
+      );
       expect(
         tester.widget<FilledButton>(key('action.submit')).onPressed,
         isNull,
@@ -496,6 +1013,8 @@ void main() {
       await settle(tester);
 
       expect(find.text('这份草稿在别处有了更新'), findsNothing);
+      expect(key('banner.restoreCopy'), findsOneWidget);
+      expect(find.textContaining('本机留档副本（仅保存在这台设备'), findsOneWidget);
       expect(
         find.byIcon(Icons.check_circle),
         findsOneWidget,
@@ -514,7 +1033,10 @@ void main() {
 
       expect(find.textContaining('登录已经失效'), findsOneWidget);
       expect(key('banner.relogin'), findsOneWidget);
-      expect(h.store.data.keys.any((k) => k.contains('/draft/')), isTrue);
+      expect(
+        h.store.data.keys.any((k) => k.contains('/draft-bundle/')),
+        isTrue,
+      );
       await teardownTree(tester);
     });
 
@@ -623,9 +1145,10 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
       await settle(tester, frames: 3);
       final saved = h.store.data.entries.firstWhere(
-        (e) => e.key.contains('/draft/'),
+        (e) => e.key.contains('/draft-bundle/'),
       );
-      final json = jsonDecode(saved.value) as Map<String, dynamic>;
+      final bundle = jsonDecode(saved.value) as Map<String, dynamic>;
+      final json = (bundle['drafts'] as Map).values.first as Map;
       expect(
         ((json['strokes'] as Map)['pages'] as List).first['strokes'],
         isNotEmpty,
@@ -742,7 +1265,15 @@ void main() {
 
       await tester.runAsync(() async {
         await tester.tap(key('ink.export'));
-        await Future<void>.delayed(const Duration(milliseconds: 600));
+        await tester.pump();
+        for (
+          var i = 0;
+          i < 50 && key('ink.export.preview').evaluate().isEmpty;
+          i++
+        ) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await tester.pump();
+        }
       });
       await settle(tester, frames: 4);
 

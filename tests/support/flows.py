@@ -18,6 +18,7 @@ def blank(value: str, key: str = "b1") -> dict[str, Any]:
 
 # 每道样题的一个正确答案与一个确定错误的答案
 CORRECT: dict[str, dict[str, Any]] = {
+    "chem-process-reading": choice("B"),
     "math-mono-quadratic": choice("B"),
     "math-mono-quadratic-v1": blank("(-∞,2]"),
     "math-mono-judge": choice("A", "C"),
@@ -37,6 +38,7 @@ CORRECT: dict[str, dict[str, Any]] = {
     "chem-lab-operation": choice("C"),
 }
 WRONG: dict[str, dict[str, Any]] = {
+    "chem-process-reading": choice("A"),
     "math-mono-quadratic": choice("A"),
     "math-mono-quadratic-v1": blank("[2,+∞)"),
     "math-mono-judge": choice("A", "B"),
@@ -138,6 +140,10 @@ def steps(*items: tuple[str, str]) -> dict[str, Any]:
 
 # 每道证明题样题的一份作答（内容对不对不重要：证明题不自动评分）
 PROOF: dict[str, dict[str, Any]] = {
+    "math-circle-radius-proof": steps(("我按给定圆方程比较了两条线段。", "两点间距离公式")),
+    "math-triangle-coordinate-proof": {
+        "steps": [{"text": "我按给定坐标比较了各条线段。", "reason": "两点间距离公式"}]
+    },
     "math-ineq-diff-proof": steps(
         ("因为 a>0，b>0，所以 ab>0。", "已知"),
         ("a/b+b/a-2=(a-b)^2/(ab)", "通分，完全平方公式"),

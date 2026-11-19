@@ -52,14 +52,19 @@ void main() {
     serve('profile_saved');
     await client.updateProfile(
       body: const ProfileUpdate(
-          regionCode: RegionCode.cn50, subjects: [Subject.math]),
+          regionCode: RegionCode.cn50,
+          subjects: [Subject.math],
+          expectedRevision: 3),
+      idempotencyKey: 'profile-fixed-command',
     );
     final request = transport.seen.single;
     expect(request.method, 'PUT');
     expect(jsonDecode(request.body!), {
       'region_code': 'CN-50',
-      'subjects': ['math']
+      'subjects': ['math'],
+      'expected_revision': 3,
     });
+    expect(request.headers['Idempotency-Key'], 'profile-fixed-command');
   });
 
   test('需要幂等键的操作把键放进请求头，并且路径参数会编码', () async {
@@ -605,12 +610,14 @@ void main() {
     test('学生生成邀请码：十位、带幂等键；授权列表里不会再出现码', () async {
       serve('parent_invite');
       final invite = await client.createParentInvite(
+        body: const ParentInviteCreate(expectedParentInviteRevision: 3),
         idempotencyKey: 'invite-0001-abcd',
       );
       final request = transport.seen.single;
       expect(request.method, 'POST');
       expect(request.uri.path, '/api/v1/me/parent-invites');
       expect(request.headers['Idempotency-Key'], 'invite-0001-abcd');
+      expect(jsonDecode(request.body!), {'expected_parent_invite_revision': 3});
       expect(invite.code, hasLength(10));
       expect(invite.expiresAt.isAfter(invite.createdAt), isTrue);
 
@@ -704,11 +711,13 @@ void main() {
       serve('parent_link_revoked');
       final link = await client.revokeParentLink(
         linkId: 'a/b',
+        body: const ParentLinkRevoke(expectedAuthorizationRevision: 4),
         idempotencyKey: 'revoke-0001-abcd',
       );
       final request = transport.seen.single;
       expect(request.uri.path, '/api/v1/me/parent-links/a%2Fb/revoke');
       expect(request.headers['Idempotency-Key'], 'revoke-0001-abcd');
+      expect(jsonDecode(request.body!), {'expected_authorization_revision': 4});
       expect(link.revokedAt, isNotNull);
     });
 

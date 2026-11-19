@@ -61,7 +61,7 @@ def test_students_and_anonymous_callers_cannot_use_the_admin_operations(anon, on
     calls = [
         ("GET", "/admin/questions", None),
         ("GET", f"/admin/questions/{some}", None),
-        ("POST", f"/admin/questions/{some}/review", {"decision": "approve", "expected_version": 1}),
+        ("POST", f"/admin/questions/{some}/review", {"expected_review_revision": 1, "decision": "approve", "expected_version": 1}),
     ]
     for method, path, body in calls:
         anon.error(method, path, expect=401, auth=False, json=body, key=False)
@@ -272,7 +272,7 @@ def test_reject_and_withdraw_need_a_comment(reviewer, db):
         "POST",
         f"/admin/questions/{qid('math-ineq-rect')}/review",
         expect=422,
-        json={"decision": "withdraw", "expected_version": 1},
+        json={"expected_review_revision": 1, "decision": "withdraw", "expected_version": 1},
     )
 
 
@@ -433,7 +433,7 @@ def test_every_decision_is_audited_with_who_what_and_why(reviewer, db):
     question_id = make_draft(db)
     approved = reviewer.post(
         f"/admin/questions/{question_id}/review",
-        json={"decision": "approve", "expected_version": 1, "comment": "解法没问题"},
+        json={"expected_review_revision": 1, "decision": "approve", "expected_version": 1, "comment": "解法没问题"},
         headers={"X-Request-Id": "audit-trace-1"},
     )
     assert approved.status_code == 200
@@ -450,6 +450,7 @@ def test_every_decision_is_audited_with_who_what_and_why(reviewer, db):
         "version": 1,
         "comment": "解法没问题",
         "solution_kinds": ["standard"],
+        "review_revision": 2,
     }
     assert rows[1].detail_json["comment"] == "还是退回吧"
     history = reviewer.data("GET", f"/admin/questions/{question_id}")["history"]
@@ -461,7 +462,7 @@ def test_every_decision_is_audited_with_who_what_and_why(reviewer, db):
 
 def test_retrying_with_the_same_key_decides_once(reviewer, db):
     question_id = make_draft(db)
-    body = {"decision": "approve", "expected_version": 1}
+    body = {"expected_review_revision": 1, "decision": "approve", "expected_version": 1}
     path = f"/admin/questions/{question_id}/review"
 
     first = reviewer.post(path, json=body, key="approve-once-0001")
@@ -476,11 +477,11 @@ def test_retrying_with_the_same_key_decides_once(reviewer, db):
 def test_the_same_key_for_a_different_decision_is_a_conflict(reviewer, db):
     question_id = make_draft(db)
     path = f"/admin/questions/{question_id}/review"
-    reviewer.post(path, json={"decision": "approve", "expected_version": 1}, key="shared-key-0001")
+    reviewer.post(path, json={"expected_review_revision": 1, "decision": "approve", "expected_version": 1}, key="shared-key-0001")
 
     response = reviewer.post(
         path,
-        json={"decision": "reject", "expected_version": 1, "comment": "x"},
+        json={"expected_review_revision": 1, "decision": "reject", "expected_version": 1, "comment": "x"},
         key="shared-key-0001",
     )
 
@@ -493,7 +494,7 @@ def test_review_decisions_require_an_idempotency_key(reviewer, db):
 
     response = reviewer.post(
         f"/admin/questions/{question_id}/review",
-        json={"decision": "approve", "expected_version": 1},
+        json={"expected_review_revision": 1, "decision": "approve", "expected_version": 1},
         key=False,
     )
 

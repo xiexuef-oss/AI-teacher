@@ -62,3 +62,4 @@ class Flow:
     title: str
     needs: frozenset[str]  # "flutter"：学生端 Web 版；"admin"：审核后台
     run: Callable[[Context], None]
+    review_minutes: tuple[int, ...] | None = None

@@ -1,0 +1,43 @@
+{
+  "name": "school_material_candidates",
+  "method": "GET",
+  "path": "/api/v1/school-materials/218235b6-9bff-46e8-8417-d0b3faafd96a/candidates",
+  "status": 200,
+  "schema": "SchoolMaterialCandidates",
+  "value": {
+    "items": [
+      {
+        "text": "自编校正样例",
+        "locations": [
+          {
+            "page": 1,
+            "block": 1
+          }
+        ],
+        "warnings": [
+          "未识别到明确题号，请人工确定边界。"
+        ]
+      }
+    ],
+    "source_revision": "5cbac499fd8bfedb0e0d57b2cd1c51ca9cbb4f58f98ef4bc92b36242e5a92bf7"
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "text": "自编校正样例",
+          "locations": [
+            {
+              "page": 1,
+              "block": 1
+            }
+          ],
+          "warnings": [
+            "未识别到明确题号，请人工确定边界。"
+          ]
+        }
+      ],
+      "source_revision": "5cbac499fd8bfedb0e0d57b2cd1c51ca9cbb4f58f98ef4bc92b36242e5a92bf7"
+    }
+  }
+}

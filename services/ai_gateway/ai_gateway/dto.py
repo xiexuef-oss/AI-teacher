@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SUPPORTED_RESPONSE_SCHEMA_VERSION = "1.0"
 
@@ -33,6 +34,46 @@ class InputPart(BaseModel):
     media_ref: str | None = None
 
 
+class ContentSpanRef(BaseModel):
+    """Exact approved annotation, without query URLs or version authority."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    block_id: str = Field(
+        min_length=1,
+        max_length=64,
+        pattern=r"^(stem|subquestion:[1-9][0-9]{0,2}:stem|option:[1-9][0-9]{0,2}|subquestion:[1-9][0-9]{0,2}:option:[1-9][0-9]{0,2}|proof:given:[1-9][0-9]{0,2}|proof:claim|hint:[1-9][0-9]{0,2}|rephrase|solution:(standard|fast):(step:[1-9][0-9]{0,2}|final_answer|condition:[1-9][0-9]{0,2}|boundary|key_point:[1-9][0-9]{0,2})|visual:(caption|static_fallback)|rubric:point:[1-9][0-9]{0,2}|reference_cell:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}|reference_step:[1-9][0-9]{0,2}:(text|reason))$",
+    )
+    block_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    start: int = Field(ge=0, le=3999)
+    end: int = Field(ge=1, le=4000)
+
+    @model_validator(mode="after")
+    def ordered(self) -> ContentSpanRef:
+        if self.start >= self.end:
+            raise ValueError("Reference must have start < end")
+        return self
+
+    def identity(self) -> tuple[str, str, int, int]:
+        return self.block_id, self.block_sha256, self.start, self.end
+
+
+class ResolvedContentSpan(ContentSpanRef):
+    block_text: str = Field(min_length=1, max_length=4000)
+    label: str = Field(min_length=1, max_length=120)
+
+    @model_validator(mode="after")
+    def matches_text(self) -> ResolvedContentSpan:
+        if self.end > len(self.block_text):
+            raise ValueError("Reference outside Unicode codepoint range")
+        try:
+            digest = hashlib.sha256(self.block_text.encode("utf-8")).hexdigest()
+        except UnicodeEncodeError as error:
+            raise ValueError("Reference text must be valid Unicode") from error
+        if digest != self.block_sha256:
+            raise ValueError("Reference digest does not match original block")
+        return self
+
+
 class Constraints(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -40,6 +81,7 @@ class Constraints(BaseModel):
     language: str = "zh-CN"
     # 输出里不允许出现的表述（例如独立作答阶段的最终答案）。出现即丢弃该输出。
     forbidden_substrings: list[str] = Field(default_factory=list)
+    reference_catalog: list[ResolvedContentSpan] = Field(default_factory=list, max_length=64)
 
 
 class CostBudget(BaseModel):
@@ -91,3 +133,5 @@ class GatewayResponse(BaseModel):
     trace_id: str
     provider_calls: int = 0
     prompt_version: str | None = None
+    # Internal single-attempt evidence; never inferred from an unknown transport outcome.
+    retry_disposition: Literal["none", "retry", "fallback"] = "none"

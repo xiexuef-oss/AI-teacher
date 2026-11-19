@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
 import 'ink_controller.dart';
+import 'ink_export_dialog.dart';
 import 'ink_painter.dart';
 
 const double _eraserPixels = 14;
@@ -392,39 +393,12 @@ class InkToolbar extends StatelessWidget {
   }
 
   Future<void> _export(BuildContext context) async {
-    final png = await renderInkPng(controller.pages);
-    if (!context.mounted) return;
+    final pages = controller.pages.toList();
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('草稿图片'),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Image.memory(
-                  png,
-                  key: const ValueKey('ink.export.preview'),
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '图片已生成（${png.length ~/ 1024} KB）。保存到相册、分享给老师需要接入系统的保存与分享能力，当前版本只提供预览。',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('好的'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (context) => InkExportDialog(
+        generate: () => renderInkPng(pages, pixelWidth: inkExportWidth(pages)),
       ),
     );
   }

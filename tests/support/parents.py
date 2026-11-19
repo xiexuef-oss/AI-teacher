@@ -20,6 +20,10 @@ FIVE = [
 
 
 def invite(student: ApiClient, **kwargs: Any) -> dict[str, Any]:
+    if "json" not in kwargs:
+        kwargs["json"] = {
+            "expected_parent_invite_revision": links_of(student)["parent_invite_revision"]
+        }
     return student.data("POST", "/me/parent-invites", expect=201, **kwargs)
 
 
@@ -37,6 +41,9 @@ def links_of(student: ApiClient) -> dict[str, Any]:
 
 
 def revoke(student: ApiClient, link_id: str, **kwargs: Any) -> dict[str, Any]:
+    if "json" not in kwargs:
+        owned = next(row for row in links_of(student)["links"] if row["id"] == link_id)
+        kwargs["json"] = {"expected_authorization_revision": owned["authorization_revision"]}
     return student.data("POST", f"/me/parent-links/{link_id}/revoke", **kwargs)
 
 

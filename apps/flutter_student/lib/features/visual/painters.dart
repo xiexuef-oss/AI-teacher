@@ -942,6 +942,158 @@ class ChemicalFlowPainter extends _VisualPainter {
   }
 }
 
+class ChemicalProcessPainter extends _VisualPainter {
+  ChemicalProcessPainter(super.params, super.palette);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final flow = processOf(params);
+    final w = size.width / 5;
+    final h = size.height;
+    final centers = [
+      for (var i = 0; i < 5; i++) Offset(w * (i + .5), h * .48),
+      Offset(w * 2.5, h * .83),
+    ];
+    for (final edge in flow.edges) {
+      final a = centers[edge.$1];
+      final b = centers[edge.$2];
+      if (edge == (3, 1)) {
+        final top = h * .17;
+        canvas.drawPath(
+          Path()
+            ..moveTo(a.dx, a.dy - 18)
+            ..lineTo(a.dx, top)
+            ..lineTo(b.dx, top)
+            ..lineTo(b.dx, b.dy - 18),
+          Paint()
+            ..color = palette.muted
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+        _arrow(
+          canvas,
+          Offset(b.dx, top),
+          Offset(b.dx, b.dy - 18),
+          _stroke(palette.muted, 2),
+        );
+      } else {
+        final direction = (b - a) / (b - a).distance;
+        _arrow(
+          canvas,
+          a + direction * 18,
+          b - direction * 18,
+          _stroke(palette.muted, 2),
+        );
+      }
+    }
+    for (var i = 0; i < flow.nodes.length; i++) {
+      final rect = Rect.fromCenter(
+        center: centers[i],
+        width: w * .83,
+        height: 34,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(6)),
+        Paint()
+          ..color = flow.focus == i && i > 0
+              ? palette.accent.withValues(alpha: .18)
+              : palette.surface,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(6)),
+        Paint()
+          ..color = palette.ink
+          ..style = PaintingStyle.stroke,
+      );
+      _label(
+        canvas,
+        flow.nodes[i],
+        centers[i],
+        palette,
+        anchor: Alignment.center,
+        maxWidth: w * .8,
+        size: 11,
+        align: TextAlign.center,
+      );
+    }
+  }
+}
+
+class CircleSchematicPainter extends _VisualPainter {
+  CircleSchematicPainter(super.params, super.palette);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final circle = circleOf(params);
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) * .34;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = palette.curve
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke,
+    );
+    final points = circle.points;
+    for (var i = 0; i < points.length; i++) {
+      final point =
+          center + Offset(points[i].$1 * radius, -points[i].$2 * radius);
+      canvas.drawCircle(
+        point,
+        circle.focus == i + 1 ? 5 : 3,
+        Paint()..color = circle.focus == i + 1 ? palette.accent : palette.ink,
+      );
+      _label(
+        canvas,
+        ['O', 'A', 'B'][i],
+        point + Offset(points[i].$1 < 0 ? -16 : 8, i == 0 ? 4 : -18),
+        palette,
+        maxWidth: 24,
+      );
+    }
+  }
+}
+
+class TriangleSchematicPainter extends _VisualPainter {
+  TriangleSchematicPainter(super.params, super.palette);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final triangle = triangleOf(params);
+    // One common scale on both axes preserves authored coordinate relationships.
+    final scale = math.min(size.width * .75, size.height * .75);
+    final origin = Offset((size.width - scale) / 2, size.height * .86);
+    final points = [
+      origin,
+      origin + Offset(scale, 0),
+      origin + Offset(triangle.apexX * scale, -triangle.height * scale),
+    ];
+    canvas.drawPath(
+      Path()
+        ..moveTo(points[0].dx, points[0].dy)
+        ..lineTo(points[1].dx, points[1].dy)
+        ..lineTo(points[2].dx, points[2].dy)
+        ..close(),
+      Paint()
+        ..color = palette.curve
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke,
+    );
+    for (var i = 0; i < 3; i++) {
+      canvas.drawCircle(
+        points[i],
+        triangle.focus == i + 1 ? 5 : 3,
+        Paint()..color = triangle.focus == i + 1 ? palette.accent : palette.ink,
+      );
+      _label(
+        canvas,
+        ['A', 'B', 'C'][i],
+        points[i] + Offset(i == 0 ? -13 : 8, i == 2 ? -17 : 4),
+        palette,
+        maxWidth: 24,
+      );
+    }
+  }
+}
+
 CustomPainter painterFor(
   String templateId,
   Map<String, double> params,
@@ -954,6 +1106,9 @@ CustomPainter painterFor(
     'force_diagram' => ForceDiagramPainter(params, palette),
     'motion_chart' => MotionChartPainter(params, palette),
     'chemical_flow' => ChemicalFlowPainter(params, palette),
+    'chemical_process' => ChemicalProcessPainter(params, palette),
+    'triangle_schematic' => TriangleSchematicPainter(params, palette),
+    'circle_schematic' => CircleSchematicPainter(params, palette),
     _ => throw ArgumentError('没有注册的图解模板：$templateId'),
   };
 }
@@ -977,6 +1132,12 @@ String describeVisual(String templateId, Map<String, double> p) {
     case 'motion_chart':
       final m = motionOf(p);
       return '速度时间图，初速度 ${fmt(m.v0)}，加速度 ${fmt(m.a)}，位移 ${fmt(m.displacement)} 米。';
+    case 'chemical_process':
+      return processOf(p).description;
+    case 'triangle_schematic':
+      return triangleOf(p).description;
+    case 'circle_schematic':
+      return circleOf(p).description;
     case 'chemical_flow':
       final f = flowOf(p);
       return '化学计量换算：已知物 ${fmt(f.massA)} 克，物质的量 ${fmt(f.molesA, digits: 3)} 摩尔，所求物质量 ${fmt(f.massB)} 克。';

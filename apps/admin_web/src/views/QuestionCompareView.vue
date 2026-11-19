@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { getQuestion, getQuestionVersion } from '../api/admin'
 import { ApiError } from '../api/client'
 import { handleUnauthorized } from '../api/guard'
 import type { AdminQuestionDetail, AdminVersionSnapshot } from '../api/types'
 import FieldDiffView from '../components/FieldDiffView.vue'
+import QuestionProvenance from '../components/QuestionProvenance.vue'
 import { compareSnapshots } from '../compare'
 import { formatTime, shortId } from '../labels'
 import { useSession } from '../session'
@@ -44,13 +45,20 @@ function parseVersion(value: unknown, fallback: number): number {
   return Number.isInteger(number) && number >= 1 ? number : fallback
 }
 
+let loadGeneration = 0
+onBeforeUnmount(() => { loadGeneration++ })
+
 async function load(): Promise<void> {
+  const generation = ++loadGeneration
+  const isCurrent = () => generation === loadGeneration
   if (!session.session) return
   loading.value = true
   error.value = null
   try {
     if (detail.value === null || detail.value.id !== id.value) {
-      detail.value = await getQuestion(session.session.token, id.value)
+      const nextDetail = await getQuestion(session.session.token, id.value)
+      if (!isCurrent()) return
+      detail.value = nextDetail
     }
     const current = detail.value.version
     to.value = parseVersion(route.query.to, current)
@@ -60,9 +68,11 @@ async function load(): Promise<void> {
       getQuestionVersion(session.session.token, id.value, from.value),
       getQuestionVersion(session.session.token, id.value, to.value),
     ])
+    if (!isCurrent()) return
     left.value = a
     right.value = b
   } catch (failure) {
+    if (!isCurrent()) return
     if (handleUnauthorized(failure)) return
     left.value = right.value = null
     error.value =
@@ -72,7 +82,7 @@ async function load(): Promise<void> {
           : failure.message
         : '加载失败'
   } finally {
-    loading.value = false
+    if (isCurrent()) loading.value = false
   }
 }
 
@@ -123,6 +133,10 @@ function choose(): void {
       </div>
 
       <template v-if="comparison">
+        <div class="provenance-columns">
+          <div><h2>第 {{ left?.version }} 版来源</h2><QuestionProvenance :provenance="left?.provenance" /></div>
+          <div><h2>第 {{ right?.version }} 版来源</h2><QuestionProvenance :provenance="right?.provenance" /></div>
+        </div>
         <p v-if="same" class="notice info" data-testid="summary">
           选的是同一个版本，下面是它的完整内容（左右两边一样）。
         </p>
@@ -145,3 +159,9 @@ function choose(): void {
     </template>
   </main>
 </template>
+
+<style scoped>
+.provenance-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1rem; }
+.provenance-columns > div { min-width: 0; }
+</style>
+

@@ -1,24 +1,31 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch, onBeforeUnmount } from 'vue'
 import { createQuestionVersion } from '../api/admin'
 import { ApiError } from '../api/client'
-import { handleUnauthorized, newIdempotencyKey } from '../api/guard'
-import type { AdminQuestionDetail } from '../api/types'
+import { handleUnauthorized } from '../api/guard'
+import type { AdminQuestionDetail, AdminQuestionEdit } from '../api/types'
 import { explainError } from '../decisions'
-import { canonical, formFromDetail, isUnchanged, requestFromForm } from '../editing'
+import type { EditorBody, EditorDetail, EditorForm } from '../editing'
+import { formFromDetail, isUnchanged, requestFromForm } from '../editing'
 import { PROOF_STAGES, STAGE_LABEL } from '../labels'
-import { useSession } from '../session'
+import { captureSessionBinding, isCurrentSessionBinding } from '../session'
 import MathText from './MathText.vue'
+import { useQuestionCommands } from '../question-write-recovery'
+import type { components } from '../api/schema'
+import type { Body,Json } from '../api/write-command-store'
+import MediaAttachments from './MediaAttachments.vue'
 import StringList from './StringList.vue'
 
-const props = defineProps<{ detail: AdminQuestionDetail }>()
-const emit = defineEmits<{ saved: [detail: AdminQuestionDetail]; cancel: []; refresh: [] }>()
+const props = defineProps<{ detail: EditorDetail; localOnly?: boolean; initialForm?: EditorForm; draftRevision?:number|string; persistDraft?:(form:EditorForm,body:EditorBody|null,context:{isCurrent:()=>boolean})=>Promise<void> }>()
+const emit = defineEmits<{ saved: [detail: AdminQuestionDetail]; cancel: []; refresh: []; draft: [form: EditorForm, body: EditorBody | null] }>()
 
-const session = useSession()
-const form = reactive(formFromDetail(props.detail))
-const saving = ref(false)
+const sourceDetail: EditorDetail = JSON.parse(JSON.stringify(props.detail))
+const form = reactive<EditorForm>({...formFromDetail(props.detail), ...(props.initialForm ? JSON.parse(JSON.stringify(props.initialForm)) : {}), attachments: props.initialForm?.attachments || props.detail.content.attachments.map(item => ({...item}))})
+const saving = ref(false),attachmentRevision=ref(0)
+let mediaParentMounted=true
+onBeforeUnmount(()=>{mediaParentMounted=false})
 const failure = ref<{ code: string; message: string; lines: string[] } | null>(null)
-let pending: { fingerprint: string; key: string } | null = null
+const recovery=useQuestionCommands('edit',{id:sourceDetail.id,version:sourceDetail.version,reviewRevision:sourceDetail.review_revision??null},()=>JSON.parse(JSON.stringify(form)),value=>Object.assign(form,value),!!props.localOnly,()=>built.value.ok?{...built.value.body,expected_review_revision:sourceDetail.review_revision} as unknown as Body:null)
 
 const isChoice = computed(() => ['single_choice', 'multiple_choice'].includes(props.detail.answer_mode))
 const isFill = computed(() => props.detail.answer_mode === 'fill')
@@ -43,11 +50,12 @@ const tableChoices = computed<{ key: string; title: string }[]>(() => {
     return []
   }
 })
-const built = computed(() => requestFromForm(form, props.detail))
-const unchanged = computed(() => built.value.ok && isUnchanged(built.value.body, props.detail))
-const canSave = computed(() => !saving.value && built.value.ok && !unchanged.value)
+const built = computed(() => requestFromForm(form, sourceDetail))
+const unchanged = computed(() => built.value.ok && isUnchanged(built.value.body, sourceDetail))
+const sourceKnown = computed(() => typeof sourceDetail.review_revision === 'number' && Number.isSafeInteger(sourceDetail.review_revision) && sourceDetail.review_revision >= 1)
+const canSave = computed(() => !saving.value && !recovery.pending.value && !recovery.blocked.value && (props.localOnly||recovery.loaded.value) && built.value.ok && !unchanged.value && (props.localOnly || sourceKnown.value))
 const stale = computed(
-  () => failure.value?.code === 'version_conflict' || failure.value?.code === 'invalid_transition',
+  () => failure.value?.code === 'version_conflict' || failure.value?.code === 'invalid_transition' || failure.value?.code === 'review_revision_conflict',
 )
 
 function addOption(): void {
@@ -56,6 +64,28 @@ function addOption(): void {
   form.options.push({ key, text: '', analysis: '', correct: false })
 }
 
+function blankSettings(key: string, units = false): Record<string, unknown> {
+  try { return JSON.parse(units ? form.unitsJson : form.rulesJson)[key] || {} } catch { return {} }
+}
+function settingList(key: string, field: string, units = false): string {
+  const value = blankSettings(key, units)[field]
+  return Array.isArray(value) ? value.filter(v => typeof v === 'string').join(',') : ''
+}
+function changeBlankSetting(key: string, field: string, event: Event, units = false) {
+  const input = event.target as HTMLInputElement
+  const raw = units ? form.unitsJson : form.rulesJson
+  try {
+    const all = JSON.parse(raw)
+    if (!all || typeof all !== 'object' || Array.isArray(all)) return
+    const existing = all[key] || {}
+    const value = ['required', 'closure_flexible'].includes(field) ? input.checked
+      : ['rel_tol', 'abs_tol'].includes(field) ? (input.value === '' ? undefined : Number(input.value))
+      : ['accepted', 'variables'].includes(field) ? input.value.split(',').map(s => s.trim()).filter(Boolean) : input.value
+    all[key] = { ...existing, [field]: value }
+    if (units) form.unitsJson = JSON.stringify(all, null, 2)
+    else form.rulesJson = JSON.stringify(all, null, 2)
+  } catch { /* Preserve unfinished JSON; the existing validation explains how to fix it. */ }
+}
 function addBlank(): void {
   form.blanks.push({ key: `b${form.blanks.length + 1}`, label: '', unitHint: '', placeholder: '', answer: '' })
 }
@@ -86,22 +116,45 @@ function addPoint(): void {
   form.points.push({ key: `p${next}`, part: '', text: '' })
 }
 
+watch(form, () => {
+  attachmentRevision.value++
+  if(!props.localOnly)recovery.changed()
+  if (props.localOnly) emit('draft', JSON.parse(JSON.stringify(form)), built.value.ok ? built.value.body : null)
+}, { deep: true, flush:'sync' })
+
+async function persistAttachments(next:components['schemas']['QuestionAttachment'][],context:{isCurrent:()=>boolean}):Promise<void>{
+ const childCurrent=context.isCurrent
+ const binding=captureSessionBinding(),serial=attachmentRevision.value,parentRevision=props.draftRevision,id=props.detail.id,version=props.detail.version
+ const guard=()=>mediaParentMounted&&childCurrent()&&isCurrentSessionBinding(binding)&&attachmentRevision.value===serial&&props.draftRevision===parentRevision&&props.detail.id===id&&props.detail.version===version
+ if(!guard())throw Error('附件目标草稿已变化，未关联。')
+ if(!Array.isArray(next)||next.some(a=>!a||Object.keys(a).some(k=>!['kind','media_id','alt'].includes(k))||!['image','table'].includes(a.kind)||typeof a.alt!=='string'||(a.media_id!==null&&typeof a.media_id!=='string')))throw Error('附件引用格式未知，不持久化图片原文。')
+ const snapshot:EditorForm=JSON.parse(JSON.stringify({...form,attachments:next}))
+ try{
+  if(props.localOnly){
+   if(!props.persistDraft)throw Error('候选草稿未提供真实本机持久确认，附件未关联。')
+   const result=requestFromForm(snapshot,sourceDetail)
+   await props.persistDraft(snapshot,result.ok?result.body:null,{isCurrent:guard})
+   if(!guard())throw Error('候选在保存期间发生变化，附件未应用。')
+   Object.assign(form,snapshot)
+  }else await recovery.persistSnapshot(snapshot,{isCurrent:guard})
+ }catch(e){failure.value={code:'attachment_persistence',message:'附件未关联；输入保留，请勿退出。'+String(e),lines:[]};throw e}
+}
 async function save(): Promise<void> {
+  if (props.localOnly) return
+  const binding = captureSessionBinding()
   const result = built.value
-  if (!result.ok || !session.session) return
-  // 同一次保存重试时复用幂等键；内容变了就是另一次保存
-  const fingerprint = canonical(result.body)
-  if (pending === null || pending.fingerprint !== fingerprint) {
-    pending = { fingerprint, key: newIdempotencyKey() }
-  }
+  const revision = sourceDetail.review_revision
+  if (!result.ok || !isCurrentSessionBinding(binding) || typeof revision !== 'number' || !sourceKnown.value) return
+  const body: AdminQuestionEdit = { ...result.body, expected_review_revision: revision }
   saving.value = true
   failure.value = null
   try {
-    const saved = await createQuestionVersion(session.session.token, props.detail.id, result.body, pending.key)
-    pending = null
-    emit('saved', saved)
+    const command=await recovery.run(body as unknown as Body,async(token,request,key)=>await createQuestionVersion(token,sourceDetail.id,request as unknown as AdminQuestionEdit,key) as unknown as Json)
+    const saved=command?.result as unknown as AdminQuestionDetail|undefined
+    if (!isCurrentSessionBinding(binding)) return
+    if(saved)emit('saved', saved)
   } catch (error) {
-    if (handleUnauthorized(error)) return
+    if (!isCurrentSessionBinding(binding) || handleUnauthorized(error, binding)) return
     if (error instanceof ApiError) {
       const items = error.details.errors
       const lines = Array.isArray(items)
@@ -115,15 +168,31 @@ async function save(): Promise<void> {
       failure.value = { code: 'unknown', message: '保存失败，请稍后重试', lines: [] }
     }
   } finally {
-    saving.value = false
+    if (isCurrentSessionBinding(binding)) saving.value = false
   }
+}
+async function retryWrite(){
+ saving.value=true
+ try{const command=await recovery.retry(async(token,request,key)=>await createQuestionVersion(token,sourceDetail.id,request as unknown as AdminQuestionEdit,key) as unknown as Json);if(command?.result)emit('saved',command.result as unknown as AdminQuestionDetail)}catch(e){failure.value={code:'recovery',message:String(e),lines:[]}}finally{saving.value=false}
 }
 </script>
 
 <template>
   <section class="card editor" data-testid="editor">
-    <h2>修改题目（保存后是第 {{ detail.version + 1 }} 版）</h2>
-    <p class="notice info small">
+    <p v-if="!localOnly" role="status" data-testid="edit-draft-state">{{ recovery.draftState.value }}</p>
+    <p v-if="!localOnly && !sourceKnown" role="alert">缺少审核修订号，请保留本机编辑并刷新题目后明确重新发起。</p>
+    <section v-if="!localOnly" aria-label="题目编辑恢复">
+     <p v-if="recovery.message.value" role="status">{{ recovery.message.value }}</p>
+     <button v-if="recovery.pending.value?.phase==='result_known'" data-testid="edit-ack" @click="recovery.ack()">确认已保存的历史结果（无需网络）</button>
+     <button v-else-if="recovery.pending.value" data-testid="edit-retry" :disabled="saving" @click="retryWrite">恢复原保存命令</button>
+     <details v-if="recovery.pending.value && recovery.pending.value.phase!=='result_known'"><summary>保留未知记录并停止本机重试</summary><p>原请求可能已成功。这里只停止本机重试，不取消服务器操作。新操作须另用新来源与新键。</p><button data-testid="edit-release" @click="recovery.release()">明确保留旧未知记录，停止重试</button></details>
+     <details v-if="recovery.branches.value.length"><summary>比较当前主草稿</summary><pre>{{ recovery.headRaw.value }}</pre></details>
+     <button v-for="branch in recovery.branches.value" :key="branch.id" @click="recovery.loadBranch(branch.id)">载入独立编辑分支</button>
+     <button v-if="recovery.blocked.value" data-testid="edit-adopt" @click="recovery.adopt()">保留旧草稿并明确采用当前题目来源</button>
+    </section>
+    <fieldset :disabled="!recovery.loaded.value" style="border:0;padding:0;margin:0;min-width:0">
+    <h2 v-if="localOnly">可视化校对答案、提示与解析</h2><h2 v-else>修改题目（保存后是第 {{ detail.version + 1 }} 版）</h2>
+    <p v-if="localOnly" class="notice info small">改动先保存在本机，完整合法的表单同步到候选 JSON；未完整输入也会暂存。请完成后保存校对并重新人工确认。这里不会创建版本、判分或发布。</p><p v-else class="notice info small">
       保存会产生新版本，旧版本原样保留；新版本回到“待审”，审校人和解法确认全部清空，要由<strong>另一位</strong>审校员重新二审。
       你会成为新版本的提交者。保存时不做程序校验，结果在保存后的“程序校验”里。
     </p>
@@ -156,6 +225,7 @@ async function save(): Promise<void> {
     </label>
     <p class="small preview"><span class="muted">预览：</span><MathText :text="form.stem" /></p>
 
+    <MediaAttachments v-model="form.attachments" :question-id="detail.id || undefined" :question-version="detail.id && detail.version>0 ? detail.version : undefined" :draft-revision="`${draftRevision??''}:${attachmentRevision}`" :persist-attachments="persistAttachments" />
     <fieldset v-if="isChoice" class="group" data-testid="options">
       <legend>选项（勾选的是正确答案）</legend>
       <div v-for="(row, index) in form.options" :key="index" class="option-row">
@@ -177,6 +247,17 @@ async function save(): Promise<void> {
         <input v-model="row.placeholder" placeholder="输入框占位文字" />
         <button type="button" class="link" @click="form.blanks.splice(index, 1)">删除</button>
       </div>
+      <fieldset v-for="(blank, index) in form.blanks" :key="index" class="group">
+        <legend>{{ blank.key }} 的等价判定与单位</legend>
+        <label>判定类型 <select :value="blankSettings(blank.key).type || ''" @change="changeBlankSetting(blank.key, 'type', $event)"><option value="">请选择</option><option value="numeric">数值</option><option value="expression">表达式</option><option value="interval">区间</option></select></label>
+        <label>相对容差 <input type="number" step="any" min="0" :data-testid="`blank-rel-tol-${index}`" :value="blankSettings(blank.key).rel_tol" @input="changeBlankSetting(blank.key, 'rel_tol', $event)" /></label>
+        <label>绝对容差 <input type="number" step="any" min="0" :value="blankSettings(blank.key).abs_tol" @input="changeBlankSetting(blank.key, 'abs_tol', $event)" /></label>
+        <label>表达式变量（逗号分隔）<input :value="settingList(blank.key, 'variables')" @input="changeBlankSetting(blank.key, 'variables', $event)" /></label>
+        <label><input type="checkbox" :checked="!!blankSettings(blank.key).closure_flexible" @change="changeBlankSetting(blank.key, 'closure_flexible', $event)" />允许区间端点等价写法</label>
+        <label><input type="checkbox" :checked="!!blankSettings(blank.key, true).required" @change="changeBlankSetting(blank.key, 'required', $event, true)" />必须写单位</label>
+        <label>单位等价写法（逗号分隔）<input :data-testid="`blank-unit-aliases-${index}`" :value="settingList(blank.key, 'accepted', true)" @input="changeBlankSetting(blank.key, 'accepted', $event, true)" /></label>
+        <p>仅设置现有判定规则；无法确定的作答仍按既有规则弃判。</p>
+      </fieldset>
       <button type="button" @click="addBlank">添加空位</button>
       <label class="field">
         <span>判定规则（JSON，每个空位一条）</span>
@@ -348,6 +429,15 @@ async function save(): Promise<void> {
         <textarea v-model="form.conceptRephrase" rows="3" />
       </label>
       <StringList v-model="form.leakMarkers" label="额外的泄题标记（可选）" add-label="添加标记" :rows="1" />
+      <details>
+        <summary>审核引用范围</summary>
+        <p class="small">引用随题目版本审校。修改来源文字后，请重新核对摘要和范围；系统不会自动移动旧引用。明确填写 [] 才清除所有注记。</p>
+        <label class="field">
+          <span>引用注记（JSON 数组）</span>
+          <textarea v-model="form.referenceLinksJson" rows="7" data-testid="reference-links" placeholder="[]" />
+        </label>
+        <p class="small">每项包含 target_block_id、source_span（block_id、block_sha256、start、end）及 independent_safe。范围按 Unicode 字符计数，左闭右开；安全声明仍须通过独立审校及服务端防泄题检查。</p>
+      </details>
       <label class="field">
         <span><input v-model="form.visualOn" type="checkbox" /> 带图解</span>
       </label>
@@ -412,7 +502,7 @@ async function save(): Promise<void> {
     </ul>
     <p v-else-if="unchanged" class="muted small" data-testid="unchanged">还没有改动。</p>
 
-    <div class="row">
+    <div v-if="!localOnly" class="row">
       <button type="button" class="primary" data-testid="save" :disabled="!canSave" @click="save">
         {{ saving ? '保存中…' : '保存为新版本' }}
       </button>
@@ -426,5 +516,16 @@ async function save(): Promise<void> {
       </ul>
       <button v-if="stale" type="button" class="link" @click="emit('refresh')">刷新题目</button>
     </div>
+    </fieldset>
   </section>
 </template>
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,45 @@
+{
+  "name": "question_drafts",
+  "method": "GET",
+  "path": "/api/v1/questions/e57456b4-98d7-5afa-a51b-6e75d834501a/drafts",
+  "status": 200,
+  "schema": "QuestionDraftPage",
+  "value": {
+    "items": [
+      {
+        "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+        "attempt_id": "bd580882-8390-4831-b421-221578343b82",
+        "question_version": 1,
+        "attempt_no": 1,
+        "draft_revision": 1,
+        "copied_from_attempt_id": null,
+        "copied_from_revision": null,
+        "origin": "practice",
+        "review_item_id": null,
+        "session_state": "INDEPENDENT_ATTEMPT",
+        "updated_at": "2026-11-11T08:00:00Z"
+      }
+    ],
+    "next_cursor": "eyJvIjogMX0"
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+          "attempt_id": "bd580882-8390-4831-b421-221578343b82",
+          "question_version": 1,
+          "attempt_no": 1,
+          "draft_revision": 1,
+          "copied_from_attempt_id": null,
+          "copied_from_revision": null,
+          "origin": "practice",
+          "review_item_id": null,
+          "session_state": "INDEPENDENT_ATTEMPT",
+          "updated_at": "2026-11-11T08:00:00Z"
+        }
+      ],
+      "next_cursor": "eyJvIjogMX0"
+    }
+  }
+}

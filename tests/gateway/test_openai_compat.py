@@ -100,6 +100,7 @@ def test_http_errors_are_mapped(status, kind):
         _adapter(handler).invoke(model="m-1", request=make_request(), timeout_s=8)
 
     assert caught.value.kind == kind
+    assert caught.value.outcome_known is True
     assert API_KEY not in str(caught.value)
 
 
@@ -111,6 +112,7 @@ def test_timeout_is_mapped():
         _adapter(handler).invoke(model="m-1", request=make_request(), timeout_s=8)
 
     assert caught.value.kind == "timeout"
+    assert caught.value.outcome_known is False
 
 
 def test_connection_failure_is_mapped_to_unavailable():
@@ -121,6 +123,7 @@ def test_connection_failure_is_mapped_to_unavailable():
         _adapter(handler).invoke(model="m-1", request=make_request(), timeout_s=8)
 
     assert caught.value.kind == "unavailable"
+    assert caught.value.outcome_known is False
 
 
 @pytest.mark.parametrize(

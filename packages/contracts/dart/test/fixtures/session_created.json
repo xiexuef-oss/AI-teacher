@@ -5,7 +5,7 @@
   "status": 201,
   "schema": "StudySession",
   "value": {
-    "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+    "id": "01611e61-b265-4539-b587-da5fbbd04595",
     "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
     "question_version": 1,
     "origin": "task",
@@ -23,6 +23,7 @@
     "confused_streak": 0,
     "needs_human_help": false,
     "active_attempt_id": null,
+    "first_submitted_attempt_id": null,
     "submitted_attempts": 0,
     "last_event_seq": 0,
     "created_at": "2026-11-10T08:00:00Z",
@@ -30,7 +31,7 @@
   },
   "body": {
     "data": {
-      "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+      "id": "01611e61-b265-4539-b587-da5fbbd04595",
       "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
       "question_version": 1,
       "origin": "task",
@@ -48,6 +49,7 @@
       "confused_streak": 0,
       "needs_human_help": false,
       "active_attempt_id": null,
+      "first_submitted_attempt_id": null,
       "submitted_attempts": 0,
       "last_event_seq": 0,
       "created_at": "2026-11-10T08:00:00Z",

@@ -1,4 +1,4 @@
-import { clearSession } from '../session'
+import { clearSession, isCurrentSessionBinding, useSession, type SessionBinding } from '../session'
 import { ApiError } from './client'
 
 let handler: () => void = () => {}
@@ -9,10 +9,11 @@ export function setUnauthorizedHandler(fn: () => void): void {
 }
 
 /** 是 401 就清掉会话并回到登录页，返回 true；其他错误原样交给调用方。 */
-export function handleUnauthorized(error: unknown): boolean {
+export function handleUnauthorized(error: unknown, binding?: SessionBinding | null): boolean {
   if (error instanceof ApiError && error.status === 401) {
+    if (binding !== undefined && !isCurrentSessionBinding(binding)) return true
     clearSession()
-    handler()
+    if (!useSession().session) handler()
     return true
   }
   return false

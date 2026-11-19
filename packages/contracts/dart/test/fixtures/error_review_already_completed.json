@@ -1,0 +1,23 @@
+{
+  "name": "error_review_already_completed",
+  "method": "POST",
+  "path": "/api/v1/reviews/a3efac5b-eb72-4b74-8137-5f0fcad0ab86/complete",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "review_already_completed",
+      "message": "这次复测已经记录过了",
+      "details": {},
+      "request_id": "b192d155df064a419719cbdb53f5ac1b"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "review_already_completed",
+      "message": "这次复测已经记录过了",
+      "details": {},
+      "request_id": "b192d155df064a419719cbdb53f5ac1b"
+    }
+  }
+}

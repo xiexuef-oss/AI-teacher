@@ -78,13 +78,64 @@ class InkPagePainter extends CustomPainter {
       !identical(oldDelegate.page, page);
 }
 
+/// App export guard: at most 24 million pixels and 16000 pixels tall.
+/// Smaller width retains every page when a long draft exceeds these limits.
+double inkExportWidth(List<InkPage> pages) {
+  if (pages.isEmpty ||
+      pages.any(
+        (p) =>
+            !p.width.isFinite ||
+            !p.height.isFinite ||
+            p.width <= 0 ||
+            p.height <= 0,
+      )) {
+    throw ArgumentError('Invalid export dimensions');
+  }
+  final ratio = pages.fold<double>(
+    0,
+    (sum, page) => sum + page.height / page.width,
+  );
+  if (!ratio.isFinite || ratio <= 0) {
+    throw ArgumentError('Invalid export dimensions');
+  }
+  var width = 1200;
+  while (width > 1 &&
+      (width * (width * ratio).ceil() > 24000000 ||
+          (width * ratio).ceil() > 16000)) {
+    width--;
+  }
+  if ((width * ratio).ceil() > 16000 || width * ratio < 1) {
+    throw ArgumentError('Invalid export dimensions');
+  }
+  return width.toDouble();
+}
+
 /// 把所有页面竖向拼成一张 PNG。[pixelWidth] 是图片宽度（像素）。
 Future<Uint8List> renderInkPng(
   List<InkPage> pages, {
   double pixelWidth = 1200,
 }) async {
+  if (pages.isEmpty ||
+      !pixelWidth.isFinite ||
+      pixelWidth < 1 ||
+      pixelWidth > 2400 ||
+      pages.any(
+        (p) =>
+            !p.width.isFinite ||
+            !p.height.isFinite ||
+            p.width <= 0 ||
+            p.height <= 0,
+      )) {
+    throw ArgumentError('Invalid export dimensions');
+  }
   final heights = [for (final p in pages) pixelWidth * p.height / p.width];
   final totalHeight = heights.fold<double>(0, (a, b) => a + b);
+  if (!totalHeight.isFinite ||
+      totalHeight.round() < 1 ||
+      totalHeight.round() > 16000 ||
+      pixelWidth.round() * totalHeight.round() > 24000000) {
+    throw StateError('Export exceeds image memory limit');
+  }
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   var top = 0.0;
@@ -96,9 +147,19 @@ Future<Uint8List> renderInkPng(
     top += heights[i];
   }
   final picture = recorder.endRecording();
-  final image = await picture.toImage(pixelWidth.round(), totalHeight.round());
-  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-  image.dispose();
-  picture.dispose();
-  return bytes!.buffer.asUint8List();
+  try {
+    final image = await picture.toImage(
+      pixelWidth.round(),
+      totalHeight.round(),
+    );
+    try {
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) throw StateError('PNG encoding failed');
+      return bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+    } finally {
+      image.dispose();
+    }
+  } finally {
+    picture.dispose();
+  }
 }

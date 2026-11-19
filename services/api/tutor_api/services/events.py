@@ -33,7 +33,18 @@ def _validator() -> Draft202012Validator:
     return Draft202012Validator(schema, format_checker=FormatChecker())
 
 
-def last_seq(db: Session, session_id: str) -> int:
+def last_seq(db: Session, session_id: str, *, current_read=False) -> int:
+    if current_read:
+        return (
+            db.scalar(
+                select(TutorEventRow.seq_no)
+                .where(TutorEventRow.session_id == session_id)
+                .order_by(TutorEventRow.seq_no.desc())
+                .limit(1)
+                .with_for_update()
+            )
+            or 0
+        )
     return (
         db.scalar(
             select(func.max(TutorEventRow.seq_no)).where(TutorEventRow.session_id == session_id)
@@ -68,12 +79,13 @@ def append_event(
     model_id: str | None = None,
     prompt_version: str | None = None,
     trace_id: str | None = None,
+    references: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """追加一个事件并把会话推进到 state_after。返回可直接下发的事件。"""
     event = {
         "id": new_id(),
         "session_id": session.id,
-        "seq_no": last_seq(db, session.id) + 1,
+        "seq_no": last_seq(db, session.id, current_read=True) + 1,
         "type": event_type,
         "created_at": iso(now),
         "state_after": state_after,
@@ -91,6 +103,18 @@ def append_event(
             "request_id": request_id,
         },
     }
+    if references:
+        from tutor_api.services.content_references import resolve
+
+        try:
+            for reference in references:
+                resolve(
+                    {key: reference[key] for key in ("block_id", "block_sha256", "start", "end")},
+                    {reference["block_id"]: reference["block_text"]},
+                )
+        except (ValueError, TypeError, KeyError) as error:
+            raise EventSchemaError("invalid resolved reference snapshot") from error
+        event["references"] = json.loads(json.dumps(references))
     error = next(iter(_validator().iter_errors(event)), None)
     if error is not None:
         location = "/".join(str(part) for part in error.absolute_path) or "<root>"

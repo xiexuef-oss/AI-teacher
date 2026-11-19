@@ -54,9 +54,7 @@ def test_switching_region_does_not_rewrite_existing_sessions(onboarded):
     """docs/09 验收：切换地区后历史会话的归属不变。"""
     before = start(onboarded, "math-ineq-min")
 
-    onboarded.data(
-        "PUT", "/profile", json={"region_code": "CN-50", "grade": "G11", "subjects": ["math"]}
-    )
+    onboarded.save_profile(json={"region_code": "CN-50", "grade": "G11", "subjects": ["math"]})
     after = start(onboarded, "math-ineq-min")
 
     kept = onboarded.data("GET", f"/sessions/{before['id']}")

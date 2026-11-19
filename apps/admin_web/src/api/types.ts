@@ -2,6 +2,7 @@
 import type { components } from './schema'
 
 type S = components['schemas']
+export type AdminQuestionImport = S['AdminQuestionImport']
 
 export type QuestionStatus = S['QuestionStatus']
 export type ReviewDecisionType = S['ReviewDecisionType']

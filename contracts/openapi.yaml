@@ -15,6 +15,9 @@ info:
     - 删除或重命名字段是破坏性变更；新增字段默认可选，客户端忽略未知字段。
     - 原型期：服务端开启本地身份 Mock 时只接受回环地址的请求，其他来源的任何请求都在进入具体操作之前
       被拦截，返回 403 `loopback_only`（错误信封相同）。这是部署形态的限制，不逐个操作声明。
+    - 可配置通用HTTP资源门控（默认关闭）：除GET /health外，超窗口/并发额度或共享限流不可用返回429
+      `rate_limited`，请求体超字节上限返回413 `payload_too_large`，接收请求体超时返回408 `request_timeout`。
+      这些拒绝在业务动作之前，不写业务或幂等回执；重试仍复用原幂等键。通用限流不替代邀请码专项或模型预算。
 
     `x-implementation-status`：`implemented` 表示 ADR-006 本地纵向切片已实现；`planned` 表示只定了契约草案，
     服务端目前返回 501 `not_implemented`，形状在实现前仍可调整。
@@ -42,6 +45,200 @@ security:
   - bearerAuth: []
 
 paths:
+  /diagnostics:
+    get:
+      operationId: getDiagnosticWorkspace
+      tags: [tasks]
+      summary: 获取本人最近一轮三题摸底及恢复进度
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 本人当前工作区；无记录时run为null，revision为0。读取不创建记录。
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/DiagnosticWorkspace'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+    post:
+      operationId: createDiagnostic
+      tags: [tasks]
+      summary: 按本人资料创建一轮三题摸底
+      description: |
+        仅选择已发布、符合当前地区/年份及年级的非变式客观题；未知年级不推断。
+        不足三题返回422，不扩大地区范围或混入主观题。未完成轮次须明确结束后才能另开。
+        选题与资料快照固定；所有写操作必须提供工作区期望版本，成功后递增。
+        工程样题保留原标签，不代表经过学科审校或已验证教学有效性。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DiagnosticCreate'}
+      responses:
+        '201':
+          description: 创建成功；幂等重放返回原始工作区，不代表最新进度。
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/DiagnosticWorkspace'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /diagnostics/history:
+    get:
+      operationId: listDiagnosticHistory
+      tags: [tasks]
+      summary: 按开始时间倒序分页回看本人摸底轮次
+      description: 游标是上一页最后一轮的ID，仅用于定位本人不可变的开始时间和ID，不作为授权。其他学生和不存在的游标统一返回400。结束轮次不删除历史；列表不含答案、提示或笔迹。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {name: cursor, in: query, required: false, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 本人的历史页，包含进行中、完成及主动结束的轮次；无后续页时next_cursor为null。
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/DiagnosticHistoryPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /diagnostics/{diagnostic_id}:
+    get:
+      operationId: getDiagnostic
+      tags: [tasks]
+      summary: 回看本人固定轮次及首份提交的本轮计数
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {name: diagnostic_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 固定题目摘要及本人进度；不含答案、解析、提示或笔迹。
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/DiagnosticRun'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /diagnostics/{diagnostic_id}/items/{position}/session:
+    post:
+      operationId: openDiagnosticSession
+      tags: [tasks]
+      summary: 打开固定题目版本的作答会话，已打开时返回原会话
+      description: 仅当前未主动结束的轮次可打开，已完成轮次可回看原会话。未绑定题目若已换版或资料已变更，返回409，保留轮次与旧稿，须明确结束后另开；不自动换题。提交、草稿与提示复用普通练习流程。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+        - {name: diagnostic_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: position, in: path, required: true, schema: {type: integer, minimum: 1, maximum: 3}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DiagnosticRevision'}
+      responses:
+        '200':
+          description: 作答会话；新建绑定时工作区版本递增，已有绑定不递增。客户端随后刷新工作区。
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/StudySession'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /diagnostics/{diagnostic_id}/abandon:
+    post:
+      operationId: abandonDiagnostic
+      tags: [tasks]
+      summary: 明确结束本人当前轮次，保留题目、会话及所有草稿
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+        - {name: diagnostic_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DiagnosticRevision'}
+      responses:
+        '200':
+          description: 结束后的工作区；旧轮次仍可按ID回看，已提交结果不被删除。
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/DiagnosticWorkspace'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
   /health:
     get:
       operationId: getHealth
@@ -74,6 +271,9 @@ paths:
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 启动配置
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -103,6 +303,9 @@ paths:
           required: false
           schema: {$ref: '#/components/schemas/LocalRole'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '201':
           description: 已创建
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -117,6 +320,80 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '422': {$ref: '#/components/responses/Unprocessable'}
 
+  /profile/media-export:
+    get:
+      operationId: getStudentMediaExport
+      tags: [profile]
+      summary: 下载本人当前可访问学生用途媒体的ZIP档案
+      description: |
+        只根据学生token确定归属，不接受owner/student_id或筛选参数；家长和审核员403。
+        仅含本人仍有效的ocr_source/handwriting用途，排除审核附件、过期/删除对象、凭据和内部存储信息。
+        ZIP经JSON的archive_base64传输，含manifest.json和受控文件名；客户端校验大小/摘要后主动保存。
+        未上传/尚待确认对象只保留状态说明，不伪造文件；已声明可读却读取失败时整次失败。
+        不创建服务器导出文件，不清理/续期或修改记录。存储未启用或非local返回501，不以空档案替代范围不可用。
+        不是完整历史、完整个人备份或S3跨对象一致快照；不重建已过期/清理图片。
+        源扫描和档案字节超限整次413，存储故障或数据不一致503，不静默返回半份档案。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 本人当前学生用途媒体ZIP及其完整性元数据；Cache-Control为no-store
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/StudentMediaExport'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /profile/learning-export:
+    get:
+      operationId: getStudentLearningExport
+      tags: [profile]
+      summary: 导出当前学生的服务端学习记录
+      description: |
+        只根据token确定当前学生，不接受student_id或筛选参数。只读JSON，禁止缓存，不创建导出文件。
+        包含本人资料、全部已保存会话/作答/笔迹/自查/教学事件及复测历史，不绕过解析解锁门控。
+        包含本人现存家长访问授权及邀请记录，不含邀请码、哈希或家长身份资料。
+        重新授权会覆盖旧绑定时间，因此这些记录不是完整授权历史，也不是法定监护核验。
+        不含登录凭据、运维日志、未解锁的题库答案、本机未同步数据或媒体文件。
+        本地环境另含本人仍保存的拍题文字/状态及原图引用，不要求原图存活，不清理过期记录；不是完整拍题历史或图片备份。
+        这是学习记录导出，不是完整个人数据请求或可导入备份；并发修改时不承诺跨表原子快照。
+        超过服务端资源上限时整次返回413，不提供静默截断文件；家长及审核角色403。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+      responses:
+        '200':
+          description: 当前学生的学习记录；Cache-Control为no-store
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/StudentLearningExport'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
   /profile:
     get:
       operationId: getProfile
@@ -126,6 +403,9 @@ paths:
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 学生资料；尚未完成引导时 onboarding_completed 为 false
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -138,22 +418,30 @@ paths:
                   data: {$ref: '#/components/schemas/StudentProfile'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
     put:
       operationId: updateProfile
       tags: [profile]
       summary: 保存地区、年级、学科、考试年份与教材版本
       description: |
+        必须携带幂等键与 expected_revision；旧客户端缺键返回400、缺版本返回422。
+        成功回执优先重放；新请求版本不匹配返回409 profile_revision_conflict，details含
+        expected_revision、server_revision与本人server_profile，不覆盖任何一方。每次成功revision加一。
         整体替换可编辑字段。`exam_year` 省略或为 null 时：若此前由用户手动设置过则保留，否则按年级估算
         （学年以 9 月为起点）。教材版本可以为 null（暂不清楚）。切换地区不影响已产生的会话快照。
       x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/ProfileUpdate'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 保存后的资料
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -164,9 +452,378 @@ paths:
                 required: [data]
                 properties:
                   data: {$ref: '#/components/schemas/StudentProfile'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
         '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /learning/packs:
+    get:
+      operationId: listLearningPacks
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 分页列出本人已发布的纸包
+      parameters:
+        - {name: after, in: query, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 按纸包编号排序，每页最多五十条
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackHistory'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+    post:
+      operationId: createLearningPack
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 提交学习包准备任务
+      parameters:
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LearningPackRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/LearningJobResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/{job_id}/student-pdf:
+    get:
+      operationId: downloadLearningPackStudentPdf
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 下载本人已发布学习包的学生版
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 学生版 PDF 及校验摘要
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackPdf'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/{job_id}/abandon:
+    post:
+      operationId: abandonLearningPack
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 主动结束本人纸包的独立作答并开放解析
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200': {$ref: '#/components/responses/LearningJobResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/{job_id}/solution-pdf:
+    get:
+      operationId: downloadLearningPackSolutionPdf
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 下载本人已完成回收的解析版
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 解析版 PDF 及校验摘要
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackPdf'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/{job_id}/items:
+    get:
+      operationId: listLearningPackItems
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 列出本人已发布纸包的题目定位信息
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 按印刷顺序排列的题目
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackItems'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/{job_id}/page:
+    get:
+      operationId: resolveLearningPackPage
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 用二维码定位本人纸包中的印刷题目
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: token, in: query, required: true, schema: {type: string, pattern: '^[0-9a-f]{32}$'}}
+      responses:
+        '200':
+          description: 印刷题目定位结果
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackItem'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/{job_id}/items/{code}:
+    get:
+      operationId: resolveLearningPackItem
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 按包号和短码定位本人纸包中的已打印题目版本
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: code, in: path, required: true, schema: {type: string, pattern: '^[0-9]{3}$'}}
+      responses:
+        '200':
+          description: 短码定位结果
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackItem'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/{job_id}/items/{code}/returns:
+    get:
+      operationId: getLearningPackReturn
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 读取本人已确认的纸笔作答转写
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: code, in: path, required: true, schema: {type: string, pattern: '^[0-9]{3}$'}}
+      responses:
+        '200':
+          description: 纸笔作答转写
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackReturnRecord'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+    put:
+      operationId: correctLearningPackReturn
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 按版本校正本人已回收的转写
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: code, in: path, required: true, schema: {type: string, pattern: '^[0-9]{3}$'}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LearningPackCorrection'}
+      responses:
+        '200':
+          description: 校正后的转写和版本
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackReturnRecord'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+    post:
+      operationId: submitLearningPackReturn
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 保存本人确认过的纸笔作答转写
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: code, in: path, required: true, schema: {type: string, pattern: '^[0-9]{3}$'}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LearningPackReturnRequest'}
+      responses:
+        '201':
+          description: 已保存的回收记录定位信息
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackItem'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/review-schedule:
+    get:
+      operationId: getPaperReviewSchedule
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 查看本人的纸笔复测候选日期
+      responses:
+        '200':
+          description: 按候选到期日排序的纸笔复测知识点
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/PaperReviewSchedule'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/jobs/{job_id}:
+    get:
+      operationId: getLearningJob
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 查询本人学习任务
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {$ref: '#/components/responses/LearningJobResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/jobs/{job_id}/cancel:
+    post:
+      operationId: cancelLearningJob
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 取消本人尚未结束的学习任务
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '200': {$ref: '#/components/responses/LearningJobResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
 
   /tasks/today:
     get:
@@ -178,6 +835,9 @@ paths:
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 今日任务
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -211,12 +871,19 @@ paths:
         - name: source_category
           in: query
           schema: {$ref: '#/components/schemas/SourceCategory'}
+        - name: knowledge_id
+          in: query
+          description: 手动选择正在学的知识点；不是教材章节映射或掌握度判断。
+          schema: {type: string, format: uuid}
         - name: scope
           in: query
           schema: {$ref: '#/components/schemas/QuestionScope'}
         - {$ref: '#/components/parameters/Cursor'}
         - {$ref: '#/components/parameters/Limit'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 一页题目
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -232,6 +899,36 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/Unprocessable'}
 
+  /questions/topics:
+    get:
+      operationId: listQuestionTopics
+      tags: [questions]
+      summary: 当前可练题目的知识点与题量
+      description: 与题目列表共用已发布/地区/年份/题型筛选；不返回答案或推断教材进度。仅统计可发给当前学生的题。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {name: subject, in: query, schema: {$ref: '#/components/schemas/Subject'}}
+        - {name: answer_mode, in: query, schema: {$ref: '#/components/schemas/AnswerMode'}}
+        - {name: scope, in: query, schema: {$ref: '#/components/schemas/QuestionScope'}}
+      responses:
+        '200':
+          description: 可选择的知识点，按学科和知识点编码稳定排序
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/QuestionTopicPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
   /questions/{question_id}:
     get:
       operationId: getQuestion
@@ -243,6 +940,9 @@ paths:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/QuestionId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 题目
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -266,6 +966,9 @@ paths:
       description: |
         会话保存题目版本以及当时的地区、考试年份、教材版本快照。`origin=review` 必须带已到期的
         `review_item_id`；复测会话在提交前不提供提示与解析。
+        提供 expected_question_version 时，仅在当前可提供的已发布版本相同才创建，否则返回409
+        question_version_conflict（details含expected_question_version和current_question_version），不创建会话。
+        不提供则兼容使用当前版本；已成功请求同键重放仍返回原会话，不因后来题目更新重新检查版本。
       x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
@@ -276,6 +979,9 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/SessionCreate'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '201':
           description: 已创建
           headers:
@@ -305,6 +1011,9 @@ paths:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/SessionId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 会话
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -319,6 +1028,67 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /sessions/{session_id}/question:
+    get:
+      operationId: getSessionQuestion
+      tags: [sessions]
+      summary: 读取本人学习会话固定版本的题面
+      description: 按会话归属授权，只返回会话固定版本的公开题面，不含答案、解析、自查或未审核新版本。题目下线后返回404。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/SessionId'}
+      responses:
+        '200':
+          description: 固定版本题面
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Question'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /questions/{question_id}/drafts:
+    get:
+      operationId: listQuestionDrafts
+      tags: [attempts]
+      summary: 分页发现本人该题的未提交草稿与副本
+      description: 只列本人草稿引用，不含答案、笔迹、提示或其他账号内容。副本不新建学习会话，也不计入提交统计。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+        - {$ref: '#/components/parameters/Cursor'}
+        - {$ref: '#/components/parameters/Limit'}
+      responses:
+        '200':
+          description: 本人草稿引用
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/QuestionDraftPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
 
   /sessions/{session_id}/events:
     get:
@@ -337,6 +1107,9 @@ paths:
           in: query
           schema: {type: integer, minimum: 1, maximum: 200, default: 100}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 事件列表，按 seq_no 升序
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -357,7 +1130,7 @@ paths:
       operationId: createAttempt
       tags: [attempts]
       summary: 在会话中新建一次作答草稿
-      description: 同一会话同时只能有一份未提交的作答；已存在时返回 409 `attempt_in_progress`，details.attempt_id 为它的 ID。
+      description: 普通新建在会话已有未提交作答时返回409 `attempt_in_progress`，details.attempt_id 为最早创建的草稿。明确保留双方时使用createDraftCopy创建独立副本。
       x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
@@ -368,6 +1141,9 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/AttemptCreate'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '201':
           description: 已创建
           headers:
@@ -397,6 +1173,9 @@ paths:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/AttemptId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 作答
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -412,6 +1191,48 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '422': {$ref: '#/components/responses/Unprocessable'}
 
+  /attempts/{attempt_id}/copies:
+    post:
+      operationId: createDraftCopy
+      tags: [attempts]
+      summary: 明确保留本机快照为同会话独立草稿副本
+      description: |
+        本人未提交作答的source_revision须与当前云端草稿一致，否则409返回云端版本，双方均不覆盖。
+        新副本保留完整答案与笔迹，源草稿不变；不新建会话、不判题、不提交，不清除共享辅助与完整解析标记。
+        成功后同键重试返回同一副本，即使源后来提交或更新；同键不同快照409。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+        - {$ref: '#/components/parameters/AttemptId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DraftCopyCreate'}
+      responses:
+        '201':
+          description: 独立副本已保存；源草稿未修改
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/DraftCopy'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
   /attempts/{attempt_id}/draft:
     get:
       operationId: getDraft
@@ -422,6 +1243,9 @@ paths:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/AttemptId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 草稿
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -455,6 +1279,8 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/DraftSync'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 同步后的草稿
           headers:
@@ -489,6 +1315,9 @@ paths:
         与 `answer.parts` 都没有内容、也没有笔迹时同样返回 422；证明题的 `answer.steps` 没有一步有文字、
         也没有笔迹时同样返回 422。
         同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
+        可选 expected_draft_revision 绑定已确认同步的笔迹版本；在同一提交事务锁内不匹配则返回409
+        submission_draft_revision_conflict（details含expected_draft_revision、server_revision及本人server_draft），
+        不产生评估、教学事件或成功回执。已成功请求同键重放仍返回首次结果，不重新比较版本。
         只有会话里第一次提交、且此前没有看过提示、图解或解析的作答才算 `independent=true`。
       x-implementation-status: implemented
       parameters:
@@ -501,6 +1330,9 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/SubmitRequest'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 提交结果
           headers:
@@ -536,6 +1368,9 @@ paths:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/AttemptId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 自查要点与已保存的自评
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -569,6 +1404,9 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/SelfCheckSave'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 保存后的自查
           headers:
@@ -615,6 +1453,9 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/TutorAction'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 本步产生的事件与更新后的会话
           headers:
@@ -650,6 +1491,9 @@ paths:
         - {$ref: '#/components/parameters/Cursor'}
         - {$ref: '#/components/parameters/Limit'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 复测项，按到期时间升序
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -665,6 +1509,40 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/Unprocessable'}
 
+  /reviews/{review_id}/state:
+    get:
+      operationId: getReviewState
+      tags: [reviews]
+      summary: 读取本人复测项的当前紧凑状态
+      description: |
+        用于写命令恢复后的状态刷新；包含已掌握或题目已下线的本人复测项。
+        不返回题干、参考答案或作答内容；列表缺席不能代替此状态读取。
+        角色检查先于资源查询，跨账号与资源不存在统一404。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/ReviewId'}
+      responses:
+        '200':
+          description: 当前状态，不是某次完成命令成功的证明；响应不可缓存。
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ReviewState'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
   /reviews/{review_id}/complete:
     post:
       operationId: completeReview
@@ -672,8 +1550,13 @@ paths:
       summary: 用一次已判定的复测作答完成复测项
       description: |
         结果只取服务端对该作答的判定，不接受客户端自报。作答必须属于以该复测项开启的会话。
+        实际采用该会话 submission_no=1 的已提交作答；请求所指的作答可以是同会话的未提交副本。
         通过（独立且正确）进入下一档间隔，全部通过后 `mastered`；未通过回到第一档。
         作答尚未判定或为 `uncertain` 时返回 409 `attempt_not_verified`。
+        同一次实际首次提交只能完成该复测项一次，即使之后已完成其他轮次且再次到期，
+        使用新幂等键重复完成仍返回 409 `review_already_completed`；原成功幂等键仍重放原结果。
+        旧数据无法可靠确认完成历史时返回 409 `review_completion_history_unknown`，不推进阶段，
+        不伪造历史结果。业务409不是本次命令成功，客户端应保留原作答并明确展示状态。
       x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
@@ -685,6 +1568,9 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/ReviewComplete'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 复测结果与下次安排
           headers:
@@ -717,6 +1603,9 @@ paths:
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 学情摘要
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -730,21 +1619,115 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
 
+  /questions/{question_id}/media/{media_id}/content:
+    get:
+      operationId: getPublishedQuestionMedia
+      tags: [media]
+      summary: 学生读取已发布题目当前引用且独立审校确认的静态题面图片
+      description: |
+        学生图片读取仅student角色，题目须已发布且当前版本引用媒体，并有独立reviewed_by对相同版本/摘要/有效期的有效逐图声明。
+        草稿、未引用、删除、过期、旧版本、缺独立声明均404；家长403。不开放任意URL或学生上传。
+        审校声明要求reviewer/admin且独立于当前作者；qid/version/media/sha/actor/expiry绑定，不能替代另一审校人的记录。
+        图片加载完成与明确勾选只是审校声明，不是技术证明审校人完整看过。拒绝动画/多帧，不截首帧伪报成功。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+        - name: media_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 有界静态图片或有效审校声明
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaContent'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+  /admin/questions/{question_id}/media/{media_id}/review-confirmations:
+    post:
+      operationId: confirmQuestionMediaReview
+      tags: [media]
+      summary: 审核员声明已查看当前版本题面图片
+      description: |
+        学生图片读取仅student角色，题目须已发布且当前版本引用媒体，并有独立reviewed_by对相同版本/摘要/有效期的有效逐图声明。
+        草稿、未引用、删除、过期、旧版本、缺独立声明均404；家长403。不开放任意URL或学生上传。
+        审校声明要求reviewer/admin且独立于当前作者；qid/version/media/sha/actor/expiry绑定，不能替代另一审校人的记录。
+        图片加载完成与明确勾选只是审校声明，不是技术证明审校人完整看过。拒绝动画/多帧，不截首帧伪报成功。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/QuestionId'}
+        - name: media_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MediaReviewConfirmation'}
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 有界静态图片或有效审校声明
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaReviewDeclaration'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
   /media/uploads:
     post:
       operationId: createMediaUpload
       tags: [media]
-      summary: 获取短期上传 URL（planned）
-      x-implementation-status: planned
+      summary: 创建本地短期附件上传凭据
+      x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/IdempotencyKey'}
+      description: 仅local显式启用的审核附件；仅reviewer/admin，其他媒体用途暂501。凭据未确认前不可读取。
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/MediaUploadRequest'}
       responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '201':
           description: 上传凭据
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -755,17 +1738,635 @@ paths:
                 required: [data]
                 properties:
                   data: {$ref: '#/components/schemas/MediaUpload'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '413': {$ref: '#/components/responses/PayloadTooLarge'}
         '422': {$ref: '#/components/responses/Unprocessable'}
         '501': {$ref: '#/components/responses/NotImplemented'}
 
+  /media/{media_id}/content:
+    get:
+      operationId: getMediaContent
+      tags: [media]
+      summary: 上传者读取已确认附件
+      description: 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: media_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 本地受控媒体结果
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaContent'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+    put:
+      operationId: uploadMediaContent
+      tags: [media]
+      summary: 上传有界本地附件字节
+      description: 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: media_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MediaBlobUpload'}
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 本地受控媒体结果
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaAssetInfo'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+  /media/{media_id}/confirm:
+    post:
+      operationId: confirmMediaUpload
+      tags: [media]
+      summary: 确认本地附件大小摘要和格式
+      description: 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: media_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MediaConfirm'}
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 本地受控媒体结果
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaAssetInfo'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+  /media/{media_id}/delete:
+    post:
+      operationId: deleteMedia
+      tags: [media]
+      summary: 幂等删除本地附件
+      description: 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: media_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MediaDelete'}
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 本地受控媒体结果
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaDeleted'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+  /admin/questions/{question_id}/media/{media_id}/content:
+    get:
+      operationId: getQuestionMediaContent
+      tags: [media]
+      summary: 审核员读取当前题目实际引用的附件
+      description: 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - name: media_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {$ref: '#/components/parameters/QuestionId'}
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 本地受控媒体结果
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaContent'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+  /school-materials:
+    post:
+      operationId: submitSchoolMaterial
+      tags: [learning]
+      summary: 提交本人已上传的学校材料
+      description: 一份原件最多创建一个持久任务。通过学习任务接口查看状态；提交不创建共享题目，也不产生学习证据。
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SchoolMaterialSubmitRequest'}
+      responses:
+        '202':
+          description: 已接收，返回持久处理任务
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningJobStatus'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /school-materials/{job_id}/pages:
+    get:
+      operationId: listSchoolMaterialPages
+      tags: [learning]
+      summary: 查看本人学校材料的待核对页面
+      x-implementation-status: implemented
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: PDF 文本层或待识别页；不产生评分或学习证据
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SchoolMaterialPages'
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /school-materials/{job_id}/pages/{page_number}/correction:
+    put:
+      operationId: correctSchoolMaterialPage
+      tags: [learning]
+      summary: 保存本人学校材料的逐页转写校正
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: page_number, in: path, required: true, schema: {type: integer, minimum: 1}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SchoolMaterialPageCorrection'}
+      responses:
+        '200':
+          description: 已保存的校正版
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SchoolMaterialCorrectionReceipt'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /school-materials/{job_id}/candidates:
+    get:
+      operationId: listSchoolMaterialCandidates
+      tags: [learning]
+      summary: 查看本人学校材料的分题候选
+      description: 根据当前页文本给出边界建议和页行位置；候选仍待人工核对。
+      x-implementation-status: implemented
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 待核对分题候选
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SchoolMaterialCandidates'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /school-materials/{job_id}/confirmation:
+    put:
+      operationId: confirmSchoolMaterialCandidates
+      tags: [learning]
+      summary: 保存本人核对过的学校材料分题
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SchoolMaterialConfirmationRequest'}
+      responses:
+        '200':
+          description: 私域分题确认回执
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SchoolMaterialConfirmationReceipt'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /school-materials/{job_id}/pages/{page_number}/preview:
+    get:
+      operationId: getSchoolMaterialPagePreview
+      tags: [learning]
+      summary: 预览本人学校材料原件的一页
+      description: 仅返回本地隔离渲染的 PNG；不返回原文档或缓存链接。
+      x-implementation-status: implemented
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: page_number, in: path, required: true, schema: {type: integer, minimum: 1}}
+      responses:
+        '200':
+          description: 页面栅格预览
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaContent'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /school-materials/uploads:
+    post:
+      operationId: createSchoolMaterialUpload
+      tags: [learning]
+      summary: 预留本人学校材料临时上传凭据
+      description: 仅学生本人可用。用于脱敏的 PDF、JPEG 或 PNG，沿用本地临时媒体留存期限。预留不启动识别或评分。
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SchoolMaterialUploadRequest'}
+      responses:
+        '201':
+          description: 临时上传凭据
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaUpload'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /school-materials/uploads/{media_id}/content:
+    put:
+      operationId: uploadSchoolMaterialContent
+      tags: [learning]
+      summary: 上传本人学校材料原件
+      description: 对原件验证格式、大小、摘要及页数或像素。跨账号、过期或其他用途的凭据统一返回 404。上传不创建题库题目，也不产生学习证据。
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - {name: media_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MediaBlobUpload'}
+      responses:
+        '200':
+          description: 已验证的临时原件
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/SchoolMaterialSource'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /scans/uploads:
+    post:
+      operationId: createScanUpload
+      tags:
+      - media
+      summary: 学生专用本地临时拍题图片（Mock，不实际识别）
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      description: 仅local显式开启拍题Mock与本地媒体后可用；仅学生本人创建purpose=scan的临时图片凭据。图片沿用首次上传TTL，不转为长期审核附件；Mock不实际识别图片。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaUploadRequest'
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408':
+          $ref: '#/components/responses/RequestTimeout'
+        '429':
+          $ref: '#/components/responses/HttpRateLimited'
+        '201':
+          description: 上传凭据
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MediaUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /scans/uploads/{media_id}/content:
+    get:
+      operationId: getScanUploadContent
+      x-implementation-status: implemented
+      tags: [media]
+      summary: 预览本人仍有效的临时作答照片
+      parameters:
+        - {name: media_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: 本人已上传的临时照片
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/MediaContent'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '501': {$ref: '#/components/responses/NotImplemented'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    put:
+      operationId: uploadScanContent
+      tags:
+      - media
+      summary: 学生专用本地临时拍题图片（Mock，不实际识别）
+      description: 仅学生本人向拍题专用临时凭据上传静态图片；用途与审核附件隔离。校验图片格式、大小及摘要，不执行OCR、不确认长期附件、不延长原始TTL。凭据不存在、过期或越权统一404，上传失败重试复用幂等键；响应禁止缓存。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: media_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaBlobUpload'
+      responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '408':
+          $ref: '#/components/responses/RequestTimeout'
+        '429':
+          $ref: '#/components/responses/HttpRateLimited'
+        '200':
+          description: 本地受控媒体结果
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MediaAssetInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+
   /scans:
     post:
       operationId: createScan
       tags: [media]
-      summary: 对已上传的单题图片启动 OCR（planned）
-      x-implementation-status: planned
+      summary: 本地Mock：返回空候选，未实际识别图片
+      x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/IdempotencyKey'}
@@ -775,8 +2376,16 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/ScanCreate'}
       responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '202':
-          description: 已接受，异步识别
+          description: 已接受，等待学生手工输入并确认
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
           content:
             application/json:
@@ -794,11 +2403,18 @@ paths:
       operationId: getScan
       tags: [media]
       summary: OCR 状态与可编辑题干（planned）
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/ScanId'}
       responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 识别结果；置信度低时 low_confidence 为 true，必须由学生确认
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -819,7 +2435,7 @@ paths:
       tags: [media]
       summary: 学生确认题干后关联已有题或生成待审题草案（planned）
       description: 未经确认的 OCR 结果不得直接算作原题。
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/ScanId'}
@@ -830,6 +2446,12 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/ScanConfirm'}
       responses:
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 确认结果
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -852,15 +2474,27 @@ paths:
       tags: [parents]
       summary: 学生生成一次性的家长邀请码（学生明确授权的第一步）
       description: |
+        必填expected_parent_invite_revision，旧无body客户端422明确升级；成功key先重放。
+        新生成版本不符409 parent_invite_revision_conflict，不使当前邀请码失效。
         只有学生能调用。邀请码只在这个响应里出现一次，库里只存哈希；有效期见 `expires_at`（可配置，默认 24 小时），
         用过一次就作废。再生成一个，会让这个学生之前还没被使用的邀请码立刻失效。
+        幂等记录不保存邀请码明文；有效邀请可同键重放。到期、使用、撤销或本地进程密钥变化后返回
+        409 `invite_response_expired`，请使用新幂等键重新生成；固定配置密钥时重启仍可重放有效邀请。
         授权是学生自己做的、可以随时撤销（见 `revokeParentLink`）。这是原型阶段的授权方式：监护授权方案（Q-03）
         冻结之前，它不代表任何法定的监护人核验。
       x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ParentInviteCreate'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '201':
           description: 新的邀请码
           headers:
@@ -873,9 +2507,12 @@ paths:
                 required: [data]
                 properties:
                   data: {$ref: '#/components/schemas/ParentInvite'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
         '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
 
   /me/parent-links:
     get:
@@ -887,6 +2524,9 @@ paths:
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 授权列表
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -899,6 +2539,7 @@ paths:
                   data: {$ref: '#/components/schemas/ParentLinks'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
 
   /me/parent-links/{link_id}/revoke:
     post:
@@ -906,6 +2547,8 @@ paths:
       tags: [parents]
       summary: 学生撤销对一位家长的授权
       description: |
+        必填expected_authorization_revision；成功key先重放。版本不符409 authorization_revision_conflict，
+        details只含本人expected/server版本和server_link，不改变新授权。旧无body客户端422明确升级。
         撤销立刻生效：这位家长马上看不到这个学生，周报返回 404。只能撤销自己的授权；别人的、不存在的、
         已经撤销过的都返回 404。之后想再让这位家长看，要重新生成邀请码、重新授权。
       x-implementation-status: implemented
@@ -913,7 +2556,15 @@ paths:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/LinkId'}
         - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ParentLinkRevoke'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 撤销后的授权记录
           headers:
@@ -926,6 +2577,8 @@ paths:
                 required: [data]
                 properties:
                   data: {$ref: '#/components/schemas/ParentLink'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -940,6 +2593,8 @@ paths:
         只有家长能调用。邀请码不对、已过期、已经被用过、已经被新的邀请码顶替，一律返回 404 `invite_invalid`，
         不区分原因。已经绑定着这位学生时返回 409 `already_linked`（邀请码保持未使用）。
         输入时的空格、短横线和大小写会被忽略。这一步没有做防暴力尝试的限流（docs/05 §5），真实上线前要补。
+        兑换按认证家长与服务进程全局配置窗口限流，超过额度统一返回 429 `invite_rate_limited`，
+        不透露邀请码或绑定状态。成功请求的同键重放不消耗兑换额度；原型限流单进程，重启清空。
       x-implementation-status: implemented
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
@@ -950,6 +2605,8 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/ParentInviteRedeem'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
         '201':
           description: 已建立的绑定
           headers:
@@ -968,6 +2625,12 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/Unprocessable'}
+        '429':
+          description: 兑换尝试过于频繁（不透露邀请码或绑定状态）
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
 
   /parents/students:
     get:
@@ -979,6 +2642,9 @@ paths:
       parameters:
         - {$ref: '#/components/parameters/RequestId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 学生列表
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -1008,6 +2674,9 @@ paths:
         - {$ref: '#/components/parameters/StudentId'}
         - {$ref: '#/components/parameters/WeekStart'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 周报
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -1022,6 +2691,35 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /parents/students/{student_id}/weekly-snapshots/{week_start}:
+    get:
+      operationId: getParentWeeklySnapshot
+      x-implementation-status: implemented
+      tags: [parents]
+      summary: 查看已授权学生的周报快照
+      parameters:
+        - {$ref: '#/components/parameters/StudentId'}
+        - {name: week_start, in: path, required: true, schema: {type: string, format: date}}
+        - {name: revision, in: query, schema: {type: integer, minimum: 1}}
+      responses:
+        '200':
+          description: 指定版本的周报，未指定时返回最新版本
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ParentWeeklySnapshot'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
 
   /admin/questions:
     get:
@@ -1050,6 +2748,9 @@ paths:
         - {$ref: '#/components/parameters/Cursor'}
         - {$ref: '#/components/parameters/Limit'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 一页题目与各状态的数量
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -1078,6 +2779,9 @@ paths:
         - {$ref: '#/components/parameters/RequestId'}
         - {$ref: '#/components/parameters/QuestionId'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 题目全貌
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -1091,6 +2795,659 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /admin/import-options:
+    get:
+      operationId: getDocumentImportOptions
+      tags:
+      - admin
+      summary: 文档导入限额与可用能力
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 文档导入限额与可用能力
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportOptions'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /admin/import-jobs:
+    get:
+      operationId: listDocumentImportJobs
+      tags:
+      - admin
+      summary: 我的导入任务
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 256
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 我的导入任务
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportJobPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+    post:
+      operationId: createDocumentImportJob
+      tags:
+      - admin
+      summary: 创建多文件导入任务
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '201':
+          description: 创建多文件导入任务
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportJobSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          description: 创建窗口过期且无可重放成功回执（import_creation_window_expired），不会创建新任务。
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocImportJobCreate'
+  /admin/import-jobs/{job_id}:
+    get:
+      operationId: getDocumentImportJob
+      tags:
+      - admin
+      summary: 导入进度与候选题
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 导入进度与候选题
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportJobDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /admin/import-jobs/{job_id}/files:
+    post:
+      operationId: uploadDocumentImportFile
+      tags:
+      - admin
+      summary: 上传文件到导入任务
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '201':
+          description: 上传文件到导入任务
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportUploadResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocImportUpload'
+  /admin/import-jobs/{job_id}/files/{file_id}/content:
+    get:
+      operationId: getDocumentImportContent
+      tags:
+      - admin
+      summary: 读取临时原文件
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 读取临时原文件
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportContent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /admin/import-jobs/{job_id}/files/{file_id}/previews/{page}:
+    get:
+      operationId: getDocumentImportPreview
+      tags:
+      - admin
+      summary: 读取受控页面预览
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: media_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 99
+        description: DOCX 当前片段内嵌媒体的序号；没有图像的 DOCX 使用提取文本校对。
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 读取受控页面预览
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportContent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+  /admin/import-jobs/{job_id}/process:
+    post:
+      operationId: processDocumentImportJob
+      tags:
+      - admin
+      summary: 排队提取文件并建议切题
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 排队提取文件并建议切题
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportJobSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocImportRevision'
+  /admin/import-jobs/{job_id}/cancel:
+    post:
+      operationId: cancelDocumentImportJob
+      tags:
+      - admin
+      summary: 取消尚未完成的导入工作
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 取消尚未完成的导入工作
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportJobSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocImportRevision'
+  /admin/import-jobs/{job_id}/candidates:
+    post:
+      operationId: editDocumentImportCandidates
+      tags:
+      - admin
+      summary: 保存拆分合并与人工校对结果
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 保存拆分合并与人工校对结果
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportJobDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocImportCandidatesEdit'
+  /admin/import-jobs/{job_id}/submit:
+    post:
+      operationId: submitDocumentImportCandidates
+      tags:
+      - admin
+      summary: 批量创建已确认候选题的待审草稿
+      description: 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+      x-implementation-status: implemented
+      parameters:
+      - $ref: '#/components/parameters/RequestId'
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 批量创建已确认候选题的待审草稿
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Idempotency-Replayed:
+              $ref: '#/components/headers/IdempotencyReplayed'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DocImportBatchResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocImportSubmit'
+
+  /admin/question-imports:
+    post:
+      operationId: importQuestionDraft
+      tags: [admin]
+      summary: 导入结构化题目为待审草稿
+      description: |
+        接收单题 JSON（不含文件路径或脚本），创建第 1 版 draft。来源仅支持自编、教材授权、公开许可、已授权真题；
+        必须填写使用依据，来源声明仍需独立人工核验。不接收审核状态、提交者或地区适用标记。
+        提交者取自 token，不能自行二审或发布。草稿允许内容校验问题，发布门禁沿用现有审核规则。
+        同一动作重试复用幂等键；角色检查先于请求体校验。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminQuestionImport'}
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '201':
+          description: 新版本保存后的题目全貌
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/AdminQuestionDetail'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/Unprocessable'}
 
   /admin/questions/{question_id}/versions:
@@ -1121,6 +3478,9 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/AdminQuestionEdit'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '201':
           description: 新版本保存后的题目全貌
           headers:
@@ -1156,6 +3516,9 @@ paths:
         - {$ref: '#/components/parameters/QuestionId'}
         - {$ref: '#/components/parameters/VersionNo'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 这个版本的内容
           headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -1199,6 +3562,9 @@ paths:
           application/json:
             schema: {$ref: '#/components/schemas/ReviewDecision'}
       responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
         '200':
           description: 审核后的状态
           headers:
@@ -1215,6 +3581,48 @@ paths:
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /admin/question-reviews/batch:
+    post:
+      operationId: reviewQuestionBatch
+      tags: [admin]
+      summary: 逐题显式确认后的批量审核
+      description: |
+        仅 reviewer/admin。最多50题，题目ID不可重复，每题必须 confirmed=true。
+        每题复用单题版本、状态、独立二审和内容校验；失败仅回滚该题。
+        有界批次和幂等回执在同一事务提交；进程/数据库异常整批回滚，复用原键重试。
+        成功响应同键重放；失败子集再次审核是新动作，使用新稳定幂等键。
+        不提供自动二审后发布；每题发布必须由审核员另行明确确认。
+      x-implementation-status: implemented
+      parameters:
+        - {$ref: '#/components/parameters/RequestId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReviewBatch'}
+      responses:
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+        '200':
+          description: 逐题成功或失败，失败不撤销其他成功项
+          headers:
+            X-Request-Id: {$ref: '#/components/headers/RequestId'}
+            Idempotency-Replayed: {$ref: '#/components/headers/IdempotencyReplayed'}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/ReviewBatchResult'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
         '422': {$ref: '#/components/responses/Unprocessable'}
 
@@ -1308,6 +3716,32 @@ components:
       schema: {type: string, enum: ['true']}
 
   responses:
+    LearningJobResponse:
+      description: 学习任务公开状态
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data: {$ref: '#/components/schemas/LearningJobStatus'}
+    RequestTimeout:
+      description: 已启用的通用请求体接收期限已到，业务动作尚未执行。
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    HttpRateLimited:
+      description: 通用窗口/并发额度不足，或限流依赖不可用；不透露账号、IP或资源存在性。
+      headers:
+        X-Request-Id: {$ref: '#/components/headers/RequestId'}
+        Retry-After:
+          description: 建议稍后重试的秒数，不代表剩余额度。
+          schema: {type: integer, minimum: 1}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
     BadRequest:
       description: 参数错误（如缺少 Idempotency-Key、游标无效）
       headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -1383,7 +3817,8 @@ components:
             forbidden、loopback_only、not_found、draft_revision_conflict、attempt_already_submitted、
             attempt_in_progress、independent_attempt_in_progress、hints_disabled_in_retest、invalid_state、
             review_not_due、attempt_not_verified、payload_too_large、validation_error、not_implemented、
-            model_unavailable；内容审核另有 self_review_forbidden、version_conflict、invalid_transition、
+            model_unavailable、storage_unavailable（存储不可用，保持原幂等键重试）、
+            storage_conflict（条件写冲突，未覆盖已有对象）；内容审核另有 self_review_forbidden、version_conflict、invalid_transition、
             comment_required、content_checks_failed、solution_not_confirmed；修改题目另有 no_changes。
         message: {type: string}
         details: {$ref: '#/components/schemas/ErrorDetails'}
@@ -1392,6 +3827,104 @@ components:
       type: object
       description: 与错误码相关的结构化信息；没有时为空对象。
       additionalProperties: true
+
+    DiagnosticRevision:
+      type: object
+      additionalProperties: false
+      required: [expected_revision]
+      properties:
+        expected_revision: {type: integer, minimum: 0}
+    DiagnosticCreate:
+      type: object
+      additionalProperties: false
+      required: [subject, expected_revision, expected_profile_revision]
+      properties:
+        subject: {$ref: '#/components/schemas/Subject'}
+        expected_revision: {type: integer, minimum: 0}
+        expected_profile_revision: {type: integer, minimum: 0}
+    DiagnosticScope:
+      type: object
+      additionalProperties: false
+      required: [profile_revision, region_code, grade, exam_year, curriculum_version]
+      properties:
+        profile_revision: {type: integer, minimum: 0}
+        region_code: {$ref: '#/components/schemas/RegionCode'}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        exam_year: {type: [integer, 'null']}
+        curriculum_version: {type: [string, 'null']}
+    DiagnosticSubmission:
+      type: object
+      additionalProperties: false
+      required: [attempt_id, independent, evaluation_state, is_correct]
+      properties:
+        attempt_id: {type: string, format: uuid}
+        independent: {type: boolean}
+        evaluation_state: {$ref: '#/components/schemas/EvaluationState'}
+        is_correct: {type: [boolean, 'null']}
+    DiagnosticItem:
+      type: object
+      additionalProperties: false
+      required: [position, question, question_version, session_id, submission]
+      properties:
+        position: {type: integer, minimum: 1, maximum: 3}
+        question: {$ref: '#/components/schemas/QuestionSummary'}
+        question_version: {type: integer, minimum: 1}
+        session_id: {type: [string, 'null'], format: uuid}
+        submission:
+          oneOf:
+            - {$ref: '#/components/schemas/DiagnosticSubmission'}
+            - {type: 'null'}
+    DiagnosticSummary:
+      type: object
+      additionalProperties: false
+      description: 仅关联会话首份提交的本轮计数；uncertain/pending不算对错。独立正确、独立不正确、借助提示和未确认四类互斥，总和等于submitted。不推算掌握度、分数或正确率。
+      required: [submitted, independent_correct, independent_incorrect, assisted, unconfirmed]
+      properties:
+        submitted: {type: integer, minimum: 0, maximum: 3}
+        independent_correct: {type: integer, minimum: 0, maximum: 3}
+        independent_incorrect: {type: integer, minimum: 0, maximum: 3}
+        assisted: {type: integer, minimum: 0, maximum: 3}
+        unconfirmed: {type: integer, minimum: 0, maximum: 3}
+    DiagnosticRun:
+      type: object
+      additionalProperties: false
+      required: [id, subject, scope, status, items, summary, created_at, abandoned_at]
+      properties:
+        id: {type: string, format: uuid}
+        subject: {$ref: '#/components/schemas/Subject'}
+        scope: {$ref: '#/components/schemas/DiagnosticScope'}
+        status: {type: string, enum: [active, completed, abandoned]}
+        items:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: {$ref: '#/components/schemas/DiagnosticItem'}
+        summary: {$ref: '#/components/schemas/DiagnosticSummary'}
+        created_at: {type: string, format: date-time}
+        abandoned_at: {type: [string, 'null'], format: date-time}
+    DiagnosticHistoryPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: {$ref: '#/components/schemas/DiagnosticRun'}
+        next_cursor: {type: [string, 'null'], format: uuid}
+    DiagnosticWorkspace:
+      type: object
+      additionalProperties: false
+      required: [revision, run]
+      properties:
+        revision: {type: integer, minimum: 0}
+        run:
+          oneOf:
+            - {$ref: '#/components/schemas/DiagnosticRun'}
+            - {type: 'null'}
 
     RegionCode:
       type: string
@@ -1560,6 +4093,145 @@ components:
         role: {$ref: '#/components/schemas/LocalRole'}
         access_token: {type: string, minLength: 32}
         token_type: {type: string, enum: [Bearer]}
+    LearningPackPdf:
+      type: object
+      additionalProperties: false
+      required: [revision, sha256, content_base64]
+      properties:
+        revision: {type: integer, minimum: 1}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        content_base64: {type: string, contentEncoding: base64}
+
+    PaperReviewSchedule:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/PaperReviewScheduleItem'}
+
+    PaperReviewScheduleItem:
+      type: object
+      additionalProperties: false
+      required: [knowledge_id, title, stage, due_on, estimated_anchor]
+      properties:
+        knowledge_id: {type: string, format: uuid}
+        title: {type: string}
+        stage: {type: integer, minimum: 0, maximum: 3}
+        due_on: {type: string, format: date}
+        estimated_anchor: {type: boolean}
+
+    LearningPackHistory:
+      type: object
+      additionalProperties: false
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          maxItems: 50
+          items: {type: string, format: uuid}
+        next_cursor: {type: string, format: uuid}
+
+    LearningPackItems:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/LearningPackItem'}
+
+    LearningPackItem:
+      type: object
+      additionalProperties: false
+      required: [revision, code, question_version_id]
+      properties:
+        revision: {type: integer, minimum: 1}
+        code: {type: string, pattern: '^[0-9]{3}$'}
+        question_version_id: {type: string, format: uuid}
+
+    LearningPackReturnRecord:
+      type: object
+      additionalProperties: false
+      required: [item, transcript, confirmed_at]
+      properties:
+        transcript_revision: {type: integer, minimum: 0}
+        item: {$ref: '#/components/schemas/LearningPackItem'}
+        transcript: {type: string, minLength: 1, maxLength: 8000}
+        confirmed_at: {type: string, format: date-time}
+
+    LearningPackCorrection:
+      type: object
+      additionalProperties: false
+      required: [expected_revision, transcript]
+      properties:
+        expected_revision: {type: integer, minimum: 0}
+        transcript: {type: string, minLength: 1, maxLength: 8000, pattern: '\S'}
+
+    LearningPackReturnRequest:
+      type: object
+      additionalProperties: false
+      required: [transcript]
+      properties:
+        transcript: {type: string, minLength: 1, maxLength: 8000, pattern: '\S'}
+        completed_on: {type: string, format: date}
+        independence: {type: string, enum: [independent, assisted, unknown]}
+        photo_ids:
+          description: 已上传的本人临时图片，顺序为纸笔作答页顺序。
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items: {type: string, format: uuid}
+
+    LearningPackRequest:
+      type: object
+      additionalProperties: false
+      required: [school_minutes]
+      properties:
+        school_minutes: {type: integer, minimum: 0, maximum: 10080}
+
+    LearningJobStatus:
+      type: object
+      additionalProperties: false
+      required: [id, status, attempts]
+      properties:
+        id: {type: string, format: uuid}
+        status: {type: string, enum: [queued, running, retry_wait, succeeded, failed, cancelled]}
+        attempts: {type: integer, minimum: 0, maximum: 3}
+        pack_result: {type: string, enum: [published, awaiting_return, insufficient_budget, no_printable_item]}
+        reviews:
+          type: array
+          items: {$ref: '#/components/schemas/PaperReviewPlanItem'}
+
+    PaperReviewPlanItem:
+      type: object
+      additionalProperties: false
+      required: [knowledge_id, title, original_due_on]
+      properties:
+        knowledge_id: {type: string, format: uuid}
+        title: {type: string}
+        original_due_on: {type: string, format: date}
+        suggested_on: {type: [string, 'null'], format: date}
+        deferred_reason:
+          type: [string, 'null']
+          enum: [no_learning_day, insufficient_budget, awaiting_return, no_printable_item, overdue_budget_cap, null]
+
+    LearningSettings:
+      type: object
+      additionalProperties: false
+      required: [mode, weekly_minutes, weekdays]
+      properties:
+        mode: {type: string, enum: [boarding, weekend, digital]}
+        weekly_minutes: {type: integer, minimum: 0, maximum: 10080}
+        weekdays:
+          description: ISO 星期编号，星期一为 1。
+          type: array
+          uniqueItems: true
+          items: {type: integer, minimum: 1, maximum: 7}
+        school_progress: {type: string, maxLength: 500}
+        exam_scope: {type: string, maxLength: 500}
+
     StudentProfile:
       type: object
       additionalProperties: false
@@ -1577,6 +4249,11 @@ components:
         - notices
         - updated_at
       properties:
+        revision: {type: integer, minimum: 0, description: 单调递增的资料版本；新服务始终返回。旧缓存或旧响应缺失时表示未知，不能当作0。}
+        learning_settings:
+          oneOf:
+            - {$ref: '#/components/schemas/LearningSettings'}
+            - {type: 'null'}
         user_id: {type: string, format: uuid}
         display_name: {type: [string, 'null'], maxLength: 40}
         region_code:
@@ -1614,8 +4291,14 @@ components:
     ProfileUpdate:
       type: object
       additionalProperties: false
-      required: [region_code, subjects]
+      required: [expected_revision, region_code, subjects]
       properties:
+        learning_settings:
+          description: 省略或 null 保留现有学习设置。
+          oneOf:
+            - {$ref: '#/components/schemas/LearningSettings'}
+            - {type: 'null'}
+        expected_revision: {type: integer, minimum: 0, description: 发起编辑时读取的资料版本，必填。}
         region_code: {$ref: '#/components/schemas/RegionCode'}
         subjects:
           type: array
@@ -1638,9 +4321,28 @@ components:
       required: [date, items]
       properties:
         date: {type: string, format: date, description: 服务端 UTC 日期。}
+        cold_start: {type: boolean, default: false, description: 尚未提交过作答或主动查看过解析；不代表能力档案或掌握度。旧响应可省略。}
         items:
           type: array
           items: {$ref: '#/components/schemas/StudyTask'}
+    QuestionTopic:
+      type: object
+      additionalProperties: false
+      required: [id, code, title, subject, question_count]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string}
+        title: {type: string}
+        subject: {$ref: '#/components/schemas/Subject'}
+        question_count: {type: integer, minimum: 1}
+    QuestionTopicPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/QuestionTopic'}
     StudyTask:
       type: object
       additionalProperties: false
@@ -1669,6 +4371,34 @@ components:
         exam_year_from: {type: [integer, 'null']}
         exam_year_to: {type: [integer, 'null']}
         disclaimer: {type: string}
+    QuestionOriginLocation:
+      type: object
+      additionalProperties: false
+      description: 导入时校验归属及页序后的来源位置声明；不含原文、预览或文件访问凭据，不承诺精确文本对应。
+      required: [file_sha256, file_kind, locator_kind, index, declared_block]
+      properties:
+        file_sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        file_kind: {$ref: '#/components/schemas/DocImportFileKind'}
+        locator_kind: {type: string, enum: [pdf_page, word_fragment, image_page, json_fragment, unknown]}
+        index: {type: integer, minimum: 1}
+        declared_block:
+          type: [integer, 'null']
+          minimum: 1
+          description: 原候选的块序声明，尚未经精确区间验证。
+    QuestionProvenance:
+      type: object
+      additionalProperties: false
+      description: 此题目版本的导入来源快照。原文件仍按临时任务期限管理，本记录仅有元数据；来源声明不等于版权审校或精确引文。
+      required: [source_snapshot, origins, relation, parent_version, access]
+      properties:
+        source_snapshot: {$ref: '#/components/schemas/QuestionSource'}
+        origins:
+          type: array
+          maxItems: 2000
+          items: {$ref: '#/components/schemas/QuestionOriginLocation'}
+        relation: {type: string, enum: [declared, derived_unverified]}
+        parent_version: {type: [integer, 'null'], minimum: 1}
+        access: {type: string, enum: [metadata_only]}
     QuestionSource:
       type: object
       additionalProperties: false
@@ -1896,6 +4626,11 @@ components:
         - assists
         - judging_note
       properties:
+        provenance:
+          description: 当前响应所指固定题目版本的来源快照；旧数据或无可靠导入记录为null，不从当前题目或相似文字推造旧来源。
+          oneOf:
+            - {$ref: '#/components/schemas/QuestionProvenance'}
+            - {type: 'null'}
         id: {type: string, format: uuid}
         subject: {$ref: '#/components/schemas/Subject'}
         type: {$ref: '#/components/schemas/QuestionType'}
@@ -1933,6 +4668,10 @@ components:
       required: [question_id, origin]
       properties:
         question_id: {type: string, format: uuid}
+        expected_question_version:
+          type: integer
+          minimum: 1
+          description: 本机草稿依据的题面版本；不接受null。不匹配当前可提供的已发布版本时409，不自动关联新版。
         origin: {$ref: '#/components/schemas/SessionOrigin'}
         review_item_id: {type: [string, 'null'], format: uuid, description: origin=review 时必填。}
         parent_session_id: {type: [string, 'null'], format: uuid, description: origin=variant 时指向母题会话。}
@@ -1980,7 +4719,11 @@ components:
         hint_levels_total: {type: integer, minimum: 0}
         confused_streak: {type: integer, minimum: 0}
         needs_human_help: {type: boolean}
-        active_attempt_id: {type: [string, 'null'], format: uuid, description: 未提交的作答草稿。}
+        active_attempt_id: {type: [string, 'null'], format: uuid, description: 最早创建的未提交草稿；客户端恢复时优先显式attempt_id或本机记录，不用此默认值覆盖另一副本。}
+        first_submitted_attempt_id:
+          type: [string, 'null']
+          format: uuid
+          description: 实际已提交且submission_no=1的作答ID；没有提交时null。可用于明确观察其他设备的首次提交，不能作为某个本机submit intent已成功的证明。旧回执可省略本字段，不能按attempt_no或active_attempt_id猜测。
         submitted_attempts: {type: integer, minimum: 0}
         last_event_seq: {type: integer, minimum: 0}
         created_at: {type: string, format: date-time}
@@ -2130,6 +4873,10 @@ components:
       properties:
         answer: {$ref: '#/components/schemas/AnswerPayload'}
         elapsed_ms: {type: [integer, 'null'], minimum: 0}
+        expected_draft_revision:
+          type: integer
+          minimum: 0
+          description: 提交所依据的已同步草稿版本，非null严格整数；缺省兼容旧客户端。防止冻结答案与后来变动的笔迹混合。
     FeedbackItem:
       type: object
       additionalProperties: false
@@ -2175,7 +4922,10 @@ components:
       properties:
         id: {type: string, format: uuid}
         session_id: {type: string, format: uuid}
-        attempt_no: {type: integer, minimum: 1}
+        attempt_no: {type: integer, minimum: 1, description: 同会话作答的创建顺序；不代表实际提交顺序。}
+        submission_no: {type: [integer, 'null'], minimum: 1, description: 同会话实际提交顺序；草稿为null。可选以兼容历史幂等回执。}
+        copied_from_attempt_id: {type: [string, 'null'], format: uuid, description: 明确创建副本时的源作答；普通作答为null。}
+        copied_from_revision: {type: [integer, 'null'], minimum: 0, description: 创建副本时校验的源草稿revision。}
         status: {$ref: '#/components/schemas/AttemptStatus'}
         answer:
           oneOf:
@@ -2192,6 +4942,53 @@ components:
         submitted_at: {type: [string, 'null'], format: date-time}
         created_at: {type: string, format: date-time}
         updated_at: {type: string, format: date-time}
+    DraftCopyCreate:
+      type: object
+      additionalProperties: false
+      required: [source_revision, answer, strokes]
+      properties:
+        source_revision: {type: integer, minimum: 0}
+        answer:
+          oneOf:
+            - {$ref: '#/components/schemas/AnswerPayload'}
+            - {type: 'null'}
+        strokes:
+          oneOf:
+            - {$ref: '#/components/schemas/StrokeDoc'}
+            - {type: 'null'}
+    DraftCopy:
+      type: object
+      additionalProperties: false
+      required: [session, attempt, draft]
+      properties:
+        session: {$ref: '#/components/schemas/StudySession'}
+        attempt: {$ref: '#/components/schemas/Attempt'}
+        draft: {$ref: '#/components/schemas/Draft'}
+    QuestionDraftRef:
+      type: object
+      additionalProperties: false
+      required: [session_id, attempt_id, question_version, attempt_no, draft_revision, copied_from_attempt_id, copied_from_revision, origin, review_item_id, session_state, updated_at]
+      properties:
+        session_id: {type: string, format: uuid}
+        attempt_id: {type: string, format: uuid}
+        question_version: {type: integer, minimum: 1}
+        attempt_no: {type: integer, minimum: 1}
+        draft_revision: {type: integer, minimum: 0}
+        copied_from_attempt_id: {type: [string, 'null'], format: uuid}
+        copied_from_revision: {type: [integer, 'null'], minimum: 0}
+        origin: {$ref: '#/components/schemas/SessionOrigin'}
+        review_item_id: {type: [string, 'null'], format: uuid}
+        session_state: {$ref: '#/components/schemas/SessionState'}
+        updated_at: {type: string, format: date-time}
+    QuestionDraftPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/QuestionDraftRef'}
+        next_cursor: {type: [string, 'null']}
     SubmitResult:
       type: object
       additionalProperties: false
@@ -2323,6 +5120,46 @@ components:
         events:
           type: array
           items: {$ref: '#/components/schemas/TutorEvent'}
+    ContentSpanRef:
+      type: object
+      additionalProperties: false
+      description: 固定题版本白名单文本块的范围；Unicode codepoint左闭右开。摘要为完整原文UTF-8 SHA-256，不做归一化。服务端必须另验start < end及实际长度、权限和审核范围。
+      required: [block_id, block_sha256, start, end]
+      properties:
+        block_id:
+          type: string
+          maxLength: 64
+          pattern: '^(stem|subquestion:[1-9][0-9]{0,2}:stem|option:[1-9][0-9]{0,2}|subquestion:[1-9][0-9]{0,2}:option:[1-9][0-9]{0,2}|proof:given:[1-9][0-9]{0,2}|proof:claim|hint:[1-9][0-9]{0,2}|rephrase|solution:(standard|fast):(step:[1-9][0-9]{0,2}|final_answer|condition:[1-9][0-9]{0,2}|boundary|key_point:[1-9][0-9]{0,2})|visual:(caption|static_fallback)|rubric:point:[1-9][0-9]{0,2}|reference_cell:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}|reference_step:[1-9][0-9]{0,2}:(text|reason))$'
+        block_sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        start: {type: integer, minimum: 0, maximum: 3999}
+        end: {type: integer, minimum: 1, maximum: 4000}
+    ResolvedContentSpan:
+      type: object
+      additionalProperties: false
+      description: 服务端在事件meta固定question_id/question_version下授权解析的快照。索引均为版本内原序1-based ordinal；不包含任意URL或原始文件定位。
+      required: [block_id, block_sha256, start, end, block_text, label]
+      properties:
+        block_id:
+          type: string
+          maxLength: 64
+          pattern: '^(stem|subquestion:[1-9][0-9]{0,2}:stem|option:[1-9][0-9]{0,2}|subquestion:[1-9][0-9]{0,2}:option:[1-9][0-9]{0,2}|proof:given:[1-9][0-9]{0,2}|proof:claim|hint:[1-9][0-9]{0,2}|rephrase|solution:(standard|fast):(step:[1-9][0-9]{0,2}|final_answer|condition:[1-9][0-9]{0,2}|boundary|key_point:[1-9][0-9]{0,2})|visual:(caption|static_fallback)|rubric:point:[1-9][0-9]{0,2}|reference_cell:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}|reference_step:[1-9][0-9]{0,2}:(text|reason))$'
+        block_sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        start: {type: integer, minimum: 0, maximum: 3999}
+        end: {type: integer, minimum: 1, maximum: 4000}
+        block_text: {type: string, minLength: 1, maxLength: 4000}
+        label: {type: string, minLength: 1, maxLength: 120}
+    TeachingReferenceLink:
+      type: object
+      additionalProperties: false
+      required: [target_block_id, source_span, independent_safe]
+      description: 随题版本独立审校的教学引用注记。independent_safe仅为声明，不能绕过内容可见性、整块防泄题和完整解析门控；编辑使摘要失效时必须清除或重审。
+      properties:
+        target_block_id:
+          type: string
+          maxLength: 64
+          pattern: '^(hint:[1-9][0-9]{0,2}|rephrase|solution:(standard|fast):step:[1-9][0-9]{0,2}|visual:caption)$'
+        source_span: {$ref: '#/components/schemas/ContentSpanRef'}
+        independent_safe: {type: boolean}
     TutorEvent:
       type: object
       additionalProperties: false
@@ -2338,6 +5175,11 @@ components:
         state_after: {$ref: '#/components/schemas/SessionState'}
         payload: {$ref: '#/components/schemas/TutorEventPayload'}
         meta: {$ref: '#/components/schemas/TutorEventMeta'}
+        references:
+          type: array
+          maxItems: 8
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/ResolvedContentSpan'}
     TutorEventPayload:
       type: object
       description: 见 tutor_event.schema.json 的 $defs/*Payload。
@@ -2387,6 +5229,245 @@ components:
             - {$ref: '#/components/schemas/ReviewResult'}
             - {type: 'null'}
         created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    ExportSelfCheck:
+      type: object
+      additionalProperties: false
+      required: [attempt_id, marks, saved_at]
+      properties:
+        attempt_id: {type: string, format: uuid}
+        marks:
+          type: array
+          items: {$ref: '#/components/schemas/SelfCheckMark'}
+        saved_at: {type: string, format: date-time}
+    ExportReviewHistory:
+      type: object
+      additionalProperties: false
+      required: [review_id, first_attempt_id, question_id, state, result, completed_at]
+      properties:
+        review_id: {type: string, format: uuid}
+        first_attempt_id: {type: string, format: uuid}
+        question_id: {type: string, format: uuid}
+        state: {type: string}
+        result: {type: [string, 'null']}
+        completed_at: {type: [string, 'null'], format: date-time}
+    ExportLearningSession:
+      type: object
+      additionalProperties: false
+      required: [session, attempts, drafts, self_checks, events]
+      properties:
+        session: {$ref: '#/components/schemas/StudySession'}
+        attempts:
+          type: array
+          items: {$ref: '#/components/schemas/Attempt'}
+        drafts:
+          type: array
+          items: {$ref: '#/components/schemas/Draft'}
+        self_checks:
+          type: array
+          items: {$ref: '#/components/schemas/ExportSelfCheck'}
+        events:
+          type: array
+          items: {$ref: '#/components/schemas/TutorEvent'}
+    ExportParentAccessLink:
+      type: object
+      additionalProperties: false
+      required: [id, authorization_revision, consent_at, revoked_at, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        authorization_revision: {type: integer, minimum: 1}
+        consent_at: {type: string, format: date-time}
+        revoked_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+    ExportParentAccessInvite:
+      type: object
+      additionalProperties: false
+      required: [id, expires_at, redeemed_at, revoked_at, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        expires_at: {type: string, format: date-time}
+        redeemed_at: {type: [string, 'null'], format: date-time}
+        revoked_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+    ExportParentAccessRecords:
+      description: 本人现存的家长访问授权和邀请元数据；不含家长身份、邀请码或哈希。绑定重新授权覆盖旧时间，不能推定完整历史或法定监护关系；导出不恢复、不撤销授权。
+      type: object
+      additionalProperties: false
+      required: [history_complete, links, invites]
+      properties:
+        history_complete: {type: boolean, enum: [false]}
+        links:
+          type: array
+          items: {$ref: '#/components/schemas/ExportParentAccessLink'}
+        invites:
+          type: array
+          items: {$ref: '#/components/schemas/ExportParentAccessInvite'}
+    ExportStoredScan:
+      description: 本人现存拍题文字快照；状态保留保存值，expires_at是原有效期。media_id只是原图引用，不保证图片存在或可读，不包含原图字节、存储路径或内部payload字段。
+      type: object
+      additionalProperties: false
+      required: [media_id, expires_at, scan]
+      properties:
+        media_id: {type: string, format: uuid}
+        expires_at: {type: string, format: date-time}
+        scan: {$ref: '#/components/schemas/Scan'}
+    StudentMediaExport:
+      description: 当前可访问学生用途媒体档案；内含状态清单，明确排除过期/删除、审核用途及已清理历史。false标记不能改为完整历史或全局快照承诺。
+      type: object
+      additionalProperties: false
+      required: [format_version, scope, owner_id, exported_at, history_complete, consistent_snapshot, objects_count, files_count, size_bytes, sha256, archive_base64]
+      properties:
+        format_version: {type: integer, enum: [1]}
+        scope: {type: string, enum: [server_current_student_media]}
+        owner_id: {type: string, format: uuid}
+        exported_at: {type: string, format: date-time}
+        history_complete: {type: boolean, enum: [false]}
+        consistent_snapshot: {type: boolean, enum: [false]}
+        objects_count: {type: integer, minimum: 0, maximum: 1000}
+        files_count: {type: integer, minimum: 0, maximum: 1000}
+        size_bytes: {type: integer, minimum: 1, maximum: 16777216}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        archive_base64:
+          description: ZIP的base64；其中manifest.json必须符合StudentMediaArchiveManifest，文件名只用受控UUID。
+          type: string
+          maxLength: 22369624
+          contentEncoding: base64
+
+    StudentMediaArchiveObject:
+      type: object
+      additionalProperties: false
+      required: [media_id, purpose, mime, size_bytes, sha256, expires_at, state, file_name, availability]
+      properties:
+        media_id: {type: string, format: uuid}
+        purpose: {type: string, enum: [ocr_source, handwriting]}
+        mime: {type: [string, 'null'], maxLength: 256}
+        size_bytes: {type: integer, minimum: 1, maximum: 16777216}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        expires_at: {type: string, format: date-time}
+        state: {type: string, enum: [reserved, pending, ready]}
+        file_name:
+          type: [string, 'null']
+          maxLength: 47
+          pattern: '^media/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp|bin)$'
+        availability: {type: string, enum: [not_uploaded, awaiting_confirmation, included]}
+
+    StudentMediaArchiveManifest:
+      description: ZIP内自包含范围清单，不是完整历史或跨对象快照；未上传/待确认只列状态。
+      type: object
+      additionalProperties: false
+      required: [format_version, scope, owner_id, exported_at, history_complete, consistent_snapshot, objects_count, files_count, objects, excluded]
+      properties:
+        format_version: {type: integer, enum: [1]}
+        scope: {type: string, enum: [server_current_student_media]}
+        owner_id: {type: string, format: uuid}
+        exported_at: {type: string, format: date-time}
+        history_complete: {type: boolean, enum: [false]}
+        consistent_snapshot: {type: boolean, enum: [false]}
+        objects_count: {type: integer, minimum: 0, maximum: 1000}
+        files_count: {type: integer, minimum: 0, maximum: 1000}
+        objects:
+          type: array
+          maxItems: 1000
+          items: {$ref: '#/components/schemas/StudentMediaArchiveObject'}
+        excluded:
+          type: array
+          items: {type: string, enum: [expired_or_deleted_media, reviewer_media, cleared_history, unsynced_device_images, credentials_and_storage_details]}
+
+    ExportModelCall:
+      type: object
+      additionalProperties: false
+      required: [created_at, task_type, status, provider_calls, input_tokens, output_tokens, image_units, estimated_cost_micros]
+      properties:
+        created_at: {type: string, format: date-time}
+        task_type: {type: string}
+        status: {type: string}
+        provider_calls: {type: integer, minimum: 0}
+        input_tokens: {type: [integer, 'null'], minimum: 0}
+        output_tokens: {type: [integer, 'null'], minimum: 0}
+        image_units: {type: [integer, 'null'], minimum: 0}
+        estimated_cost_micros: {type: [integer, 'null'], minimum: 0}
+
+    ExportModelBudgetDay:
+      type: object
+      additionalProperties: false
+      required: [usage_date, request_count, estimated_cost_micros, updated_at]
+      properties:
+        usage_date: {type: string, format: date}
+        request_count: {type: integer, minimum: 0}
+        estimated_cost_micros: {type: integer, minimum: 0}
+        updated_at: {type: string, format: date-time}
+
+    ExportModelUsage:
+      description: 当前服务端伪名对应的现存调用元数据和student预算桶；不含平台预算、内部调用恢复记录或提示词。无法追溯旧密钥伪名，不代表完整历史。预算估算及保守预占不是实际账单，不得与调用估算相加。
+      type: object
+      additionalProperties: false
+      required: [history_complete, identity_scope, costs_are_billing, calls, budget_days]
+      properties:
+        history_complete: {type: boolean, enum: [false]}
+        identity_scope: {type: string, enum: [current_server_pseudonym]}
+        costs_are_billing: {type: boolean, enum: [false]}
+        calls:
+          type: array
+          items: {$ref: '#/components/schemas/ExportModelCall'}
+        budget_days:
+          type: array
+          items: {$ref: '#/components/schemas/ExportModelBudgetDay'}
+
+    StudentLearningExport:
+      type: object
+      additionalProperties: false
+      required: [format_version, scope, exported_at, profile, sessions, reviews, review_history, excluded]
+      properties:
+        model_usage:
+          description: 新服务返回当前服务端伪名可关联的记录；旧文件缺少此字段表示未提供该范围，不代表没有调用。伪名由token身份在服务端派生，不接受客户端指定。
+          $ref: '#/components/schemas/ExportModelUsage'
+        parent_access_records:
+          description: 新服务始终返回；旧文件缺失表示未包含此范围，不能解释为从未授权。
+          $ref: '#/components/schemas/ExportParentAccessRecords'
+        stored_scan_records:
+          description: 本地环境返回本人仍保存的拍题文字记录（包括尚未清理的过期记录），不重建已清理历史；空数组仅表示当前无保存记录。受控环境不读取proto表并返回null；旧文件可能缺失，null或缺失均表示未提供此范围，不代表从未拍题。
+          type: [array, 'null']
+          items: {$ref: '#/components/schemas/ExportStoredScan'}
+        diagnostic_runs:
+          description: 本人全部摸底计划与首份提交计数，按开始时间及ID排序；新服务始终返回，旧导出缺失时表示未包含此范围。
+          type: array
+          items: {$ref: '#/components/schemas/DiagnosticRun'}
+        diagnostic_workspace:
+          description: 导出时本人的工作区版本及最近轮次；读取不创建记录。旧导出可能缺失。
+          $ref: '#/components/schemas/DiagnosticWorkspace'
+        format_version: {type: integer, enum: [1]}
+        scope: {type: string, enum: [server_learning_records]}
+        exported_at: {type: string, format: date-time}
+        profile: {$ref: '#/components/schemas/StudentProfile'}
+        sessions:
+          type: array
+          items: {$ref: '#/components/schemas/ExportLearningSession'}
+        reviews:
+          type: array
+          items: {$ref: '#/components/schemas/ReviewItem'}
+        review_history:
+          type: array
+          items: {$ref: '#/components/schemas/ExportReviewHistory'}
+        excluded:
+          type: array
+          items: {type: string, enum: [auth_credentials, operational_logs, question_answer_keys, unsynced_device_data, media_files, guardian_authorizations]}
+
+    ReviewState:
+      type: object
+      additionalProperties: false
+      required: [id, question_id, status, stage, total_stages, due_at, last_result, last_attempt_id, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        question_id: {type: string, format: uuid}
+        status: {$ref: '#/components/schemas/ReviewStatus'}
+        stage: {type: integer, minimum: 0}
+        total_stages: {type: integer, minimum: 1}
+        due_at: {type: string, format: date-time}
+        last_result:
+          oneOf:
+            - {$ref: '#/components/schemas/ReviewResult'}
+            - {type: 'null'}
+        last_attempt_id: {type: [string, 'null'], format: uuid}
         updated_at: {type: string, format: date-time}
     ReviewPage:
       type: object
@@ -2486,12 +5567,189 @@ components:
         disclaimer: {type: string}
 
     # ------------------------------------------------------------ planned：媒体与拍题
+    MediaReviewConfirmation:
+      type: object
+      additionalProperties: false
+      required: [expected_version, sha256, confirmed]
+      properties:
+        expected_version: {type: integer, minimum: 1}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        confirmed: {type: boolean, enum: [true]}
+    MediaReviewDeclaration:
+      type: object
+      additionalProperties: false
+      required: [question_id, version, media_id, sha256, actor_id, expires_at]
+      properties:
+        question_id: {type: string, format: uuid}
+        version: {type: integer, minimum: 1}
+        media_id: {type: string, format: uuid}
+        sha256: {type: string}
+        actor_id: {type: string, format: uuid}
+        expires_at: {type: string, format: date-time}
+    SchoolMaterialConfirmationRequest:
+      type: object
+      additionalProperties: false
+      required: [source_revision, items]
+      properties:
+        source_revision: {type: string, pattern: '^[0-9a-f]{64}$'}
+        items:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: {$ref: '#/components/schemas/SchoolMaterialConfirmedItem'}
+    SchoolMaterialConfirmedItem:
+      type: object
+      additionalProperties: false
+      required: [text, pages]
+      properties:
+        text: {type: string, minLength: 1, maxLength: 4000}
+        pages:
+          type: array
+          minItems: 1
+          maxItems: 200
+          uniqueItems: true
+          items: {type: integer, minimum: 1}
+    SchoolMaterialConfirmationReceipt:
+      type: object
+      additionalProperties: false
+      required: [source_revision, item_count]
+      properties:
+        source_revision: {type: string, pattern: '^[0-9a-f]{64}$'}
+        item_count: {type: integer, minimum: 1}
+    SchoolMaterialCandidates:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        source_revision: {type: string, pattern: '^[0-9a-f]{64}$'}
+        confirmed_items:
+          type: array
+          items: {$ref: '#/components/schemas/SchoolMaterialConfirmedItem'}
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/SchoolMaterialCandidate'}
+    SchoolMaterialCandidate:
+      type: object
+      additionalProperties: false
+      required: [text, locations, warnings]
+      properties:
+        text: {type: string}
+        locations:
+          type: array
+          items: {$ref: '#/components/schemas/SchoolMaterialCandidateLocation'}
+        warnings:
+          type: array
+          items: {type: string}
+    SchoolMaterialCandidateLocation:
+      type: object
+      additionalProperties: false
+      required: [page, block]
+      properties:
+        page: {type: integer, minimum: 1}
+        block: {type: [integer, 'null'], minimum: 1}
+    SchoolMaterialPages:
+      type: object
+      additionalProperties: false
+      required: [pages]
+      properties:
+        pages:
+          type: array
+          items: {$ref: '#/components/schemas/SchoolMaterialPage'}
+    SchoolMaterialPage:
+      type: object
+      additionalProperties: false
+      required: [page_number, text, needs_ocr]
+      properties:
+        page_number: {type: integer, minimum: 1}
+        text: {type: string}
+        needs_ocr: {type: boolean}
+        revision: {type: integer, minimum: 1}
+    SchoolMaterialCorrectionReceipt:
+      type: object
+      additionalProperties: false
+      required: [page_number, revision]
+      properties:
+        page_number: {type: integer, minimum: 1}
+        revision: {type: integer, minimum: 1}
+    SchoolMaterialPageCorrection:
+      type: object
+      additionalProperties: false
+      required: [expected_revision, text]
+      properties:
+        expected_revision: {type: integer, minimum: 0}
+        text: {type: string, minLength: 1, maxLength: 16000, pattern: '\S'}
+    SchoolMaterialSubmitRequest:
+      type: object
+      additionalProperties: false
+      required: [media_id]
+      properties:
+        media_id: {type: string, format: uuid}
+    SchoolMaterialUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [mime, size_bytes, sha256]
+      properties:
+        mime: {type: string, enum: [application/pdf, image/jpeg, image/png]}
+        size_bytes: {type: integer, minimum: 1}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    SchoolMaterialSource:
+      type: object
+      additionalProperties: false
+      required: [media_id, mime, size_bytes, sha256, expires_at, page_count]
+      properties:
+        media_id: {type: string, format: uuid}
+        mime: {type: string, enum: [application/pdf, image/jpeg, image/png]}
+        size_bytes: {type: integer, minimum: 1}
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+        expires_at: {type: string, format: date-time}
+        page_count: {type: integer, minimum: 1}
+    MediaBlobUpload:
+      type: object
+      additionalProperties: false
+      required: [content_base64]
+      properties:
+        content_base64: {type: string, maxLength: 22369624}
+    MediaConfirm:
+      type: object
+      additionalProperties: false
+      required: [sha256]
+      properties:
+        sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
+    MediaDelete:
+      type: object
+      additionalProperties: false
+      properties: {}
+    MediaAssetInfo:
+      type: object
+      additionalProperties: false
+      required: [media_id, mime, size_bytes, sha256, expires_at]
+      properties:
+        media_id: {type: string, format: uuid}
+        mime: {type: string, enum: [image/png, image/jpeg, image/webp]}
+        size_bytes: {type: integer, minimum: 1}
+        sha256: {type: string}
+        expires_at: {type: string, format: date-time}
+    MediaContent:
+      type: object
+      additionalProperties: false
+      required: [media_id, mime, content_base64]
+      properties:
+        media_id: {type: string, format: uuid}
+        mime: {type: string, enum: [image/png, image/jpeg, image/webp]}
+        content_base64: {type: string, maxLength: 22369624}
+    MediaDeleted:
+      type: object
+      additionalProperties: false
+      required: [media_id, deleted]
+      properties:
+        media_id: {type: string, format: uuid}
+        deleted: {type: boolean, enum: [true]}
     MediaUploadRequest:
       type: object
       additionalProperties: false
       required: [purpose, mime, size_bytes, sha256]
       properties:
-        purpose: {type: string, enum: [scan, draft_backup]}
+        purpose: {type: string, enum: [scan, draft_backup, question_attachment]}
         mime: {type: string, enum: [image/jpeg, image/png, image/webp]}
         size_bytes: {type: integer, minimum: 1}
         sha256: {type: string, pattern: '^[0-9a-f]{64}$'}
@@ -2534,6 +5792,7 @@ components:
           items: {$ref: '#/components/schemas/ScanExpression'}
         matched_question_id: {type: [string, 'null'], format: uuid}
         error_code: {type: [string, 'null']}
+        mock_notice: {type: string, description: 明确说明未实际识别图片。}
     ScanConfirm:
       type: object
       additionalProperties: false
@@ -2551,7 +5810,7 @@ components:
       properties:
         scan: {$ref: '#/components/schemas/Scan'}
         question_id: {type: [string, 'null'], format: uuid, description: 匹配到的已发布题。}
-        draft_question_id: {type: [string, 'null'], format: uuid, description: 新建的待审题草案。}
+        draft_question_id: {type: [string, 'null'], format: uuid, description: 本地Mock始终为null，不创建题库草稿。}
 
     # ------------------------------------------------------------ 家长：授权绑定与周报
     ParentInvite:
@@ -2560,10 +5819,23 @@ components:
       description: 学生生成的一次性邀请码。`code` 只在创建时出现这一次，之后任何接口都不会再返回它。
       required: [id, code, created_at, expires_at]
       properties:
+        parent_invite_revision: {type: integer, minimum: 0, description: 新服务始终返回；旧缓存或旧回执缺失表示未知，不能补默认版本。}
         id: {type: string, format: uuid}
         code: {type: string, minLength: 10, maxLength: 10, description: 十位，字母和数字；念给家长或写给家长看，不分大小写。}
         created_at: {type: string, format: date-time, description: 学生明确授权的时间。}
         expires_at: {type: string, format: date-time}
+    ParentInviteCreate:
+      type: object
+      additionalProperties: false
+      required: [expected_parent_invite_revision]
+      properties:
+        expected_parent_invite_revision: {type: integer, minimum: 0}
+    ParentLinkRevoke:
+      type: object
+      additionalProperties: false
+      required: [expected_authorization_revision]
+      properties:
+        expected_authorization_revision: {type: integer, minimum: 1}
     ParentInviteRedeem:
       type: object
       additionalProperties: false
@@ -2585,6 +5857,7 @@ components:
       description: 学生对一位家长的授权。
       required: [id, parent_id, parent_label, consent_at, linked_at, revoked_at]
       properties:
+        authorization_revision: {type: integer, minimum: 1, description: 新服务始终返回；旧缓存或旧回执缺失表示未知，不能补默认版本。}
         id: {type: string, format: uuid}
         parent_id: {type: string, format: uuid}
         parent_label: {type: [string, 'null'], description: 家长的称呼；没有设置时为 null。}
@@ -2596,6 +5869,7 @@ components:
       additionalProperties: false
       required: [links, pending_invite]
       properties:
+        parent_invite_revision: {type: integer, minimum: 0, description: 新服务始终返回；旧缓存或旧回执缺失表示未知，不能补默认版本。}
         links:
           type: array
           description: 现在仍然有效的授权。
@@ -2635,6 +5909,26 @@ components:
         week_start: {type: string, format: date}
         attempts_count: {type: integer, minimum: 0}
         independent: {$ref: '#/components/schemas/RateStat'}
+    PaperWeeklySummary:
+      type: object
+      additionalProperties: false
+      required: [confirmed, awaiting_assessment, late_returns, unknown_completion_date, independent, assisted]
+      properties:
+        confirmed: {type: integer, minimum: 0}
+        awaiting_assessment: {type: integer, minimum: 0}
+        late_returns: {type: integer, minimum: 0}
+        unknown_completion_date: {type: integer, minimum: 0}
+        independent: {$ref: '#/components/schemas/RateStat'}
+        assisted: {$ref: '#/components/schemas/RateStat'}
+
+    ParentWeeklySnapshot:
+      type: object
+      additionalProperties: false
+      required: [revision, report]
+      properties:
+        revision: {type: integer, minimum: 1}
+        report: {$ref: '#/components/schemas/ParentWeekly'}
+
     ParentWeekly:
       type: object
       additionalProperties: false
@@ -2663,6 +5957,10 @@ components:
         - by_subject
         - disclaimer
       properties:
+        paper:
+          oneOf:
+            - {$ref: '#/components/schemas/PaperWeeklySummary'}
+            - {type: 'null'}
         student_id: {type: string, format: uuid}
         student_display_name: {type: [string, 'null']}
         week_start: {type: string, format: date, description: 这一周的周一。}
@@ -2695,11 +5993,75 @@ components:
     SolutionKind:
       type: string
       enum: [standard, fast]
+    ReviewBatchItem:
+      type: object
+      additionalProperties: false
+      required: [question_id, expected_version, expected_review_revision, decision, confirmed]
+      properties:
+        expected_review_revision:
+          type: integer
+          minimum: 1
+          description: 审核人或编辑者明确看到的审核修订号；同内容版本内审核或编辑变化也递增。未知来源须刷新后明确重新发起，不能给旧命令自动补值。历史成功同键优先重放。
+        question_id: {type: string, format: uuid}
+        expected_version: {type: integer, minimum: 1}
+        decision: {$ref: '#/components/schemas/ReviewDecisionType'}
+        confirmed: {type: boolean, enum: [true]}
+        comment: {type: [string, 'null'], maxLength: 2000}
+        solution_kinds:
+          type: [array, 'null']
+          items: {$ref: '#/components/schemas/SolutionKind'}
+    ReviewBatch:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: {$ref: '#/components/schemas/ReviewBatchItem'}
+    ReviewBatchError:
+      type: object
+      additionalProperties: false
+      required: [status, code, message]
+      properties:
+        status: {type: integer}
+        code: {type: string}
+        message: {type: string}
+    ReviewBatchResultItem:
+      type: object
+      additionalProperties: false
+      required: [question_id, status, state, error]
+      properties:
+        question_id: {type: string, format: uuid}
+        status: {type: string, enum: [succeeded, failed]}
+        state:
+          oneOf:
+          - {$ref: '#/components/schemas/QuestionReviewState'}
+          - {type: 'null'}
+        error:
+          oneOf:
+          - {$ref: '#/components/schemas/ReviewBatchError'}
+          - {type: 'null'}
+    ReviewBatchResult:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: {$ref: '#/components/schemas/ReviewBatchResultItem'}
+
     ReviewDecision:
       type: object
       additionalProperties: false
-      required: [decision, expected_version]
+      required: [decision, expected_version, expected_review_revision]
       properties:
+        expected_review_revision:
+          type: integer
+          minimum: 1
+          description: 审核人或编辑者明确看到的审核修订号；同内容版本内审核或编辑变化也递增。未知来源须刷新后明确重新发起，不能给旧命令自动补值。历史成功同键优先重放。
         decision: {$ref: '#/components/schemas/ReviewDecisionType'}
         expected_version:
           type: integer
@@ -2715,6 +6077,10 @@ components:
       additionalProperties: false
       required: [question_id, status, version, reviewed_by, updated_at]
       properties:
+        review_revision:
+          type: integer
+          minimum: 1
+          description: 当前单调审核修订号；审核决策及内容编辑均递增。旧成功回执可能缺少此字段，缺失表示未知，禁止当作1。
         question_id: {type: string, format: uuid}
         status: {$ref: '#/components/schemas/QuestionStatus'}
         version: {type: integer, minimum: 1}
@@ -2725,6 +6091,10 @@ components:
       additionalProperties: false
       required: [id, subject, type, answer_mode, difficulty, title, status, version, source, created_by, reviewed_by, published_at, updated_at]
       properties:
+        review_revision:
+          type: integer
+          minimum: 1
+          description: 当前单调审核修订号；审核决策及内容编辑均递增。旧成功回执可能缺少此字段，缺失表示未知，禁止当作1。
         id: {type: string, format: uuid}
         subject: {$ref: '#/components/schemas/Subject'}
         type: {$ref: '#/components/schemas/QuestionType'}
@@ -2785,6 +6155,11 @@ components:
       additionalProperties: false
       required: [concept, hints, concept_rephrase, option_analysis, visual, leak_markers]
       properties:
+        reference_links:
+          type: array
+          maxItems: 64
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/TeachingReferenceLink'}
         concept: {type: [string, 'null'], maxLength: 200}
         hints:
           type: array
@@ -2848,7 +6223,7 @@ components:
     AdminHistoryAction:
       type: string
       description: 审核决策，或者 edit（修改内容、产生新版本）。
-      enum: [approve, reject, publish, withdraw, edit]
+      enum: [approve, reject, publish, withdraw, edit, import]
     AdminHistoryEntry:
       type: object
       additionalProperties: false
@@ -2896,10 +6271,14 @@ components:
     AdminQuestionEdit:
       type: object
       additionalProperties: false
-      required: [expected_version, title, difficulty, grade, content, answer, teaching, solutions, knowledge, rubric]
+      required: [expected_version, expected_review_revision, title, difficulty, grade, content, answer, teaching, solutions, knowledge, rubric]
       description: |
         可编辑内容的完整替换（不是补丁）：没打算改的部分原样传回。题型、学科、答题方式、来源和地区标记不在这里改。
       properties:
+        expected_review_revision:
+          type: integer
+          minimum: 1
+          description: 审核人或编辑者明确看到的审核修订号；同内容版本内审核或编辑变化也递增。未知来源须刷新后明确重新发起，不能给旧命令自动补值。历史成功同键优先重放。
         expected_version:
           type: integer
           minimum: 1
@@ -2924,6 +6303,616 @@ components:
           items: {type: string, maxLength: 64}
         rubric: {type: object}
         comment: {type: [string, 'null'], maxLength: 2000, description: 修改说明，写进审计与历史。}
+    AdminQuestionDraft:
+      type: object
+      additionalProperties: false
+      required: [title, difficulty, grade, content, answer, teaching, solutions, knowledge, rubric]
+      description: |
+        单题草稿内容；不含审核状态、提交者和版本号。
+      properties:
+        title: {type: string, minLength: 1, maxLength: 120}
+        difficulty: {type: integer, minimum: 1, maximum: 5}
+        grade:
+          oneOf:
+            - {$ref: '#/components/schemas/Grade'}
+            - {type: 'null'}
+        content: {$ref: '#/components/schemas/QuestionContent'}
+        answer: {$ref: '#/components/schemas/AdminAnswer'}
+        teaching: {$ref: '#/components/schemas/AdminTeaching'}
+        solutions:
+          type: array
+          maxItems: 2
+          items: {$ref: '#/components/schemas/AdminSolutionInput'}
+        knowledge:
+          type: array
+          maxItems: 20
+          description: 知识点 code（如 math.function.monotonicity），必须是已存在的知识点。
+          items: {type: string, maxLength: 64}
+        rubric: {type: object}
+        comment: {type: [string, 'null'], maxLength: 2000, description: 修改说明，写进审计与历史。}
+    AdminImportSource:
+      type: object
+      additionalProperties: false
+      required: [source_type, source_category, source_name, source_year, source_license, source_url]
+      properties:
+        source_type: {type: string, enum: [self_authored, textbook_licensed, public_license, gaokao_licensed]}
+        source_category: {$ref: '#/components/schemas/SourceCategory'}
+        source_name: {type: string, minLength: 1, maxLength: 200}
+        source_year: {type: [integer, 'null'], minimum: 1900, maximum: 2100}
+        source_license: {type: string, minLength: 1, maxLength: 120, description: 使用依据或授权记录编号，须由审校员核验。}
+        source_url: {type: [string, 'null'], maxLength: 500}
+    DocImportJobStatus:
+      type: string
+      enum:
+      - uploading
+      - queued
+      - processing
+      - needs_review
+      - completed
+      - partial_failure
+      - failed
+      - cancelled
+    DocImportFileStatus:
+      type: string
+      enum:
+      - pending
+      - processing
+      - ready
+      - needs_ocr
+      - failed
+      - cancelled
+    DocImportFileKind:
+      type: string
+      enum:
+      - pdf
+      - docx
+      - doc
+      - png
+      - jpeg
+      - json
+    DocImportOptions:
+      type: object
+      additionalProperties: false
+      required:
+      - server_time
+      - creation_deadline
+      - max_file_bytes
+      - max_job_bytes
+      - max_files
+      - max_pages
+      - max_candidates
+      - temporary_ttl_minutes
+      - file_kinds
+      - ocr_mode
+      - doc_converter_available
+      properties:
+        server_time:
+          type: string
+          format: date-time
+          description: 服务器UTC时间，用于展示创建窗口。
+        creation_deadline:
+          type: string
+          format: date-time
+          description: 新建意图固定保存的UTC截止时间，重试不得刷新。
+        max_file_bytes:
+          type: integer
+          minimum: 0
+        max_job_bytes:
+          type: integer
+          minimum: 0
+        max_files:
+          type: integer
+          minimum: 0
+        max_pages:
+          type: integer
+          minimum: 0
+        max_candidates:
+          type: integer
+          minimum: 0
+        temporary_ttl_minutes:
+          type: integer
+          minimum: 0
+        file_kinds:
+          type: array
+          maxItems: 6
+          items:
+            $ref: '#/components/schemas/DocImportFileKind'
+        ocr_mode:
+          type: string
+          enum:
+          - disabled
+          - mock
+          - configured
+        doc_converter_available:
+          type: boolean
+    DocImportDefaults:
+      type: object
+      additionalProperties: false
+      required:
+      - subject
+      - answer_mode
+      - source
+      properties:
+        subject:
+          $ref: '#/components/schemas/Subject'
+        answer_mode:
+          $ref: '#/components/schemas/AnswerMode'
+        source:
+          $ref: '#/components/schemas/AdminImportSource'
+    DocImportJobCreate:
+      type: object
+      additionalProperties: false
+      required:
+      - creation_deadline
+      - title
+      - defaults
+      properties:
+        creation_deadline:
+          type: string
+          format: date-time
+          description: 意图固定的有时区RFC3339截止时间；过期后不得通过原键创建新任务。
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        defaults:
+          $ref: '#/components/schemas/DocImportDefaults'
+    DocImportJobSummary:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - title
+      - status
+      - revision
+      - file_count
+      - processed_files
+      - candidate_count
+      - confirmed_count
+      - imported_count
+      - failed_count
+      - message
+      - created_at
+      - updated_at
+      - expires_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+        status:
+          $ref: '#/components/schemas/DocImportJobStatus'
+        revision:
+          type: integer
+          minimum: 1
+        file_count:
+          type: integer
+          minimum: 0
+        processed_files:
+          type: integer
+          minimum: 0
+        candidate_count:
+          type: integer
+          minimum: 0
+        confirmed_count:
+          type: integer
+          minimum: 0
+        imported_count:
+          type: integer
+          minimum: 0
+        failed_count:
+          type: integer
+          minimum: 0
+        message:
+          oneOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+    DocImportPage:
+      type: object
+      additionalProperties: false
+      required:
+      - number
+      - text
+      - method
+      - warnings
+      - confidence
+      - media_refs
+      properties:
+        number:
+          type: integer
+          minimum: 1
+          description: 提取片段序号：PDF 为页，DOCX 为有序文本片段，不等于 Word 的物理页码。
+        text:
+          type: string
+          maxLength: 100000
+        method:
+          type: string
+          enum:
+          - pdf_text
+          - docx_text
+          - json
+          - ocr
+          - ocr_mock
+          - unavailable
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            maxLength: 1000
+        confidence:
+          type:
+          - number
+          - 'null'
+          minimum: 0
+          maximum: 1
+        media_refs:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            maxLength: 256
+          description: DOCX 内嵌媒体引用；只作定位，不作为可访问的文件系统路径。
+    DocImportFile:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - filename
+      - kind
+      - media_type
+      - size_bytes
+      - sha256
+      - status
+      - problems
+      - pages
+      - original_available
+      properties:
+        id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+          maxLength: 256
+        kind:
+          $ref: '#/components/schemas/DocImportFileKind'
+        media_type:
+          type: string
+          maxLength: 120
+        size_bytes:
+          type: integer
+          minimum: 0
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        status:
+          $ref: '#/components/schemas/DocImportFileStatus'
+        problems:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            maxLength: 1000
+        pages:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/DocImportPage'
+        original_available:
+          type: boolean
+    DocImportLocation:
+      type: object
+      additionalProperties: false
+      required:
+      - file_id
+      - page
+      - block
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        page:
+          type: integer
+          minimum: 1
+        block:
+          type:
+          - integer
+          - 'null'
+          minimum: 1
+    DocImportItemError:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          maxLength: 80
+        message:
+          type: string
+          maxLength: 2000
+    DocImportCandidate:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - title
+      - text
+      - locations
+      - warnings
+      - payload
+      - confirmed
+      - confirmed_by
+      - question_id
+      - error
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+        text:
+          type: string
+          maxLength: 4000
+        locations:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/DocImportLocation'
+        warnings:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            maxLength: 1000
+        payload:
+          oneOf:
+          - $ref: '#/components/schemas/AdminQuestionImport'
+          - type: 'null'
+        confirmed:
+          type: boolean
+        confirmed_by:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+        question_id:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+        error:
+          oneOf:
+          - $ref: '#/components/schemas/DocImportItemError'
+          - type: 'null'
+    DocImportCandidateInput:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - title
+      - text
+      - locations
+      - payload
+      - confirmed
+      properties:
+        id:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+        title:
+          type: string
+          maxLength: 120
+        text:
+          type: string
+          maxLength: 4000
+        locations:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/DocImportLocation'
+        payload:
+          oneOf:
+          - $ref: '#/components/schemas/AdminQuestionImport'
+          - type: 'null'
+        confirmed:
+          type: boolean
+    DocImportJobDetail:
+      type: object
+      additionalProperties: false
+      required:
+      - job
+      - defaults
+      - files
+      - candidates
+      properties:
+        job:
+          $ref: '#/components/schemas/DocImportJobSummary'
+        defaults:
+          $ref: '#/components/schemas/DocImportDefaults'
+        files:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/DocImportFile'
+        candidates:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/DocImportCandidate'
+    DocImportJobPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/DocImportJobSummary'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+    DocImportRevision:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1
+    DocImportUpload:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - filename
+      - content_base64
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 256
+        content_base64:
+          type: string
+          minLength: 4
+          maxLength: 22369624
+      description: 本地原型通过有界 Base64 JSON 上传单个文件，多文件逐个提交；文件名只作显示，不作为存储路径。
+    DocImportUploadResult:
+      type: object
+      additionalProperties: false
+      required:
+      - job
+      - file
+      properties:
+        job:
+          $ref: '#/components/schemas/DocImportJobSummary'
+        file:
+          $ref: '#/components/schemas/DocImportFile'
+    DocImportContent:
+      type: object
+      additionalProperties: false
+      required:
+      - filename
+      - media_type
+      - content_base64
+      properties:
+        filename:
+          type: string
+          maxLength: 256
+        media_type:
+          type: string
+          maxLength: 120
+        content_base64:
+          type: string
+          maxLength: 33554432
+    DocImportCandidatesEdit:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - items
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1
+        items:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/DocImportCandidateInput'
+      description: 整体替换候选题工作区，支持人工拆分、合并与排序；新项 id=null；已导入项不可改写或删除。确认来自当前 token。
+    DocImportSubmit:
+      type: object
+      additionalProperties: false
+      required:
+      - expected_revision
+      - candidate_ids
+      properties:
+        expected_revision:
+          type: integer
+          minimum: 1
+        candidate_ids:
+          type: array
+          minItems: 1
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    DocImportBatchItem:
+      type: object
+      additionalProperties: false
+      required:
+      - candidate_id
+      - question_id
+      - status
+      - error
+      properties:
+        candidate_id:
+          type: string
+          format: uuid
+        question_id:
+          oneOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+        status:
+          type: string
+          enum:
+          - imported
+          - already_imported
+          - failed
+        error:
+          oneOf:
+          - $ref: '#/components/schemas/DocImportItemError'
+          - type: 'null'
+    DocImportBatchResult:
+      type: object
+      additionalProperties: false
+      required:
+      - job
+      - items
+      properties:
+        job:
+          $ref: '#/components/schemas/DocImportJobSummary'
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/DocImportBatchItem'
+
+    AdminQuestionImport:
+      type: object
+      additionalProperties: false
+      required: [subject, answer_mode, source, question]
+      properties:
+        subject: {$ref: '#/components/schemas/Subject'}
+        answer_mode: {$ref: '#/components/schemas/AnswerMode'}
+        source: {$ref: '#/components/schemas/AdminImportSource'}
+        question: {$ref: '#/components/schemas/AdminQuestionDraft'}
     AdminVersionSnapshot:
       type: object
       additionalProperties: false
@@ -2944,6 +6933,11 @@ components:
         - knowledge
         - rubric
       properties:
+        provenance:
+          description: 当前响应所指固定题目版本的来源快照；旧数据或无可靠导入记录为null，不从当前题目或相似文字推造旧来源。
+          oneOf:
+            - {$ref: '#/components/schemas/QuestionProvenance'}
+            - {type: 'null'}
         question_id: {type: string, format: uuid}
         version: {type: integer, minimum: 1}
         is_current: {type: boolean, description: 是不是题目现在的版本。}
@@ -2997,6 +6991,15 @@ components:
         - versions
         - history
       properties:
+        provenance:
+          description: 当前响应所指固定题目版本的来源快照；旧数据或无可靠导入记录为null，不从当前题目或相似文字推造旧来源。
+          oneOf:
+            - {$ref: '#/components/schemas/QuestionProvenance'}
+            - {type: 'null'}
+        review_revision:
+          type: integer
+          minimum: 1
+          description: 当前单调审核修订号；审核决策及内容编辑均递增。旧成功回执可能缺少此字段，缺失表示未知，禁止当作1。
         id: {type: string, format: uuid}
         subject: {$ref: '#/components/schemas/Subject'}
         type: {$ref: '#/components/schemas/QuestionType'}

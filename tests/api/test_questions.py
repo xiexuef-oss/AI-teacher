@@ -218,9 +218,7 @@ def test_region_and_general_questions_are_labelled_differently(onboarded):
 
 
 def test_chongqing_student_gets_a_different_region_set(student):
-    student.data(
-        "PUT", "/profile", json={"region_code": "CN-50", "grade": "G12", "subjects": ["math"]}
-    )
+    student.save_profile(json={"region_code": "CN-50", "grade": "G12", "subjects": ["math"]})
 
     keys = set(_keys(_list(student)))
 
@@ -234,10 +232,8 @@ def test_region_tag_is_not_used_outside_its_exam_years(onboarded):
         "2030–2031 的标签不适用于 2027 届"
     )
 
-    onboarded.data(
-        "PUT",
-        "/profile",
-        json={"region_code": "CN-51", "grade": "G12", "subjects": ["math"], "exam_year": 2030},
+    onboarded.save_profile(
+        json={"region_code": "CN-51", "grade": "G12", "subjects": ["math"], "exam_year": 2030}
     )
     keys = set(_keys(_list(onboarded)))
 
@@ -246,7 +242,7 @@ def test_region_tag_is_not_used_outside_its_exam_years(onboarded):
 
 
 def test_student_without_exam_year_only_gets_untagged_or_unbounded_questions(student):
-    student.data("PUT", "/profile", json={"region_code": "CN-51", "subjects": ["math"]})
+    student.save_profile(json={"region_code": "CN-51", "subjects": ["math"]})
     assert set(_keys(_list(student))) == GENERAL_KEYS
 
 

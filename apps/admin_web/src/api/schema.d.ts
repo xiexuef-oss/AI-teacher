@@ -4,6 +4,104 @@
  */
 
 export interface paths {
+    "/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 获取本人最近一轮三题摸底及恢复进度 */
+        get: operations["getDiagnosticWorkspace"];
+        put?: never;
+        /**
+         * 按本人资料创建一轮三题摸底
+         * @description 仅选择已发布、符合当前地区/年份及年级的非变式客观题；未知年级不推断。
+         *     不足三题返回422，不扩大地区范围或混入主观题。未完成轮次须明确结束后才能另开。
+         *     选题与资料快照固定；所有写操作必须提供工作区期望版本，成功后递增。
+         *     工程样题保留原标签，不代表经过学科审校或已验证教学有效性。
+         */
+        post: operations["createDiagnostic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/diagnostics/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 按开始时间倒序分页回看本人摸底轮次
+         * @description 游标是上一页最后一轮的ID，仅用于定位本人不可变的开始时间和ID，不作为授权。其他学生和不存在的游标统一返回400。结束轮次不删除历史；列表不含答案、提示或笔迹。
+         */
+        get: operations["listDiagnosticHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/diagnostics/{diagnostic_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 回看本人固定轮次及首份提交的本轮计数 */
+        get: operations["getDiagnostic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/diagnostics/{diagnostic_id}/items/{position}/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 打开固定题目版本的作答会话，已打开时返回原会话
+         * @description 仅当前未主动结束的轮次可打开，已完成轮次可回看原会话。未绑定题目若已换版或资料已变更，返回409，保留轮次与旧稿，须明确结束后另开；不自动换题。提交、草稿与提示复用普通练习流程。
+         */
+        post: operations["openDiagnosticSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/diagnostics/{diagnostic_id}/abandon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 明确结束本人当前轮次，保留题目、会话及所有草稿 */
+        post: operations["abandonDiagnostic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -63,6 +161,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/media-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 下载本人当前可访问学生用途媒体的ZIP档案
+         * @description 只根据学生token确定归属，不接受owner/student_id或筛选参数；家长和审核员403。
+         *     仅含本人仍有效的ocr_source/handwriting用途，排除审核附件、过期/删除对象、凭据和内部存储信息。
+         *     ZIP经JSON的archive_base64传输，含manifest.json和受控文件名；客户端校验大小/摘要后主动保存。
+         *     未上传/尚待确认对象只保留状态说明，不伪造文件；已声明可读却读取失败时整次失败。
+         *     不创建服务器导出文件，不清理/续期或修改记录。存储未启用或非local返回501，不以空档案替代范围不可用。
+         *     不是完整历史、完整个人备份或S3跨对象一致快照；不重建已过期/清理图片。
+         *     源扫描和档案字节超限整次413，存储故障或数据不一致503，不静默返回半份档案。
+         */
+        get: operations["getStudentMediaExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profile/learning-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 导出当前学生的服务端学习记录
+         * @description 只根据token确定当前学生，不接受student_id或筛选参数。只读JSON，禁止缓存，不创建导出文件。
+         *     包含本人资料、全部已保存会话/作答/笔迹/自查/教学事件及复测历史，不绕过解析解锁门控。
+         *     包含本人现存家长访问授权及邀请记录，不含邀请码、哈希或家长身份资料。
+         *     重新授权会覆盖旧绑定时间，因此这些记录不是完整授权历史，也不是法定监护核验。
+         *     不含登录凭据、运维日志、未解锁的题库答案、本机未同步数据或媒体文件。
+         *     本地环境另含本人仍保存的拍题文字/状态及原图引用，不要求原图存活，不清理过期记录；不是完整拍题历史或图片备份。
+         *     这是学习记录导出，不是完整个人数据请求或可导入备份；并发修改时不承诺跨表原子快照。
+         *     超过服务端资源上限时整次返回413，不提供静默截断文件；家长及审核角色403。
+         */
+        get: operations["getStudentLearningExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profile": {
         parameters: {
             query?: never;
@@ -74,11 +225,204 @@ export interface paths {
         get: operations["getProfile"];
         /**
          * 保存地区、年级、学科、考试年份与教材版本
-         * @description 整体替换可编辑字段。`exam_year` 省略或为 null 时：若此前由用户手动设置过则保留，否则按年级估算
+         * @description 必须携带幂等键与 expected_revision；旧客户端缺键返回400、缺版本返回422。
+         *     成功回执优先重放；新请求版本不匹配返回409 profile_revision_conflict，details含
+         *     expected_revision、server_revision与本人server_profile，不覆盖任何一方。每次成功revision加一。
+         *     整体替换可编辑字段。`exam_year` 省略或为 null 时：若此前由用户手动设置过则保留，否则按年级估算
          *     （学年以 9 月为起点）。教材版本可以为 null（暂不清楚）。切换地区不影响已产生的会话快照。
          */
         put: operations["updateProfile"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 分页列出本人已发布的纸包 */
+        get: operations["listLearningPacks"];
+        put?: never;
+        /** 提交学习包准备任务 */
+        post: operations["createLearningPack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/student-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 下载本人已发布学习包的学生版 */
+        get: operations["downloadLearningPackStudentPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/abandon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 主动结束本人纸包的独立作答并开放解析 */
+        post: operations["abandonLearningPack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/solution-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 下载本人已完成回收的解析版 */
+        get: operations["downloadLearningPackSolutionPdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 列出本人已发布纸包的题目定位信息 */
+        get: operations["listLearningPackItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 用二维码定位本人纸包中的印刷题目 */
+        get: operations["resolveLearningPackPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/items/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 按包号和短码定位本人纸包中的已打印题目版本 */
+        get: operations["resolveLearningPackItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/items/{code}/returns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 读取本人已确认的纸笔作答转写 */
+        get: operations["getLearningPackReturn"];
+        /** 按版本校正本人已回收的转写 */
+        put: operations["correctLearningPackReturn"];
+        /** 保存本人确认过的纸笔作答转写 */
+        post: operations["submitLearningPackReturn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/review-schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查看本人的纸笔复测候选日期 */
+        get: operations["getPaperReviewSchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询本人学习任务 */
+        get: operations["getLearningJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 取消本人尚未结束的学习任务 */
+        post: operations["cancelLearningJob"];
         delete?: never;
         options?: never;
         head?: never;
@@ -126,6 +470,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/questions/topics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 当前可练题目的知识点与题量
+         * @description 与题目列表共用已发布/地区/年份/题型筛选；不返回答案或推断教材进度。仅统计可发给当前学生的题。
+         */
+        get: operations["listQuestionTopics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/questions/{question_id}": {
         parameters: {
             query?: never;
@@ -159,6 +523,9 @@ export interface paths {
          * 为一道题开启学习会话
          * @description 会话保存题目版本以及当时的地区、考试年份、教材版本快照。`origin=review` 必须带已到期的
          *     `review_item_id`；复测会话在提交前不提供提示与解析。
+         *     提供 expected_question_version 时，仅在当前可提供的已发布版本相同才创建，否则返回409
+         *     question_version_conflict（details含expected_question_version和current_question_version），不创建会话。
+         *     不提供则兼容使用当前版本；已成功请求同键重放仍返回原会话，不因后来题目更新重新检查版本。
          */
         post: operations["createSession"];
         delete?: never;
@@ -176,6 +543,46 @@ export interface paths {
         };
         /** 会话当前状态 */
         get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{session_id}/question": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取本人学习会话固定版本的题面
+         * @description 按会话归属授权，只返回会话固定版本的公开题面，不含答案、解析、自查或未审核新版本。题目下线后返回404。
+         */
+        get: operations["getSessionQuestion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/questions/{question_id}/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 分页发现本人该题的未提交草稿与副本
+         * @description 只列本人草稿引用，不含答案、笔迹、提示或其他账号内容。副本不新建学习会话，也不计入提交统计。
+         */
+        get: operations["listQuestionDrafts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -212,7 +619,7 @@ export interface paths {
         put?: never;
         /**
          * 在会话中新建一次作答草稿
-         * @description 同一会话同时只能有一份未提交的作答；已存在时返回 409 `attempt_in_progress`，details.attempt_id 为它的 ID。
+         * @description 普通新建在会话已有未提交作答时返回409 `attempt_in_progress`，details.attempt_id 为最早创建的草稿。明确保留双方时使用createDraftCopy创建独立副本。
          */
         post: operations["createAttempt"];
         delete?: never;
@@ -232,6 +639,28 @@ export interface paths {
         get: operations["getAttempt"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/attempts/{attempt_id}/copies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 明确保留本机快照为同会话独立草稿副本
+         * @description 本人未提交作答的source_revision须与当前云端草稿一致，否则409返回云端版本，双方均不覆盖。
+         *     新副本保留完整答案与笔迹，源草稿不变；不新建会话、不判题、不提交，不清除共享辅助与完整解析标记。
+         *     成功后同键重试返回同一副本，即使源后来提交或更新；同键不同快照409。
+         */
+        post: operations["createDraftCopy"];
         delete?: never;
         options?: never;
         head?: never;
@@ -280,6 +709,9 @@ export interface paths {
          *     与 `answer.parts` 都没有内容、也没有笔迹时同样返回 422；证明题的 `answer.steps` 没有一步有文字、
          *     也没有笔迹时同样返回 422。
          *     同一幂等键重复提交只产生一次评估；已提交的作答换新键再提交返回 409。
+         *     可选 expected_draft_revision 绑定已确认同步的笔迹版本；在同一提交事务锁内不匹配则返回409
+         *     submission_draft_revision_conflict（details含expected_draft_revision、server_revision及本人server_draft），
+         *     不产生评估、教学事件或成功回执。已成功请求同键重放仍返回首次结果，不重新比较版本。
          *     只有会话里第一次提交、且此前没有看过提示、图解或解析的作答才算 `independent=true`。
          */
         post: operations["submitAttempt"];
@@ -364,6 +796,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reviews/{review_id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取本人复测项的当前紧凑状态
+         * @description 用于写命令恢复后的状态刷新；包含已掌握或题目已下线的本人复测项。
+         *     不返回题干、参考答案或作答内容；列表缺席不能代替此状态读取。
+         *     角色检查先于资源查询，跨账号与资源不存在统一404。
+         */
+        get: operations["getReviewState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/reviews/{review_id}/complete": {
         parameters: {
             query?: never;
@@ -376,8 +830,13 @@ export interface paths {
         /**
          * 用一次已判定的复测作答完成复测项
          * @description 结果只取服务端对该作答的判定，不接受客户端自报。作答必须属于以该复测项开启的会话。
+         *     实际采用该会话 submission_no=1 的已提交作答；请求所指的作答可以是同会话的未提交副本。
          *     通过（独立且正确）进入下一档间隔，全部通过后 `mastered`；未通过回到第一档。
          *     作答尚未判定或为 `uncertain` 时返回 409 `attempt_not_verified`。
+         *     同一次实际首次提交只能完成该复测项一次，即使之后已完成其他轮次且再次到期，
+         *     使用新幂等键重复完成仍返回 409 `review_already_completed`；原成功幂等键仍重放原结果。
+         *     旧数据无法可靠确认完成历史时返回 409 `review_completion_history_unknown`，不推进阶段，
+         *     不伪造历史结果。业务409不是本次命令成功，客户端应保留原作答并明确展示状态。
          */
         post: operations["completeReview"];
         delete?: never;
@@ -408,6 +867,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/questions/{question_id}/media/{media_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 学生读取已发布题目当前引用且独立审校确认的静态题面图片
+         * @description 学生图片读取仅student角色，题目须已发布且当前版本引用媒体，并有独立reviewed_by对相同版本/摘要/有效期的有效逐图声明。
+         *     草稿、未引用、删除、过期、旧版本、缺独立声明均404；家长403。不开放任意URL或学生上传。
+         *     审校声明要求reviewer/admin且独立于当前作者；qid/version/media/sha/actor/expiry绑定，不能替代另一审校人的记录。
+         *     图片加载完成与明确勾选只是审校声明，不是技术证明审校人完整看过。拒绝动画/多帧，不截首帧伪报成功。
+         */
+        get: operations["getPublishedQuestionMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/questions/{question_id}/media/{media_id}/review-confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 审核员声明已查看当前版本题面图片
+         * @description 学生图片读取仅student角色，题目须已发布且当前版本引用媒体，并有独立reviewed_by对相同版本/摘要/有效期的有效逐图声明。
+         *     草稿、未引用、删除、过期、旧版本、缺独立声明均404；家长403。不开放任意URL或学生上传。
+         *     审校声明要求reviewer/admin且独立于当前作者；qid/version/media/sha/actor/expiry绑定，不能替代另一审校人的记录。
+         *     图片加载完成与明确勾选只是审校声明，不是技术证明审校人完整看过。拒绝动画/多帧，不截首帧伪报成功。
+         */
+        post: operations["confirmQuestionMediaReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/uploads": {
         parameters: {
             query?: never;
@@ -417,8 +922,287 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 获取短期上传 URL（planned） */
+        /**
+         * 创建本地短期附件上传凭据
+         * @description 仅local显式启用的审核附件；仅reviewer/admin，其他媒体用途暂501。凭据未确认前不可读取。
+         */
         post: operations["createMediaUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/{media_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 上传者读取已确认附件
+         * @description 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+         */
+        get: operations["getMediaContent"];
+        /**
+         * 上传有界本地附件字节
+         * @description 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+         */
+        put: operations["uploadMediaContent"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/{media_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 确认本地附件大小摘要和格式
+         * @description 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+         */
+        post: operations["confirmMediaUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/{media_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 幂等删除本地附件
+         * @description 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+         */
+        post: operations["deleteMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/questions/{question_id}/media/{media_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 审核员读取当前题目实际引用的附件
+         * @description 仅local原型且reviewer/admin；直接读取仅owner，题目预览必须当前版本真实引用。未确认/过期/删除/越权返回404；学生禁止读取。所有写动作复用幂等键，确认DB元数据与回执同事务，文件孤儿仅临时保留待清理。
+         */
+        get: operations["getQuestionMediaContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school-materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 提交本人已上传的学校材料
+         * @description 一份原件最多创建一个持久任务。通过学习任务接口查看状态；提交不创建共享题目，也不产生学习证据。
+         */
+        post: operations["submitSchoolMaterial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school-materials/{job_id}/pages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查看本人学校材料的待核对页面 */
+        get: operations["listSchoolMaterialPages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school-materials/{job_id}/pages/{page_number}/correction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 保存本人学校材料的逐页转写校正 */
+        put: operations["correctSchoolMaterialPage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school-materials/{job_id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 查看本人学校材料的分题候选
+         * @description 根据当前页文本给出边界建议和页行位置；候选仍待人工核对。
+         */
+        get: operations["listSchoolMaterialCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school-materials/{job_id}/confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 保存本人核对过的学校材料分题 */
+        put: operations["confirmSchoolMaterialCandidates"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school-materials/{job_id}/pages/{page_number}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 预览本人学校材料原件的一页
+         * @description 仅返回本地隔离渲染的 PNG；不返回原文档或缓存链接。
+         */
+        get: operations["getSchoolMaterialPagePreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school-materials/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 预留本人学校材料临时上传凭据
+         * @description 仅学生本人可用。用于脱敏的 PDF、JPEG 或 PNG，沿用本地临时媒体留存期限。预留不启动识别或评分。
+         */
+        post: operations["createSchoolMaterialUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/school-materials/uploads/{media_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 上传本人学校材料原件
+         * @description 对原件验证格式、大小、摘要及页数或像素。跨账号、过期或其他用途的凭据统一返回 404。上传不创建题库题目，也不产生学习证据。
+         */
+        put: operations["uploadSchoolMaterialContent"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scans/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 学生专用本地临时拍题图片（Mock，不实际识别）
+         * @description 仅local显式开启拍题Mock与本地媒体后可用；仅学生本人创建purpose=scan的临时图片凭据。图片沿用首次上传TTL，不转为长期审核附件；Mock不实际识别图片。
+         */
+        post: operations["createScanUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scans/uploads/{media_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 预览本人仍有效的临时作答照片 */
+        get: operations["getScanUploadContent"];
+        /**
+         * 学生专用本地临时拍题图片（Mock，不实际识别）
+         * @description 仅学生本人向拍题专用临时凭据上传静态图片；用途与审核附件隔离。校验图片格式、大小及摘要，不执行OCR、不确认长期附件、不延长原始TTL。凭据不存在、过期或越权统一404，上传失败重试复用幂等键；响应禁止缓存。
+         */
+        put: operations["uploadScanContent"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -434,7 +1218,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 对已上传的单题图片启动 OCR（planned） */
+        /** 本地Mock：返回空候选，未实际识别图片 */
         post: operations["createScan"];
         delete?: never;
         options?: never;
@@ -490,8 +1274,12 @@ export interface paths {
         put?: never;
         /**
          * 学生生成一次性的家长邀请码（学生明确授权的第一步）
-         * @description 只有学生能调用。邀请码只在这个响应里出现一次，库里只存哈希；有效期见 `expires_at`（可配置，默认 24 小时），
+         * @description 必填expected_parent_invite_revision，旧无body客户端422明确升级；成功key先重放。
+         *     新生成版本不符409 parent_invite_revision_conflict，不使当前邀请码失效。
+         *     只有学生能调用。邀请码只在这个响应里出现一次，库里只存哈希；有效期见 `expires_at`（可配置，默认 24 小时），
          *     用过一次就作废。再生成一个，会让这个学生之前还没被使用的邀请码立刻失效。
+         *     幂等记录不保存邀请码明文；有效邀请可同键重放。到期、使用、撤销或本地进程密钥变化后返回
+         *     409 `invite_response_expired`，请使用新幂等键重新生成；固定配置密钥时重启仍可重放有效邀请。
          *     授权是学生自己做的、可以随时撤销（见 `revokeParentLink`）。这是原型阶段的授权方式：监护授权方案（Q-03）
          *     冻结之前，它不代表任何法定的监护人核验。
          */
@@ -533,7 +1321,9 @@ export interface paths {
         put?: never;
         /**
          * 学生撤销对一位家长的授权
-         * @description 撤销立刻生效：这位家长马上看不到这个学生，周报返回 404。只能撤销自己的授权；别人的、不存在的、
+         * @description 必填expected_authorization_revision；成功key先重放。版本不符409 authorization_revision_conflict，
+         *     details只含本人expected/server版本和server_link，不改变新授权。旧无body客户端422明确升级。
+         *     撤销立刻生效：这位家长马上看不到这个学生，周报返回 404。只能撤销自己的授权；别人的、不存在的、
          *     已经撤销过的都返回 404。之后想再让这位家长看，要重新生成邀请码、重新授权。
          */
         post: operations["revokeParentLink"];
@@ -557,6 +1347,8 @@ export interface paths {
          * @description 只有家长能调用。邀请码不对、已过期、已经被用过、已经被新的邀请码顶替，一律返回 404 `invite_invalid`，
          *     不区分原因。已经绑定着这位学生时返回 409 `already_linked`（邀请码保持未使用）。
          *     输入时的空格、短横线和大小写会被忽略。这一步没有做防暴力尝试的限流（docs/05 §5），真实上线前要补。
+         *     兑换按认证家长与服务进程全局配置窗口限流，超过额度统一返回 429 `invite_rate_limited`，
+         *     不透露邀请码或绑定状态。成功请求的同键重放不消耗兑换额度；原型限流单进程，重启清空。
          */
         post: operations["redeemParentInvite"];
         delete?: never;
@@ -608,6 +1400,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/parents/students/{student_id}/weekly-snapshots/{week_start}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查看已授权学生的周报快照 */
+        get: operations["getParentWeeklySnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/questions": {
         parameters: {
             query?: never;
@@ -645,6 +1454,233 @@ export interface paths {
         get: operations["getAdminQuestion"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 文档导入限额与可用能力
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        get: operations["getDocumentImportOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 我的导入任务
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        get: operations["listDocumentImportJobs"];
+        put?: never;
+        /**
+         * 创建多文件导入任务
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        post: operations["createDocumentImportJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 导入进度与候选题
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        get: operations["getDocumentImportJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs/{job_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 上传文件到导入任务
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        post: operations["uploadDocumentImportFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs/{job_id}/files/{file_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取临时原文件
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        get: operations["getDocumentImportContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs/{job_id}/files/{file_id}/previews/{page}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 读取受控页面预览
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        get: operations["getDocumentImportPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs/{job_id}/process": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 排队提取文件并建议切题
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        post: operations["processDocumentImportJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 取消尚未完成的导入工作
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        post: operations["cancelDocumentImportJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs/{job_id}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 保存拆分合并与人工校对结果
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        post: operations["editDocumentImportCandidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/import-jobs/{job_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 批量创建已确认候选题的待审草稿
+         * @description 仅 reviewer/admin 可用；角色检查先于资源查询和请求体校验。任务仅创建者可见，跨账号与不存在统一 404。原始文件只作临时处理，不自动发布题目。
+         */
+        post: operations["submitDocumentImportCandidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/question-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 导入结构化题目为待审草稿
+         * @description 接收单题 JSON（不含文件路径或脚本），创建第 1 版 draft。来源仅支持自编、教材授权、公开许可、已授权真题；
+         *     必须填写使用依据，来源声明仍需独立人工核验。不接收审核状态、提交者或地区适用标记。
+         *     提交者取自 token，不能自行二审或发布。草稿允许内容校验问题，发布门禁沿用现有审核规则。
+         *     同一动作重试复用幂等键；角色检查先于请求体校验。
+         */
+        post: operations["importQuestionDraft"];
         delete?: never;
         options?: never;
         head?: never;
@@ -734,6 +1770,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/question-reviews/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 逐题显式确认后的批量审核
+         * @description 仅 reviewer/admin。最多50题，题目ID不可重复，每题必须 confirmed=true。
+         *     每题复用单题版本、状态、独立二审和内容校验；失败仅回滚该题。
+         *     有界批次和幂等回执在同一事务提交；进程/数据库异常整批回滚，复用原键重试。
+         *     成功响应同键重放；失败子集再次审核是新动作，使用新稳定幂等键。
+         *     不提供自动二审后发布；每题发布必须由审核员另行明确确认。
+         */
+        post: operations["reviewQuestionBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -747,7 +1807,8 @@ export interface components {
              *     forbidden、loopback_only、not_found、draft_revision_conflict、attempt_already_submitted、
              *     attempt_in_progress、independent_attempt_in_progress、hints_disabled_in_retest、invalid_state、
              *     review_not_due、attempt_not_verified、payload_too_large、validation_error、not_implemented、
-             *     model_unavailable；内容审核另有 self_review_forbidden、version_conflict、invalid_transition、
+             *     model_unavailable、storage_unavailable（存储不可用，保持原幂等键重试）、
+             *     storage_conflict（条件写冲突，未覆盖已有对象）；内容审核另有 self_review_forbidden、version_conflict、invalid_transition、
              *     comment_required、content_checks_failed、solution_not_confirmed；修改题目另有 no_changes。
              */
             code: string;
@@ -758,6 +1819,67 @@ export interface components {
         /** @description 与错误码相关的结构化信息；没有时为空对象。 */
         ErrorDetails: {
             [key: string]: unknown;
+        };
+        DiagnosticRevision: {
+            expected_revision: number;
+        };
+        DiagnosticCreate: {
+            subject: components["schemas"]["Subject"];
+            expected_revision: number;
+            expected_profile_revision: number;
+        };
+        DiagnosticScope: {
+            profile_revision: number;
+            region_code: components["schemas"]["RegionCode"];
+            grade: components["schemas"]["Grade"] | null;
+            exam_year: number | null;
+            curriculum_version: string | null;
+        };
+        DiagnosticSubmission: {
+            /** Format: uuid */
+            attempt_id: string;
+            independent: boolean;
+            evaluation_state: components["schemas"]["EvaluationState"];
+            is_correct: boolean | null;
+        };
+        DiagnosticItem: {
+            position: number;
+            question: components["schemas"]["QuestionSummary"];
+            question_version: number;
+            /** Format: uuid */
+            session_id: string | null;
+            submission: components["schemas"]["DiagnosticSubmission"] | null;
+        };
+        /** @description 仅关联会话首份提交的本轮计数；uncertain/pending不算对错。独立正确、独立不正确、借助提示和未确认四类互斥，总和等于submitted。不推算掌握度、分数或正确率。 */
+        DiagnosticSummary: {
+            submitted: number;
+            independent_correct: number;
+            independent_incorrect: number;
+            assisted: number;
+            unconfirmed: number;
+        };
+        DiagnosticRun: {
+            /** Format: uuid */
+            id: string;
+            subject: components["schemas"]["Subject"];
+            scope: components["schemas"]["DiagnosticScope"];
+            /** @enum {string} */
+            status: "active" | "completed" | "abandoned";
+            items: components["schemas"]["DiagnosticItem"][];
+            summary: components["schemas"]["DiagnosticSummary"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            abandoned_at: string | null;
+        };
+        DiagnosticHistoryPage: {
+            items: components["schemas"]["DiagnosticRun"][];
+            /** Format: uuid */
+            next_cursor: string | null;
+        };
+        DiagnosticWorkspace: {
+            revision: number;
+            run: components["schemas"]["DiagnosticRun"] | null;
         };
         /**
          * @description 首发地区：四川 CN-51、重庆 CN-50。
@@ -896,7 +2018,94 @@ export interface components {
             /** @enum {string} */
             token_type: "Bearer";
         };
+        LearningPackPdf: {
+            revision: number;
+            sha256: string;
+            content_base64: string;
+        };
+        PaperReviewSchedule: {
+            items: components["schemas"]["PaperReviewScheduleItem"][];
+        };
+        PaperReviewScheduleItem: {
+            /** Format: uuid */
+            knowledge_id: string;
+            title: string;
+            stage: number;
+            /** Format: date */
+            due_on: string;
+            estimated_anchor: boolean;
+        };
+        LearningPackHistory: {
+            ids: string[];
+            /** Format: uuid */
+            next_cursor?: string;
+        };
+        LearningPackItems: {
+            items: components["schemas"]["LearningPackItem"][];
+        };
+        LearningPackItem: {
+            revision: number;
+            code: string;
+            /** Format: uuid */
+            question_version_id: string;
+        };
+        LearningPackReturnRecord: {
+            transcript_revision?: number;
+            item: components["schemas"]["LearningPackItem"];
+            transcript: string;
+            /** Format: date-time */
+            confirmed_at: string;
+        };
+        LearningPackCorrection: {
+            expected_revision: number;
+            transcript: string;
+        };
+        LearningPackReturnRequest: {
+            transcript: string;
+            /** Format: date */
+            completed_on?: string;
+            /** @enum {string} */
+            independence?: "independent" | "assisted" | "unknown";
+            /** @description 已上传的本人临时图片，顺序为纸笔作答页顺序。 */
+            photo_ids?: string[];
+        };
+        LearningPackRequest: {
+            school_minutes: number;
+        };
+        LearningJobStatus: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "retry_wait" | "succeeded" | "failed" | "cancelled";
+            attempts: number;
+            /** @enum {string} */
+            pack_result?: "published" | "awaiting_return" | "insufficient_budget" | "no_printable_item";
+            reviews?: components["schemas"]["PaperReviewPlanItem"][];
+        };
+        PaperReviewPlanItem: {
+            /** Format: uuid */
+            knowledge_id: string;
+            title: string;
+            /** Format: date */
+            original_due_on: string;
+            /** Format: date */
+            suggested_on?: string | null;
+            /** @enum {string|null} */
+            deferred_reason?: "no_learning_day" | "insufficient_budget" | "awaiting_return" | "no_printable_item" | "overdue_budget_cap" | null;
+        };
+        LearningSettings: {
+            /** @enum {string} */
+            mode: "boarding" | "weekend" | "digital";
+            weekly_minutes: number;
+            /** @description ISO 星期编号，星期一为 1。 */
+            weekdays: number[];
+            school_progress?: string;
+            exam_scope?: string;
+        };
         StudentProfile: {
+            /** @description 单调递增的资料版本；新服务始终返回。旧缓存或旧响应缺失时表示未知，不能当作0。 */
+            revision?: number;
+            learning_settings?: components["schemas"]["LearningSettings"] | null;
             /** Format: uuid */
             user_id: string;
             display_name: string | null;
@@ -921,6 +2130,10 @@ export interface components {
             message: string;
         };
         ProfileUpdate: {
+            /** @description 省略或 null 保留现有学习设置。 */
+            learning_settings?: components["schemas"]["LearningSettings"] | null;
+            /** @description 发起编辑时读取的资料版本，必填。 */
+            expected_revision: number;
             region_code: components["schemas"]["RegionCode"];
             subjects: components["schemas"]["Subject"][];
             grade?: components["schemas"]["Grade"] | null;
@@ -935,7 +2148,23 @@ export interface components {
              * @description 服务端 UTC 日期。
              */
             date: string;
+            /**
+             * @description 尚未提交过作答或主动查看过解析；不代表能力档案或掌握度。旧响应可省略。
+             * @default false
+             */
+            cold_start: boolean;
             items: components["schemas"]["StudyTask"][];
+        };
+        QuestionTopic: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            title: string;
+            subject: components["schemas"]["Subject"];
+            question_count: number;
+        };
+        QuestionTopicPage: {
+            items: components["schemas"]["QuestionTopic"][];
         };
         StudyTask: {
             /**
@@ -965,6 +2194,26 @@ export interface components {
             exam_year_from: number | null;
             exam_year_to: number | null;
             disclaimer: string;
+        };
+        /** @description 导入时校验归属及页序后的来源位置声明；不含原文、预览或文件访问凭据，不承诺精确文本对应。 */
+        QuestionOriginLocation: {
+            file_sha256: string;
+            file_kind: components["schemas"]["DocImportFileKind"];
+            /** @enum {string} */
+            locator_kind: "pdf_page" | "word_fragment" | "image_page" | "json_fragment" | "unknown";
+            index: number;
+            /** @description 原候选的块序声明，尚未经精确区间验证。 */
+            declared_block: number | null;
+        };
+        /** @description 此题目版本的导入来源快照。原文件仍按临时任务期限管理，本记录仅有元数据；来源声明不等于版权审校或精确引文。 */
+        QuestionProvenance: {
+            source_snapshot: components["schemas"]["QuestionSource"];
+            origins: components["schemas"]["QuestionOriginLocation"][];
+            /** @enum {string} */
+            relation: "declared" | "derived_unverified";
+            parent_version: number | null;
+            /** @enum {string} */
+            access: "metadata_only";
         };
         QuestionSource: {
             source_type: components["schemas"]["SourceType"];
@@ -1091,6 +2340,8 @@ export interface components {
             variant_of: string | null;
         };
         Question: {
+            /** @description 当前响应所指固定题目版本的来源快照；旧数据或无可靠导入记录为null，不从当前题目或相似文字推造旧来源。 */
+            provenance?: components["schemas"]["QuestionProvenance"] | null;
             /** Format: uuid */
             id: string;
             subject: components["schemas"]["Subject"];
@@ -1117,6 +2368,8 @@ export interface components {
         SessionCreate: {
             /** Format: uuid */
             question_id: string;
+            /** @description 本机草稿依据的题面版本；不接受null。不匹配当前可提供的已发布版本时409，不自动关联新版。 */
+            expected_question_version?: number;
             origin: components["schemas"]["SessionOrigin"];
             /**
              * Format: uuid
@@ -1158,9 +2411,14 @@ export interface components {
             needs_human_help: boolean;
             /**
              * Format: uuid
-             * @description 未提交的作答草稿。
+             * @description 最早创建的未提交草稿；客户端恢复时优先显式attempt_id或本机记录，不用此默认值覆盖另一副本。
              */
             active_attempt_id: string | null;
+            /**
+             * Format: uuid
+             * @description 实际已提交且submission_no=1的作答ID；没有提交时null。可用于明确观察其他设备的首次提交，不能作为某个本机submit intent已成功的证明。旧回执可省略本字段，不能按attempt_no或active_attempt_id猜测。
+             */
+            first_submitted_attempt_id?: string | null;
             submitted_attempts: number;
             last_event_seq: number;
             /** Format: date-time */
@@ -1249,6 +2507,8 @@ export interface components {
         SubmitRequest: {
             answer: components["schemas"]["AnswerPayload"];
             elapsed_ms?: number | null;
+            /** @description 提交所依据的已同步草稿版本，非null严格整数；缺省兼容旧客户端。防止冻结答案与后来变动的笔迹混合。 */
+            expected_draft_revision?: number;
         };
         FeedbackItem: {
             /** @description 选项键、空位键或 overall。 */
@@ -1276,7 +2536,17 @@ export interface components {
             id: string;
             /** Format: uuid */
             session_id: string;
+            /** @description 同会话作答的创建顺序；不代表实际提交顺序。 */
             attempt_no: number;
+            /** @description 同会话实际提交顺序；草稿为null。可选以兼容历史幂等回执。 */
+            submission_no?: number | null;
+            /**
+             * Format: uuid
+             * @description 明确创建副本时的源作答；普通作答为null。
+             */
+            copied_from_attempt_id?: string | null;
+            /** @description 创建副本时校验的源草稿revision。 */
+            copied_from_revision?: number | null;
             status: components["schemas"]["AttemptStatus"];
             answer: components["schemas"]["AnswerPayload"] | null;
             draft_revision: number;
@@ -1291,6 +2561,38 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        DraftCopyCreate: {
+            source_revision: number;
+            answer: components["schemas"]["AnswerPayload"] | null;
+            strokes: components["schemas"]["StrokeDoc"] | null;
+        };
+        DraftCopy: {
+            session: components["schemas"]["StudySession"];
+            attempt: components["schemas"]["Attempt"];
+            draft: components["schemas"]["Draft"];
+        };
+        QuestionDraftRef: {
+            /** Format: uuid */
+            session_id: string;
+            /** Format: uuid */
+            attempt_id: string;
+            question_version: number;
+            attempt_no: number;
+            draft_revision: number;
+            /** Format: uuid */
+            copied_from_attempt_id: string | null;
+            copied_from_revision: number | null;
+            origin: components["schemas"]["SessionOrigin"];
+            /** Format: uuid */
+            review_item_id: string | null;
+            session_state: components["schemas"]["SessionState"];
+            /** Format: date-time */
+            updated_at: string;
+        };
+        QuestionDraftPage: {
+            items: components["schemas"]["QuestionDraftRef"][];
+            next_cursor: string | null;
         };
         SubmitResult: {
             attempt: components["schemas"]["Attempt"];
@@ -1377,6 +2679,28 @@ export interface components {
             session: components["schemas"]["StudySession"];
             events: components["schemas"]["TutorEvent"][];
         };
+        /** @description 固定题版本白名单文本块的范围；Unicode codepoint左闭右开。摘要为完整原文UTF-8 SHA-256，不做归一化。服务端必须另验start < end及实际长度、权限和审核范围。 */
+        ContentSpanRef: {
+            block_id: string;
+            block_sha256: string;
+            start: number;
+            end: number;
+        };
+        /** @description 服务端在事件meta固定question_id/question_version下授权解析的快照。索引均为版本内原序1-based ordinal；不包含任意URL或原始文件定位。 */
+        ResolvedContentSpan: {
+            block_id: string;
+            block_sha256: string;
+            start: number;
+            end: number;
+            block_text: string;
+            label: string;
+        };
+        /** @description 随题版本独立审校的教学引用注记。independent_safe仅为声明，不能绕过内容可见性、整块防泄题和完整解析门控；编辑使摘要失效时必须清除或重审。 */
+        TeachingReferenceLink: {
+            target_block_id: string;
+            source_span: components["schemas"]["ContentSpanRef"];
+            independent_safe: boolean;
+        };
         /** @description 教学事件信封。payload 的结构按 type 由 contracts/tutor_event.schema.json 约束。 */
         TutorEvent: {
             /** Format: uuid */
@@ -1390,6 +2714,7 @@ export interface components {
             state_after: components["schemas"]["SessionState"];
             payload: components["schemas"]["TutorEventPayload"];
             meta: components["schemas"]["TutorEventMeta"];
+            references?: components["schemas"]["ResolvedContentSpan"][];
         };
         /** @description 见 tutor_event.schema.json 的 $defs/*Payload。 */
         TutorEventPayload: {
@@ -1430,6 +2755,195 @@ export interface components {
             last_result: components["schemas"]["ReviewResult"] | null;
             /** Format: date-time */
             created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ExportSelfCheck: {
+            /** Format: uuid */
+            attempt_id: string;
+            marks: components["schemas"]["SelfCheckMark"][];
+            /** Format: date-time */
+            saved_at: string;
+        };
+        ExportReviewHistory: {
+            /** Format: uuid */
+            review_id: string;
+            /** Format: uuid */
+            first_attempt_id: string;
+            /** Format: uuid */
+            question_id: string;
+            state: string;
+            result: string | null;
+            /** Format: date-time */
+            completed_at: string | null;
+        };
+        ExportLearningSession: {
+            session: components["schemas"]["StudySession"];
+            attempts: components["schemas"]["Attempt"][];
+            drafts: components["schemas"]["Draft"][];
+            self_checks: components["schemas"]["ExportSelfCheck"][];
+            events: components["schemas"]["TutorEvent"][];
+        };
+        ExportParentAccessLink: {
+            /** Format: uuid */
+            id: string;
+            authorization_revision: number;
+            /** Format: date-time */
+            consent_at: string;
+            /** Format: date-time */
+            revoked_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ExportParentAccessInvite: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            redeemed_at: string | null;
+            /** Format: date-time */
+            revoked_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @description 本人现存的家长访问授权和邀请元数据；不含家长身份、邀请码或哈希。绑定重新授权覆盖旧时间，不能推定完整历史或法定监护关系；导出不恢复、不撤销授权。 */
+        ExportParentAccessRecords: {
+            /** @enum {boolean} */
+            history_complete: false;
+            links: components["schemas"]["ExportParentAccessLink"][];
+            invites: components["schemas"]["ExportParentAccessInvite"][];
+        };
+        /** @description 本人现存拍题文字快照；状态保留保存值，expires_at是原有效期。media_id只是原图引用，不保证图片存在或可读，不包含原图字节、存储路径或内部payload字段。 */
+        ExportStoredScan: {
+            /** Format: uuid */
+            media_id: string;
+            /** Format: date-time */
+            expires_at: string;
+            scan: components["schemas"]["Scan"];
+        };
+        /** @description 当前可访问学生用途媒体档案；内含状态清单，明确排除过期/删除、审核用途及已清理历史。false标记不能改为完整历史或全局快照承诺。 */
+        StudentMediaExport: {
+            /** @enum {integer} */
+            format_version: 1;
+            /** @enum {string} */
+            scope: "server_current_student_media";
+            /** Format: uuid */
+            owner_id: string;
+            /** Format: date-time */
+            exported_at: string;
+            /** @enum {boolean} */
+            history_complete: false;
+            /** @enum {boolean} */
+            consistent_snapshot: false;
+            objects_count: number;
+            files_count: number;
+            size_bytes: number;
+            sha256: string;
+            /** @description ZIP的base64；其中manifest.json必须符合StudentMediaArchiveManifest，文件名只用受控UUID。 */
+            archive_base64: string;
+        };
+        StudentMediaArchiveObject: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            purpose: "ocr_source" | "handwriting";
+            mime: string | null;
+            size_bytes: number;
+            sha256: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @enum {string} */
+            state: "reserved" | "pending" | "ready";
+            file_name: string | null;
+            /** @enum {string} */
+            availability: "not_uploaded" | "awaiting_confirmation" | "included";
+        };
+        /** @description ZIP内自包含范围清单，不是完整历史或跨对象快照；未上传/待确认只列状态。 */
+        StudentMediaArchiveManifest: {
+            /** @enum {integer} */
+            format_version: 1;
+            /** @enum {string} */
+            scope: "server_current_student_media";
+            /** Format: uuid */
+            owner_id: string;
+            /** Format: date-time */
+            exported_at: string;
+            /** @enum {boolean} */
+            history_complete: false;
+            /** @enum {boolean} */
+            consistent_snapshot: false;
+            objects_count: number;
+            files_count: number;
+            objects: components["schemas"]["StudentMediaArchiveObject"][];
+            excluded: ("expired_or_deleted_media" | "reviewer_media" | "cleared_history" | "unsynced_device_images" | "credentials_and_storage_details")[];
+        };
+        ExportModelCall: {
+            /** Format: date-time */
+            created_at: string;
+            task_type: string;
+            status: string;
+            provider_calls: number;
+            input_tokens: number | null;
+            output_tokens: number | null;
+            image_units: number | null;
+            estimated_cost_micros: number | null;
+        };
+        ExportModelBudgetDay: {
+            /** Format: date */
+            usage_date: string;
+            request_count: number;
+            estimated_cost_micros: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description 当前服务端伪名对应的现存调用元数据和student预算桶；不含平台预算、内部调用恢复记录或提示词。无法追溯旧密钥伪名，不代表完整历史。预算估算及保守预占不是实际账单，不得与调用估算相加。 */
+        ExportModelUsage: {
+            /** @enum {boolean} */
+            history_complete: false;
+            /** @enum {string} */
+            identity_scope: "current_server_pseudonym";
+            /** @enum {boolean} */
+            costs_are_billing: false;
+            calls: components["schemas"]["ExportModelCall"][];
+            budget_days: components["schemas"]["ExportModelBudgetDay"][];
+        };
+        StudentLearningExport: {
+            /** @description 新服务返回当前服务端伪名可关联的记录；旧文件缺少此字段表示未提供该范围，不代表没有调用。伪名由token身份在服务端派生，不接受客户端指定。 */
+            model_usage?: components["schemas"]["ExportModelUsage"];
+            /** @description 新服务始终返回；旧文件缺失表示未包含此范围，不能解释为从未授权。 */
+            parent_access_records?: components["schemas"]["ExportParentAccessRecords"];
+            /** @description 本地环境返回本人仍保存的拍题文字记录（包括尚未清理的过期记录），不重建已清理历史；空数组仅表示当前无保存记录。受控环境不读取proto表并返回null；旧文件可能缺失，null或缺失均表示未提供此范围，不代表从未拍题。 */
+            stored_scan_records?: components["schemas"]["ExportStoredScan"][] | null;
+            /** @description 本人全部摸底计划与首份提交计数，按开始时间及ID排序；新服务始终返回，旧导出缺失时表示未包含此范围。 */
+            diagnostic_runs?: components["schemas"]["DiagnosticRun"][];
+            /** @description 导出时本人的工作区版本及最近轮次；读取不创建记录。旧导出可能缺失。 */
+            diagnostic_workspace?: components["schemas"]["DiagnosticWorkspace"];
+            /** @enum {integer} */
+            format_version: 1;
+            /** @enum {string} */
+            scope: "server_learning_records";
+            /** Format: date-time */
+            exported_at: string;
+            profile: components["schemas"]["StudentProfile"];
+            sessions: components["schemas"]["ExportLearningSession"][];
+            reviews: components["schemas"]["ReviewItem"][];
+            review_history: components["schemas"]["ExportReviewHistory"][];
+            excluded: ("auth_credentials" | "operational_logs" | "question_answer_keys" | "unsynced_device_data" | "media_files" | "guardian_authorizations")[];
+        };
+        ReviewState: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            question_id: string;
+            status: components["schemas"]["ReviewStatus"];
+            stage: number;
+            total_stages: number;
+            /** Format: date-time */
+            due_at: string;
+            last_result: components["schemas"]["ReviewResult"] | null;
+            /** Format: uuid */
+            last_attempt_id: string | null;
             /** Format: date-time */
             updated_at: string;
         };
@@ -1490,9 +3004,121 @@ export interface components {
             by_difficulty: components["schemas"]["ProgressBucket"][];
             disclaimer: string;
         };
+        MediaReviewConfirmation: {
+            expected_version: number;
+            sha256: string;
+            /** @enum {boolean} */
+            confirmed: true;
+        };
+        MediaReviewDeclaration: {
+            /** Format: uuid */
+            question_id: string;
+            version: number;
+            /** Format: uuid */
+            media_id: string;
+            sha256: string;
+            /** Format: uuid */
+            actor_id: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        SchoolMaterialConfirmationRequest: {
+            source_revision: string;
+            items: components["schemas"]["SchoolMaterialConfirmedItem"][];
+        };
+        SchoolMaterialConfirmedItem: {
+            text: string;
+            pages: number[];
+        };
+        SchoolMaterialConfirmationReceipt: {
+            source_revision: string;
+            item_count: number;
+        };
+        SchoolMaterialCandidates: {
+            source_revision?: string;
+            confirmed_items?: components["schemas"]["SchoolMaterialConfirmedItem"][];
+            items: components["schemas"]["SchoolMaterialCandidate"][];
+        };
+        SchoolMaterialCandidate: {
+            text: string;
+            locations: components["schemas"]["SchoolMaterialCandidateLocation"][];
+            warnings: string[];
+        };
+        SchoolMaterialCandidateLocation: {
+            page: number;
+            block: number | null;
+        };
+        SchoolMaterialPages: {
+            pages: components["schemas"]["SchoolMaterialPage"][];
+        };
+        SchoolMaterialPage: {
+            page_number: number;
+            text: string;
+            needs_ocr: boolean;
+            revision?: number;
+        };
+        SchoolMaterialCorrectionReceipt: {
+            page_number: number;
+            revision: number;
+        };
+        SchoolMaterialPageCorrection: {
+            expected_revision: number;
+            text: string;
+        };
+        SchoolMaterialSubmitRequest: {
+            /** Format: uuid */
+            media_id: string;
+        };
+        SchoolMaterialUploadRequest: {
+            /** @enum {string} */
+            mime: "application/pdf" | "image/jpeg" | "image/png";
+            size_bytes: number;
+            sha256: string;
+        };
+        SchoolMaterialSource: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            mime: "application/pdf" | "image/jpeg" | "image/png";
+            size_bytes: number;
+            sha256: string;
+            /** Format: date-time */
+            expires_at: string;
+            page_count: number;
+        };
+        MediaBlobUpload: {
+            content_base64: string;
+        };
+        MediaConfirm: {
+            sha256: string;
+        };
+        MediaDelete: Record<string, never>;
+        MediaAssetInfo: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            mime: "image/png" | "image/jpeg" | "image/webp";
+            size_bytes: number;
+            sha256: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        MediaContent: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {string} */
+            mime: "image/png" | "image/jpeg" | "image/webp";
+            content_base64: string;
+        };
+        MediaDeleted: {
+            /** Format: uuid */
+            media_id: string;
+            /** @enum {boolean} */
+            deleted: true;
+        };
         MediaUploadRequest: {
             /** @enum {string} */
-            purpose: "scan" | "draft_backup";
+            purpose: "scan" | "draft_backup" | "question_attachment";
             /** @enum {string} */
             mime: "image/jpeg" | "image/png" | "image/webp";
             size_bytes: number;
@@ -1529,6 +3155,8 @@ export interface components {
             /** Format: uuid */
             matched_question_id: string | null;
             error_code: string | null;
+            /** @description 明确说明未实际识别图片。 */
+            mock_notice?: string;
         };
         ScanConfirm: {
             stem_text: string;
@@ -1543,12 +3171,14 @@ export interface components {
             question_id: string | null;
             /**
              * Format: uuid
-             * @description 新建的待审题草案。
+             * @description 本地Mock始终为null，不创建题库草稿。
              */
             draft_question_id: string | null;
         };
         /** @description 学生生成的一次性邀请码。`code` 只在创建时出现这一次，之后任何接口都不会再返回它。 */
         ParentInvite: {
+            /** @description 新服务始终返回；旧缓存或旧回执缺失表示未知，不能补默认版本。 */
+            parent_invite_revision?: number;
             /** Format: uuid */
             id: string;
             /** @description 十位，字母和数字；念给家长或写给家长看，不分大小写。 */
@@ -1560,6 +3190,12 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             expires_at: string;
+        };
+        ParentInviteCreate: {
+            expected_parent_invite_revision: number;
+        };
+        ParentLinkRevoke: {
+            expected_authorization_revision: number;
         };
         ParentInviteRedeem: {
             /** @description 学生给的邀请码；空格、短横线和大小写会被忽略。 */
@@ -1576,6 +3212,8 @@ export interface components {
         };
         /** @description 学生对一位家长的授权。 */
         ParentLink: {
+            /** @description 新服务始终返回；旧缓存或旧回执缺失表示未知，不能补默认版本。 */
+            authorization_revision?: number;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -1599,6 +3237,8 @@ export interface components {
             revoked_at: string | null;
         };
         ParentLinks: {
+            /** @description 新服务始终返回；旧缓存或旧回执缺失表示未知，不能补默认版本。 */
+            parent_invite_revision?: number;
             /** @description 现在仍然有效的授权。 */
             links: components["schemas"]["ParentLink"][];
             /** @description 还没被使用、也没过期的邀请码；没有时为 null。 */
@@ -1628,12 +3268,25 @@ export interface components {
             attempts_count: number;
             independent: components["schemas"]["RateStat"];
         };
+        PaperWeeklySummary: {
+            confirmed: number;
+            awaiting_assessment: number;
+            late_returns: number;
+            unknown_completion_date: number;
+            independent: components["schemas"]["RateStat"];
+            assisted: components["schemas"]["RateStat"];
+        };
+        ParentWeeklySnapshot: {
+            revision: number;
+            report: components["schemas"]["ParentWeekly"];
+        };
         /**
          * @description 一位已授权学生某一周的汇总。只有计数和比例：没有具体题目、作答内容、提示原文、草稿和笔迹，
          *     也没有每次练习的时间。周从周一到周日，按服务端配置的时区划分。样本少于 `min_samples` 的比例是 null，只给计数。
          *     不是官方成绩，没有排名，也没有连续天数。
          */
         ParentWeekly: {
+            paper?: components["schemas"]["PaperWeeklySummary"] | null;
             /** Format: uuid */
             student_id: string;
             student_display_name: string | null;
@@ -1681,7 +3334,40 @@ export interface components {
         ReviewDecisionType: "approve" | "reject" | "publish" | "withdraw";
         /** @enum {string} */
         SolutionKind: "standard" | "fast";
+        ReviewBatchItem: {
+            /** @description 审核人或编辑者明确看到的审核修订号；同内容版本内审核或编辑变化也递增。未知来源须刷新后明确重新发起，不能给旧命令自动补值。历史成功同键优先重放。 */
+            expected_review_revision: number;
+            /** Format: uuid */
+            question_id: string;
+            expected_version: number;
+            decision: components["schemas"]["ReviewDecisionType"];
+            /** @enum {boolean} */
+            confirmed: true;
+            comment?: string | null;
+            solution_kinds?: components["schemas"]["SolutionKind"][] | null;
+        };
+        ReviewBatch: {
+            items: components["schemas"]["ReviewBatchItem"][];
+        };
+        ReviewBatchError: {
+            status: number;
+            code: string;
+            message: string;
+        };
+        ReviewBatchResultItem: {
+            /** Format: uuid */
+            question_id: string;
+            /** @enum {string} */
+            status: "succeeded" | "failed";
+            state: components["schemas"]["QuestionReviewState"] | null;
+            error: components["schemas"]["ReviewBatchError"] | null;
+        };
+        ReviewBatchResult: {
+            items: components["schemas"]["ReviewBatchResultItem"][];
+        };
         ReviewDecision: {
+            /** @description 审核人或编辑者明确看到的审核修订号；同内容版本内审核或编辑变化也递增。未知来源须刷新后明确重新发起，不能给旧命令自动补值。历史成功同键优先重放。 */
+            expected_review_revision: number;
             decision: components["schemas"]["ReviewDecisionType"];
             /** @description 审核人看到的题目版本；与服务端当前版本不一致时返回 409 version_conflict。 */
             expected_version: number;
@@ -1690,6 +3376,8 @@ export interface components {
             solution_kinds?: components["schemas"]["SolutionKind"][];
         };
         QuestionReviewState: {
+            /** @description 当前单调审核修订号；审核决策及内容编辑均递增。旧成功回执可能缺少此字段，缺失表示未知，禁止当作1。 */
+            review_revision?: number;
             /** Format: uuid */
             question_id: string;
             status: components["schemas"]["QuestionStatus"];
@@ -1700,6 +3388,8 @@ export interface components {
             updated_at: string;
         };
         AdminQuestionSummary: {
+            /** @description 当前单调审核修订号；审核决策及内容编辑均递增。旧成功回执可能缺少此字段，缺失表示未知，禁止当作1。 */
+            review_revision?: number;
             /** Format: uuid */
             id: string;
             subject: components["schemas"]["Subject"];
@@ -1746,6 +3436,7 @@ export interface components {
             caption: string;
         };
         AdminTeaching: {
+            reference_links?: components["schemas"]["TeachingReferenceLink"][];
             concept: string | null;
             hints: string[];
             concept_rephrase: string | null;
@@ -1793,7 +3484,7 @@ export interface components {
          * @description 审核决策，或者 edit（修改内容、产生新版本）。
          * @enum {string}
          */
-        AdminHistoryAction: "approve" | "reject" | "publish" | "withdraw" | "edit";
+        AdminHistoryAction: "approve" | "reject" | "publish" | "withdraw" | "edit" | "import";
         AdminHistoryEntry: {
             /** Format: uuid */
             id: string;
@@ -1821,6 +3512,8 @@ export interface components {
         };
         /** @description 可编辑内容的完整替换（不是补丁）：没打算改的部分原样传回。题型、学科、答题方式、来源和地区标记不在这里改。 */
         AdminQuestionEdit: {
+            /** @description 审核人或编辑者明确看到的审核修订号；同内容版本内审核或编辑变化也递增。未知来源须刷新后明确重新发起，不能给旧命令自动补值。历史成功同键优先重放。 */
+            expected_review_revision: number;
             /** @description 编辑者看到的题目版本；与服务端当前版本不一致时返回 409 version_conflict。 */
             expected_version: number;
             title: string;
@@ -1836,8 +3529,207 @@ export interface components {
             /** @description 修改说明，写进审计与历史。 */
             comment?: string | null;
         };
+        /** @description 单题草稿内容；不含审核状态、提交者和版本号。 */
+        AdminQuestionDraft: {
+            title: string;
+            difficulty: number;
+            grade: components["schemas"]["Grade"] | null;
+            content: components["schemas"]["QuestionContent"];
+            answer: components["schemas"]["AdminAnswer"];
+            teaching: components["schemas"]["AdminTeaching"];
+            solutions: components["schemas"]["AdminSolutionInput"][];
+            /** @description 知识点 code（如 math.function.monotonicity），必须是已存在的知识点。 */
+            knowledge: string[];
+            rubric: Record<string, never>;
+            /** @description 修改说明，写进审计与历史。 */
+            comment?: string | null;
+        };
+        AdminImportSource: {
+            /** @enum {string} */
+            source_type: "self_authored" | "textbook_licensed" | "public_license" | "gaokao_licensed";
+            source_category: components["schemas"]["SourceCategory"];
+            source_name: string;
+            source_year: number | null;
+            /** @description 使用依据或授权记录编号，须由审校员核验。 */
+            source_license: string;
+            source_url: string | null;
+        };
+        /** @enum {string} */
+        DocImportJobStatus: "uploading" | "queued" | "processing" | "needs_review" | "completed" | "partial_failure" | "failed" | "cancelled";
+        /** @enum {string} */
+        DocImportFileStatus: "pending" | "processing" | "ready" | "needs_ocr" | "failed" | "cancelled";
+        /** @enum {string} */
+        DocImportFileKind: "pdf" | "docx" | "doc" | "png" | "jpeg" | "json";
+        DocImportOptions: {
+            /**
+             * Format: date-time
+             * @description 服务器UTC时间，用于展示创建窗口。
+             */
+            server_time: string;
+            /**
+             * Format: date-time
+             * @description 新建意图固定保存的UTC截止时间，重试不得刷新。
+             */
+            creation_deadline: string;
+            max_file_bytes: number;
+            max_job_bytes: number;
+            max_files: number;
+            max_pages: number;
+            max_candidates: number;
+            temporary_ttl_minutes: number;
+            file_kinds: components["schemas"]["DocImportFileKind"][];
+            /** @enum {string} */
+            ocr_mode: "disabled" | "mock" | "configured";
+            doc_converter_available: boolean;
+        };
+        DocImportDefaults: {
+            subject: components["schemas"]["Subject"];
+            answer_mode: components["schemas"]["AnswerMode"];
+            source: components["schemas"]["AdminImportSource"];
+        };
+        DocImportJobCreate: {
+            /**
+             * Format: date-time
+             * @description 意图固定的有时区RFC3339截止时间；过期后不得通过原键创建新任务。
+             */
+            creation_deadline: string;
+            title: string;
+            defaults: components["schemas"]["DocImportDefaults"];
+        };
+        DocImportJobSummary: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            status: components["schemas"]["DocImportJobStatus"];
+            revision: number;
+            file_count: number;
+            processed_files: number;
+            candidate_count: number;
+            confirmed_count: number;
+            imported_count: number;
+            failed_count: number;
+            message: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        DocImportPage: {
+            /** @description 提取片段序号：PDF 为页，DOCX 为有序文本片段，不等于 Word 的物理页码。 */
+            number: number;
+            text: string;
+            /** @enum {string} */
+            method: "pdf_text" | "docx_text" | "json" | "ocr" | "ocr_mock" | "unavailable";
+            warnings: string[];
+            confidence: number | null;
+            /** @description DOCX 内嵌媒体引用；只作定位，不作为可访问的文件系统路径。 */
+            media_refs: string[];
+        };
+        DocImportFile: {
+            /** Format: uuid */
+            id: string;
+            filename: string;
+            kind: components["schemas"]["DocImportFileKind"];
+            media_type: string;
+            size_bytes: number;
+            sha256: string;
+            status: components["schemas"]["DocImportFileStatus"];
+            problems: string[];
+            pages: components["schemas"]["DocImportPage"][];
+            original_available: boolean;
+        };
+        DocImportLocation: {
+            /** Format: uuid */
+            file_id: string;
+            page: number;
+            block: number | null;
+        };
+        DocImportItemError: {
+            code: string;
+            message: string;
+        };
+        DocImportCandidate: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            text: string;
+            locations: components["schemas"]["DocImportLocation"][];
+            warnings: string[];
+            payload: components["schemas"]["AdminQuestionImport"] | null;
+            confirmed: boolean;
+            confirmed_by: string | null;
+            question_id: string | null;
+            error: components["schemas"]["DocImportItemError"] | null;
+        };
+        DocImportCandidateInput: {
+            id: string | null;
+            title: string;
+            text: string;
+            locations: components["schemas"]["DocImportLocation"][];
+            payload: components["schemas"]["AdminQuestionImport"] | null;
+            confirmed: boolean;
+        };
+        DocImportJobDetail: {
+            job: components["schemas"]["DocImportJobSummary"];
+            defaults: components["schemas"]["DocImportDefaults"];
+            files: components["schemas"]["DocImportFile"][];
+            candidates: components["schemas"]["DocImportCandidate"][];
+        };
+        DocImportJobPage: {
+            items: components["schemas"]["DocImportJobSummary"][];
+            next_cursor: string | null;
+        };
+        DocImportRevision: {
+            expected_revision: number;
+        };
+        /** @description 本地原型通过有界 Base64 JSON 上传单个文件，多文件逐个提交；文件名只作显示，不作为存储路径。 */
+        DocImportUpload: {
+            expected_revision: number;
+            filename: string;
+            content_base64: string;
+        };
+        DocImportUploadResult: {
+            job: components["schemas"]["DocImportJobSummary"];
+            file: components["schemas"]["DocImportFile"];
+        };
+        DocImportContent: {
+            filename: string;
+            media_type: string;
+            content_base64: string;
+        };
+        /** @description 整体替换候选题工作区，支持人工拆分、合并与排序；新项 id=null；已导入项不可改写或删除。确认来自当前 token。 */
+        DocImportCandidatesEdit: {
+            expected_revision: number;
+            items: components["schemas"]["DocImportCandidateInput"][];
+        };
+        DocImportSubmit: {
+            expected_revision: number;
+            candidate_ids: string[];
+        };
+        DocImportBatchItem: {
+            /** Format: uuid */
+            candidate_id: string;
+            question_id: string | null;
+            /** @enum {string} */
+            status: "imported" | "already_imported" | "failed";
+            error: components["schemas"]["DocImportItemError"] | null;
+        };
+        DocImportBatchResult: {
+            job: components["schemas"]["DocImportJobSummary"];
+            items: components["schemas"]["DocImportBatchItem"][];
+        };
+        AdminQuestionImport: {
+            subject: components["schemas"]["Subject"];
+            answer_mode: components["schemas"]["AnswerMode"];
+            source: components["schemas"]["AdminImportSource"];
+            question: components["schemas"]["AdminQuestionDraft"];
+        };
         /** @description 题目某一个版本里"可以被修改"的全部内容，对比两个版本用。 */
         AdminVersionSnapshot: {
+            /** @description 当前响应所指固定题目版本的来源快照；旧数据或无可靠导入记录为null，不从当前题目或相似文字推造旧来源。 */
+            provenance?: components["schemas"]["QuestionProvenance"] | null;
             /** Format: uuid */
             question_id: string;
             version: number;
@@ -1863,6 +3755,10 @@ export interface components {
             rubric: Record<string, never>;
         };
         AdminQuestionDetail: {
+            /** @description 当前响应所指固定题目版本的来源快照；旧数据或无可靠导入记录为null，不从当前题目或相似文字推造旧来源。 */
+            provenance?: components["schemas"]["QuestionProvenance"] | null;
+            /** @description 当前单调审核修订号；审核决策及内容编辑均递增。旧成功回执可能缺少此字段，缺失表示未知，禁止当作1。 */
+            review_revision?: number;
             /** Format: uuid */
             id: string;
             subject: components["schemas"]["Subject"];
@@ -1899,6 +3795,40 @@ export interface components {
         };
     };
     responses: {
+        /** @description 学习任务公开状态 */
+        LearningJobResponse: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    data: components["schemas"]["LearningJobStatus"];
+                };
+            };
+        };
+        /** @description 已启用的通用请求体接收期限已到，业务动作尚未执行。 */
+        RequestTimeout: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
+        /** @description 通用窗口/并发额度不足，或限流依赖不可用；不透露账号、IP或资源存在性。 */
+        HttpRateLimited: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                /** @description 建议稍后重试的秒数，不代表剩余额度。 */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorEnvelope"];
+            };
+        };
         /** @description 参数错误（如缺少 Idempotency-Key、游标无效） */
         BadRequest: {
             headers: {
@@ -2023,6 +3953,235 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getDiagnosticWorkspace: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本人当前工作区；无记录时run为null，revision为0。读取不创建记录。 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DiagnosticWorkspace"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    createDiagnostic: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiagnosticCreate"];
+            };
+        };
+        responses: {
+            /** @description 创建成功；幂等重放返回原始工作区，不代表最新进度。 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DiagnosticWorkspace"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    listDiagnosticHistory: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本人的历史页，包含进行中、完成及主动结束的轮次；无后续页时next_cursor为null。 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DiagnosticHistoryPage"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getDiagnostic: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                diagnostic_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 固定题目摘要及本人进度；不含答案、解析、提示或笔迹。 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DiagnosticRun"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    openDiagnosticSession: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                diagnostic_id: string;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiagnosticRevision"];
+            };
+        };
+        responses: {
+            /** @description 作答会话；新建绑定时工作区版本递增，已有绑定不递增。客户端随后刷新工作区。 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["StudySession"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    abandonDiagnostic: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                diagnostic_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiagnosticRevision"];
+            };
+        };
+        responses: {
+            /** @description 结束后的工作区；旧轮次仍可按ID回看，已提交结果不被删除。 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DiagnosticWorkspace"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -2073,6 +4232,9 @@ export interface operations {
                     };
                 };
             };
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     createLocalIdentity: {
@@ -2103,7 +4265,79 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getStudentMediaExport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本人当前学生用途媒体ZIP及其完整性元数据；Cache-Control为no-store */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["StudentMediaExport"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getStudentLearningExport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前学生的学习记录；Cache-Control为no-store */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["StudentLearningExport"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getProfile: {
@@ -2132,14 +4366,20 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     updateProfile: {
         parameters: {
             query?: never;
-            header?: {
+            header: {
                 /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
                 "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
             };
             path?: never;
             cookie?: never;
@@ -2162,9 +4402,456 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    listLearningPacks: {
+        parameters: {
+            query?: {
+                after?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 按纸包编号排序，每页最多五十条 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackHistory"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    createLearningPack: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LearningPackRequest"];
+            };
+        };
+        responses: {
+            202: components["responses"]["LearningJobResponse"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    downloadLearningPackStudentPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 学生版 PDF 及校验摘要 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackPdf"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    abandonLearningPack: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["LearningJobResponse"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    downloadLearningPackSolutionPdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 解析版 PDF 及校验摘要 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackPdf"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    listLearningPackItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 按印刷顺序排列的题目 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackItems"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    resolveLearningPackPage: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 印刷题目定位结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackItem"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    resolveLearningPackItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 短码定位结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackItem"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getLearningPackReturn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 纸笔作答转写 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackReturnRecord"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    correctLearningPackReturn: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LearningPackCorrection"];
+            };
+        };
+        responses: {
+            /** @description 校正后的转写和版本 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackReturnRecord"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    submitLearningPackReturn: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LearningPackReturnRequest"];
+            };
+        };
+        responses: {
+            /** @description 已保存的回收记录定位信息 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackItem"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getPaperReviewSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 按候选到期日排序的纸笔复测知识点 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaperReviewSchedule"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getLearningJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["LearningJobResponse"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    cancelLearningJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["LearningJobResponse"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getTodayTasks: {
@@ -2193,6 +4880,9 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     listQuestions: {
@@ -2201,6 +4891,8 @@ export interface operations {
                 subject?: components["schemas"]["Subject"];
                 answer_mode?: components["schemas"]["AnswerMode"];
                 source_category?: components["schemas"]["SourceCategory"];
+                /** @description 手动选择正在学的知识点；不是教材章节映射或掌握度判断。 */
+                knowledge_id?: string;
                 scope?: components["schemas"]["QuestionScope"];
                 /** @description 上一页返回的 next_cursor，不透明字符串。 */
                 cursor?: components["parameters"]["Cursor"];
@@ -2230,7 +4922,46 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    listQuestionTopics: {
+        parameters: {
+            query?: {
+                subject?: components["schemas"]["Subject"];
+                answer_mode?: components["schemas"]["AnswerMode"];
+                scope?: components["schemas"]["QuestionScope"];
+            };
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 可选择的知识点，按学科和知识点编码稳定排序 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["QuestionTopicPage"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getQuestion: {
@@ -2262,7 +4993,10 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     createSession: {
@@ -2300,8 +5034,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getSession: {
@@ -2333,7 +5070,85 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getSessionQuestion: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                session_id: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 固定版本题面 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["Question"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    listQuestionDrafts: {
+        parameters: {
+            query?: {
+                /** @description 上一页返回的 next_cursor，不透明字符串。 */
+                cursor?: components["parameters"]["Cursor"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                question_id: components["parameters"]["QuestionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本人草稿引用 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["QuestionDraftPage"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     listSessionEvents: {
@@ -2369,7 +5184,10 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     createAttempt: {
@@ -2407,8 +5225,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getAttempt: {
@@ -2440,7 +5261,54 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    createDraftCopy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                attempt_id: components["parameters"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftCopyCreate"];
+            };
+        };
+        responses: {
+            /** @description 独立副本已保存；源草稿未修改 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DraftCopy"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getDraft: {
@@ -2472,7 +5340,10 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     syncDraft: {
@@ -2512,9 +5383,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     submitAttempt: {
@@ -2554,8 +5427,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getSelfCheck: {
@@ -2587,8 +5463,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     saveSelfCheck: {
@@ -2628,8 +5507,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     tutorNext: {
@@ -2669,8 +5551,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
             503: components["responses"]["ServiceUnavailable"];
         };
     };
@@ -2707,7 +5592,46 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getReviewState: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                review_id: components["parameters"]["ReviewId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前状态，不是某次完成命令成功的证明；响应不可缓存。 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReviewState"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     completeReview: {
@@ -2747,8 +5671,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getProgressSummary: {
@@ -2777,6 +5704,97 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getPublishedQuestionMedia: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                question_id: components["parameters"]["QuestionId"];
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 有界静态图片或有效审校声明 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaContent"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    confirmQuestionMediaReview: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                question_id: components["parameters"]["QuestionId"];
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaReviewConfirmation"];
+            };
+        };
+        responses: {
+            /** @description 有界静态图片或有效审校声明 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaReviewDeclaration"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createMediaUpload: {
@@ -2809,10 +5827,678 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
             501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getMediaContent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本地受控媒体结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaContent"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    uploadMediaContent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaBlobUpload"];
+            };
+        };
+        responses: {
+            /** @description 本地受控媒体结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaAssetInfo"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    confirmMediaUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaConfirm"];
+            };
+        };
+        responses: {
+            /** @description 本地受控媒体结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaAssetInfo"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    deleteMedia: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaDelete"];
+            };
+        };
+        responses: {
+            /** @description 本地受控媒体结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaDeleted"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getQuestionMediaContent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                media_id: string;
+                question_id: components["parameters"]["QuestionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本地受控媒体结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaContent"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    submitSchoolMaterial: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolMaterialSubmitRequest"];
+            };
+        };
+        responses: {
+            /** @description 已接收，返回持久处理任务 */
+            202: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningJobStatus"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listSchoolMaterialPages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PDF 文本层或待识别页；不产生评分或学习证据 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SchoolMaterialPages"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    correctSchoolMaterialPage: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+                page_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolMaterialPageCorrection"];
+            };
+        };
+        responses: {
+            /** @description 已保存的校正版 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SchoolMaterialCorrectionReceipt"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    listSchoolMaterialCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 待核对分题候选 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SchoolMaterialCandidates"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    confirmSchoolMaterialCandidates: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolMaterialConfirmationRequest"];
+            };
+        };
+        responses: {
+            /** @description 私域分题确认回执 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SchoolMaterialConfirmationReceipt"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getSchoolMaterialPagePreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                page_number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 页面栅格预览 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaContent"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createSchoolMaterialUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolMaterialUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description 临时上传凭据 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaUpload"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    uploadSchoolMaterialContent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaBlobUpload"];
+            };
+        };
+        responses: {
+            /** @description 已验证的临时原件 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SchoolMaterialSource"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    createScanUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description 上传凭据 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaUpload"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    getScanUploadContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 本人已上传的临时照片 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaContent"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    uploadScanContent: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                media_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaBlobUpload"];
+            };
+        };
+        responses: {
+            /** @description 本地受控媒体结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MediaAssetInfo"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createScan: {
@@ -2833,7 +6519,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description 已接受，异步识别 */
+            /** @description 已接受，等待学生手工输入并确认 */
             202: {
                 headers: {
                     "X-Request-Id": components["headers"]["RequestId"];
@@ -2845,9 +6531,17 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
             501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     getScan: {
@@ -2876,9 +6570,16 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
             501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     confirmScan: {
@@ -2913,11 +6614,17 @@ export interface operations {
                     };
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
             501: components["responses"]["NotImplemented"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     createParentInvite: {
@@ -2932,7 +6639,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParentInviteCreate"];
+            };
+        };
         responses: {
             /** @description 新的邀请码 */
             201: {
@@ -2950,6 +6661,12 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     listParentLinks: {
@@ -2978,6 +6695,10 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     revokeParentLink: {
@@ -2995,7 +6716,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParentLinkRevoke"];
+            };
+        };
         responses: {
             /** @description 撤销后的授权记录 */
             200: {
@@ -3014,6 +6739,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     redeemParentInvite: {
@@ -3051,8 +6781,20 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            /** @description 兑换尝试过于频繁（不透露邀请码或绑定状态） */
+            429: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     listParentStudents: {
@@ -3081,6 +6823,9 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getParentWeekly: {
@@ -3116,7 +6861,46 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getParentWeeklySnapshot: {
+        parameters: {
+            query?: {
+                revision?: number;
+            };
+            header?: never;
+            path: {
+                /** @description 仅作为资源关联；是否可访问由 token 与绑定关系决定。 */
+                student_id: components["parameters"]["StudentId"];
+                week_start: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 指定版本的周报，未指定时返回最新版本 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ParentWeeklySnapshot"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     listAdminQuestions: {
@@ -3153,7 +6937,10 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getAdminQuestion: {
@@ -3185,7 +6972,525 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getDocumentImportOptions: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 文档导入限额与可用能力 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportOptions"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    listDocumentImportJobs: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 我的导入任务 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportJobPage"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    createDocumentImportJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocImportJobCreate"];
+            };
+        };
+        responses: {
+            /** @description 创建多文件导入任务 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportJobSummary"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            /** @description 创建窗口过期且无可重放成功回执（import_creation_window_expired），不会创建新任务。 */
+            410: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getDocumentImportJob: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 导入进度与候选题 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportJobDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    uploadDocumentImportFile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocImportUpload"];
+            };
+        };
+        responses: {
+            /** @description 上传文件到导入任务 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportUploadResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getDocumentImportContent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                job_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 读取临时原文件 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportContent"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    getDocumentImportPreview: {
+        parameters: {
+            query?: {
+                /** @description DOCX 当前片段内嵌媒体的序号；没有图像的 DOCX 使用提取文本校对。 */
+                media_index?: number;
+            };
+            header?: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            path: {
+                job_id: string;
+                file_id: string;
+                page: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 读取受控页面预览 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportContent"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    processDocumentImportJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocImportRevision"];
+            };
+        };
+        responses: {
+            /** @description 排队提取文件并建议切题 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportJobSummary"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    cancelDocumentImportJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocImportRevision"];
+            };
+        };
+        responses: {
+            /** @description 取消尚未完成的导入工作 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportJobSummary"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    editDocumentImportCandidates: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocImportCandidatesEdit"];
+            };
+        };
+        responses: {
+            /** @description 保存拆分合并与人工校对结果 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportJobDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    submitDocumentImportCandidates: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocImportSubmit"];
+            };
+        };
+        responses: {
+            /** @description 批量创建已确认候选题的待审草稿 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["DocImportBatchResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+            501: components["responses"]["NotImplemented"];
+        };
+    };
+    importQuestionDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminQuestionImport"];
+            };
+        };
+        responses: {
+            /** @description 新版本保存后的题目全貌 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AdminQuestionDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     createQuestionVersion: {
@@ -3225,8 +7530,11 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     getQuestionVersion: {
@@ -3260,7 +7568,10 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
     reviewQuestion: {
@@ -3300,8 +7611,52 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    reviewQuestionBatch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 客户端生成的请求 ID；未提供时由服务端生成。响应头原样回显。 */
+                "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewBatch"];
+            };
+        };
+        responses: {
+            /** @description 逐题成功或失败，失败不撤销其他成功项 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    "Idempotency-Replayed": components["headers"]["IdempotencyReplayed"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ReviewBatchResult"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
         };
     };
 }

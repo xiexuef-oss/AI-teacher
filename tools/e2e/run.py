@@ -131,7 +131,18 @@ def main(argv: list[str] | None = None) -> int:
             for flow in selected:
                 say(f"\n===== {flow.name}：{flow.title} =====")
                 flow_dir = OUT_ROOT / flow.name
-                api = servers.start_api(flow_dir)  # 每条流程一个全新的数据库
+                api = servers.start_api(
+                    flow_dir,
+                    media_enabled=flow.name
+                    in {
+                        "document_import",
+                        "admin_media_write_recovery",
+                        "admin_document_write_recovery",
+                    },
+                    scan_enabled=flow.name
+                    in {"student_scan", "student_scan_recovery", "local_draft_export"},
+                    review_minutes=flow.review_minutes,
+                )  # 每条流程一个全新的数据库
                 checks = Checks()
                 ctx = Context(browser=browser, checks=checks, out_dir=flow_dir)
                 try:

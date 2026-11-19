@@ -1,0 +1,99 @@
+{
+  "name": "document_import_detail",
+  "method": "GET",
+  "path": "/api/v1/admin/import-jobs/d728a61f-d463-4e3f-b44c-09cbbb0ff00d",
+  "status": 200,
+  "schema": "DocImportJobDetail",
+  "value": {
+    "job": {
+      "id": "d728a61f-d463-4e3f-b44c-09cbbb0ff00d",
+      "title": "自编工程样题导入",
+      "status": "uploading",
+      "revision": 2,
+      "file_count": 1,
+      "processed_files": 0,
+      "candidate_count": 0,
+      "confirmed_count": 0,
+      "imported_count": 0,
+      "failed_count": 0,
+      "message": null,
+      "created_at": "2026-11-10T08:00:00+00:00",
+      "updated_at": "2026-11-10T08:00:00+00:00",
+      "expires_at": "2026-11-10T10:00:00+00:00"
+    },
+    "defaults": {
+      "subject": "math",
+      "answer_mode": "single_choice",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null
+      }
+    },
+    "files": [
+      {
+        "id": "5b9ada99-40a3-45bc-b634-5ac925e4b476",
+        "filename": "sample.json",
+        "kind": "json",
+        "media_type": "application/json",
+        "size_bytes": 3270,
+        "sha256": "a5c0001f03021934e5eaf330f94a92e354e3ba27adeac6517f96df96f312cd50",
+        "status": "pending",
+        "problems": [],
+        "pages": [],
+        "original_available": true
+      }
+    ],
+    "candidates": []
+  },
+  "body": {
+    "data": {
+      "job": {
+        "id": "d728a61f-d463-4e3f-b44c-09cbbb0ff00d",
+        "title": "自编工程样题导入",
+        "status": "uploading",
+        "revision": 2,
+        "file_count": 1,
+        "processed_files": 0,
+        "candidate_count": 0,
+        "confirmed_count": 0,
+        "imported_count": 0,
+        "failed_count": 0,
+        "message": null,
+        "created_at": "2026-11-10T08:00:00+00:00",
+        "updated_at": "2026-11-10T08:00:00+00:00",
+        "expires_at": "2026-11-10T10:00:00+00:00"
+      },
+      "defaults": {
+        "subject": "math",
+        "answer_mode": "single_choice",
+        "source": {
+          "source_type": "self_authored",
+          "source_category": "foundation",
+          "source_name": "自编工程样题",
+          "source_year": null,
+          "source_license": "internal-engineering-sample",
+          "source_url": null
+        }
+      },
+      "files": [
+        {
+          "id": "5b9ada99-40a3-45bc-b634-5ac925e4b476",
+          "filename": "sample.json",
+          "kind": "json",
+          "media_type": "application/json",
+          "size_bytes": 3270,
+          "sha256": "a5c0001f03021934e5eaf330f94a92e354e3ba27adeac6517f96df96f312cd50",
+          "status": "pending",
+          "problems": [],
+          "pages": [],
+          "original_available": true
+        }
+      ],
+      "candidates": []
+    }
+  }
+}

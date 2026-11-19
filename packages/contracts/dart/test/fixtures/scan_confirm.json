@@ -1,0 +1,39 @@
+{
+  "name": "scan_confirm",
+  "method": "POST",
+  "path": "/api/v1/scans/8fe1895c-75b3-47cc-a0dd-3c31ed16238e/confirm",
+  "status": 200,
+  "schema": "ScanConfirmation",
+  "value": {
+    "scan": {
+      "id": "8fe1895c-75b3-47cc-a0dd-3c31ed16238e",
+      "status": "confirmed",
+      "confidence": null,
+      "low_confidence": true,
+      "stem_text": "手工录入：未匹配样题",
+      "expressions": [],
+      "matched_question_id": null,
+      "error_code": null,
+      "mock_notice": "本地Mock未实际识别图片；请手工输入并确认题干。仅匹配已发布自编工程样题，不代表学科审校。"
+    },
+    "question_id": null,
+    "draft_question_id": null
+  },
+  "body": {
+    "data": {
+      "scan": {
+        "id": "8fe1895c-75b3-47cc-a0dd-3c31ed16238e",
+        "status": "confirmed",
+        "confidence": null,
+        "low_confidence": true,
+        "stem_text": "手工录入：未匹配样题",
+        "expressions": [],
+        "matched_question_id": null,
+        "error_code": null,
+        "mock_notice": "本地Mock未实际识别图片；请手工输入并确认题干。仅匹配已发布自编工程样题，不代表学科审校。"
+      },
+      "question_id": null,
+      "draft_question_id": null
+    }
+  }
+}

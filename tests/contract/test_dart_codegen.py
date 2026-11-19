@@ -270,6 +270,20 @@ def test_round_trip_helpers_cover_every_class_and_event_type(generated):
 # ---------------------------------------------------------------- 落盘文件没有过期
 
 
+def test_round_trip_normalization_metadata_is_schema_scoped(generated):
+    from gen_dart_contracts import round_trip_metadata
+
+    metadata = round_trip_metadata(load_openapi())
+    assert set(metadata["Attempt"]["nullable"]) == {
+        "submission_no",
+        "copied_from_attempt_id",
+        "copied_from_revision",
+    }
+    assert "independent" not in metadata["Attempt"]["nullable"]
+    assert metadata["DraftCopy"]["objects"]["attempt"] == "Attempt"
+    assert "roundTripMetadata" in generated[ROUND_TRIP]
+
+
 def test_generated_files_on_disk_are_up_to_date(generated):
     """改了契约却没有重新生成时，这里会失败。运行 `uv run python tools/gen_dart_contracts.py` 更新。"""
     for relative, content in generated.items():

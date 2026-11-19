@@ -97,6 +97,12 @@ C:\src\flutter\bin\dart.bat format lib test        # 格式化；之后 dart fix
 C:\src\flutter\bin\flutter.bat build web --release # 构建 Web 版（联调用）
 ```
 
+## 临时工作目录
+
+- 隔离测试、变异、构建副本使用 `tempfile.TemporaryDirectory` 的 `with` 上下文，在系统临时目录创建；不再往 D 盘根目录散落 `tutor-*` 文件夹。成功、失败都在子进程结束后清理副本。
+- 日志、源码摘要、变异原始报告和交付安装包保存到项目 `var/`，源码恢复/hash 核验在临时目录退出前完成，不为留证长期保留整仓副本。
+- Python 优先使用项目 `.venv`；临时目录不兼作长期运行环境。现用数据库/对象存储服务目录与临时副本分开，清理前核对绝对路径、归属和正在运行的进程，不能跟随目录链接删除外部目标。
+
 ## 测试门禁
 
 - 先写会失败的测试，看它因为功能缺失而失败，再写实现。

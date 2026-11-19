@@ -8,7 +8,7 @@
     "date": "2026-11-11",
     "items": [
       {
-        "id": "e67efd23-3930-5e63-bc19-a824b2287f30",
+        "id": "f3e2e0f6-252a-5c7f-8855-de0d0985d898",
         "kind": "variant",
         "title": "变式：开口向下的二次函数的单调递增区间",
         "reason": "你做过它的母题，换个问法检验一下是不是真的掌握了。",
@@ -27,12 +27,12 @@
         "estimated_minutes": 5
       },
       {
-        "id": "1868ca5e-f135-5258-9f90-673f11e5a00a",
+        "id": "fe75fcac-a594-55c8-b8bc-02b4a50b6cf5",
         "kind": "new_topic",
-        "title": "判断函数在区间上的单调性",
+        "title": "二次函数的单调递增区间",
         "reason": "按你选择的学科继续练习。",
         "subject": "math",
-        "question_id": "08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+        "question_id": "e879ddf6-bebd-4f94-86fa-1773fbe2d606",
         "review_item_id": null,
         "applicability": {
           "scope": "general",
@@ -46,7 +46,7 @@
         "estimated_minutes": 5
       },
       {
-        "id": "5ce9c5dc-84dd-53c8-a034-5542a3aacbac",
+        "id": "d1e243dc-3ac5-5c6b-9a61-fd6418ebbaa3",
         "kind": "new_topic",
         "title": "静止在粗糙斜面上的物块的受力",
         "reason": "按你选择的学科继续练习。",
@@ -67,12 +67,12 @@
         "estimated_minutes": 5
       },
       {
-        "id": "52085173-752e-5c71-8aad-506bc006530c",
+        "id": "a176d119-1c45-57ab-a1ae-9431dd19cd88",
         "kind": "new_topic",
-        "title": "由碳酸钙质量求二氧化碳质量",
+        "title": "阅读通用流程中的回流关系",
         "reason": "按你选择的学科继续练习。",
         "subject": "chemistry",
-        "question_id": "eb6592f7-34f3-58db-9b1f-ea832ab7fb61",
+        "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
         "review_item_id": null,
         "applicability": {
           "scope": "general",
@@ -83,16 +83,17 @@
           "exam_year_to": null,
           "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
         },
-        "estimated_minutes": 5
+        "estimated_minutes": 4
       }
-    ]
+    ],
+    "cold_start": false
   },
   "body": {
     "data": {
       "date": "2026-11-11",
       "items": [
         {
-          "id": "e67efd23-3930-5e63-bc19-a824b2287f30",
+          "id": "f3e2e0f6-252a-5c7f-8855-de0d0985d898",
           "kind": "variant",
           "title": "变式：开口向下的二次函数的单调递增区间",
           "reason": "你做过它的母题，换个问法检验一下是不是真的掌握了。",
@@ -111,12 +112,12 @@
           "estimated_minutes": 5
         },
         {
-          "id": "1868ca5e-f135-5258-9f90-673f11e5a00a",
+          "id": "fe75fcac-a594-55c8-b8bc-02b4a50b6cf5",
           "kind": "new_topic",
-          "title": "判断函数在区间上的单调性",
+          "title": "二次函数的单调递增区间",
           "reason": "按你选择的学科继续练习。",
           "subject": "math",
-          "question_id": "08d24d8e-709b-5197-a4fe-0e2545ca4a91",
+          "question_id": "e879ddf6-bebd-4f94-86fa-1773fbe2d606",
           "review_item_id": null,
           "applicability": {
             "scope": "general",
@@ -130,7 +131,7 @@
           "estimated_minutes": 5
         },
         {
-          "id": "5ce9c5dc-84dd-53c8-a034-5542a3aacbac",
+          "id": "d1e243dc-3ac5-5c6b-9a61-fd6418ebbaa3",
           "kind": "new_topic",
           "title": "静止在粗糙斜面上的物块的受力",
           "reason": "按你选择的学科继续练习。",
@@ -151,12 +152,12 @@
           "estimated_minutes": 5
         },
         {
-          "id": "52085173-752e-5c71-8aad-506bc006530c",
+          "id": "a176d119-1c45-57ab-a1ae-9431dd19cd88",
           "kind": "new_topic",
-          "title": "由碳酸钙质量求二氧化碳质量",
+          "title": "阅读通用流程中的回流关系",
           "reason": "按你选择的学科继续练习。",
           "subject": "chemistry",
-          "question_id": "eb6592f7-34f3-58db-9b1f-ea832ab7fb61",
+          "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
           "review_item_id": null,
           "applicability": {
             "scope": "general",
@@ -167,9 +168,10 @@
             "exam_year_to": null,
             "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
           },
-          "estimated_minutes": 5
+          "estimated_minutes": 4
         }
-      ]
+      ],
+      "cold_start": false
     }
   }
 }

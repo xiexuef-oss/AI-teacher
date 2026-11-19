@@ -35,6 +35,18 @@ def get_principal(request: Request, db: Session = Depends(get_db)) -> Principal:
         raise ApiError(
             401, "unauthenticated", "未认证或 token 无效", headers={"WWW-Authenticate": "Bearer"}
         )
+    limiter = getattr(request.app.state, "http_limiter", None)
+    if limiter is not None:
+        limiter.check_actor(
+            principal.user_id, request.app.state.settings, request.app.state.clock()
+        )
+        limiter.check_route(
+            principal.user_id,
+            request.method,
+            request.scope.get("route"),
+            request.app.state.settings,
+            request.app.state.clock(),
+        )
     return principal
 
 

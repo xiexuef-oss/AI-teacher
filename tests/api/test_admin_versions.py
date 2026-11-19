@@ -32,7 +32,12 @@ def detail_of(who, question_id: str) -> dict:
 
 
 def stem_edit(detail: dict, stem: str) -> dict:
-    return edit_body(detail, content={**detail["content"], "stem": stem})
+    body = edit_body(detail, content={**detail["content"], "stem": stem})
+    # These version/reviewer scenarios explicitly discard annotations when
+    # changing their source text. Reference rejection has its own API cases.
+    if stem != detail["content"]["stem"] and body["teaching"].get("reference_links"):
+        body["teaching"] = dict(body["teaching"], reference_links=[])
+    return body
 
 
 # ---------------------------------------------------------------- 基本流程

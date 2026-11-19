@@ -1,0 +1,215 @@
+{
+  "name": "submit_triangle_schematic",
+  "method": "POST",
+  "path": "/api/v1/attempts/8f9aa4e5-02da-4d44-9086-49846bc8e54b/submit",
+  "status": 200,
+  "schema": "SubmitResult",
+  "value": {
+    "attempt": {
+      "id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+      "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+      "attempt_no": 1,
+      "submission_no": 1,
+      "copied_from_attempt_id": null,
+      "copied_from_revision": null,
+      "status": "submitted",
+      "answer": {
+        "steps": [
+          {
+            "text": "按给定坐标比较三边。",
+            "reason": "两点间距离公式"
+          }
+        ]
+      },
+      "draft_revision": 0,
+      "assisted": false,
+      "used_solution": false,
+      "independent": true,
+      "evaluation": {
+        "state": "pending",
+        "outcome": "undetermined",
+        "is_correct": null,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": true,
+        "feedback": [],
+        "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "submitted_at": "2026-11-11T08:00:00Z",
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "evaluation": {
+      "state": "pending",
+      "outcome": "undetermined",
+      "is_correct": null,
+      "independent": true,
+      "assisted": false,
+      "used_solution": false,
+      "review_required": true,
+      "feedback": [],
+      "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+      "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+    },
+    "session": {
+      "id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+      "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "DIAGNOSED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "first_submitted_attempt_id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+      "submitted_attempts": 1,
+      "last_event_seq": 2,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "ceb51a2d-cd50-4f5b-9062-fa8cac38f120",
+        "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+        "seq_no": 2,
+        "type": "uncertainty",
+        "created_at": "2026-11-11T08:00:00Z",
+        "state_after": "DIAGNOSED",
+        "payload": {
+          "reason_code": "subjective_self_check",
+          "text": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+          "review_required": true
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "d439db48c0f748759d063165f744f14e"
+        }
+      }
+    ],
+    "review_item": null
+  },
+  "body": {
+    "data": {
+      "attempt": {
+        "id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+        "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+        "attempt_no": 1,
+        "submission_no": 1,
+        "copied_from_attempt_id": null,
+        "copied_from_revision": null,
+        "status": "submitted",
+        "answer": {
+          "steps": [
+            {
+              "text": "按给定坐标比较三边。",
+              "reason": "两点间距离公式"
+            }
+          ]
+        },
+        "draft_revision": 0,
+        "assisted": false,
+        "used_solution": false,
+        "independent": true,
+        "evaluation": {
+          "state": "pending",
+          "outcome": "undetermined",
+          "is_correct": null,
+          "independent": true,
+          "assisted": false,
+          "used_solution": false,
+          "review_required": true,
+          "feedback": [],
+          "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+          "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+        },
+        "submitted_at": "2026-11-11T08:00:00Z",
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "evaluation": {
+        "state": "pending",
+        "outcome": "undetermined",
+        "is_correct": null,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": true,
+        "feedback": [],
+        "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "session": {
+        "id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+        "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "DIAGNOSED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "first_submitted_attempt_id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+        "submitted_attempts": 1,
+        "last_event_seq": 2,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "ceb51a2d-cd50-4f5b-9062-fa8cac38f120",
+          "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+          "seq_no": 2,
+          "type": "uncertainty",
+          "created_at": "2026-11-11T08:00:00Z",
+          "state_after": "DIAGNOSED",
+          "payload": {
+            "reason_code": "subjective_self_check",
+            "text": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+            "review_required": true
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "d439db48c0f748759d063165f744f14e"
+          }
+        }
+      ],
+      "review_item": null
+    }
+  }
+}

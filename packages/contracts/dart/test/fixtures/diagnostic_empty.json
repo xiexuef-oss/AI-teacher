@@ -1,0 +1,17 @@
+{
+  "name": "diagnostic_empty",
+  "method": "GET",
+  "path": "/api/v1/diagnostics",
+  "status": 200,
+  "schema": "DiagnosticWorkspace",
+  "value": {
+    "revision": 0,
+    "run": null
+  },
+  "body": {
+    "data": {
+      "revision": 0,
+      "run": null
+    }
+  }
+}

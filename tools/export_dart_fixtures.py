@@ -14,6 +14,7 @@ packages/contracts/dart/test/fixtures/<name>.json：
 
 from __future__ import annotations
 
+import base64
 import json
 import sys
 import tempfile
@@ -62,9 +63,19 @@ class Recorder:
     ) -> Any:
         """发请求（客户端会按契约校验响应）、断言状态码、写样例，返回 data（错误时返回 error）。"""
         response = api.request(method, path, **kwargs)
+        return self.record_response(name, response, method, path, expect=expect)
+
+    def record_response(
+        self, name: str, response: Any, method: str, path: str, *, expect: int
+    ) -> Any:
+        """同样接收AsyncClient真实ASGI传输返回的响应，不构造或伪造响应内容。"""
+        from support.contract import validate_response
+
         assert response.status_code == expect, f"{name}: {response.status_code} {response.text}"
         body = response.json()
         url_path = API_PREFIX + path
+        assert response.headers.get("x-request-id")
+        validate_response(method, url_path, expect, body)
         schema, wrapped = _schema_of(method, url_path, expect)
         fixture = {
             "name": name,
@@ -120,6 +131,7 @@ def export(directory: Path = OUTPUT_DIR) -> int:
     from support.gateway_fakes import ScriptedProvider, unavailable
     from support.seeds import qid
     from tutor_api.main import create_app
+    from tutor_api.services.document_import_worker import process_next
     from tutor_api.settings import Settings
 
     directory.mkdir(parents=True, exist_ok=True)
@@ -144,6 +156,392 @@ def export(directory: Path = OUTPUT_DIR) -> int:
             student = _onboard(rec, raw)
             fresh = _onboard(rec, raw, "x")
 
+            identity = ApiClient(raw).data(
+                "POST",
+                "/dev/local-identities",
+                params={"role": "reviewer"},
+                expect=201,
+                key=False,
+            )
+            reviewer = ApiClient(raw, token=identity["access_token"], user_id=identity["user_id"])
+            example = json.loads(
+                (REPO_ROOT / "apps/admin_web/public/examples/question-import.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            imported_draft = rec(
+                "admin_imported_draft",
+                reviewer,
+                "POST",
+                "/admin/question-imports",
+                expect=201,
+                json=example,
+            )
+            other_identity = ApiClient(raw).data(
+                "POST", "/dev/local-identities", params={"role": "reviewer"}, expect=201, key=False
+            )
+            other_reviewer = ApiClient(
+                raw, token=other_identity["access_token"], user_id=other_identity["user_id"]
+            )
+            rec(
+                "admin_batch_review",
+                other_reviewer,
+                "POST",
+                "/admin/question-reviews/batch",
+                json={
+                    "items": [
+                        {
+                            "expected_review_revision": 1,
+                            "question_id": imported_draft["id"],
+                            "expected_version": 1,
+                            "decision": "approve",
+                            "confirmed": True,
+                        },
+                        {
+                            "expected_review_revision": 1,
+                            "question_id": qid("math-mono-quadratic"),
+                            "expected_version": 1,
+                            "decision": "approve",
+                            "confirmed": True,
+                        },
+                    ]
+                },
+            )
+            import hashlib
+
+            from support.documents import png_image
+            from tutor_api.blob_store import FilesystemBlobStore
+
+            app.state.media_store = FilesystemBlobStore(
+                Path(tmp) / "media", max_bytes=app.state.settings.media_max_bytes
+            )
+            media_bytes = png_image()
+            school_upload = rec(
+                "school_material_upload",
+                student,
+                "POST",
+                "/school-materials/uploads",
+                expect=201,
+                json={
+                    "mime": "image/png",
+                    "size_bytes": len(media_bytes),
+                    "sha256": hashlib.sha256(media_bytes).hexdigest(),
+                },
+            )
+            rec(
+                "school_material_source",
+                student,
+                "PUT",
+                f"/school-materials/uploads/{school_upload['media_id']}/content",
+                json={"content_base64": base64.b64encode(media_bytes).decode()},
+            )
+            school_job = rec(
+                "school_material_submitted",
+                student,
+                "POST",
+                "/school-materials",
+                expect=202,
+                json={"media_id": school_upload["media_id"]},
+            )
+            from tutor_api.services.school_material_worker import process_one
+
+            assert process_one(
+                app.state.session_factory, clock.now, app.state.settings, app.state.media_store
+            )
+            rec(
+                "school_material_pages",
+                student,
+                "GET",
+                f"/school-materials/{school_job['id']}/pages",
+            )
+            rec(
+                "school_material_preview",
+                student,
+                "GET",
+                f"/school-materials/{school_job['id']}/pages/1/preview",
+            )
+            rec(
+                "school_material_corrected",
+                student,
+                "PUT",
+                f"/school-materials/{school_job['id']}/pages/1/correction",
+                json={"expected_revision": 0, "text": "自编校正样例"},
+            )
+            school_candidates = rec(
+                "school_material_candidates",
+                student,
+                "GET",
+                f"/school-materials/{school_job['id']}/candidates",
+            )
+            rec(
+                "school_material_confirmed",
+                student,
+                "PUT",
+                f"/school-materials/{school_job['id']}/confirmation",
+                json={
+                    "source_revision": school_candidates["source_revision"],
+                    "items": [{"text": "自编确认样例", "pages": [1]}],
+                },
+            )
+            app.state.settings.scan_mock_enabled = True
+            scan_bytes = png_image()
+            scan_upload = rec(
+                "scan_upload",
+                student,
+                "POST",
+                "/scans/uploads",
+                expect=201,
+                json={
+                    "purpose": "scan",
+                    "mime": "image/png",
+                    "size_bytes": len(scan_bytes),
+                    "sha256": hashlib.sha256(scan_bytes).hexdigest(),
+                },
+            )
+            rec(
+                "scan_content",
+                student,
+                "PUT",
+                f"/scans/uploads/{scan_upload['media_id']}/content",
+                json={"content_base64": base64.b64encode(scan_bytes).decode()},
+            )
+            scan = rec(
+                "scan_candidate",
+                student,
+                "POST",
+                "/scans",
+                expect=202,
+                json={"media_id": scan_upload["media_id"]},
+            )
+            rec("scan_get", student, "GET", f"/scans/{scan['id']}")
+            rec(
+                "scan_confirm",
+                student,
+                "POST",
+                f"/scans/{scan['id']}/confirm",
+                json={"stem_text": "手工录入：未匹配样题", "expressions": []},
+            )
+            app.state.settings.scan_mock_enabled = False
+            rec("student_media_export", student, "GET", "/profile/media-export")
+            media_sha = hashlib.sha256(media_bytes).hexdigest()
+            from tutor_api.blob_store import BlobStorageUnavailable, BlobWriteConflict
+
+            reserve = app.state.media_store.reserve
+            try:
+                for error_type, status in ((BlobStorageUnavailable, 503), (BlobWriteConflict, 409)):
+
+                    def fail_reserve(*args, _error=error_type, **kwargs):
+                        raise _error("private storage diagnostic")
+
+                    app.state.media_store.reserve = fail_reserve
+                    rec(
+                        f"error_storage_{status}",
+                        reviewer,
+                        "POST",
+                        "/media/uploads",
+                        expect=status,
+                        json={
+                            "purpose": "question_attachment",
+                            "mime": "image/png",
+                            "size_bytes": len(media_bytes),
+                            "sha256": media_sha,
+                        },
+                    )
+            finally:
+                app.state.media_store.reserve = reserve
+            media_upload = rec(
+                "media_upload",
+                reviewer,
+                "POST",
+                "/media/uploads",
+                expect=201,
+                json={
+                    "purpose": "question_attachment",
+                    "mime": "image/png",
+                    "size_bytes": len(media_bytes),
+                    "sha256": media_sha,
+                },
+            )
+            media_id = media_upload["media_id"]
+            rec(
+                "media_staged",
+                reviewer,
+                "PUT",
+                f"/media/{media_id}/content",
+                json={"content_base64": base64.b64encode(media_bytes).decode()},
+            )
+            rec(
+                "media_confirmed",
+                reviewer,
+                "POST",
+                f"/media/{media_id}/confirm",
+                json={"sha256": media_sha},
+            )
+            rec("media_content", reviewer, "GET", f"/media/{media_id}/content")
+            attached_payload = json.loads(json.dumps(example))
+            attached_payload["question"]["content"]["attachments"] = [
+                {"kind": "image", "media_id": media_id, "alt": "自编低风险题面图示"}
+            ]
+            image_question = rec(
+                "image_question_draft",
+                reviewer,
+                "POST",
+                "/admin/question-imports",
+                expect=201,
+                json=attached_payload,
+            )
+            rec(
+                "image_question_preview",
+                other_reviewer,
+                "GET",
+                f"/admin/questions/{image_question['id']}/media/{media_id}/content",
+            )
+            rec(
+                "image_review_declaration",
+                other_reviewer,
+                "POST",
+                f"/admin/questions/{image_question['id']}/media/{media_id}/review-confirmations",
+                json={"expected_version": 1, "sha256": media_sha, "confirmed": True},
+            )
+            rec(
+                "image_question_reviewed",
+                other_reviewer,
+                "POST",
+                f"/admin/questions/{image_question['id']}/review",
+                json={"expected_review_revision": 1, "expected_version": 1, "decision": "approve"},
+            )
+            rec(
+                "image_question_published",
+                other_reviewer,
+                "POST",
+                f"/admin/questions/{image_question['id']}/review",
+                json={
+                    "expected_review_revision": (1) + 1,
+                    "expected_version": 1,
+                    "decision": "publish",
+                },
+            )
+            rec(
+                "published_question_media",
+                student,
+                "GET",
+                f"/questions/{image_question['id']}/media/{media_id}/content",
+            )
+
+            rec("media_deleted", reviewer, "POST", f"/media/{media_id}/delete", json={})
+            import_options = rec(
+                "document_import_options", reviewer, "GET", "/admin/import-options"
+            )
+            import_job = rec(
+                "document_import_created",
+                reviewer,
+                "POST",
+                "/admin/import-jobs",
+                expect=201,
+                json={
+                    "title": "自编工程样题导入",
+                    "creation_deadline": import_options["creation_deadline"],
+                    "defaults": {
+                        "subject": example["subject"],
+                        "answer_mode": example["answer_mode"],
+                        "source": example["source"],
+                    },
+                },
+            )
+            uploaded = rec(
+                "document_import_uploaded",
+                reviewer,
+                "POST",
+                f"/admin/import-jobs/{import_job['id']}/files",
+                expect=201,
+                json={
+                    "expected_revision": 1,
+                    "filename": "sample.json",
+                    "content_base64": base64.b64encode(
+                        json.dumps(example, ensure_ascii=False).encode()
+                    ).decode(),
+                },
+            )
+            rec("document_import_detail", reviewer, "GET", f"/admin/import-jobs/{import_job['id']}")
+            rec("document_import_page", reviewer, "GET", "/admin/import-jobs")
+            rec(
+                "document_import_original",
+                reviewer,
+                "GET",
+                f"/admin/import-jobs/{import_job['id']}/files/{uploaded['file']['id']}/content",
+            )
+            rec(
+                "document_import_queued",
+                reviewer,
+                "POST",
+                f"/admin/import-jobs/{import_job['id']}/process",
+                json={"expected_revision": uploaded["job"]["revision"]},
+            )
+            process_next(app.state.session_factory, app.state.settings, clock.now)
+            extracted = rec(
+                "document_import_extracted",
+                reviewer,
+                "GET",
+                f"/admin/import-jobs/{import_job['id']}",
+            )
+            candidate = extracted["candidates"][0]
+            editable = {
+                key: candidate[key]
+                for key in (
+                    "id",
+                    "title",
+                    "text",
+                    "locations",
+                    "payload",
+                    "confirmed",
+                )
+            }
+            editable["confirmed"] = True
+            confirmed = rec(
+                "document_import_confirmed",
+                reviewer,
+                "POST",
+                f"/admin/import-jobs/{import_job['id']}/candidates",
+                json={"expected_revision": extracted["job"]["revision"], "items": [editable]},
+            )
+            imported = rec(
+                "document_import_batch",
+                reviewer,
+                "POST",
+                f"/admin/import-jobs/{import_job['id']}/submit",
+                json={
+                    "expected_revision": confirmed["job"]["revision"],
+                    "candidate_ids": [candidate["id"]],
+                },
+            )
+
+            imported_id = imported["items"][0]["question_id"]
+            formal = rec(
+                "document_import_provenance",
+                reviewer,
+                "GET",
+                f"/admin/questions/{imported_id}",
+            )
+            rec(
+                "document_import_derived_provenance",
+                reviewer,
+                "POST",
+                f"/admin/questions/{imported_id}/versions",
+                expect=201,
+                json={
+                    **editable["payload"]["question"],
+                    "title": formal["title"] + " derived metadata sample",
+                    "expected_version": formal["version"],
+                    "expected_review_revision": formal["review_revision"],
+                },
+            )
+            rec(
+                "document_import_initial_provenance",
+                reviewer,
+                "GET",
+                f"/admin/questions/{imported_id}/versions/1",
+            )
+
             rec("profile_empty", student, "GET", "/profile")
             rec("progress_empty", fresh, "GET", "/progress/summary")
             rec(
@@ -152,6 +550,7 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 "PUT",
                 "/profile",
                 json={
+                    "expected_revision": student.data("GET", "/profile")["revision"],
                     "region_code": "CN-51",
                     "grade": "G12",
                     "subjects": ["math", "physics", "chemistry"],
@@ -159,11 +558,55 @@ def export(directory: Path = OUTPUT_DIR) -> int:
             )
             rec("tasks_today", student, "GET", "/tasks/today")
             rec("questions_page", student, "GET", "/questions", params={"limit": 5})
+            rec("question_topics", student, "GET", "/questions/topics")
+            diagnostic_student = _onboard(rec, raw, "diagnostic")
+            diagnostic_student.save_profile(
+                json={"region_code": "CN-51", "grade": "G10", "subjects": ["math"]}
+            )
+            rec("diagnostic_empty", diagnostic_student, "GET", "/diagnostics")
+            diagnostic = rec(
+                "diagnostic_created",
+                diagnostic_student,
+                "POST",
+                "/diagnostics",
+                expect=201,
+                json={"subject": "math", "expected_revision": 0, "expected_profile_revision": 1},
+            )
+            diagnostic_id = diagnostic["run"]["id"]
+            rec(
+                "diagnostic_session",
+                diagnostic_student,
+                "POST",
+                f"/diagnostics/{diagnostic_id}/items/1/session",
+                json={"expected_revision": 1},
+            )
+            rec("diagnostic_progress", diagnostic_student, "GET", f"/diagnostics/{diagnostic_id}")
+            rec(
+                "diagnostic_abandoned",
+                diagnostic_student,
+                "POST",
+                f"/diagnostics/{diagnostic_id}/abandon",
+                json={"expected_revision": 2},
+            )
+            rec("diagnostic_history", diagnostic_student, "GET", "/diagnostics/history")
+            rec("diagnostic_learning_export", diagnostic_student, "GET", "/profile/learning-export")
             rec(
                 "question_single_choice", student, "GET", f"/questions/{qid('math-mono-quadratic')}"
             )
             rec("question_multiple_choice", student, "GET", f"/questions/{qid('math-mono-judge')}")
             rec("question_fill", student, "GET", f"/questions/{qid('phys-incline-accel')}")
+            rec(
+                "error_question_version_conflict",
+                student,
+                "POST",
+                "/sessions",
+                expect=409,
+                json={
+                    "question_id": qid("math-mono-quadratic"),
+                    "origin": "task",
+                    "expected_question_version": 2,
+                },
+            )
 
             # 主线：一道有提示、图解、快速解法的单选题，答错
             session = rec(
@@ -172,7 +615,11 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 "POST",
                 "/sessions",
                 expect=201,
-                json={"question_id": qid("math-mono-quadratic"), "origin": "task"},
+                json={
+                    "question_id": qid("math-mono-quadratic"),
+                    "origin": "task",
+                    "expected_question_version": 1,
+                },
             )
             sid = session["id"]
             attempt = rec(
@@ -199,6 +646,14 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 expect=409,
                 json={"base_revision": 0, "answer": _choice("D")},
             )
+            rec(
+                "error_submit_draft_revision_conflict",
+                student,
+                "POST",
+                f"/attempts/{aid}/submit",
+                expect=409,
+                json={"answer": _choice("A"), "expected_draft_revision": 0},
+            )
             nxt = f"/tutor/sessions/{sid}/next"
             rec(
                 "tutor_standard_needs_confirmation",
@@ -209,7 +664,7 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 json={"action": "request_standard"},
             )
             rec("tutor_hint", student, "POST", nxt, json={"action": "request_hint"})
-            rec("tutor_visual", student, "POST", nxt, json={"action": "request_visual"})
+            rec("tutor_visual_blocked", student, "POST", nxt, json={"action": "request_visual"})
             rec(
                 "submit_incorrect",
                 student,
@@ -217,6 +672,7 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 f"/attempts/{aid}/submit",
                 json={"answer": _choice("A")},
             )
+            rec("tutor_visual", student, "POST", nxt, json={"action": "request_visual"})
             rec("tutor_standard", student, "POST", nxt, json={"action": "request_standard"})
             rec("tutor_fast", student, "POST", nxt, json={"action": "request_fast"})
             rec("tutor_understood", student, "POST", nxt, json={"action": "mark_understood"})
@@ -319,6 +775,61 @@ def export(directory: Path = OUTPUT_DIR) -> int:
             rec("tutor_confused_ask", student, "POST", n4, json={"action": "mark_confused"})
             rec("tutor_needs_human_help", student, "POST", n4, json={"action": "mark_confused"})
 
+            # 自编工程素材：真实API输出跨语言Unicode/原换行/TeX引用，不能只导空字段。
+            reference_example = json.loads(json.dumps(example))
+            reference_question = reference_example["question"]
+            reference_text = "引用验证条件：甲😀e\u0301\n" + reference_question["content"]["stem"]
+            reference_question["content"]["stem"] = reference_text
+            reference_question["teaching"]["concept_rephrase"] = None
+            reference_span = {
+                "block_id": "stem",
+                "block_sha256": hashlib.sha256(reference_text.encode("utf-8")).hexdigest(),
+                "start": reference_text.index("甲"),
+                "end": reference_text.index("甲") + len("甲😀e\u0301\n"),
+            }
+            reference_question["teaching"]["reference_links"] = [
+                {"target_block_id": target, "source_span": reference_span, "independent_safe": True}
+                for target in ("hint:1", "rephrase", "solution:standard:step:1")
+            ]
+            reference_draft = reviewer.data(
+                "POST", "/admin/question-imports", expect=201, json=reference_example
+            )
+            reference_id = reference_draft["id"]
+            for decision in ("approve", "publish"):
+                reference_draft = other_reviewer.data(
+                    "POST",
+                    f"/admin/questions/{reference_id}/review",
+                    json={
+                        "expected_version": reference_draft["version"],
+                        "expected_review_revision": reference_draft["review_revision"],
+                        "decision": decision,
+                    },
+                )
+            reference_session = student.data(
+                "POST",
+                "/sessions",
+                expect=201,
+                json={"question_id": reference_id, "origin": "practice"},
+            )
+            student.data(
+                "POST", "/attempts", expect=201, json={"session_id": reference_session["id"]}
+            )
+            reference_next = f"/tutor/sessions/{reference_session['id']}/next"
+            for name, action, extra in (
+                ("tutor_reference_hint", "request_hint", {}),
+                ("tutor_reference_model", "mark_confused", {}),
+                ("tutor_reference_standard", "request_standard", {"confirm_end_independent": True}),
+            ):
+                reference_result = rec(
+                    name, student, "POST", reference_next, json={"action": action, **extra}
+                )
+                emitted = reference_result["events"][0]
+                assert emitted["references"][0]["block_text"] == reference_text
+                assert emitted["references"][0]["start"] == reference_span["start"]
+                assert emitted["references"][0]["end"] == reference_span["end"]
+                if action == "mark_confused":
+                    assert emitted["meta"]["source"] == "model"
+
             s5 = student.data(
                 "POST",
                 "/sessions",
@@ -363,6 +874,15 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 json={"attempt_id": a6["id"]},
             )
             rec("progress_summary", student, "GET", "/progress/summary")
+            rec("review_current_state", student, "GET", f"/reviews/{item['id']}/state")
+            rec(
+                "error_review_already_completed",
+                student,
+                "POST",
+                f"/reviews/{item['id']}/complete",
+                json={"attempt_id": a6["id"]},
+                expect=409,
+            )
             rec("tasks_today_next_day", student, "GET", "/tasks/today")
 
             # 家长：学生明确授权（生成邀请码）→ 家长输入 → 看周报 → 学生撤销
@@ -382,7 +902,18 @@ def export(directory: Path = OUTPUT_DIR) -> int:
             )
             rec("parent_links_none", student, "GET", "/me/parent-links")
             rec("parent_students_none", parent, "GET", "/parents/students")
-            invite = rec("parent_invite", student, "POST", "/me/parent-invites", expect=201)
+            invite = rec(
+                "parent_invite",
+                student,
+                "POST",
+                "/me/parent-invites",
+                json={
+                    "expected_parent_invite_revision": student.data("GET", "/me/parent-links")[
+                        "parent_invite_revision"
+                    ]
+                },
+                expect=201,
+            )
             rec("parent_links_pending", student, "GET", "/me/parent-links")
             rec(
                 "error_invite_invalid",
@@ -430,6 +961,9 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 student,
                 "POST",
                 f"/me/parent-links/{links['links'][0]['id']}/revoke",
+                json={
+                    "expected_authorization_revision": links["links"][0]["authorization_revision"]
+                },
             )
             rec(
                 "error_weekly_revoked",
@@ -575,6 +1109,133 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 json={"marks": marks},
             )
 
+            # SUBJECT302/303: complete textual givens, diagrams only after phase gate.
+            for diagram_name, diagram_key, diagram_answer in (
+                ("chemical_process", "chem-process-reading", _choice("B")),
+                (
+                    "circle_schematic",
+                    "math-circle-radius-proof",
+                    {"steps": [{"text": "我使用题设圆方程进行比较。", "reason": "两点间距离公式"}]},
+                ),
+                (
+                    "triangle_schematic",
+                    "math-triangle-coordinate-proof",
+                    {"steps": [{"text": "按给定坐标比较三边。", "reason": "两点间距离公式"}]},
+                ),
+            ):
+                rec(f"question_{diagram_name}", student, "GET", f"/questions/{qid(diagram_key)}")
+                diagram_session = student.data(
+                    "POST",
+                    "/sessions",
+                    expect=201,
+                    json={"question_id": qid(diagram_key), "origin": "practice"},
+                )
+                diagram_attempt = student.data(
+                    "POST", "/attempts", expect=201, json={"session_id": diagram_session["id"]}
+                )
+                diagram_next = f"/tutor/sessions/{diagram_session['id']}/next"
+                rec(
+                    f"tutor_{diagram_name}_blocked",
+                    student,
+                    "POST",
+                    diagram_next,
+                    json={"action": "request_visual", "confirm_end_independent": True},
+                )
+                rec(
+                    f"submit_{diagram_name}",
+                    student,
+                    "POST",
+                    f"/attempts/{diagram_attempt['id']}/submit",
+                    json={"answer": diagram_answer},
+                )
+                rec(
+                    f"tutor_{diagram_name}",
+                    student,
+                    "POST",
+                    diagram_next,
+                    json={"action": "request_visual"},
+                )
+
+            # Independent copies share a session but keep both draft payloads.
+            copy_session = student.data(
+                "POST",
+                "/sessions",
+                expect=201,
+                json={"question_id": qid("math-ineq-min"), "origin": "practice"},
+            )
+            copy_source = student.data(
+                "POST", "/attempts", expect=201, json={"session_id": copy_session["id"]}
+            )
+            student.data(
+                "PUT",
+                f"/attempts/{copy_source['id']}/draft",
+                json={"base_revision": 0, "answer": _blank("云端草稿")},
+            )
+            copy_payload = {"source_revision": 1, "answer": _blank("本机草稿"), "strokes": STROKES}
+            copy_path = f"/attempts/{copy_source['id']}/copies"
+            saved_copy = rec(
+                "draft_copied",
+                student,
+                "POST",
+                copy_path,
+                expect=201,
+                json=copy_payload,
+                key="fixture-draft-copy-once",
+            )
+            rec(
+                "draft_copy_replayed",
+                student,
+                "POST",
+                copy_path,
+                expect=201,
+                json=copy_payload,
+                key="fixture-draft-copy-once",
+            )
+            refs = rec(
+                "question_drafts",
+                student,
+                "GET",
+                f"/questions/{qid('math-ineq-min')}/drafts",
+                params={"limit": 1},
+            )
+            rec(
+                "question_drafts_next",
+                student,
+                "GET",
+                f"/questions/{qid('math-ineq-min')}/drafts",
+                params={"limit": 1, "cursor": refs["next_cursor"]},
+            )
+            rec(
+                "session_pinned_question",
+                student,
+                "GET",
+                f"/sessions/{copy_session['id']}/question",
+            )
+            rec("draft_copy_attempt", student, "GET", f"/attempts/{saved_copy['attempt']['id']}")
+            rec("draft_copy_body", student, "GET", f"/attempts/{saved_copy['attempt']['id']}/draft")
+            rec(
+                "draft_copy_source_conflict",
+                student,
+                "POST",
+                copy_path,
+                expect=409,
+                json={**copy_payload, "source_revision": 0},
+            )
+            rec(
+                "submit_copy_first",
+                student,
+                "POST",
+                f"/attempts/{saved_copy['attempt']['id']}/submit",
+                json={"answer": _blank("4")},
+            )
+            rec(
+                "tutor_copy_keep_source",
+                student,
+                "POST",
+                f"/tutor/sessions/{copy_session['id']}/next",
+                json={"action": "mark_understood"},
+            )
+
             # 错误
             rec("error_not_implemented", student, "POST", "/scans", expect=501, json={})
             rec("error_unauthenticated", ApiClient(raw), "GET", "/profile", expect=401)
@@ -584,7 +1245,11 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 "PUT",
                 "/profile",
                 expect=422,
-                json={"region_code": "CN-11", "subjects": ["math"]},
+                json={
+                    "expected_revision": student.data("GET", "/profile")["revision"],
+                    "region_code": "CN-11",
+                    "subjects": ["math"],
+                },
             )
             rec(
                 "error_not_found",
@@ -614,6 +1279,8 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 key=False,
             )
 
+            rec("student_learning_export", student, "GET", "/profile/learning-export")
+
         # 模型不可用：另起一个应用，把 Mock 适配器换成总是失败的
         broken = create_app(
             settings_for("broken.sqlite3"),
@@ -636,6 +1303,64 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 f"/tutor/sessions/{s7['id']}/next",
                 json={"action": "mark_confused"},
             )
+
+        http_app = create_app(
+            settings_for("http_limits.sqlite3").model_copy(
+                update={
+                    "http_limits_enabled": True,
+                    "http_max_body_bytes": 1024,
+                    "http_limit_per_peer": 1,
+                }
+            ),
+            clock=clock.now,
+        )
+        with TestClient(http_app, client=LOOPBACK) as raw:
+            api = ApiClient(raw)
+            rec(
+                "error_http_payload_large",
+                api,
+                "PUT",
+                "/profile",
+                expect=413,
+                content=b" " * 2048,
+                auth=False,
+            )
+            rec("error_http_rate_limited", api, "GET", "/profile", expect=429, auth=False)
+
+        import asyncio
+
+        import httpx
+
+        timeout_app = create_app(
+            settings_for("http_timeout.sqlite3").model_copy(
+                update={
+                    "http_limits_enabled": True,
+                    "http_body_timeout_seconds": 0.005,
+                }
+            ),
+            clock=clock.now,
+        )
+
+        async def timeout_response():
+            async def body():
+                await asyncio.sleep(0.05)
+                yield b"{}"
+
+            async with (
+                timeout_app.router.lifespan_context(timeout_app),
+                httpx.AsyncClient(
+                    transport=httpx.ASGITransport(app=timeout_app), base_url="http://127.0.0.1:8000"
+                ) as api,
+            ):
+                return await api.put("/api/v1/profile", content=body())
+
+        rec.record_response(
+            "error_http_body_timeout",
+            asyncio.run(timeout_response()),
+            "PUT",
+            "/profile",
+            expect=408,
+        )
 
     return rec.count
 

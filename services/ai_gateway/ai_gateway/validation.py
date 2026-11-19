@@ -12,10 +12,11 @@ from collections.abc import Iterator
 from typing import Any
 
 from jsonschema import Draft202012Validator
+from pydantic import ValidationError
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
-from ai_gateway.dto import Constraints, TaskType
+from ai_gateway.dto import Constraints, ContentSpanRef, TaskType
 from ai_gateway.errors import OutputRejected
 from ai_gateway.visual_templates import VisualRegistry, VisualTemplateError
 
@@ -40,6 +41,12 @@ def _event_output(event_type: str, payload_def: str, event_schema_id: str) -> di
         "properties": {
             "event_type": {"const": event_type},
             "payload": {"$ref": f"{event_schema_id}#/$defs/{payload_def}"},
+            "references": {
+                "type": "array",
+                "maxItems": 8,
+                "uniqueItems": True,
+                "items": {"$ref": f"{event_schema_id}#/$defs/ContentSpanRef"},
+            },
         },
     }
 
@@ -192,8 +199,31 @@ class OutputValidator:
                 raise OutputRejected("SCHEMA_INVALID", str(rejected)) from rejected
             output = {**output, "payload": {**payload, "params": params}}
 
+        # Identities are validated before content checks. Never treat digest digits as prose.
+        resolved_texts: list[str] = []
+        allowed = {item.identity(): item for item in constraints.reference_catalog}
+        seen: set[tuple[str, str, int, int]] = set()
+        for raw_reference in output.get("references", []):
+            try:
+                reference = ContentSpanRef.model_validate(raw_reference)
+            except ValidationError as rejected:
+                raise OutputRejected("SCHEMA_INVALID", "引用身份或区间无效") from rejected
+            identity = reference.identity()
+            if identity in seen or identity not in allowed:
+                raise OutputRejected("SCHEMA_INVALID", "引用不在审核允许的精确范围内")
+            seen.add(identity)
+            resolved = allowed[identity]
+            resolved_texts.extend(
+                [
+                    resolved.block_text,
+                    resolved.block_text[reference.start : reference.end],
+                    resolved.label,
+                ]
+            )
+
         forbidden = [_fold(item) for item in constraints.forbidden_substrings if item.strip()]
-        for text in _strings(output):
+        content = output.get("payload", output)
+        for text in [*_strings(content), *resolved_texts]:
             if contains_blocked_markup(text):
                 raise OutputRejected("CONTENT_BLOCKED", "输出包含不允许的标记")
             folded = _fold(text)

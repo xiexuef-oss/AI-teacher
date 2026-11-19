@@ -57,6 +57,11 @@ class _VisualViewState extends State<VisualView> {
     final theme = Theme.of(context);
     final palette = VisualPalette.of(theme.colorScheme);
     final adjustable = spec.params.where((p) => p.adjustable).toList();
+    final showDescription = const {
+      'chemical_process',
+      'triangle_schematic',
+      'circle_schematic',
+    }.contains(spec.id);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -77,6 +82,11 @@ class _VisualViewState extends State<VisualView> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: MathText(widget.caption!, style: theme.textTheme.bodyMedium),
+          ),
+        if (showDescription)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(describeVisual(spec.id, _values)),
           ),
         Semantics(
           label: describeVisual(spec.id, _values),
@@ -125,7 +135,11 @@ class _VisualViewState extends State<VisualView> {
                 alignment: Alignment.centerLeft,
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(widget.staticFallback ?? spec.staticFallback),
+                  child: Text(
+                    showDescription
+                        ? '${describeVisual(spec.id, _values)}\n${widget.staticFallback ?? spec.staticFallback}'
+                        : widget.staticFallback ?? spec.staticFallback,
+                  ),
                 ),
               ),
             ],

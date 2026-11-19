@@ -33,7 +33,7 @@ _OBJECTIVE_MODES = ("single_choice", "multiple_choice", "fill")
 
 @dataclass(frozen=True)
 class _Row:
-    attempt_no: int
+    submission_no: int | None
     correct: bool
     independent: bool
     origin: str
@@ -94,7 +94,7 @@ def verified_rows(records: Iterable[Any]) -> list[_Row]:
     """只有确定判定的作答进比例；判不出来的、解答题、实验题和证明题都不算。"""
     return [
         _Row(
-            attempt_no=attempt.attempt_no,
+            submission_no=attempt.submission_no,
             correct=bool(attempt.is_correct),
             independent=bool(attempt.independent),
             origin=origin,
@@ -151,7 +151,7 @@ def summarize(
     min_samples = settings.progress_min_samples
     records = load_records(db, student_id)
     verified = verified_rows(records)
-    first = [row for row in verified if row.attempt_no == 1]
+    first = [row for row in verified if row.submission_no == 1]
     written = [attempt for attempt, _, _, mode, _ in records if mode in grading.SUBJECTIVE_MODES]
     uncertain = [
         attempt

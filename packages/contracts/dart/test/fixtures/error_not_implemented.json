@@ -7,17 +7,17 @@
   "value": {
     "error": {
       "code": "not_implemented",
-      "message": "createScan 已在契约中规划，本阶段尚未实现",
+      "message": "本地拍题Mock未启用；没有实际OCR",
       "details": {},
-      "request_id": "ea6fc85f7a6844b0a71f3adea11b02e5"
+      "request_id": "354824e7c64d4fff842e4d31c01b5fbd"
     }
   },
   "body": {
     "error": {
       "code": "not_implemented",
-      "message": "createScan 已在契约中规划，本阶段尚未实现",
+      "message": "本地拍题Mock未启用；没有实际OCR",
       "details": {},
-      "request_id": "ea6fc85f7a6844b0a71f3adea11b02e5"
+      "request_id": "354824e7c64d4fff842e4d31c01b5fbd"
     }
   }
 }

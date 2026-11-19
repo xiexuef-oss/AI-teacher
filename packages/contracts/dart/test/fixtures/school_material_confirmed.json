@@ -1,0 +1,17 @@
+{
+  "name": "school_material_confirmed",
+  "method": "PUT",
+  "path": "/api/v1/school-materials/218235b6-9bff-46e8-8417-d0b3faafd96a/confirmation",
+  "status": 200,
+  "schema": "SchoolMaterialConfirmationReceipt",
+  "value": {
+    "source_revision": "5cbac499fd8bfedb0e0d57b2cd1c51ca9cbb4f58f98ef4bc92b36242e5a92bf7",
+    "item_count": 1
+  },
+  "body": {
+    "data": {
+      "source_revision": "5cbac499fd8bfedb0e0d57b2cd1c51ca9cbb4f58f98ef4bc92b36242e5a92bf7",
+      "item_count": 1
+    }
+  }
+}

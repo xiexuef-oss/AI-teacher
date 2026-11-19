@@ -5,13 +5,13 @@
   "status": 201,
   "schema": "ParentStudent",
   "value": {
-    "student_id": "d60421fc-ea04-4f6d-b92f-628679003c4d",
+    "student_id": "702aea2c-c351-4d7c-9416-6a0b2c2b4c54",
     "display_name": null,
     "linked_at": "2026-11-11T08:00:00Z"
   },
   "body": {
     "data": {
-      "student_id": "d60421fc-ea04-4f6d-b92f-628679003c4d",
+      "student_id": "702aea2c-c351-4d7c-9416-6a0b2c2b4c54",
       "display_name": null,
       "linked_at": "2026-11-11T08:00:00Z"
     }

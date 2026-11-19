@@ -1,0 +1,99 @@
+{
+  "name": "error_submit_draft_revision_conflict",
+  "method": "POST",
+  "path": "/api/v1/attempts/d081b8ee-e501-490e-aae0-df81ad2bec0a/submit",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "submission_draft_revision_conflict",
+      "message": "草稿已在别处更新，请保留双方内容并确认提交快照",
+      "details": {
+        "expected_draft_revision": 0,
+        "server_revision": 1,
+        "server_draft": {
+          "attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+          "revision": 1,
+          "answer": {
+            "selected_options": [
+              "A"
+            ]
+          },
+          "strokes": {
+            "version": 1,
+            "pages": [
+              {
+                "width": 800.0,
+                "height": 1100.0,
+                "strokes": [
+                  {
+                    "color": "#1A1A1A",
+                    "width": 2.5,
+                    "points": [
+                      10.0,
+                      20.0,
+                      0.0,
+                      0.5,
+                      14.0,
+                      26.0,
+                      16.0,
+                      0.6
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "updated_at": "2026-11-10T08:00:00Z"
+        }
+      },
+      "request_id": "26efe6476cbf4a75b48d4febde6a34ce"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "submission_draft_revision_conflict",
+      "message": "草稿已在别处更新，请保留双方内容并确认提交快照",
+      "details": {
+        "expected_draft_revision": 0,
+        "server_revision": 1,
+        "server_draft": {
+          "attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+          "revision": 1,
+          "answer": {
+            "selected_options": [
+              "A"
+            ]
+          },
+          "strokes": {
+            "version": 1,
+            "pages": [
+              {
+                "width": 800.0,
+                "height": 1100.0,
+                "strokes": [
+                  {
+                    "color": "#1A1A1A",
+                    "width": 2.5,
+                    "points": [
+                      10.0,
+                      20.0,
+                      0.0,
+                      0.5,
+                      14.0,
+                      26.0,
+                      16.0,
+                      0.6
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "updated_at": "2026-11-10T08:00:00Z"
+        }
+      },
+      "request_id": "26efe6476cbf4a75b48d4febde6a34ce"
+    }
+  }
+}

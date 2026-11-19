@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>选择题目图片，用于临时拍题手工确认。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>由你点击拍照后拍摄题目，用于临时拍题手工确认。</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -28,13 +32,25 @@
 	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>选择题目图片，用于临时拍题手工确认。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>由你点击拍照后拍摄题目，用于临时拍题手工确认。</string>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 		<key>UISceneConfigurations</key>
 		<dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>选择题目图片，用于临时拍题手工确认。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>由你点击拍照后拍摄题目，用于临时拍题手工确认。</string>
 			<key>UIWindowSceneSessionRoleApplication</key>
 			<array>
 				<dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>选择题目图片，用于临时拍题手工确认。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>由你点击拍照后拍摄题目，用于临时拍题手工确认。</string>
 					<key>UISceneClassName</key>
 					<string>UIWindowScene</string>
 					<key>UISceneConfigurationName</key>

@@ -30,6 +30,10 @@ budgets:
   # 每学生每日、平台每日的模型请求数上限；超过后使用审核解析或规则降级
   student_daily_requests: 200
   platform_daily_requests: 20000
+  # Optional daily estimated-cost admission caps; require durable invocations.
+  # Null keeps prior behavior. Operators must supply authorized limits, not prices inferred by code.
+  student_daily_max_cost_micros: null
+  platform_daily_max_cost_micros: null
 
 providers:
   mock:

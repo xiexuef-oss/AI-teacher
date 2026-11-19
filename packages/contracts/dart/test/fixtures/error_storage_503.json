@@ -1,0 +1,23 @@
+{
+  "name": "error_storage_503",
+  "method": "POST",
+  "path": "/api/v1/media/uploads",
+  "status": 503,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "storage_unavailable",
+      "message": "媒体存储暂不可用，请保留原操作后重试",
+      "details": {},
+      "request_id": "ac23ed28aafe438388ba8c5a003ff84f"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "storage_unavailable",
+      "message": "媒体存储暂不可用，请保留原操作后重试",
+      "details": {},
+      "request_id": "ac23ed28aafe438388ba8c5a003ff84f"
+    }
+  }
+}

@@ -1,12 +1,12 @@
 {
   "name": "tutor_hint",
   "method": "POST",
-  "path": "/api/v1/tutor/sessions/d4196b2a-3ce8-4050-a179-931911e7e133/next",
+  "path": "/api/v1/tutor/sessions/01611e61-b265-4539-b587-da5fbbd04595/next",
   "status": 200,
   "schema": "TutorStep",
   "value": {
     "session": {
-      "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+      "id": "01611e61-b265-4539-b587-da5fbbd04595",
       "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
       "question_version": 1,
       "origin": "task",
@@ -23,7 +23,8 @@
       "hint_levels_total": 3,
       "confused_streak": 0,
       "needs_human_help": false,
-      "active_attempt_id": "c14029ae-1bed-4d96-a33c-85295598db43",
+      "active_attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+      "first_submitted_attempt_id": null,
       "submitted_attempts": 0,
       "last_event_seq": 1,
       "created_at": "2026-11-10T08:00:00Z",
@@ -31,8 +32,8 @@
     },
     "events": [
       {
-        "id": "bd16539a-f6ef-41be-9cf1-feb15282bebb",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "de30cebc-62b4-45aa-a3ca-98e59748b44d",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
         "seq_no": 1,
         "type": "hint",
         "created_at": "2026-11-10T08:00:00Z",
@@ -54,15 +55,25 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "d8ab128a55204895b7f8f508176e78b0"
-        }
+          "request_id": "6b742465a7ca4b5b83bb48f45b26ee5d"
+        },
+        "references": [
+          {
+            "block_id": "stem",
+            "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+            "start": 0,
+            "end": 2,
+            "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+            "label": "题干"
+          }
+        ]
       }
     ]
   },
   "body": {
     "data": {
       "session": {
-        "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "01611e61-b265-4539-b587-da5fbbd04595",
         "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
         "question_version": 1,
         "origin": "task",
@@ -79,7 +90,8 @@
         "hint_levels_total": 3,
         "confused_streak": 0,
         "needs_human_help": false,
-        "active_attempt_id": "c14029ae-1bed-4d96-a33c-85295598db43",
+        "active_attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+        "first_submitted_attempt_id": null,
         "submitted_attempts": 0,
         "last_event_seq": 1,
         "created_at": "2026-11-10T08:00:00Z",
@@ -87,8 +99,8 @@
       },
       "events": [
         {
-          "id": "bd16539a-f6ef-41be-9cf1-feb15282bebb",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+          "id": "de30cebc-62b4-45aa-a3ca-98e59748b44d",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
           "seq_no": 1,
           "type": "hint",
           "created_at": "2026-11-10T08:00:00Z",
@@ -110,8 +122,18 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "d8ab128a55204895b7f8f508176e78b0"
-          }
+            "request_id": "6b742465a7ca4b5b83bb48f45b26ee5d"
+          },
+          "references": [
+            {
+              "block_id": "stem",
+              "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+              "start": 0,
+              "end": 2,
+              "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+              "label": "题干"
+            }
+          ]
         }
       ]
     }

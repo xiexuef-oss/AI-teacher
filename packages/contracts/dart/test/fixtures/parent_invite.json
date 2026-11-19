@@ -5,15 +5,17 @@
   "status": 201,
   "schema": "ParentInvite",
   "value": {
-    "id": "4f249bab-2bc0-4aee-be3e-01fe78f1ed52",
-    "code": "7H6W4EGM62",
+    "parent_invite_revision": 1,
+    "id": "6fbefec5-c64e-4222-bfbe-a647e260ce8a",
+    "code": "GR6ZQBUEA4",
     "created_at": "2026-11-11T08:00:00Z",
     "expires_at": "2026-11-12T08:00:00Z"
   },
   "body": {
     "data": {
-      "id": "4f249bab-2bc0-4aee-be3e-01fe78f1ed52",
-      "code": "7H6W4EGM62",
+      "parent_invite_revision": 1,
+      "id": "6fbefec5-c64e-4222-bfbe-a647e260ce8a",
+      "code": "GR6ZQBUEA4",
       "created_at": "2026-11-11T08:00:00Z",
       "expires_at": "2026-11-12T08:00:00Z"
     }

@@ -1,0 +1,16 @@
+[
+  {"input":"23456789AB","normalized":"23456789AB"},
+  {"input":" 23-4567-89ab ","normalized":"23456789AB"},
+  {"input":"\t23456789ab\n","normalized":"23456789AB"},
+  {"input":"\u001c\u001d\u001e\u001f23456789ab\u0085","normalized":"23456789AB"},
+  {"input":"\u00a0\u1680\u200023456789ab\u200a\u2028\u2029\u202f\u205f\u3000","normalized":"23456789AB"},
+  {"input":"\ufeff23456789AB","normalized":null},
+  {"input":"23456–789AB","normalized":null},
+  {"input":"２3456789AB","normalized":null},
+  {"input":"23456789A0","normalized":null},
+  {"input":"23456789AI","normalized":null},
+  {"input":"23456789A","normalized":null},
+  {"input":"23456789ABC","normalized":null},
+  {"input":"","normalized":null},
+  {"input":"23456789aſ","normalized":"23456789AS"}
+]

@@ -11,6 +11,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from tutor_api.blob_store import BlobStorageUnavailable, BlobWriteConflict
+
 logger = logging.getLogger("tutor_api")
 
 REQUEST_ID_HEADER = "X-Request-Id"
@@ -95,6 +97,22 @@ _HTTP_CODES = {404: ("not_found", "资源不存在"), 405: ("method_not_allowed"
 
 
 def install_error_handlers(app: FastAPI) -> None:
+    @app.exception_handler(BlobWriteConflict)
+    @app.exception_handler(BlobStorageUnavailable)
+    async def _storage_error(request: Request, exc: Exception) -> JSONResponse:
+        status, code, message = (
+            (409, "storage_conflict", "媒体状态已变化，请保留原操作后重试")
+            if isinstance(exc, BlobWriteConflict)
+            else (503, "storage_unavailable", "媒体存储暂不可用，请保留原操作后重试")
+        )
+        return error_response(
+            request,
+            status,
+            code,
+            message,
+            headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
+        )
+
     @app.exception_handler(ApiError)
     async def _api_error(request: Request, exc: ApiError) -> JSONResponse:
         return error_response(

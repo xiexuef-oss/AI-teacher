@@ -10,17 +10,15 @@ import json
 import logging
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 from ai_gateway.audit import AuditRecord, AuditSink, InMemoryAuditSink
 from ai_gateway.breaker import CircuitBreaker
 from ai_gateway.budget import (
-    PLATFORM_KEY,
-    PLATFORM_SCOPE,
-    STUDENT_SCOPE,
     BudgetStore,
     InMemoryBudgetStore,
     cost_micros,
@@ -59,24 +57,41 @@ class CandidateStatus:
     reason: str | None
 
 
+@dataclass(frozen=True)
+class SingleAttemptPlan:
+    provider: str
+    model: str
+    estimated_cost_micros: int
+    timeout_s: float
+    request_json: str = field(repr=False)
+    owner: object = field(repr=False, compare=False)
+    external: bool
+    consumed: bool = field(default=False, init=False)
+
+
 @dataclass
 class _CallState:
+    reserved_estimate: int = 0
+    quota_day: date | None = None
     provider_calls: int = 0
     timeouts: int = 0
     other_failures: int = 0
     schema_invalid: int = 0
     content_blocked: int = 0
     over_budget: int = 0
+    dispatch_error: str | None = None
 
     def error_code(self) -> str:
         if self.content_blocked:
             return "CONTENT_BLOCKED"
         if self.schema_invalid:
             return "SCHEMA_INVALID"
+        if self.dispatch_error:
+            return self.dispatch_error
+        if self.over_budget:
+            return "BUDGET_EXCEEDED"
         if self.timeouts and not self.other_failures:
             return "TIMEOUT"
-        if not self.provider_calls and self.over_budget:
-            return "BUDGET_EXCEEDED"
         return "MODEL_UNAVAILABLE"
 
     def schema_valid(self) -> bool | None:
@@ -104,12 +119,16 @@ class ModelGateway:
         self._env = env
         self._environment = environment
         self._allow_external_calls = allow_external_calls
+        self._external_dispatch_mode = "legacy"
+        self._durable_sdk = None
         self._validator = validator
         self._audit = audit
         self._budget_store = budget_store
         self._now = now
         self._monotonic = monotonic
         self._sleep = sleep
+        self._single_lock = Lock()
+        self._dispatch_guard: Callable[[], bool] | None = None
         breaker = config.defaults.circuit_breaker
         self._breakers = {
             name: CircuitBreaker(
@@ -120,6 +139,55 @@ class ModelGateway:
             for name in config.providers
         }
 
+    def require_durable_external_calls(self) -> None:
+        """One-way business startup policy; standalone SDK use stays compatible."""
+        if self._external_dispatch_mode == "legacy":
+            self._external_dispatch_mode = "durable"
+
+    def bind_durable_invocations(self, store, *, secret: str) -> None:
+        """Explicit standalone wiring; business startup policies still take precedence."""
+        if (
+            not isinstance(secret, str)
+            or not secret
+            or any(
+                not callable(getattr(store, name, None))
+                for name in ("prepare", "dispatch", "cancel", "mark_unknown", "settle_metadata")
+            )
+            or not callable(getattr(getattr(store, "cost_gate", None), "can_send", None))
+        ):
+            raise ValueError("Durable invocation store and stable secret required")
+        if self._durable_sdk is not None and (
+            self._durable_sdk[0] is not store or self._durable_sdk[1] != secret
+        ):
+            raise ValueError("Durable invocation binding cannot be replaced")
+        self._durable_sdk = (store, secret)
+
+    def disable_external_calls(self) -> None:
+        """Managed runtime policy; later flag or candidate changes cannot open it."""
+        self._external_dispatch_mode = "disabled"
+
+    def bind_dispatch_guard(self, guard: Callable[[], bool] | None) -> None:
+        """Trusted server startup wiring; never derived from client request fields."""
+        if guard is not None and not callable(guard):
+            raise ValueError("Dispatch guard must be callable")
+        self._dispatch_guard = guard
+
+    def _dispatch_error(self) -> str | None:
+        guards = [self._dispatch_guard]
+        if self._durable_sdk is not None and self._external_dispatch_mode == "legacy":
+            guards.append(self._durable_sdk[0].cost_gate.can_send)
+        for guard in guards:
+            if guard is None:
+                continue
+            try:
+                allowed = guard()
+            except Exception:
+                logger.warning("shared model dispatch guard unavailable")
+                return "BUDGET_UNAVAILABLE"
+            if allowed is not True:
+                return "BUDGET_EXCEEDED" if allowed is False else "BUDGET_UNAVAILABLE"
+        return None
+
     @property
     def external_calls_possible(self) -> bool:
         """是否存在此刻真的可能被调用到的外部供应商。"""
@@ -129,24 +197,45 @@ class ModelGateway:
             for status in self.describe_route(task)
         )
 
+    def provider_is_mock(self, name: str | None) -> bool:
+        provider = self._config.providers.get(name) if name is not None else None
+        return provider is not None and provider.kind == "mock"
+
     # ------------------------------------------------------------ 可用性
 
-    def _resolve(self, candidate: Candidate) -> tuple[str | None, str | None]:
-        """返回 (模型, 不可用原因)。只看配置与环境，不看熔断状态。"""
+    @staticmethod
+    def _pricing_verified(provider: ProviderConfig, request: GatewayRequest | None) -> bool:
+        if not provider.external:
+            return True
+        pricing = provider.pricing
+        if pricing is None or not pricing.verified:
+            return False
+        return (
+            request is None
+            or not count_image_units(request)
+            or pricing.image_unit_micros is not None
+        )
+
+    def _resolve(
+        self, candidate: Candidate, request: GatewayRequest | None = None
+    ) -> tuple[str | None, str | None]:
+        """返回模型与不可用原因；有请求时检查其图像报价，不看熔断状态。"""
         provider = self._config.providers[candidate.provider]
+        if provider.external != (provider.kind == "openai_compatible"):
+            return None, "provider_kind_mismatch"
         if not provider.enabled:
             return None, "disabled"
         if provider.environments is not None and self._environment not in provider.environments:
             return None, "not_allowed_in_environment"
         if provider.external:
-            if not self._allow_external_calls:
+            if not self._allow_external_calls or self._external_dispatch_mode == "disabled":
                 return None, "external_calls_not_allowed"
             if not provider.compliance_approved:
                 return None, "not_compliance_approved"
             for env_name in (provider.base_url_env, provider.api_key_env):
                 if not self._env.get(env_name or ""):
                     return None, f"missing_env:{env_name}"
-            if provider.pricing is None or not provider.pricing.verified:
+            if not self._pricing_verified(provider, request):
                 return None, "pricing_unverified"
         model = candidate.model or self._env.get(candidate.model_env or "")
         if not model:
@@ -166,7 +255,160 @@ class ModelGateway:
 
     # ------------------------------------------------------------ 调用
 
+    def _candidate_available(
+        self, name: str, model: str, request: GatewayRequest, *, legacy: bool = False
+    ) -> bool:
+        if (
+            legacy
+            and self._external_dispatch_mode != "legacy"
+            and self._config.providers[name].external
+        ):
+            return False
+        return any(
+            c.provider == name and self._resolve(c, request) == (model, None)
+            for c in self._config.routes[request.task_type].candidates
+        )
+
+    def _estimate(self, name: str, request: GatewayRequest) -> int:
+        provider = self._config.providers[name]
+        return estimate_request_cost_micros(
+            provider.pricing if provider.external else None, request
+        )
+
+    def prepare_single_attempt(
+        self, request: GatewayRequest, *, candidate_index: int | None = None
+    ) -> SingleAttemptPlan:
+        """Internal durable orchestration seam; does not reserve quota or send."""
+        if request.response_schema_version != SUPPORTED_RESPONSE_SCHEMA_VERSION:
+            raise ValueError("Unsupported response schema")
+        route = self._config.routes[request.task_type]
+        cap = self._config.budgets.per_request_max_cost_micros
+        if request.cost_budget.max_estimated_cost_micros is not None:
+            cap = min(cap, request.cost_budget.max_estimated_cost_micros)
+        candidates = route.candidates
+        if candidate_index is not None:
+            if type(candidate_index) is not int or not 0 <= candidate_index < len(candidates):
+                raise ValueError("Invalid candidate index")
+            candidates = [candidates[candidate_index]]
+        for candidate in candidates:
+            model, reason = self._resolve(candidate, request)
+            if (
+                reason is not None
+                or model is None
+                or self._breakers[candidate.provider].would_block()
+            ):
+                continue
+            estimate = self._estimate(candidate.provider, request)
+            if estimate <= cap:
+                return SingleAttemptPlan(
+                    candidate.provider,
+                    model,
+                    estimate,
+                    (route.timeout_ms or self._config.defaults.timeout_ms) / 1000,
+                    request.model_dump_json(),
+                    self,
+                    self._config.providers[candidate.provider].external,
+                )
+        raise ValueError("No usable candidate within budget")
+
+    def invoke_single_attempt(
+        self, plan: SingleAttemptPlan, *, legacy_only=False
+    ) -> GatewayResponse:
+        """One send only. Caller must first commit durable dispatch and budget.
+
+        Deliberately does not call _finish: audit and cost settlement belong to
+        the durable invocation transaction, not independent legacy sinks.
+        """
+        request = GatewayRequest.model_validate_json(plan.request_json)
+        started = self._monotonic()
+        with self._single_lock:
+            available = plan.owner is self and not plan.consumed
+            if available:
+                object.__setattr__(plan, "consumed", True)
+
+        def response(
+            *, error=None, output=None, usage=None, calls=0, confidence=None, retry="none"
+        ):
+            route = self._config.routes[request.task_type]
+            return GatewayResponse(
+                provider=plan.provider,
+                model_id=plan.model,
+                status="ok" if output is not None else "degraded",
+                validated_output=output,
+                usage=usage or Usage(),
+                latency_ms=max(0, round((self._monotonic() - started) * 1000)),
+                confidence=confidence,
+                review_required=route.min_confidence is not None
+                and (confidence is None or confidence < route.min_confidence),
+                error_code=error,
+                trace_id=request.trace_id,
+                provider_calls=calls,
+                prompt_version=PROMPT_VERSION if output is not None else None,
+                retry_disposition=retry,
+            )
+
+        if not available:
+            return response(error="ATTEMPT_ALREADY_USED")
+        # Recheck config gates after dispatch; a revoked candidate is never sent.
+        breaker = self._breakers.get(plan.provider)
+        if (
+            not self._candidate_available(plan.provider, plan.model, request)
+            or breaker is None
+            or not breaker.allow()
+        ):
+            return response(error="MODEL_UNAVAILABLE")
+        if error := self._dispatch_error():
+            return response(error=error)
+        if legacy_only and self._external_dispatch_mode != "legacy":
+            return response(error="MODEL_UNAVAILABLE")
+        # A shared guard can perform IO; recheck revocation, price and request cap afterwards.
+        if not self._candidate_available(plan.provider, plan.model, request):
+            return response(error="MODEL_UNAVAILABLE")
+        if self._config.providers[plan.provider].external != plan.external:
+            return response(error="MODEL_UNAVAILABLE")
+        if self._estimate(plan.provider, request) > min(
+            plan.estimated_cost_micros,
+            self._config.budgets.per_request_max_cost_micros,
+            request.cost_budget.max_estimated_cost_micros
+            if request.cost_budget.max_estimated_cost_micros is not None
+            else self._config.budgets.per_request_max_cost_micros,
+        ):
+            return response(error="BUDGET_EXCEEDED")
+        try:
+            result = self._adapters[plan.provider].invoke(
+                model=plan.model, request=request, timeout_s=plan.timeout_s
+            )
+        except ProviderError as error:
+            breaker.record_failure()
+            return response(
+                error="TIMEOUT" if error.kind == "timeout" else "MODEL_UNAVAILABLE",
+                calls=1,
+                retry=("retry" if error.kind in RETRYABLE_KINDS else "fallback")
+                if error.outcome_known and error.kind != "timeout"
+                else "none",
+            )
+        except Exception:
+            breaker.record_failure()
+            logger.exception("Single provider attempt failed request_id=%s", request.request_id)
+            return response(error="MODEL_UNAVAILABLE", calls=1)
+        breaker.record_success()
+        usage = self._usage(self._config.providers[plan.provider], request, result)
+        try:
+            output = self._validator.validate(request.task_type, result.output, request.constraints)
+        except OutputRejected as error:
+            return response(
+                error=error.code,
+                usage=usage,
+                calls=1,
+                retry="fallback" if error.code == "SCHEMA_INVALID" else "none",
+            )
+        return response(output=output, usage=usage, calls=1, confidence=result.confidence)
+
     def invoke(self, request: GatewayRequest) -> GatewayResponse:
+        if self._durable_sdk is not None and self._external_dispatch_mode == "legacy":
+            from ai_gateway.durable import invoke
+
+            return invoke(self, request, *self._durable_sdk)
         started = self._monotonic()
         state = _CallState()
 
@@ -177,18 +419,12 @@ class ModelGateway:
 
         day = self._now().astimezone(UTC).date()
         budgets = self._config.budgets
-        student_used = self._budget_store.get_requests(
-            STUDENT_SCOPE, request.student_pseudonym, day
-        )
-        platform_used = self._budget_store.get_requests(PLATFORM_SCOPE, PLATFORM_KEY, day)
-        if (
-            student_used >= budgets.student_daily_requests
-            or platform_used >= budgets.platform_daily_requests
-        ):
+        if budgets.has_daily_cost_limits:
+            # Legacy invoke cannot atomically reserve a daily amount. Only the
+            # durable orchestration seam may authorize sends under these caps.
             return self._finish(
-                request, started, state, status="degraded", error_code="BUDGET_EXCEEDED"
+                request, started, state, status="degraded", error_code="BUDGET_UNAVAILABLE"
             )
-
         cost_cap = budgets.per_request_max_cost_micros
         if request.cost_budget.max_estimated_cost_micros is not None:
             cost_cap = min(cost_cap, request.cost_budget.max_estimated_cost_micros)
@@ -197,7 +433,9 @@ class ModelGateway:
         external_tried = False
         for candidate in route.candidates:
             provider = self._config.providers[candidate.provider]
-            model, reason = self._resolve(candidate)
+            if self._external_dispatch_mode != "legacy" and provider.external:
+                continue
+            model, reason = self._resolve(candidate, request)
             if reason is not None or model is None:
                 continue
             if (
@@ -206,16 +444,42 @@ class ModelGateway:
                 and not request.privacy_policy.allow_cross_provider_fallback
             ):
                 continue
-            pricing = provider.pricing if provider.external else None
-            if estimate_request_cost_micros(pricing, request) > cost_cap:
+            if self._estimate(candidate.provider, request) > cost_cap:
                 state.over_budget += 1
                 continue
             if not self._breakers[candidate.provider].allow():
                 continue
 
+            if state.quota_day is None:
+                if error := self._dispatch_error():
+                    return self._finish(
+                        request, started, state, status="degraded", error_code=error
+                    )
+                try:
+                    admitted = self._budget_store.try_consume_request(
+                        request.student_pseudonym,
+                        day,
+                        student_limit=budgets.student_daily_requests,
+                        platform_limit=budgets.platform_daily_requests,
+                    )
+                except Exception:
+                    logger.warning("budget admission unavailable request_id=%s", request.request_id)
+                    return self._finish(
+                        request, started, state, status="degraded", error_code="BUDGET_UNAVAILABLE"
+                    )
+                if not admitted:
+                    return self._finish(
+                        request, started, state, status="degraded", error_code="BUDGET_EXCEEDED"
+                    )
+                state.quota_day = day
+
             external_tried = external_tried or provider.external
-            outcome = self._call_candidate(candidate.provider, model, request, route, state)
+            outcome = self._call_candidate(
+                candidate.provider, model, request, route, state, cost_cap
+            )
             if outcome is None:
+                if state.dispatch_error:
+                    break
                 continue
 
             output, result = outcome
@@ -242,7 +506,13 @@ class ModelGateway:
         )
 
     def _call_candidate(
-        self, name: str, model: str, request: GatewayRequest, route: RouteConfig, state: _CallState
+        self,
+        name: str,
+        model: str,
+        request: GatewayRequest,
+        route: RouteConfig,
+        state: _CallState,
+        cost_cap: int,
     ) -> tuple[dict[str, Any], ProviderResult] | None:
         breaker = self._breakers[name]
         adapter = self._adapters[name]
@@ -254,6 +524,50 @@ class ModelGateway:
         for attempt in range(attempts):
             if attempt:
                 self._sleep(min(_BACKOFF_BASE_SECONDS * 2 ** (attempt - 1), _BACKOFF_MAX_SECONDS))
+            if not self._candidate_available(name, model, request, legacy=True):
+                state.other_failures += 1
+                return None
+            estimate = self._estimate(name, request)
+            if state.reserved_estimate + estimate > min(
+                cost_cap, self._config.budgets.per_request_max_cost_micros
+            ):
+                state.over_budget += 1
+                return None
+            if error := self._dispatch_error():
+                state.dispatch_error = error
+                return None
+            # Commit the conservative estimate before an adapter can send. A
+            # worker exit must not erase costs for potentially sent attempts.
+            if estimate:
+                try:
+                    self._budget_store.record_cost(
+                        request.student_pseudonym,
+                        state.quota_day or self._now().astimezone(UTC).date(),
+                        cost_micros=estimate,
+                    )
+                except Exception:
+                    logger.warning(
+                        "attempt cost accounting unavailable request_id=%s", request.request_id
+                    )
+                    state.dispatch_error = "BUDGET_UNAVAILABLE"
+                    return None
+            state.reserved_estimate += estimate
+            # The budget commit is an I/O gap: authorization, pause and prices
+            # may have changed. Committed estimates are not automatically refunded.
+            if error := self._dispatch_error():
+                state.dispatch_error = error
+                return None
+            if self._config.budgets.has_daily_cost_limits:
+                state.dispatch_error = "BUDGET_UNAVAILABLE"
+                return None
+            if not self._candidate_available(name, model, request, legacy=True):
+                state.other_failures += 1
+                return None
+            if self._estimate(name, request) > estimate or state.reserved_estimate > min(
+                cost_cap, self._config.budgets.per_request_max_cost_micros
+            ):
+                state.over_budget += 1
+                return None
             state.provider_calls += 1
             try:
                 result = adapter.invoke(model=model, request=request, timeout_s=timeout_s)
@@ -341,12 +655,13 @@ class ModelGateway:
         now = self._now()
 
         if state.provider_calls:
-            day = now.astimezone(UTC).date()
-            spent = usage.estimated_cost_micros or 0
-            self._budget_store.add(
-                STUDENT_SCOPE, request.student_pseudonym, day, requests=1, cost_micros=spent
-            )
-            self._budget_store.add(PLATFORM_SCOPE, PLATFORM_KEY, day, requests=1, cost_micros=spent)
+            day = state.quota_day or now.astimezone(UTC).date()
+            # Daily budget accounting conservatively retains every potentially
+            # sent attempt. Response usage describes only the returned result;
+            # missing upstream usage never proves that failed attempts were free.
+            extra = max(0, (usage.estimated_cost_micros or 0) - state.reserved_estimate)
+            if extra:
+                self._budget_store.record_cost(request.student_pseudonym, day, cost_micros=extra)
 
         record = AuditRecord(
             request_id=request.request_id,
@@ -435,7 +750,7 @@ def build_gateway(
         allow_external_calls=allow_external_calls,
         validator=validator,
         audit=audit or InMemoryAuditSink(),
-        budget_store=budget_store or InMemoryBudgetStore(),
+        budget_store=budget_store if budget_store is not None else InMemoryBudgetStore(),
         now=now or (lambda: datetime.now(UTC)),
         monotonic=monotonic,
         sleep=sleep,

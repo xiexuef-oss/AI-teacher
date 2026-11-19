@@ -1,0 +1,141 @@
+{
+  "name": "tutor_reference_hint",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/d8bf6e9b-49c5-4c9a-9949-3845e11602aa/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+      "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "HINTED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 1,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+      "first_submitted_attempt_id": null,
+      "submitted_attempts": 0,
+      "last_event_seq": 1,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "8a5e7d6a-e827-4929-82b1-41846308b4ac",
+        "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+        "seq_no": 1,
+        "type": "hint",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": {
+          "level": 1,
+          "total_levels": 3,
+          "style": "layered",
+          "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+          "concept": "函数的单调性"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "e4395935874849acb4f9d89912848e94"
+        },
+        "references": [
+          {
+            "block_id": "stem",
+            "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+            "start": 7,
+            "end": 12,
+            "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+            "label": "题干"
+          }
+        ]
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+        "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "HINTED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+        "first_submitted_attempt_id": null,
+        "submitted_attempts": 0,
+        "last_event_seq": 1,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "8a5e7d6a-e827-4929-82b1-41846308b4ac",
+          "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+          "seq_no": 1,
+          "type": "hint",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "HINTED",
+          "payload": {
+            "level": 1,
+            "total_levels": 3,
+            "style": "layered",
+            "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+            "concept": "函数的单调性"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "e4395935874849acb4f9d89912848e94"
+          },
+          "references": [
+            {
+              "block_id": "stem",
+              "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+              "start": 7,
+              "end": 12,
+              "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+              "label": "题干"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

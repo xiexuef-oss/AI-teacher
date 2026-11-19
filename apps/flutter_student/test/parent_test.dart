@@ -137,7 +137,7 @@ void main() {
   });
 
   group('家长输入邀请码', () {
-    testWidgets('没填之前不能绑定；填了按原样发出去（带幂等键），成功后出现这位学生', (tester) async {
+    testWidgets('没填之前不能绑定；填了按规范化内容发出去（带幂等键），成功后出现这位学生', (tester) async {
       await openParentHome(tester, linked: false);
       expect(tester.widget<FilledButton>(key('parent.link')).onPressed, isNull);
 
@@ -146,7 +146,7 @@ void main() {
       await tapAndSettle(tester, key('parent.link'));
 
       final request = h.backend.requestsTo('POST', '/parents/links').single;
-      expect(jsonDecode(request.body!), {'code': 'abcde-23456'});
+      expect(jsonDecode(request.body!), {'code': 'ABCDE23456'});
       expect(request.headers['Idempotency-Key'], isNotNull);
       expect(key('parent.linked'), findsOneWidget);
       expect(find.text('学生 ${studentId.substring(0, 8)}'), findsOneWidget);
@@ -161,7 +161,7 @@ void main() {
       await tapAndSettle(tester, key('parent.link'));
 
       final request = h.backend.requestsTo('POST', '/parents/links').single;
-      expect(jsonDecode(request.body!), {'code': 'abcde 23456'});
+      expect(jsonDecode(request.body!), {'code': 'ABCDE23456'});
       final idempotencyKey = request.headers['Idempotency-Key']!;
       expect(
         RegExp(r'^[A-Za-z0-9._:-]{8,128}$').hasMatch(idempotencyKey),
@@ -192,7 +192,7 @@ void main() {
       await tester.enterText(key('parent.code'), 'ABCDE23456');
       await tester.pump();
       await tapAndSettle(tester, key('parent.link'));
-      await expectAnnounced(key('parent.linked'), '已经绑定');
+      await expectAnnounced(key('parent.linked'), '原绑定操作已确认');
 
       semantics.dispose();
       await teardownTree(tester);
@@ -224,13 +224,23 @@ void main() {
 
   group('周报', () {
     testWidgets('只有汇总：学习天数、练习、作答，四个比例和按科目', (tester) async {
+      final weekly = h.backend.fixtures.value('parent_weekly');
       await openWeekly(tester);
 
       expect(textOf(tester, 'parent.weekly.range'), '11月9日 – 11月15日');
       expect(find.text('这一周还没结束'), findsOneWidget);
-      expect(textOf(tester, 'parent.weekly.activeDays'), '2 天');
-      expect(textOf(tester, 'parent.weekly.sessions'), '7 次');
-      expect(textOf(tester, 'parent.weekly.attempts'), '5 份');
+      expect(
+        textOf(tester, 'parent.weekly.activeDays'),
+        '${weekly['active_days']} 天',
+      );
+      expect(
+        textOf(tester, 'parent.weekly.sessions'),
+        '${weekly['sessions_count']} 次',
+      );
+      expect(
+        textOf(tester, 'parent.weekly.attempts'),
+        '${weekly['attempts_count']} 份',
+      );
       for (final name in ['independent', 'assisted', 'hint', 'retest']) {
         expect(key('parent.weekly.$name'), findsOneWidget, reason: name);
       }
@@ -332,6 +342,32 @@ void main() {
       h.backend.weeklyFixture = 'parent_weekly';
       await tapAndSettle(tester, key('parent.weekly.next'));
       expect(h.backend.weeklyWeeks.last, '2026-11-09');
+      await teardownTree(tester);
+    });
+
+    testWidgets('历史周报按版本读取，失去授权后隐藏旧统计', (tester) async {
+      await openWeekly(tester);
+      h.backend.weeklyFixture = 'parent_weekly_last_week';
+      await tapAndSettle(tester, key('parent.weekly.previous'));
+      final report = h.backend.fixtures.value('parent_weekly_last_week');
+      final revisions = <String?>[];
+      h.backend.on(
+        'GET',
+        '/parents/students/${report['student_id']}/weekly-snapshots/2026-11-02',
+        (request) {
+          final revision = request.uri.queryParameters['revision'];
+          revisions.add(revision);
+          return revision == '1'
+              ? errorResponse(404, 'not_found')
+              : okResponse({'revision': 2, 'report': report});
+        },
+      );
+      await tapAndSettle(tester, find.text('查看周报历史版本'));
+      expect(find.text('当前查看第 2 版'), findsOneWidget);
+      await tapAndSettle(tester, find.text('查看上一版'));
+      expect(revisions, [null, '1']);
+      expect(find.text('这份历史周报不可用'), findsOneWidget);
+      expect(key('parent.weekly.independent'), findsNothing);
       await teardownTree(tester);
     });
 

@@ -3,16 +3,84 @@
 from __future__ import annotations
 
 from e2e.flowbase import Flow
-from e2e.flows import admin_experiment, parent_weekly, student_experiment, student_proof
+from e2e.flows import (
+    admin_batch_write_recovery,
+    admin_document_write_recovery,
+    admin_experiment,
+    admin_media_write_recovery,
+    admin_question_recovery,
+    admin_write_recovery,
+    document_import,
+    local_draft_export,
+    parent_weekly,
+    parent_write_recovery,
+    student_creation_recovery,
+    student_diagnostic,
+    student_draft_copies,
+    student_draft_recovery,
+    student_experiment,
+    student_profile_recovery,
+    student_proof,
+    student_resource_recovery,
+    student_scan,
+    student_scan_recovery,
+    student_topic_choice,
+    student_write_recovery,
+    subject_diagrams,
+)
 
 FLOWS: dict[str, Flow] = {
     flow.name: flow
     for flow in (
         student_experiment.FLOW,
         student_proof.FLOW,
+        student_draft_recovery.FLOW,
+        student_draft_copies.FLOW,
+        student_creation_recovery.FLOW,
+        student_write_recovery.FLOW,
+        student_resource_recovery.FLOW,
+        student_profile_recovery.FLOW,
+        local_draft_export.FLOW,
+        student_topic_choice.FLOW,
+        student_diagnostic.FLOW,
+        subject_diagrams.FLOW,
+        student_scan.FLOW,
+        student_scan_recovery.FLOW,
         admin_experiment.FLOW,
+        admin_write_recovery.FLOW,
+        admin_question_recovery.FLOW,
         parent_weekly.FLOW,
+        parent_write_recovery.FLOW,
+        document_import.FLOW,
+        admin_batch_write_recovery.FLOW,
+        admin_media_write_recovery.FLOW,
+        admin_document_write_recovery.FLOW,
     )
 }
 
-__all__ = ["FLOWS", "admin_experiment", "parent_weekly", "student_experiment", "student_proof"]
+__all__ = [
+    "document_import",
+    "local_draft_export",
+    "student_topic_choice",
+    "student_diagnostic",
+    "FLOWS",
+    "admin_experiment",
+    "admin_batch_write_recovery",
+    "admin_media_write_recovery",
+    "admin_document_write_recovery",
+    "admin_write_recovery",
+    "admin_question_recovery",
+    "parent_weekly",
+    "parent_write_recovery",
+    "student_experiment",
+    "student_proof",
+    "student_draft_recovery",
+    "student_draft_copies",
+    "student_creation_recovery",
+    "student_write_recovery",
+    "student_resource_recovery",
+    "student_profile_recovery",
+    "subject_diagrams",
+    "student_scan",
+    "student_scan_recovery",
+]

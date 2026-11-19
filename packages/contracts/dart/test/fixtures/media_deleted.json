@@ -1,0 +1,17 @@
+{
+  "name": "media_deleted",
+  "method": "POST",
+  "path": "/api/v1/media/62f37d50-eca0-4431-80cb-2c45b4fc3c43/delete",
+  "status": 200,
+  "schema": "MediaDeleted",
+  "value": {
+    "media_id": "62f37d50-eca0-4431-80cb-2c45b4fc3c43",
+    "deleted": true
+  },
+  "body": {
+    "data": {
+      "media_id": "62f37d50-eca0-4431-80cb-2c45b4fc3c43",
+      "deleted": true
+    }
+  }
+}

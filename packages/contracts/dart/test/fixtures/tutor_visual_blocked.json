@@ -1,0 +1,117 @@
+{
+  "name": "tutor_visual_blocked",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/01611e61-b265-4539-b587-da5fbbd04595/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "01611e61-b265-4539-b587-da5fbbd04595",
+      "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "question_version": 1,
+      "origin": "task",
+      "state": "HINTED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 1,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+      "first_submitted_attempt_id": null,
+      "submitted_attempts": 0,
+      "last_event_seq": 2,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "a3ac35bd-cf79-4ae8-8808-4d186368c201",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+        "seq_no": 2,
+        "type": "notice",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": {
+          "code": "visual_not_available",
+          "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+          "due_at": null
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "e953eccac37f4d53803686559859b169"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "01611e61-b265-4539-b587-da5fbbd04595",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_version": 1,
+        "origin": "task",
+        "state": "HINTED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+        "first_submitted_attempt_id": null,
+        "submitted_attempts": 0,
+        "last_event_seq": 2,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "a3ac35bd-cf79-4ae8-8808-4d186368c201",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+          "seq_no": 2,
+          "type": "notice",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "HINTED",
+          "payload": {
+            "code": "visual_not_available",
+            "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+            "due_at": null
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "e953eccac37f4d53803686559859b169"
+          }
+        }
+      ]
+    }
+  }
+}

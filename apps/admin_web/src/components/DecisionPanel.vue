@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { reviewQuestion } from '../api/admin'
 import { ApiError } from '../api/client'
-import { handleUnauthorized, newIdempotencyKey } from '../api/guard'
+import { handleUnauthorized } from '../api/guard'
 import type {
   AdminQuestionDetail,
   QuestionReviewState,
@@ -17,7 +17,9 @@ import {
   DECISION_LABEL,
   explainError,
 } from '../decisions'
-import { useSession } from '../session'
+import { useQuestionCommands } from '../question-write-recovery'
+import type { Body,Json } from '../api/write-command-store'
+import { captureSessionBinding, isCurrentSessionBinding, useSession } from '../session'
 
 const props = defineProps<{ detail: AdminQuestionDetail }>()
 const emit = defineEmits<{
@@ -32,7 +34,9 @@ const comment = ref('')
 const confirmFast = ref(false)
 const busy = ref(false)
 const error = ref<{ code: string; message: string; problems: string[] } | null>(null)
-let pending: { fingerprint: string; key: string } | null = null
+const sourceDetail=JSON.parse(JSON.stringify(props.detail)) as AdminQuestionDetail
+const recovery=useQuestionCommands('review',{id:sourceDetail.id,version:sourceDetail.version,reviewRevision:sourceDetail.review_revision??null},()=>({selected:selected.value,comment:comment.value,confirmFast:confirmFast.value}),value=>{const v=value as {selected:ReviewDecisionType|null;comment:string;confirmFast:boolean};selected.value=v.selected;comment.value=v.comment;confirmFast.value=v.confirmFast},false,()=>decisionBody() as unknown as Body|null)
+watch([selected,comment,confirmFast],()=>recovery.changed())
 
 const hasFast = computed(() => props.detail.solutions.some((solution) => solution.kind === 'fast'))
 const blocked = computed(() =>
@@ -41,20 +45,22 @@ const blocked = computed(() =>
     : null,
 )
 const needsComment = computed(() => (selected.value ? commentRequired(selected.value) : false))
+const sourceKnown = computed(() => typeof props.detail.review_revision === 'number' && Number.isSafeInteger(props.detail.review_revision) && props.detail.review_revision >= 1)
 const canSubmit = computed(
   () =>
     selected.value !== null &&
-    !busy.value &&
+    sourceKnown.value &&
+    !busy.value && recovery.loaded.value && !recovery.pending.value && !recovery.blocked.value &&
     blocked.value === null &&
     (!needsComment.value || comment.value.trim().length > 0),
 )
 const staleError = computed(
-  () => error.value?.code === 'version_conflict' || error.value?.code === 'invalid_transition',
+  () => error.value?.code === 'version_conflict' || error.value?.code === 'invalid_transition' || error.value?.code === 'review_revision_conflict',
 )
 
 // 状态或版本变了（刚做完一个决策，或者刷新到了新内容）：回到第一个可选的决策
 watch(
-  () => [props.detail.status, props.detail.version] as const,
+  () => [props.detail.status, props.detail.version, props.detail.review_revision] as const,
   () => {
     selected.value = decisions.value[0] ?? null
     confirmFast.value = false
@@ -66,30 +72,33 @@ watch(selected, () => {
   error.value = null
 })
 
+function decisionBody():ReviewDecision|null{
+ const decision=selected.value,revision=sourceDetail.review_revision;if(!decision||typeof revision!=='number')return null
+ const body:ReviewDecision={decision,expected_version:sourceDetail.version,expected_review_revision:revision}
+ if(comment.value.trim())body.comment=comment.value.trim()
+ if(decision==='approve')body.solution_kinds=hasFast.value&&confirmFast.value?['standard','fast']:['standard']
+ return body
+}
 async function submit(): Promise<void> {
+  const binding = captureSessionBinding()
   const decision = selected.value
-  if (decision === null || !state.session) return
-  const body: ReviewDecision = { decision, expected_version: props.detail.version }
+  const revision = sourceDetail.review_revision
+  if (decision === null || !isCurrentSessionBinding(binding) || !sourceKnown.value || typeof revision !== 'number') return
+  const body: ReviewDecision = { decision, expected_version: sourceDetail.version, expected_review_revision: revision }
   const note = comment.value.trim()
   if (note) body.comment = note
   if (decision === 'approve') {
     body.solution_kinds = hasFast.value && confirmFast.value ? ['standard', 'fast'] : ['standard']
   }
-  // 同一个动作重试时复用幂等键；内容变了就是另一个动作
-  const fingerprint = JSON.stringify(body)
-  if (pending === null || pending.fingerprint !== fingerprint) {
-    pending = { fingerprint, key: newIdempotencyKey() }
-  }
-
   busy.value = true
   error.value = null
   try {
-    const result = await reviewQuestion(state.session.token, props.detail.id, body, pending.key)
-    pending = null
-    comment.value = ''
-    emit('decided', result, decision)
+    const command=await recovery.run(body as unknown as Body,async(token,request,key)=>await reviewQuestion(token,sourceDetail.id,request as unknown as ReviewDecision,key) as unknown as Json)
+    const result=command?.result as unknown as QuestionReviewState|undefined
+    if (!isCurrentSessionBinding(binding)) return
+    if(result)emit('decided', result, decision)
   } catch (failure) {
-    if (handleUnauthorized(failure)) return
+    if (!isCurrentSessionBinding(binding) || handleUnauthorized(failure, binding)) return
     if (failure instanceof ApiError) {
       const problems = failure.details.problems
       error.value = {
@@ -101,21 +110,33 @@ async function submit(): Promise<void> {
       error.value = { code: 'unknown', message: '出了点问题，请稍后重试', problems: [] }
     }
   } finally {
-    busy.value = false
+    if (isCurrentSessionBinding(binding)) busy.value = false
   }
 }
+async function retryWrite(){busy.value=true;try{const command=await recovery.retry(async(token,body,key)=>await reviewQuestion(token,sourceDetail.id,body as unknown as ReviewDecision,key) as unknown as Json);if(command?.result)emit('decided',command.result as unknown as QuestionReviewState,(command.body as unknown as ReviewDecision).decision)}catch(e){error.value={code:'recovery',message:String(e),problems:[]}}finally{busy.value=false}}
 </script>
 
 <template>
   <section class="card decision-panel" data-testid="decision-panel">
-    <h2>审核决策</h2>
+    <p role="status" data-testid="review-draft-state">{{ recovery.draftState.value }}</p>
+    <p v-if="!sourceKnown" role="alert">缺少审核修订号，请刷新题目并重新明确确认，旧操作不会自动补值。</p>
+    <section aria-label="审核操作恢复">
+     <p v-if="recovery.message.value" role="status">{{ recovery.message.value }}</p>
+     <button v-if="recovery.pending.value?.phase==='result_known'" data-testid="review-ack" @click="recovery.ack()">确认已保存的历史结果（无需网络）</button>
+     <button v-else-if="recovery.pending.value" data-testid="review-retry" :disabled="busy" @click="retryWrite">恢复原审核命令</button>
+     <details v-if="recovery.pending.value && recovery.pending.value.phase!=='result_known'"><summary>保留未知记录并停止本机重试</summary><p>原请求可能已成功。这里只停止本机重试，不取消服务器操作。新操作须另用新来源与新键。</p><button data-testid="review-release" @click="recovery.release()">明确保留旧未知记录，停止重试</button></details>
+     <details v-if="recovery.branches.value.length"><summary>比较当前主草稿</summary><pre>{{ recovery.headRaw.value }}</pre></details>
+     <button v-for="branch in recovery.branches.value" :key="branch.id" @click="recovery.loadBranch(branch.id)">载入独立审核意见分支</button>
+     <button v-if="recovery.blocked.value" data-testid="review-adopt" @click="recovery.adopt()">保留旧意见并明确采用当前题目来源</button>
+    </section>
+    <h2>审核决策</h2><p v-if="detail.content.attachments.some(item=>item.media_id)">有图片附件时，须先逐图授权预览并记录本人当前版本的审校声明；批量操作也不会自动代替声明。</p>
     <p v-if="decisions.length === 0" class="muted">
       这道题已经下线。下线是终态，不能再做任何决策；要重新使用，需要提交一个新版本。
     </p>
     <template v-else>
       <div class="choices" role="radiogroup" aria-label="审核决策">
         <label v-for="decision in decisions" :key="decision" class="choice">
-          <input v-model="selected" type="radio" name="decision" :value="decision" />
+          <input v-model="selected" :disabled="!recovery.loaded.value" type="radio" name="decision" :value="decision" />
           <strong>{{ DECISION_LABEL[decision] }}</strong>
         </label>
       </div>
@@ -125,7 +146,7 @@ async function submit(): Promise<void> {
         <legend>确认通过的解法</legend>
         <label><input type="checkbox" checked disabled /> 标准解法（必须确认）</label>
         <label v-if="hasFast">
-          <input v-model="confirmFast" type="checkbox" data-testid="confirm-fast" />
+          <input v-model="confirmFast" :disabled="!recovery.loaded.value" type="checkbox" data-testid="confirm-fast" />
           快速解法（适用条件与边界都看过了才勾选）
         </label>
         <p v-if="hasFast && !confirmFast" class="muted small">
@@ -135,7 +156,7 @@ async function submit(): Promise<void> {
 
       <label class="field">
         <span>{{ needsComment ? '原因（必填）' : '备注（可选）' }}</span>
-        <textarea v-model="comment" rows="3" maxlength="2000" data-testid="comment" />
+        <textarea v-model="comment" :disabled="!recovery.loaded.value" rows="3" maxlength="2000" data-testid="comment" />
       </label>
 
       <p v-if="blocked" class="notice warn" role="status" data-testid="blocked">{{ blocked }}</p>
@@ -162,3 +183,9 @@ async function submit(): Promise<void> {
     </template>
   </section>
 </template>
+
+
+
+
+
+

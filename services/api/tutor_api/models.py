@@ -16,12 +16,16 @@ from sqlalchemy import (
     Boolean,
     Date,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     SmallInteger,
     String,
+    Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.mysql import MEDIUMBLOB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from tutor_api.db import Base, UTCDateTime
@@ -44,7 +48,11 @@ class User(Base):
 class StudentProfile(Base):
     __tablename__ = "student_profiles"
 
+    learning_settings_json: Mapped[dict | None] = mapped_column(JSON)
+
     user_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"), primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    parent_invite_revision: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     grade: Mapped[str | None] = mapped_column(String(8))
     # V1.2 遗留字段，仅保留兼容；新逻辑一律使用 region_code
     region: Mapped[str | None] = mapped_column(String(64))
@@ -56,6 +64,145 @@ class StudentProfile(Base):
     subjects_json: Mapped[list[str] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class LearningJob(Base):
+    __tablename__ = "learning_jobs"
+    __table_args__ = (
+        UniqueConstraint("student_id", "command_key", name="uq_learning_job_command"),
+    )
+
+    id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    student_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    command_key: Mapped[str] = mapped_column(String(128))
+    status: Mapped[str] = mapped_column(String(16))
+    attempts: Mapped[int] = mapped_column(Integer)
+    available_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    lease_until: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    lease_token: Mapped[str | None] = mapped_column(_ID)
+
+
+class LearningPackCommand(Base):
+    __tablename__ = "learning_pack_commands"
+
+    job_id: Mapped[str] = mapped_column(_ID, ForeignKey("learning_jobs.id"), primary_key=True)
+    input_json: Mapped[dict] = mapped_column(JSON)
+    plan_json: Mapped[dict | None] = mapped_column(JSON)
+
+
+class SchoolMaterialCommand(Base):
+    __tablename__ = "school_material_commands"
+
+    job_id: Mapped[str] = mapped_column(_ID, ForeignKey("learning_jobs.id"), primary_key=True)
+    media_id: Mapped[str] = mapped_column(_ID)
+
+
+class SchoolMaterialResult(Base):
+    __tablename__ = "school_material_results"
+
+    job_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("school_material_commands.job_id"), primary_key=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    pages_json: Mapped[list] = mapped_column(JSON)
+
+
+class SchoolMaterialCorrection(Base):
+    __tablename__ = "school_material_corrections"
+
+    job_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("school_material_results.job_id", ondelete="CASCADE"), primary_key=True
+    )
+    page_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer, primary_key=True)
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class SchoolMaterialConfirmation(Base):
+    __tablename__ = "school_material_confirmations"
+
+    job_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("school_material_results.job_id", ondelete="CASCADE"), primary_key=True
+    )
+    source_revision: Mapped[str] = mapped_column(String(64), primary_key=True)
+    items_json: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class LearningPackPublication(Base):
+    __tablename__ = "learning_pack_publications"
+
+    job_id: Mapped[str] = mapped_column(_ID, ForeignKey("learning_jobs.id"), primary_key=True)
+    student_pdf: Mapped[bytes] = mapped_column(LargeBinary().with_variant(MEDIUMBLOB(), "mysql"))
+    solution_pdf: Mapped[bytes] = mapped_column(LargeBinary().with_variant(MEDIUMBLOB(), "mysql"))
+    manifest_json: Mapped[dict] = mapped_column(JSON)
+
+
+class LearningPackReturn(Base):
+    __tablename__ = "learning_pack_returns"
+
+    job_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("learning_pack_publications.job_id"), primary_key=True
+    )
+    code: Mapped[str] = mapped_column(CHAR(3), primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer)
+    question_version_id: Mapped[str] = mapped_column(_ID, ForeignKey("question_versions.id"))
+    transcript: Mapped[str] = mapped_column(Text)
+    confirmed_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class LearningPackReturnPhotos(Base):
+    __tablename__ = "learning_pack_return_photos"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["job_id", "code"], ["learning_pack_returns.job_id", "learning_pack_returns.code"]
+        ),
+    )
+
+    job_id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    code: Mapped[str] = mapped_column(CHAR(3), primary_key=True)
+    media_ids_json: Mapped[list[str]] = mapped_column(JSON)
+
+
+class LearningPackReturnDetails(Base):
+    __tablename__ = "learning_pack_return_details"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["job_id", "code"], ["learning_pack_returns.job_id", "learning_pack_returns.code"]
+        ),
+    )
+
+    job_id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    code: Mapped[str] = mapped_column(CHAR(3), primary_key=True)
+    completed_on: Mapped[date | None] = mapped_column(Date)
+    independence: Mapped[str] = mapped_column(String(16))
+
+
+class LearningPackCorrection(Base):
+    __tablename__ = "learning_pack_corrections"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["job_id", "code"], ["learning_pack_returns.job_id", "learning_pack_returns.code"]
+        ),
+    )
+
+    job_id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    code: Mapped[str] = mapped_column(CHAR(3), primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer, primary_key=True)
+    transcript: Mapped[str] = mapped_column(Text)
+    actor_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    corrected_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class WeeklyReportSnapshot(Base):
+    __tablename__ = "weekly_report_snapshots"
+
+    student_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"), primary_key=True)
+    week_start: Mapped[date] = mapped_column(Date, primary_key=True)
+    revision: Mapped[int] = mapped_column(Integer, primary_key=True)
+    summary_json: Mapped[dict] = mapped_column(JSON)
+    generated_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
 class KnowledgeNode(Base):
@@ -89,6 +236,7 @@ class Question(Base):
     answer_mode: Mapped[str] = mapped_column(String(24))
     status: Mapped[str] = mapped_column(String(16), default="draft")
     version: Mapped[int] = mapped_column(Integer, default=1)
+    review_revision: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     difficulty: Mapped[int] = mapped_column(SmallInteger, default=3)
     grade: Mapped[str | None] = mapped_column(String(8))
     source_type: Mapped[str] = mapped_column(String(24))
@@ -114,6 +262,9 @@ class QuestionVersion(Base):
     version: Mapped[int] = mapped_column(Integer)
     content_json: Mapped[dict[str, Any]] = mapped_column(JSON)
     answer_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    provenance_json: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     teaching_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_by: Mapped[str | None] = mapped_column(_ID)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
@@ -159,6 +310,7 @@ class StudySession(Base):
     __table_args__ = (
         Index("ix_sessions_student_created", "student_id", "created_at"),
         Index("ix_sessions_student_question", "student_id", "question_id"),
+        Index("ix_sessions_review_owner", "student_id", "review_item_id", "id"),
     )
 
     id: Mapped[str] = mapped_column(_ID, primary_key=True)
@@ -187,12 +339,18 @@ class Attempt(Base):
     __tablename__ = "attempts"
     __table_args__ = (
         UniqueConstraint("session_id", "attempt_no", name="uq_attempt_no"),
+        UniqueConstraint("session_id", "submission_no", name="uq_attempt_submission"),
         UniqueConstraint("request_id", name="uq_attempt_request"),
     )
 
     id: Mapped[str] = mapped_column(_ID, primary_key=True)
     session_id: Mapped[str] = mapped_column(_ID, ForeignKey("study_sessions.id"))
     attempt_no: Mapped[int] = mapped_column(Integer)
+    submission_no: Mapped[int | None] = mapped_column(Integer)
+    copied_from_attempt_id: Mapped[str | None] = mapped_column(
+        _ID, ForeignKey("attempts.id", name="fk_attempt_copy_source")
+    )
+    copied_from_revision: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(16), default="draft")
     answer_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     assisted: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -250,6 +408,7 @@ class ParentStudentLink(Base):
     __table_args__ = (UniqueConstraint("parent_id", "student_id", name="uq_parent_student"),)
 
     id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    authorization_revision: Mapped[int] = mapped_column(BigInteger, default=1, server_default="1")
     parent_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
     student_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
     consent_at: Mapped[datetime] = mapped_column(UTCDateTime)
@@ -306,6 +465,20 @@ class ReviewItem(Base):
     origin_session_id: Mapped[str | None] = mapped_column(_ID)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ReviewCompletionRecord(Base):
+    """Durable first-submission evidence; legacy unknowns never invent outcomes."""
+
+    __tablename__ = "review_completion_history"
+
+    review_id: Mapped[str] = mapped_column(_ID, ForeignKey("review_items.id"), primary_key=True)
+    first_attempt_id: Mapped[str] = mapped_column(_ID, ForeignKey("attempts.id"), primary_key=True)
+    student_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    question_id: Mapped[str] = mapped_column(_ID, ForeignKey("questions.id"))
+    state: Mapped[str] = mapped_column(String(24))
+    result: Mapped[str | None] = mapped_column(String(16))
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class AuditLog(Base):
@@ -414,3 +587,18 @@ class ModelBudgetUsage(Base):
     request_count: Mapped[int] = mapped_column(Integer, default=0)
     estimated_cost_micros: Mapped[int] = mapped_column(BigInteger, default=0)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class IdempotencyReceipt(Base):
+    """业务事务内的正式回执；reserved只能存在于未提交事务中。"""
+
+    __tablename__ = "idempotency_receipts"
+    __table_args__ = (UniqueConstraint("actor_id", "key_digest", name="uq_receipt_actor_key"),)
+    id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    actor_id: Mapped[str] = mapped_column(_ID)
+    key_digest: Mapped[str] = mapped_column(CHAR(64))
+    fingerprint: Mapped[str] = mapped_column(CHAR(64))
+    state: Mapped[str] = mapped_column(String(16))
+    status_code: Mapped[int | None] = mapped_column(SmallInteger)
+    response_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)

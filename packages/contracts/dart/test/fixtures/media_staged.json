@@ -1,0 +1,23 @@
+{
+  "name": "media_staged",
+  "method": "PUT",
+  "path": "/api/v1/media/62f37d50-eca0-4431-80cb-2c45b4fc3c43/content",
+  "status": 200,
+  "schema": "MediaAssetInfo",
+  "value": {
+    "media_id": "62f37d50-eca0-4431-80cb-2c45b4fc3c43",
+    "mime": "image/png",
+    "size_bytes": 1435,
+    "sha256": "49f456f0f1c47e4ec88d57f9cac605096227aa142c504ff9c017c686eabfd32c",
+    "expires_at": "2026-11-10T10:00:00+00:00"
+  },
+  "body": {
+    "data": {
+      "media_id": "62f37d50-eca0-4431-80cb-2c45b4fc3c43",
+      "mime": "image/png",
+      "size_bytes": 1435,
+      "sha256": "49f456f0f1c47e4ec88d57f9cac605096227aa142c504ff9c017c686eabfd32c",
+      "expires_at": "2026-11-10T10:00:00+00:00"
+    }
+  }
+}

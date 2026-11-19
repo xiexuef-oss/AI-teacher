@@ -1,0 +1,324 @@
+{
+  "source": "Real browser frozen B probe: remote submitted C then standard and understood; auth/profile excluded",
+  "storage": {
+    "flutter.u/46376539-be72-46d1-bd6c-8b29471c3d87/resource-journal/session/6ab5767b-4259-4e18-a574-09a83e34b4b0": "\"{\\\"v\\\":1,\\\"owner\\\":\\\"46376539-be72-46d1-bd6c-8b29471c3d87\\\",\\\"target\\\":\\\"session/6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"history\\\":{\\\"resource-intent-ho7fy2xez4-hp5mm7-4\\\":{\\\"v\\\":1,\\\"owner\\\":\\\"46376539-be72-46d1-bd6c-8b29471c3d87\\\",\\\"target\\\":\\\"session/6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"source\\\":{\\\"owner\\\":\\\"46376539-be72-46d1-bd6c-8b29471c3d87\\\",\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"questionVersion\\\":1,\\\"workspaceId\\\":\\\"attempt/35e31661-a9f4-4d93-8075-93414a5784ed\\\",\\\"origin\\\":\\\"practice\\\",\\\"reviewId\\\":null,\\\"sessionId\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"attemptId\\\":\\\"35e31661-a9f4-4d93-8075-93414a5784ed\\\",\\\"editGeneration\\\":0,\\\"activeEpoch\\\":1,\\\"viewGeneration\\\":0},\\\"intentId\\\":\\\"resource-intent-ho7fy2xez4-hp5mm7-4\\\",\\\"idempotencyKey\\\":\\\"tutor-ho7fy2xfqw-jlgmqd-5\\\",\\\"method\\\":\\\"POST\\\",\\\"path\\\":\\\"/tutor/sessions/6ab5767b-4259-4e18-a574-09a83e34b4b0/next\\\",\\\"body\\\":{\\\"action\\\":\\\"request_hint\\\",\\\"confirm_end_independent\\\":false},\\\"phase\\\":\\\"result_known\\\",\\\"generation\\\":3,\\\"provenance\\\":null,\\\"result\\\":{\\\"session\\\":{\\\"id\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"question_version\\\":1,\\\"origin\\\":\\\"practice\\\",\\\"state\\\":\\\"HINTED\\\",\\\"review_item_id\\\":null,\\\"parent_session_id\\\":null,\\\"region_code_snapshot\\\":\\\"CN-51\\\",\\\"exam_year_snapshot\\\":2027,\\\"curriculum_version_snapshot\\\":null,\\\"assisted\\\":true,\\\"used_solution\\\":false,\\\"independent_ended\\\":false,\\\"hint_level_revealed\\\":1,\\\"hint_levels_total\\\":3,\\\"confused_streak\\\":0,\\\"needs_human_help\\\":false,\\\"active_attempt_id\\\":\\\"35e31661-a9f4-4d93-8075-93414a5784ed\\\",\\\"submitted_attempts\\\":0,\\\"last_event_seq\\\":1,\\\"created_at\\\":\\\"2026-11-16T06:06:00.628144Z\\\",\\\"updated_at\\\":\\\"2026-11-16T06:06:02.822481Z\\\"},\\\"events\\\":[{\\\"id\\\":\\\"90773960-a56b-4838-8f56-c2a192d80c85\\\",\\\"session_id\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"seq_no\\\":1,\\\"type\\\":\\\"hint\\\",\\\"created_at\\\":\\\"2026-11-16T06:06:02.822481Z\\\",\\\"state_after\\\":\\\"HINTED\\\",\\\"payload\\\":{\\\"level\\\":1,\\\"total_levels\\\":3,\\\"style\\\":\\\"layered\\\",\\\"text\\\":\\\"先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。\\\",\\\"concept\\\":\\\"函数的单调性\\\"},\\\"meta\\\":{\\\"schema_version\\\":\\\"1.0\\\",\\\"source\\\":\\\"reviewed_content\\\",\\\"degraded\\\":false,\\\"provider\\\":null,\\\"model_id\\\":null,\\\"prompt_version\\\":null,\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"question_version\\\":1,\\\"trace_id\\\":null,\\\"request_id\\\":\\\"4d22c77e72534b4abbc8fb64fab56938\\\"}}]},\\\"refreshId\\\":\\\"refresh-ho7fy3it1c-mbt56c-6\\\",\\\"checksum\\\":\\\"a8f263cb9cb5d90fc35a9931308be353fae06aa8b3a5c3b0dbfb076f95bc321f\\\"}},\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"current\\\":\\\"resource-intent-ho7fy2xez4-hp5mm7-4\\\",\\\"checksum\\\":\\\"67b5aba08082bc20aee931ca9eec4d91f4662c97db66c9daeb6ddf46fca57846\\\"}\"",
+    "flutter.u/46376539-be72-46d1-bd6c-8b29471c3d87/question/78d86cab-1ee9-5126-83af-c3125e4a0daf/local/971540eb184f3dc44e89e27e68adb881": "\"{\\\"id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"subject\\\":\\\"math\\\",\\\"type\\\":\\\"single_choice\\\",\\\"answer_mode\\\":\\\"single_choice\\\",\\\"difficulty\\\":2,\\\"title\\\":\\\"二次函数的单调递增区间\\\",\\\"source\\\":{\\\"source_type\\\":\\\"self_authored\\\",\\\"source_category\\\":\\\"foundation\\\",\\\"source_name\\\":\\\"自编工程样题\\\",\\\"source_year\\\":null,\\\"source_license\\\":\\\"internal-engineering-sample\\\",\\\"source_url\\\":null,\\\"is_engineering_sample\\\":true,\\\"label\\\":\\\"自编工程样题 · 未经学科审校\\\"},\\\"applicability\\\":{\\\"scope\\\":\\\"region\\\",\\\"label\\\":\\\"推荐适用：四川（工程测试标签）\\\",\\\"recommended_regions\\\":[\\\"CN-51\\\"],\\\"origin_region_code\\\":null,\\\"exam_year_from\\\":2027,\\\"exam_year_to\\\":2029,\\\"disclaimer\\\":\\\"自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。\\\"},\\\"knowledge\\\":[{\\\"id\\\":\\\"129748fc-2a3c-5d38-870c-0e2f1d46e6e4\\\",\\\"code\\\":\\\"math.function.monotonicity\\\",\\\"title\\\":\\\"函数的单调性\\\"},{\\\"id\\\":\\\"d5481c2c-10fe-5dbe-be46-fe9573673a6e\\\",\\\"code\\\":\\\"math.quadratic.graph\\\",\\\"title\\\":\\\"二次函数的图像与对称轴\\\"}],\\\"variant_of\\\":null,\\\"version\\\":1,\\\"grade\\\":\\\"G10\\\",\\\"content\\\":{\\\"stem\\\":\\\"函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）\\\",\\\"options\\\":[{\\\"key\\\":\\\"A\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,1]$\\\"},{\\\"key\\\":\\\"B\\\",\\\"text\\\":\\\"$[1,+\\\\\\\\infty)$\\\"},{\\\"key\\\":\\\"C\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,-1]$\\\"},{\\\"key\\\":\\\"D\\\",\\\"text\\\":\\\"$[-1,+\\\\\\\\infty)$\\\"}],\\\"blanks\\\":[],\\\"subquestions\\\":[],\\\"attachments\\\":[],\\\"data_tables\\\":[],\\\"safety\\\":null,\\\"proof\\\":null},\\\"assists\\\":{\\\"hint_levels\\\":3,\\\"has_standard_solution\\\":true,\\\"has_fast_solution\\\":true,\\\"visual_available\\\":true},\\\"judging_note\\\":null}\"",
+    "flutter.u/46376539-be72-46d1-bd6c-8b29471c3d87/question/78d86cab-1ee9-5126-83af-c3125e4a0daf/attempt/35e31661-a9f4-4d93-8075-93414a5784ed": "\"{\\\"id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"subject\\\":\\\"math\\\",\\\"type\\\":\\\"single_choice\\\",\\\"answer_mode\\\":\\\"single_choice\\\",\\\"difficulty\\\":2,\\\"title\\\":\\\"二次函数的单调递增区间\\\",\\\"source\\\":{\\\"source_type\\\":\\\"self_authored\\\",\\\"source_category\\\":\\\"foundation\\\",\\\"source_name\\\":\\\"自编工程样题\\\",\\\"source_year\\\":null,\\\"source_license\\\":\\\"internal-engineering-sample\\\",\\\"source_url\\\":null,\\\"is_engineering_sample\\\":true,\\\"label\\\":\\\"自编工程样题 · 未经学科审校\\\"},\\\"applicability\\\":{\\\"scope\\\":\\\"region\\\",\\\"label\\\":\\\"推荐适用：四川（工程测试标签）\\\",\\\"recommended_regions\\\":[\\\"CN-51\\\"],\\\"origin_region_code\\\":null,\\\"exam_year_from\\\":2027,\\\"exam_year_to\\\":2029,\\\"disclaimer\\\":\\\"自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。\\\"},\\\"knowledge\\\":[{\\\"id\\\":\\\"129748fc-2a3c-5d38-870c-0e2f1d46e6e4\\\",\\\"code\\\":\\\"math.function.monotonicity\\\",\\\"title\\\":\\\"函数的单调性\\\"},{\\\"id\\\":\\\"d5481c2c-10fe-5dbe-be46-fe9573673a6e\\\",\\\"code\\\":\\\"math.quadratic.graph\\\",\\\"title\\\":\\\"二次函数的图像与对称轴\\\"}],\\\"variant_of\\\":null,\\\"version\\\":1,\\\"grade\\\":\\\"G10\\\",\\\"content\\\":{\\\"stem\\\":\\\"函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）\\\",\\\"options\\\":[{\\\"key\\\":\\\"A\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,1]$\\\"},{\\\"key\\\":\\\"B\\\",\\\"text\\\":\\\"$[1,+\\\\\\\\infty)$\\\"},{\\\"key\\\":\\\"C\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,-1]$\\\"},{\\\"key\\\":\\\"D\\\",\\\"text\\\":\\\"$[-1,+\\\\\\\\infty)$\\\"}],\\\"blanks\\\":[],\\\"subquestions\\\":[],\\\"attachments\\\":[],\\\"data_tables\\\":[],\\\"safety\\\":null,\\\"proof\\\":null},\\\"assists\\\":{\\\"hint_levels\\\":3,\\\"has_standard_solution\\\":true,\\\"has_fast_solution\\\":true,\\\"visual_available\\\":true},\\\"judging_note\\\":null}\"",
+    "flutter.u/46376539-be72-46d1-bd6c-8b29471c3d87/draft-bundle/78d86cab-1ee9-5126-83af-c3125e4a0daf": "\"{\\\"v\\\":1,\\\"drafts\\\":{\\\"attempt/35e31661-a9f4-4d93-8075-93414a5784ed\\\":{\\\"v\\\":1,\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"sessionId\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"attemptId\\\":\\\"35e31661-a9f4-4d93-8075-93414a5784ed\\\",\\\"baseRevision\\\":0,\\\"dirty\\\":false,\\\"answer\\\":{\\\"selected\\\":[],\\\"blanks\\\":{},\\\"parts\\\":{},\\\"cells\\\":{},\\\"steps\\\":[]},\\\"strokes\\\":null,\\\"savedAt\\\":\\\"2026-11-16T06:06:00.852Z\\\"}},\\\"pending\\\":{},\\\"references\\\":{},\\\"workspaceContexts\\\":{\\\"local/971540eb184f3dc44e89e27e68adb881\\\":{\\\"v\\\":1,\\\"workspaceId\\\":\\\"971540eb184f3dc44e89e27e68adb881\\\",\\\"question\\\":{\\\"id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"subject\\\":\\\"math\\\",\\\"type\\\":\\\"single_choice\\\",\\\"answer_mode\\\":\\\"single_choice\\\",\\\"difficulty\\\":2,\\\"title\\\":\\\"二次函数的单调递增区间\\\",\\\"source\\\":{\\\"source_type\\\":\\\"self_authored\\\",\\\"source_category\\\":\\\"foundation\\\",\\\"source_name\\\":\\\"自编工程样题\\\",\\\"source_year\\\":null,\\\"source_license\\\":\\\"internal-engineering-sample\\\",\\\"source_url\\\":null,\\\"is_engineering_sample\\\":true,\\\"label\\\":\\\"自编工程样题 · 未经学科审校\\\"},\\\"applicability\\\":{\\\"scope\\\":\\\"region\\\",\\\"label\\\":\\\"推荐适用：四川（工程测试标签）\\\",\\\"recommended_regions\\\":[\\\"CN-51\\\"],\\\"origin_region_code\\\":null,\\\"exam_year_from\\\":2027,\\\"exam_year_to\\\":2029,\\\"disclaimer\\\":\\\"自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。\\\"},\\\"knowledge\\\":[{\\\"id\\\":\\\"129748fc-2a3c-5d38-870c-0e2f1d46e6e4\\\",\\\"code\\\":\\\"math.function.monotonicity\\\",\\\"title\\\":\\\"函数的单调性\\\"},{\\\"id\\\":\\\"d5481c2c-10fe-5dbe-be46-fe9573673a6e\\\",\\\"code\\\":\\\"math.quadratic.graph\\\",\\\"title\\\":\\\"二次函数的图像与对称轴\\\"}],\\\"variant_of\\\":null,\\\"version\\\":1,\\\"grade\\\":\\\"G10\\\",\\\"content\\\":{\\\"stem\\\":\\\"函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）\\\",\\\"options\\\":[{\\\"key\\\":\\\"A\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,1]$\\\"},{\\\"key\\\":\\\"B\\\",\\\"text\\\":\\\"$[1,+\\\\\\\\infty)$\\\"},{\\\"key\\\":\\\"C\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,-1]$\\\"},{\\\"key\\\":\\\"D\\\",\\\"text\\\":\\\"$[-1,+\\\\\\\\infty)$\\\"}],\\\"blanks\\\":[],\\\"subquestions\\\":[],\\\"attachments\\\":[],\\\"data_tables\\\":[],\\\"safety\\\":null,\\\"proof\\\":null},\\\"assists\\\":{\\\"hint_levels\\\":3,\\\"has_standard_solution\\\":true,\\\"has_fast_solution\\\":true,\\\"visual_available\\\":true},\\\"judging_note\\\":null},\\\"sessionBody\\\":{\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"expected_question_version\\\":1,\\\"origin\\\":\\\"practice\\\"},\\\"trustedSessionId\\\":null},\\\"attempt/35e31661-a9f4-4d93-8075-93414a5784ed\\\":{\\\"v\\\":1,\\\"workspaceId\\\":\\\"35e31661-a9f4-4d93-8075-93414a5784ed\\\",\\\"question\\\":{\\\"id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"subject\\\":\\\"math\\\",\\\"type\\\":\\\"single_choice\\\",\\\"answer_mode\\\":\\\"single_choice\\\",\\\"difficulty\\\":2,\\\"title\\\":\\\"二次函数的单调递增区间\\\",\\\"source\\\":{\\\"source_type\\\":\\\"self_authored\\\",\\\"source_category\\\":\\\"foundation\\\",\\\"source_name\\\":\\\"自编工程样题\\\",\\\"source_year\\\":null,\\\"source_license\\\":\\\"internal-engineering-sample\\\",\\\"source_url\\\":null,\\\"is_engineering_sample\\\":true,\\\"label\\\":\\\"自编工程样题 · 未经学科审校\\\"},\\\"applicability\\\":{\\\"scope\\\":\\\"region\\\",\\\"label\\\":\\\"推荐适用：四川（工程测试标签）\\\",\\\"recommended_regions\\\":[\\\"CN-51\\\"],\\\"origin_region_code\\\":null,\\\"exam_year_from\\\":2027,\\\"exam_year_to\\\":2029,\\\"disclaimer\\\":\\\"自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。\\\"},\\\"knowledge\\\":[{\\\"id\\\":\\\"129748fc-2a3c-5d38-870c-0e2f1d46e6e4\\\",\\\"code\\\":\\\"math.function.monotonicity\\\",\\\"title\\\":\\\"函数的单调性\\\"},{\\\"id\\\":\\\"d5481c2c-10fe-5dbe-be46-fe9573673a6e\\\",\\\"code\\\":\\\"math.quadratic.graph\\\",\\\"title\\\":\\\"二次函数的图像与对称轴\\\"}],\\\"variant_of\\\":null,\\\"version\\\":1,\\\"grade\\\":\\\"G10\\\",\\\"content\\\":{\\\"stem\\\":\\\"函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）\\\",\\\"options\\\":[{\\\"key\\\":\\\"A\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,1]$\\\"},{\\\"key\\\":\\\"B\\\",\\\"text\\\":\\\"$[1,+\\\\\\\\infty)$\\\"},{\\\"key\\\":\\\"C\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,-1]$\\\"},{\\\"key\\\":\\\"D\\\",\\\"text\\\":\\\"$[-1,+\\\\\\\\infty)$\\\"}],\\\"blanks\\\":[],\\\"subquestions\\\":[],\\\"attachments\\\":[],\\\"data_tables\\\":[],\\\"safety\\\":null,\\\"proof\\\":null},\\\"assists\\\":{\\\"hint_levels\\\":3,\\\"has_standard_solution\\\":true,\\\"has_fast_solution\\\":true,\\\"visual_available\\\":true},\\\"judging_note\\\":null},\\\"sessionBody\\\":{\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"expected_question_version\\\":1,\\\"origin\\\":\\\"practice\\\"},\\\"trustedSessionId\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\"}},\\\"editState\\\":{\\\"local/971540eb184f3dc44e89e27e68adb881\\\":{\\\"draftGeneration\\\":1,\\\"marksGeneration\\\":0,\\\"knownRevision\\\":0}},\\\"creationIntents\\\":{\\\"local/971540eb184f3dc44e89e27e68adb881\\\":{\\\"current\\\":\\\"create-intent-ho7fy1movk-ecvzme-1\\\",\\\"history\\\":{\\\"create-intent-ho7fy1movk-ecvzme-1\\\":{\\\"v\\\":1,\\\"transferPolicy\\\":null,\\\"intentId\\\":\\\"create-intent-ho7fy1movk-ecvzme-1\\\",\\\"generation\\\":5,\\\"phase\\\":\\\"attached\\\",\\\"sessionKey\\\":\\\"create-session-ho7fy1movk-fxpkxq-2\\\",\\\"attemptKey\\\":\\\"create-attempt-ho7fy1movk-a5d0oy-3\\\",\\\"sessionBody\\\":{\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"expected_question_version\\\":1,\\\"origin\\\":\\\"practice\\\"},\\\"attemptBody\\\":{\\\"session_id\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\"},\\\"sessionId\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"attemptId\\\":\\\"35e31661-a9f4-4d93-8075-93414a5784ed\\\",\\\"questionVersion\\\":1,\\\"activationEpoch\\\":0,\\\"blockedReason\\\":null,\\\"resumePhase\\\":null}}},\\\"attempt/35e31661-a9f4-4d93-8075-93414a5784ed\\\":{\\\"current\\\":\\\"create-intent-ho7fy1movk-ecvzme-1\\\",\\\"history\\\":{\\\"create-intent-ho7fy1movk-ecvzme-1\\\":{\\\"v\\\":1,\\\"transferPolicy\\\":null,\\\"intentId\\\":\\\"create-intent-ho7fy1movk-ecvzme-1\\\",\\\"generation\\\":5,\\\"phase\\\":\\\"attached\\\",\\\"sessionKey\\\":\\\"create-session-ho7fy1movk-fxpkxq-2\\\",\\\"attemptKey\\\":\\\"create-attempt-ho7fy1movk-a5d0oy-3\\\",\\\"sessionBody\\\":{\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"expected_question_version\\\":1,\\\"origin\\\":\\\"practice\\\"},\\\"attemptBody\\\":{\\\"session_id\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\"},\\\"sessionId\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"attemptId\\\":\\\"35e31661-a9f4-4d93-8075-93414a5784ed\\\",\\\"questionVersion\\\":1,\\\"activationEpoch\\\":0,\\\"blockedReason\\\":null,\\\"resumePhase\\\":null}}}},\\\"promotions\\\":{\\\"local/971540eb184f3dc44e89e27e68adb881\\\":{\\\"v\\\":1,\\\"source\\\":{\\\"v\\\":1,\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"sessionId\\\":null,\\\"attemptId\\\":null,\\\"baseRevision\\\":0,\\\"dirty\\\":false,\\\"answer\\\":{\\\"selected\\\":[],\\\"blanks\\\":{},\\\"parts\\\":{},\\\"cells\\\":{},\\\"steps\\\":[]},\\\"strokes\\\":null,\\\"savedAt\\\":\\\"2026-11-16T06:06:00.852Z\\\"},\\\"targetAttemptId\\\":\\\"35e31661-a9f4-4d93-8075-93414a5784ed\\\"}},\\\"cleared\\\":[\\\"local/971540eb184f3dc44e89e27e68adb881\\\"],\\\"legacyLocalConsumed\\\":true,\\\"active\\\":{\\\"sessionId\\\":\\\"6ab5767b-4259-4e18-a574-09a83e34b4b0\\\",\\\"attemptId\\\":\\\"35e31661-a9f4-4d93-8075-93414a5784ed\\\"},\\\"activeEpoch\\\":1}\""
+  },
+  "responses": [
+    {
+      "path": "/sessions/6ab5767b-4259-4e18-a574-09a83e34b4b0",
+      "status": 200,
+      "data": {
+        "id": "6ab5767b-4259-4e18-a574-09a83e34b4b0",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "DONE",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": true,
+        "independent_ended": false,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "first_submitted_attempt_id": "35e31661-a9f4-4d93-8075-93414a5784ed",
+        "submitted_attempts": 1,
+        "last_event_seq": 6,
+        "created_at": "2026-11-16T06:06:00.628144Z",
+        "updated_at": "2026-11-16T06:06:03.744412Z"
+      }
+    },
+    {
+      "path": "/attempts/35e31661-a9f4-4d93-8075-93414a5784ed",
+      "status": 200,
+      "data": {
+        "id": "35e31661-a9f4-4d93-8075-93414a5784ed",
+        "session_id": "6ab5767b-4259-4e18-a574-09a83e34b4b0",
+        "attempt_no": 1,
+        "submission_no": 1,
+        "copied_from_attempt_id": null,
+        "copied_from_revision": null,
+        "status": "submitted",
+        "answer": {
+          "selected_options": [
+            "B"
+          ]
+        },
+        "draft_revision": 0,
+        "assisted": true,
+        "used_solution": false,
+        "independent": false,
+        "evaluation": {
+          "state": "verified",
+          "outcome": "correct",
+          "is_correct": true,
+          "independent": false,
+          "assisted": true,
+          "used_solution": false,
+          "review_required": false,
+          "feedback": [
+            {
+              "target": "overall",
+              "code": "correct",
+              "message": "回答正确。"
+            }
+          ],
+          "message": "回答正确。",
+          "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+        },
+        "submitted_at": "2026-11-16T06:06:03.632133Z",
+        "created_at": "2026-11-16T06:06:00.803914Z",
+        "updated_at": "2026-11-16T06:06:03.632133Z"
+      }
+    },
+    {
+      "path": "/sessions/6ab5767b-4259-4e18-a574-09a83e34b4b0/events",
+      "status": 200,
+      "data": {
+        "items": [
+          {
+            "id": "90773960-a56b-4838-8f56-c2a192d80c85",
+            "session_id": "6ab5767b-4259-4e18-a574-09a83e34b4b0",
+            "seq_no": 1,
+            "type": "hint",
+            "created_at": "2026-11-16T06:06:02.822481Z",
+            "state_after": "HINTED",
+            "payload": {
+              "level": 1,
+              "total_levels": 3,
+              "style": "layered",
+              "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+              "concept": "函数的单调性"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "4d22c77e72534b4abbc8fb64fab56938"
+            }
+          },
+          {
+            "id": "6b5faf28-baca-40e6-815a-858043a65b76",
+            "session_id": "6ab5767b-4259-4e18-a574-09a83e34b4b0",
+            "seq_no": 2,
+            "type": "diagnosis",
+            "created_at": "2026-11-16T06:06:03.632133Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "outcome": "correct",
+              "summary": "回答正确。",
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "knowledge": [
+                {
+                  "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+                  "code": "math.function.monotonicity",
+                  "title": "函数的单调性"
+                },
+                {
+                  "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+                  "code": "math.quadratic.graph",
+                  "title": "二次函数的图像与对称轴"
+                }
+              ],
+              "suggestions": [
+                {
+                  "action": "request_standard",
+                  "label": "看看解法",
+                  "question_id": null,
+                  "knowledge_id": null
+                },
+                {
+                  "action": "finish",
+                  "label": "完成这道题",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "3600c6b9954d427d8faf78f7658d16ca"
+            }
+          },
+          {
+            "id": "510dcb71-ede3-48fe-9d29-d22c126d85bc",
+            "session_id": "6ab5767b-4259-4e18-a574-09a83e34b4b0",
+            "seq_no": 3,
+            "type": "standard",
+            "created_at": "2026-11-16T06:06:03.695359Z",
+            "state_after": "STANDARD",
+            "payload": {
+              "title": "常规解法",
+              "steps": [
+                {
+                  "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+                },
+                {
+                  "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+                },
+                {
+                  "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+                }
+              ],
+              "final_answer": "B",
+              "option_analysis": [
+                {
+                  "key": "A",
+                  "verdict": "wrong",
+                  "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                },
+                {
+                  "key": "B",
+                  "verdict": "correct",
+                  "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+                },
+                {
+                  "key": "C",
+                  "verdict": "wrong",
+                  "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+                },
+                {
+                  "key": "D",
+                  "verdict": "wrong",
+                  "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+                }
+              ],
+              "key_points": [
+                "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+                "开口方向决定哪一侧递增"
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "af68cfd524d14fcd9c224f9c34627f8d"
+            }
+          },
+          {
+            "id": "961bf6cc-84c5-4f74-9732-db86fb147242",
+            "session_id": "6ab5767b-4259-4e18-a574-09a83e34b4b0",
+            "seq_no": 4,
+            "type": "ask",
+            "created_at": "2026-11-16T06:06:03.744412Z",
+            "state_after": "VARIANT",
+            "payload": {
+              "prompt": "要不要做一道变式题，检验是不是真的掌握了？",
+              "suggestions": [
+                {
+                  "action": "start_variant",
+                  "label": "做一道变式题",
+                  "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+                  "knowledge_id": null
+                },
+                {
+                  "action": "finish",
+                  "label": "先到这里",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "23abab0890844aa59aea3ee0f6bfdce3"
+            }
+          },
+          {
+            "id": "ce1109f1-50d0-4fdd-bc66-d7f67721e92a",
+            "session_id": "6ab5767b-4259-4e18-a574-09a83e34b4b0",
+            "seq_no": 5,
+            "type": "notice",
+            "created_at": "2026-11-16T06:06:03.744412Z",
+            "state_after": "REVIEW_SCHEDULED",
+            "payload": {
+              "code": "review_scheduled",
+              "text": "已经安排了复测，到时候不看提示再做一遍，确认是真的会了。",
+              "due_at": "2026-11-16T06:07:03.632133Z"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "23abab0890844aa59aea3ee0f6bfdce3"
+            }
+          },
+          {
+            "id": "9d26dbe2-eb83-4957-ad0c-05829cc28b30",
+            "session_id": "6ab5767b-4259-4e18-a574-09a83e34b4b0",
+            "seq_no": 6,
+            "type": "notice",
+            "created_at": "2026-11-16T06:06:03.744412Z",
+            "state_after": "DONE",
+            "payload": {
+              "code": "session_completed",
+              "text": "这道题先到这里。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "23abab0890844aa59aea3ee0f6bfdce3"
+            }
+          }
+        ],
+        "last_seq": 6
+      }
+    }
+  ]
+}

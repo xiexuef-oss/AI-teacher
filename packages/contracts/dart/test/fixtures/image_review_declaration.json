@@ -1,0 +1,25 @@
+{
+  "name": "image_review_declaration",
+  "method": "POST",
+  "path": "/api/v1/admin/questions/e879ddf6-bebd-4f94-86fa-1773fbe2d606/media/62f37d50-eca0-4431-80cb-2c45b4fc3c43/review-confirmations",
+  "status": 200,
+  "schema": "MediaReviewDeclaration",
+  "value": {
+    "question_id": "e879ddf6-bebd-4f94-86fa-1773fbe2d606",
+    "version": 1,
+    "media_id": "62f37d50-eca0-4431-80cb-2c45b4fc3c43",
+    "sha256": "49f456f0f1c47e4ec88d57f9cac605096227aa142c504ff9c017c686eabfd32c",
+    "actor_id": "9367b555-7ebf-4884-bb1c-a99974c3ad85",
+    "expires_at": "2026-11-10T10:00:00+00:00"
+  },
+  "body": {
+    "data": {
+      "question_id": "e879ddf6-bebd-4f94-86fa-1773fbe2d606",
+      "version": 1,
+      "media_id": "62f37d50-eca0-4431-80cb-2c45b4fc3c43",
+      "sha256": "49f456f0f1c47e4ec88d57f9cac605096227aa142c504ff9c017c686eabfd32c",
+      "actor_id": "9367b555-7ebf-4884-bb1c-a99974c3ad85",
+      "expires_at": "2026-11-10T10:00:00+00:00"
+    }
+  }
+}

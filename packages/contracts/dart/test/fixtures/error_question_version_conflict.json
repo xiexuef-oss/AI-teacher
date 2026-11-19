@@ -1,0 +1,29 @@
+{
+  "name": "error_question_version_conflict",
+  "method": "POST",
+  "path": "/api/v1/sessions",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "question_version_conflict",
+      "message": "题目版本已更新，请保留原稿并确认要使用的题面",
+      "details": {
+        "expected_question_version": 2,
+        "current_question_version": 1
+      },
+      "request_id": "dc1012d2dd5f4a6282982084813a7075"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "question_version_conflict",
+      "message": "题目版本已更新，请保留原稿并确认要使用的题面",
+      "details": {
+        "expected_question_version": 2,
+        "current_question_version": 1
+      },
+      "request_id": "dc1012d2dd5f4a6282982084813a7075"
+    }
+  }
+}

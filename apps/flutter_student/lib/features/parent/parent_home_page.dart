@@ -7,7 +7,7 @@ import 'package:tutor_contracts/tutor_contracts.dart';
 import '../../core/data.dart';
 import '../../core/errors.dart';
 import '../../core/format.dart';
-import '../../core/idempotency.dart';
+import 'parent_actions.dart';
 import '../../core/providers.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
@@ -25,7 +25,77 @@ class ParentHomePage extends ConsumerStatefulWidget {
 
 class _ParentHomePageState extends ConsumerState<ParentHomePage> {
   final TextEditingController _code = TextEditingController();
-  final PendingKeys _keys = PendingKeys();
+  int _serial = 0;
+  bool _same(AuthSession owner) =>
+      mounted &&
+      ref.read(authProvider).asData?.value.userId == owner.userId &&
+      ref.read(authProvider).asData?.value.token == owner.token &&
+      ref.read(authProvider).asData?.value.role == owner.role;
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      AuthSession? owner;
+      try {
+        owner = await ref.read(authProvider.future);
+        if (!mounted) return;
+        await ref.read(parentActionsProvider.future);
+        if (_same(owner!)) {
+          await ref.read(parentActionsProvider.notifier).refresh();
+        }
+      } catch (error) {
+        if (owner != null && _same(owner)) setState(() => _error = error);
+      }
+    });
+  }
+
+  Future<void> _ackHistory() async {
+    final owner = ref.read(authProvider).requireValue;
+    final serial = _serial;
+    try {
+      await ref.read(parentActionsProvider.notifier).acknowledgeHistory();
+      if (!_same(owner) || serial != _serial) return;
+      setState(() {
+        _linked = false;
+        _error = null;
+      });
+    } catch (error) {
+      if (_same(owner)) setState(() => _error = error);
+    }
+  }
+
+  Future<void> _abandon() async {
+    final owner = ref.read(authProvider).requireValue;
+    final serial = _serial;
+    final choice = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('保留未知记录，使用新邀请码？'),
+        content: const Text(
+          '旧请求可能已经绑定或稍后完成。这只停止本机重试，不会取消请求或撤销授权。请使用另一个新邀请码；学生仍可查看并撤销实际授权。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('返回'),
+          ),
+          FilledButton(
+            key: const ValueKey('parent.abandon.confirm'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('保留记录并继续'),
+          ),
+        ],
+      ),
+    );
+    if (choice != true || !_same(owner) || serial != _serial) return;
+    try {
+      await ref.read(parentActionsProvider.notifier).abandonUnknown();
+      if (_same(owner) && serial == _serial) setState(() => _linked = false);
+    } catch (error) {
+      if (_same(owner)) setState(() => _error = error);
+    }
+  }
+
   bool _busy = false;
   bool _linked = false;
   bool _switching = false;
@@ -38,7 +108,9 @@ class _ParentHomePageState extends ConsumerState<ParentHomePage> {
   }
 
   Future<void> _link() async {
-    final code = _code.text.trim();
+    final code = _code.text;
+    final owner = ref.read(authProvider).requireValue;
+    final serial = _serial;
     if (code.isEmpty || _busy) return;
     setState(() {
       _busy = true;
@@ -46,24 +118,20 @@ class _ParentHomePageState extends ConsumerState<ParentHomePage> {
       _linked = false;
     });
     // 同一个邀请码重试时复用同一个键；换了邀请码就是另一个动作
-    final action = 'redeem:$code';
     try {
-      await ref
-          .read(apiClientProvider)
-          .redeemParentInvite(
-            body: ParentInviteRedeem(code: code),
-            idempotencyKey: _keys.keyFor(action, label: 'redeem'),
-          );
-      _keys.done(action);
+      final result = await ref
+          .read(parentActionsProvider.notifier)
+          .redeem(code);
+      if (!_same(owner) || result == null) return;
       ref.invalidate(parentStudentsProvider);
-      if (mounted) {
+      if (_same(owner) && serial == _serial) {
         _code.clear();
         setState(() => _linked = true);
       }
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (_same(owner)) setState(() => _error = error);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (_same(owner)) setState(() => _busy = false);
     }
   }
 
@@ -91,6 +159,7 @@ class _ParentHomePageState extends ConsumerState<ParentHomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final students = ref.watch(parentStudentsProvider);
+    final command = ref.watch(parentActionsProvider).asData?.value?.active;
     final error = _error;
     final alreadyLinked =
         error is ApiException && error.code == 'already_linked';
@@ -150,28 +219,40 @@ class _ParentHomePageState extends ConsumerState<ParentHomePage> {
                           style: theme.textTheme.bodySmall,
                         ),
                         const SizedBox(height: 10),
-                        TextField(
-                          key: const ValueKey('parent.code'),
-                          controller: _code,
-                          enabled: !_busy,
-                          autocorrect: false,
-                          enableSuggestions: false,
-                          textCapitalization: TextCapitalization.characters,
-                          textInputAction: TextInputAction.done,
-                          inputFormatters: [
-                            LengthLimitingTextInputFormatter(40),
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: '邀请码',
-                            hintText: 'XXXXX-XXXXX',
+                        // Keep the editable web semantics bounds on the field,
+                        // separate from the surrounding Card's merged content.
+                        Semantics(
+                          container: true,
+                          explicitChildNodes: true,
+                          child: TextField(
+                            key: const ValueKey('parent.code'),
+                            controller: _code,
+                            enabled: true,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            textCapitalization: TextCapitalization.characters,
+                            textInputAction: TextInputAction.done,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(40),
+                            ],
+                            decoration: const InputDecoration(
+                              labelText: '邀请码',
+                              hintText: 'XXXXX-XXXXX',
+                            ),
+                            onChanged: (_) => setState(() {
+                              _serial++;
+                              _linked = false;
+                            }),
+                            onSubmitted: (_) => _link(),
                           ),
-                          onChanged: (_) => setState(() {}),
-                          onSubmitted: (_) => _link(),
                         ),
                         const SizedBox(height: 10),
                         FilledButton(
                           key: const ValueKey('parent.link'),
-                          onPressed: _code.text.trim().isEmpty || _busy
+                          onPressed:
+                              _code.text.trim().isEmpty ||
+                                  _busy ||
+                                  command?.phase == 'result_known'
                               ? null
                               : _link,
                           child: _busy
@@ -184,13 +265,41 @@ class _ParentHomePageState extends ConsumerState<ParentHomePage> {
                                 )
                               : const Text('绑定'),
                         ),
+                        if (command?.phase == 'result_known') ...[
+                          const Text('已收到原绑定的成功回执；确认历史结果不代表当前仍有授权，无需重输邀请码或联网。'),
+                          OutlinedButton(
+                            key: const ValueKey('parent.ackResult'),
+                            onPressed: _busy ? null : _ackHistory,
+                            child: const Text('确认历史结果（不联网）'),
+                          ),
+                        ],
+                        if (command != null &&
+                            command.phase != 'result_known') ...[
+                          const Text(
+                            '有一笔绑定尚未确认。请重新输入原十位邀请码，重试会复用原请求；刷新学生列表不会确认该请求。',
+                          ),
+                          OutlinedButton(
+                            key: const ValueKey('parent.retry'),
+                            onPressed: _busy ? null : _link,
+                            child: const Text('重输原码并重试'),
+                          ),
+                          if ([
+                            'prepared',
+                            'outcome_unavailable',
+                          ].contains(command.phase))
+                            OutlinedButton(
+                              key: const ValueKey('parent.abandon'),
+                              onPressed: _busy ? null : _abandon,
+                              child: const Text('保留未知记录，使用新邀请码'),
+                            ),
+                        ],
                         if (_linked) ...[
                           const SizedBox(height: 10),
                           const Callout(
                             key: ValueKey('parent.linked'),
                             tone: Tone.success,
                             announce: true,
-                            child: Text('已经绑定。现在可以看这位学生每周的汇总了。'),
+                            child: Text('原绑定操作已确认；目前可查看的学生以上方授权列表为准。'),
                           ),
                         ],
                         if (error != null) ...[

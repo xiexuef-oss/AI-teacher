@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 import 'package:tutor_contracts/tutor_contracts.dart';
 
 /// 服务端真实返回的样例（tools/export_dart_fixtures.py 导出，Dart 契约包的测试也用同一份）。
@@ -74,6 +76,7 @@ class FakeBackend implements ApiTransport {
 
   /// 为 true 时所有请求都像断网一样失败。
   bool offline = false;
+  final _writeReceipts = <String, ({String? body, RawResponse response})>{};
 
   /// 让下一次请求以这个状态码和错误码失败（只生效一次）。
   (int, String)? failNext;
@@ -116,7 +119,29 @@ class FakeBackend implements ApiTransport {
       return errorResponse(matching.$2, matching.$3);
     }
     for (final (m, pattern, handler) in _routes.reversed) {
-      if (m == method && pattern.hasMatch(uri.path)) return handler(seen);
+      if (m == method && pattern.hasMatch(uri.path)) {
+        final durable =
+            idempotencyKey != null &&
+            RegExp(
+              r'/(attempts/[^/]+/(draft|submit|self-check)|tutor/sessions/[^/]+/next|reviews/[^/]+/complete)$',
+            ).hasMatch(uri.path) &&
+            method != 'GET';
+        final receiptKey = '$method:${uri.path}:$idempotencyKey';
+        final receipt = durable ? _writeReceipts[receiptKey] : null;
+        if (receipt != null) {
+          if (receipt.body != body) {
+            return errorResponse(409, 'idempotency_conflict');
+          }
+          return receipt.response;
+        }
+        final response = handler(seen);
+        if (durable &&
+            response.statusCode >= 200 &&
+            response.statusCode < 300) {
+          _writeReceipts[receiptKey] = (body: body, response: response);
+        }
+        return response;
+      }
     }
     return errorResponse(404, 'not_found', message: '资源不存在');
   }
@@ -152,6 +177,25 @@ class FakeBackend implements ApiTransport {
 
   /// 在 [installAppBasics] 之后，PUT /profile 收到的最后一份请求体。
   Map<String, dynamic>? lastProfileUpdate;
+  final _studentOwners = <String, String>{};
+  void bindStudentIdentity(String token, String owner) {
+    _studentOwners['Bearer $token'] = owner;
+  }
+
+  final _profiles = <String, Map<String, dynamic>>{};
+  final _profileReceipts = <String, ({String? body, RawResponse response})>{};
+
+  Map<String, dynamic> _profileFor(Seen request) {
+    final token = request.headers['Authorization'] ?? '';
+    return _profiles.putIfAbsent(token, () {
+      final value = fixtures.value(profileFixture);
+      if (_studentOwners.containsKey(token)) {
+        value['user_id'] = _studentOwners[token];
+      }
+      value['revision'] ??= profileFixture == 'profile_empty' ? 0 : 1;
+      return value;
+    });
+  }
 
   /// 本地身份 Mock 被调用了几次（每次都是领一个新身份）。
   int identitiesCreated = 0;
@@ -178,14 +222,41 @@ class FakeBackend implements ApiTransport {
       '/meta/launch-config',
       (_) => okResponse(fixtures.value('launch_config')),
     );
-    on('GET', '/profile', (_) => okResponse(fixtures.value(profileFixture)));
+    on('GET', '/profile', (request) => okResponse(_profileFor(request)));
     on('PUT', '/profile', (request) {
+      final key = request.headers['Idempotency-Key'];
+      if (key == null) return errorResponse(400, 'missing_idempotency_key');
+      final receiptKey = '${request.headers['Authorization']}/$key';
+      final receipt = _profileReceipts[receiptKey];
+      if (receipt != null) {
+        return receipt.body == request.body
+            ? receipt.response
+            : errorResponse(409, 'idempotency_key_reused');
+      }
       lastProfileUpdate = bodyOf(request);
+      final current = _profileFor(request);
+      if (lastProfileUpdate!['expected_revision'] != current['revision']) {
+        return errorResponse(
+          409,
+          'profile_revision_conflict',
+          details: {'server_profile': current},
+        );
+      }
+      final updated = {
+        ...fixtures.value('profile_saved'),
+        ...lastProfileUpdate!,
+        'user_id': current['user_id'],
+        'revision': (current['revision'] as int) + 1,
+      }..remove('expected_revision');
+      final response = okResponse(updated);
+      _profiles[request.headers['Authorization'] ?? ''] = updated;
+      _profileReceipts[receiptKey] = (body: request.body, response: response);
       profileFixture = 'profile_saved';
-      return okResponse(fixtures.value('profile_saved'));
+      return response;
     });
     onFixture('GET', '/tasks/today', 'tasks_today');
     onFixture('GET', '/questions', 'questions_page');
+    onFixture('GET', '/questions/topics', 'question_topics');
     onFixture('GET', '/reviews/due', 'reviews_all');
     onFixture('GET', '/progress/summary', 'progress_summary');
   }
@@ -209,6 +280,8 @@ class FakeBackend implements ApiTransport {
   List<Map<String, dynamic>> parentLinks = [];
   Map<String, dynamic>? pendingInvite;
   int invitesCreated = 0;
+  int parentInviteRevision = 0;
+  final _parentReceipts = <String, ({String? body, RawResponse response})>{};
   int revokes = 0;
   int redeems = 0;
 
@@ -242,29 +315,76 @@ class FakeBackend implements ApiTransport {
       final value = fixtures.value(weeklyFixture);
       return okResponse(weeklyTweak == null ? value : weeklyTweak!(value));
     });
-    on(
-      'GET',
-      '/me/parent-links',
-      (_) =>
-          okResponse({'links': parentLinks, 'pending_invite': pendingInvite}),
-    );
-    on('POST', '/me/parent-invites', (_) {
-      invitesCreated += 1;
-      final invite = fixtures.value('parent_invite');
+    Map<String, dynamic> currentLinks() => {
+      'links': parentLinks,
+      'pending_invite': pendingInvite,
+      'parent_invite_revision': parentInviteRevision,
+    };
+    on('GET', '/me/parent-links', (_) => okResponse(currentLinks()));
+    RawResponse? replay(Seen request) {
+      final key =
+          '${request.headers['Authorization']}/${request.uri.path}/${request.headers['Idempotency-Key']}';
+      final old = _parentReceipts[key];
+      return old == null
+          ? null
+          : old.body == request.body
+          ? old.response
+          : errorResponse(409, 'idempotency_key_reused');
+    }
+
+    RawResponse remember(Seen request, RawResponse response) {
+      final key =
+          '${request.headers['Authorization']}/${request.uri.path}/${request.headers['Idempotency-Key']}';
+      _parentReceipts[key] = (body: request.body, response: response);
+      return response;
+    }
+
+    on('POST', '/me/parent-invites', (request) {
+      final old = replay(request);
+      if (old != null) return old;
+      if (bodyOf(request)!['expected_parent_invite_revision'] !=
+          parentInviteRevision) {
+        return errorResponse(
+          409,
+          'parent_invite_revision_conflict',
+          details: {'server_parent_links': currentLinks()},
+        );
+      }
+      invitesCreated++;
+      parentInviteRevision++;
+      final invite = fixtures.value('parent_invite')
+        ..['parent_invite_revision'] = parentInviteRevision;
       pendingInvite = {
         'id': invite['id'],
         'created_at': invite['created_at'],
         'expires_at': invite['expires_at'],
       };
-      return okResponse(invite, status: 201);
+      return remember(request, okResponse(invite, status: 201));
     });
     on('POST', '/me/parent-links/[^/]+/revoke', (request) {
-      revokes += 1;
+      final old = replay(request);
+      if (old != null) return old;
       final segments = request.uri.pathSegments;
       final id = segments[segments.length - 2];
       final link = parentLinks.firstWhere((l) => l['id'] == id);
+      if (bodyOf(request)!['expected_authorization_revision'] !=
+          link['authorization_revision']) {
+        return errorResponse(
+          409,
+          'authorization_revision_conflict',
+          details: {'server_link': link},
+        );
+      }
+      revokes++;
       parentLinks = parentLinks.where((l) => l['id'] != id).toList();
-      return okResponse({...link, 'revoked_at': '2026-11-10T08:00:00Z'});
+      return remember(
+        request,
+        okResponse({
+          ...link,
+          'authorization_revision': (link['authorization_revision'] as int) + 1,
+          'revoked_at': '2026-11-10T08:00:00Z',
+        }),
+      );
     });
   }
 
@@ -273,7 +393,35 @@ class FakeBackend implements ApiTransport {
   int serverRevision = 0;
   Map<String, dynamic>? serverAnswer;
   Map<String, dynamic>? serverStrokes;
+  String? _learningAttemptId;
   bool submitted = false;
+  Map<String, dynamic>? submittedAnswer;
+  Map<String, dynamic>? submittedAttempt;
+  final submittedAttempts = <String, Map<String, dynamic>>{};
+  final submittedDrafts = <String, Map<String, dynamic>>{};
+  final savedSelfChecks = <String, Map<String, dynamic>>{};
+  bool usedSolution = false;
+  bool sessionAssisted = false;
+  int hintsRevealed = 0;
+  String? learningState;
+  final sessionEvents = <String, List<Map<String, dynamic>>>{};
+  final sessionResources = <String, Map<String, dynamic>>{};
+  final reviewStates = <String, Map<String, dynamic>>{};
+  final reviewHistory = <String, Map<String, dynamic>>{};
+  final reviewReady = <String, bool>{};
+  Map<String, dynamic> reviewState(String id) => reviewStates.putIfAbsent(
+    id,
+    () => {
+      ...fixtures.value('review_current_state'),
+      'id': id,
+      'question_id': fixtures.value('question_single_choice')['id'],
+      'stage': 0,
+      'status': 'scheduled',
+      'last_result': null,
+      'last_attempt_id': null,
+      'due_at': '2026-11-01T08:00:00Z',
+    },
+  );
 
   /// 提交时返回哪个样例（submit_correct / submit_incorrect / submit_uncertain）。
   String submitFixture = 'submit_incorrect';
@@ -301,6 +449,7 @@ class FakeBackend implements ApiTransport {
     }
     return {
       ...base,
+      'attempt_id': _learningAttemptId ?? base['attempt_id'],
       'marks': selfCheckMarks,
       'summary': {...counts, 'total': points.length},
       'saved_at': selfCheckMarks.isEmpty ? null : '2026-11-10T08:10:00Z',
@@ -312,15 +461,32 @@ class FakeBackend implements ApiTransport {
     String questionFixture = 'question_single_choice',
   }) {
     final session = fixtures.value('session_created');
+    session['question_id'] = fixtures.value(questionFixture)['id'];
     final attempt = fixtures.value('attempt_created');
     final sessionId = session['id'] as String;
-    final attemptId = attempt['id'] as String;
+    var attemptId = attempt['id'] as String;
+    _learningAttemptId = attemptId;
 
     Map<String, dynamic> currentSession({String? state, bool open = true}) => {
       ...session,
       'origin': sessionOrigin,
+      'assisted': sessionAssisted,
+      'used_solution': usedSolution,
+      'independent_ended': usedSolution,
+      'last_event_seq': sessionEvents[sessionId]?.length ?? 0,
+      'first_submitted_attempt_id': submittedAttempts.values
+          .where((a) => a['session_id'] == sessionId && a['submission_no'] == 1)
+          .map((a) => a['id'])
+          .firstOrNull,
+      'submitted_attempts': submittedAttempts.values
+          .where((a) => a['session_id'] == sessionId)
+          .length,
+      'hint_level_revealed': hintsRevealed,
       'review_item_id': sessionReviewItem,
-      'state': state ?? (submitted ? 'DIAGNOSED' : 'INDEPENDENT_ATTEMPT'),
+      'state':
+          state ??
+          learningState ??
+          (submitted ? 'DIAGNOSED' : 'INDEPENDENT_ATTEMPT'),
       'active_attempt_id': open && !submitted ? attemptId : null,
     };
 
@@ -333,6 +499,8 @@ class FakeBackend implements ApiTransport {
     };
 
     onFixture('GET', '/questions/[^/]+', questionFixture);
+    onFixture('GET', '/questions/topics', 'question_topics');
+    onFixture('GET', '/sessions/[^/]+/question', questionFixture);
     on('POST', '/sessions', (request) {
       sessionsCreated += 1;
       final body = bodyOf(request)!;
@@ -342,20 +510,42 @@ class FakeBackend implements ApiTransport {
         ...currentSession(state: 'READY', open: false),
       }, status: 201);
     });
-    on('GET', '/sessions/[^/]+', (_) => okResponse(currentSession()));
+    on('GET', '/sessions/[^/]+', (request) {
+      final value =
+          sessionResources[request.uri.pathSegments.last] ?? currentSession();
+      return okResponse(
+        submitted && value['state'] == 'INDEPENDENT_ATTEMPT'
+            ? {...value, 'state': 'DIAGNOSED', 'active_attempt_id': null}
+            : value,
+      );
+    });
     on('POST', '/attempts', (_) {
       attemptsCreated += 1;
+      if (attemptsCreated > 1) {
+        attemptId = 'test-attempt-$attemptsCreated';
+        attempt['id'] = attemptId;
+        attempt['attempt_no'] = attemptsCreated;
+      }
+      _learningAttemptId = attemptId;
       submitted = false;
+      submittedAnswer = null;
+      submittedAttempt = null;
       serverRevision = 0;
       serverAnswer = null;
       serverStrokes = null;
       selfCheckMarks = [];
+      learningState = 'INDEPENDENT_ATTEMPT';
+      sessionResources[sessionId] = currentSession();
       return okResponse(attempt, status: 201);
     });
     on(
       'GET',
       '/attempts/[^/]+/self-check',
-      (_) => submitted
+      (request) =>
+          request.uri.pathSegments[3] != attemptId &&
+              savedSelfChecks.containsKey(request.uri.pathSegments[3])
+          ? okResponse(savedSelfChecks[request.uri.pathSegments[3]]!)
+          : submitted
           ? okResponse(selfCheck())
           : errorResponse(409, 'attempt_not_submitted'),
     );
@@ -372,14 +562,30 @@ class FakeBackend implements ApiTransport {
         return errorResponse(422, 'validation_error');
       }
       selfCheckMarks = marks;
+      savedSelfChecks[attemptId] =
+          jsonDecode(jsonEncode(selfCheck())) as Map<String, dynamic>;
       return okResponse(selfCheck());
     });
     on(
       'GET',
       '/attempts/[^/]+',
-      (_) => okResponse({...attempt, 'draft_revision': serverRevision}),
+      (request) =>
+          request.uri.pathSegments.last != attemptId &&
+              submittedAttempts.containsKey(request.uri.pathSegments.last)
+          ? okResponse(submittedAttempts[request.uri.pathSegments.last]!)
+          : okResponse({
+              ...attempt,
+              ...?submittedAttempt,
+              'draft_revision': serverRevision,
+              'status': submitted ? 'submitted' : 'draft',
+            }),
     );
-    on('GET', '/attempts/[^/]+/draft', (_) => okResponse(draft()));
+    on(
+      'GET',
+      '/attempts/[^/]+/draft',
+      (request) =>
+          okResponse(submittedDrafts[request.uri.pathSegments[3]] ?? draft()),
+    );
     on('PUT', '/attempts/[^/]+/draft', (request) {
       final body = bodyOf(request)!;
       if (submitted) return errorResponse(409, 'attempt_already_submitted');
@@ -395,24 +601,93 @@ class FakeBackend implements ApiTransport {
       serverStrokes = body['strokes'] as Map<String, dynamic>?;
       return okResponse(draft());
     });
-    on('POST', '/attempts/[^/]+/submit', (_) {
+    on('POST', '/attempts/[^/]+/submit', (request) {
+      if (submitted) return errorResponse(409, 'attempt_already_submitted');
+      final body = bodyOf(request)!;
+      if (body.containsKey('expected_draft_revision') &&
+          body['expected_draft_revision'] != serverRevision) {
+        return errorResponse(
+          409,
+          'submission_draft_revision_conflict',
+          details: {
+            'server_revision': serverRevision,
+            'expected_draft_revision': body['expected_draft_revision'],
+            'server_draft': draft(),
+          },
+        );
+      }
       submitted = true;
+      submittedAnswer = body['answer'] as Map<String, dynamic>;
       final result = fixtures.value(submitFixture);
       (result['attempt'] as Map<String, dynamic>)['id'] = attemptId;
-      (result['session'] as Map<String, dynamic>)['id'] = sessionId;
+      (result['attempt'] as Map<String, dynamic>)['session_id'] = sessionId;
+      (result['attempt'] as Map<String, dynamic>)['answer'] = submittedAnswer;
+      (result['attempt'] as Map<String, dynamic>)['submission_no'] =
+          submittedAttempts.values
+              .where((a) => a['session_id'] == sessionId)
+              .length +
+          1;
+      (result['attempt'] as Map<String, dynamic>)['attempt_no'] =
+          attemptsCreated;
+      submittedAttempt = Map<String, dynamic>.from(result['attempt'] as Map);
+      submittedAttempts[attemptId] =
+          jsonDecode(jsonEncode(submittedAttempt)) as Map<String, dynamic>;
+      submittedDrafts[attemptId] =
+          jsonDecode(jsonEncode(draft())) as Map<String, dynamic>;
+      learningState = (result['session'] as Map)['state'] as String;
+      result['session'] = {
+        ...result['session'] as Map<String, dynamic>,
+        'id': sessionId,
+        'question_id': session['question_id'],
+        'question_version': session['question_version'],
+        'origin': sessionOrigin,
+        'review_item_id': sessionReviewItem,
+      };
+      final timeline = sessionEvents.putIfAbsent(sessionId, () => []);
+      final generated = <Map<String, dynamic>>[];
+      for (final raw in result['events'] as List) {
+        generated.add({
+          ...raw as Map<String, dynamic>,
+          'meta': {
+            ...raw['meta'] as Map<String, dynamic>,
+            'question_id': session['question_id'],
+            'question_version': session['question_version'],
+          },
+          'id': '$sessionId-event-${timeline.length + generated.length + 1}',
+          'session_id': sessionId,
+          'seq_no': timeline.length + generated.length + 1,
+        });
+      }
+      timeline.addAll(generated);
+      result['events'] = generated;
+      sessionResources[sessionId] = {...currentSession()};
       return okResponse(result);
     });
-    on(
-      'GET',
-      '/sessions/[^/]+/events',
-      (_) => okResponse({'items': <Object>[], 'last_seq': 0}),
-    );
+    on('GET', '/sessions/[^/]+/events', (request) {
+      final id = request.uri.pathSegments[3];
+      final events = sessionEvents[id] ?? <Map<String, dynamic>>[];
+      final after = int.parse(request.uri.queryParameters['after_seq'] ?? '0');
+      final limit = int.parse(request.uri.queryParameters['limit'] ?? '200');
+      return okResponse({
+        'items': events
+            .where((e) => (e['seq_no'] as int) > after)
+            .take(limit)
+            .toList(),
+        'last_seq': events.isEmpty ? 0 : events.last['seq_no'],
+      });
+    });
     on('POST', '/tutor/sessions/[^/]+/next', (request) {
+      final target = request.uri.pathSegments[4];
+      if (target != sessionId && !sessionResources.containsKey(target)) {
+        return errorResponse(404, 'session_not_found');
+      }
+      final resource = {...(sessionResources[target] ?? currentSession())};
       final action = bodyOf(request)!['action'] as String;
       final confirmed = bodyOf(request)!['confirm_end_independent'] == true;
       final name = switch (action) {
         'request_hint' => 'tutor_hint',
-        'request_visual' => 'tutor_visual',
+        'request_visual' =>
+          !submitted && !usedSolution ? 'tutor_visual_blocked' : 'tutor_visual',
         'request_standard' => 'tutor_standard',
         'request_fast' => 'tutor_fast',
         'mark_confused' => 'tutor_rephrase_model',
@@ -426,12 +701,160 @@ class FakeBackend implements ApiTransport {
           body: jsonEncode(fixtures.value('tutor_standard_needs_confirmation')),
         );
       }
-      return okResponse(fixtures.value(name));
+      if (action == 'request_hint') {
+        resource['assisted'] = true;
+        resource['hint_level_revealed'] =
+            (resource['hint_level_revealed'] as int) + 1;
+      }
+      if (action == 'request_standard' || action == 'request_fast') {
+        resource['used_solution'] = true;
+        resource['assisted'] = true;
+        resource['independent_ended'] = true;
+      }
+      final result = fixtures.value(name);
+      final latest = {...resource, 'id': target};
+      latest['state'] = (result['session'] as Map)['state'];
+      if (target == sessionId) {
+        learningState = latest['state'] as String;
+        usedSolution = latest['used_solution'] as bool;
+        sessionAssisted = latest['assisted'] as bool;
+        hintsRevealed = latest['hint_level_revealed'] as int;
+      }
+      final timeline = sessionEvents.putIfAbsent(target, () => []);
+      final events = <Map<String, dynamic>>[];
+      for (final raw in result['events'] as List) {
+        events.add({
+          ...raw as Map<String, dynamic>,
+          'meta': {
+            ...raw['meta'] as Map<String, dynamic>,
+            'question_id': session['question_id'],
+            'question_version': session['question_version'],
+          },
+          'id': '$target-event-${timeline.length + events.length + 1}',
+          'session_id': target,
+          'seq_no': timeline.length + events.length + 1,
+        });
+      }
+      for (final event in events) {
+        timeline.add(event);
+      }
+      latest['last_event_seq'] = timeline.length;
+      sessionResources[target] = latest;
+      result['session'] = latest;
+      result['events'] = events;
+      return okResponse(result);
     });
     on(
+      'GET',
+      '/reviews/[^/]+/state',
+      (request) => okResponse(reviewState(request.uri.pathSegments[3])),
+    );
+    on('POST', '/reviews/[^/]+/complete', (request) {
+      final id = request.uri.pathSegments[3];
+      final provided = bodyOf(request)!['attempt_id'] as String;
+      final first =
+          submittedAttempts.values
+              .where(
+                (a) =>
+                    a['session_id'] ==
+                    (submittedAttempts[provided]?['session_id'] ?? sessionId),
+              )
+              .toList()
+            ..sort(
+              (a, b) => (a['submission_no'] as int).compareTo(
+                b['submission_no'] as int,
+              ),
+            );
+      if (first.isEmpty ||
+          (first.first['evaluation'] as Map?)?['state'] != 'verified') {
+        return errorResponse(409, 'attempt_not_verified');
+      }
+      final state = reviewState(id);
+      final receipt = '$id:${first.first['id']}';
+      if (reviewHistory.containsKey(receipt)) {
+        return errorResponse(409, 'review_already_completed');
+      }
+      if (state['status'] != 'scheduled') {
+        return errorResponse(409, 'review_not_scheduled');
+      }
+      if (reviewReady[id] == false) return errorResponse(409, 'review_not_due');
+      final passed =
+          (first.first['evaluation'] as Map)['is_correct'] == true &&
+          first.first['independent'] == true;
+      final result = fixtures.value('review_completed');
+      final item = result['review_item'] as Map<String, dynamic>;
+      item['id'] = id;
+      item['question_id'] = session['question_id'];
+      item['stage'] = passed ? (state['stage'] as int) + 1 : 0;
+      item['status'] = item['stage'] == item['total_stages']
+          ? 'mastered'
+          : 'scheduled';
+      item['last_result'] = passed ? 'passed' : 'failed';
+      result['result'] = item['last_result'];
+      reviewStates[id] = {
+        ...state,
+        ...item,
+        'last_attempt_id': first.first['id'],
+      };
+      reviewReady[id] = false;
+      reviewHistory[receipt] =
+          jsonDecode(jsonEncode(result)) as Map<String, dynamic>;
+      return okResponse(result);
+    });
+  }
+}
+
+extension ScanFakeFlow on FakeBackend {
+  void installScanFlow({String? questionId}) {
+    var scanMime = 'image/png';
+    Map<String, dynamic> scan() => {
+      'id': 'scan-test',
+      'status': 'needs_confirmation',
+      'confidence': null,
+      'low_confidence': true,
+      'stem_text': '',
+      'expressions': [],
+      'matched_question_id': null,
+      'error_code': null,
+      'mock_notice': '未实际识别图片',
+    };
+    on('GET', '/scans/scan-test', (_) => okResponse(scan()));
+    on('POST', '/scans', (_) => okResponse(scan(), status: 202));
+    on(
       'POST',
-      '/reviews/[^/]+/complete',
-      (_) => okResponse(fixtures.value('review_completed')),
+      '/scans/scan-test/confirm',
+      (_) => okResponse({
+        'scan': scan(),
+        'question_id': questionId,
+        'draft_question_id': null,
+      }),
+    );
+    on('POST', '/scans/uploads', (request) {
+      scanMime = bodyOf(request)!['mime'] as String;
+      return okResponse({
+        'media_id': 'scan-media',
+        'upload_url': '/api/v1/scans/uploads/scan-media/content',
+        'upload_method': 'PUT',
+        'expires_at': '2026-12-01T00:00:00Z',
+        'max_bytes': 5242880,
+      }, status: 201);
+    });
+    on(
+      'PUT',
+      '/scans/uploads/scan-media/content',
+      (request) => okResponse({
+        'media_id': 'scan-media',
+        'mime': scanMime,
+        'size_bytes': base64Decode(
+          (bodyOf(request)!['content_base64']) as String,
+        ).length,
+        'sha256': sha256
+            .convert(
+              base64Decode((bodyOf(request)!['content_base64']) as String),
+            )
+            .toString(),
+        'expires_at': '2026-12-01T00:00:00Z',
+      }),
     );
   }
 }

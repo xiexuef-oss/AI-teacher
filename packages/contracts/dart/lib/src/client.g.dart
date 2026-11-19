@@ -15,6 +15,91 @@ class TutorApiClient {
 
   final ApiCore _core;
 
+  /// 获取本人最近一轮三题摸底及恢复进度
+  Future<DiagnosticWorkspace> getDiagnosticWorkspace({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/diagnostics',
+      requestId: requestId,
+    );
+    return DiagnosticWorkspace.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 按本人资料创建一轮三题摸底
+  Future<DiagnosticWorkspace> createDiagnostic({
+    required DiagnosticCreate body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/diagnostics',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DiagnosticWorkspace.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 按开始时间倒序分页回看本人摸底轮次
+  Future<DiagnosticHistoryPage> listDiagnosticHistory({
+    String? cursor,
+    int? limit,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/diagnostics/history',
+      query: {'cursor': cursor, 'limit': limit?.toString()},
+      requestId: requestId,
+    );
+    return DiagnosticHistoryPage.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 回看本人固定轮次及首份提交的本轮计数
+  Future<DiagnosticRun> getDiagnostic({
+    required String diagnosticId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/diagnostics/${Uri.encodeComponent(diagnosticId)}',
+      requestId: requestId,
+    );
+    return DiagnosticRun.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 打开固定题目版本的作答会话，已打开时返回原会话
+  Future<StudySession> openDiagnosticSession({
+    required String diagnosticId,
+    required String position,
+    required DiagnosticRevision body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/diagnostics/${Uri.encodeComponent(diagnosticId)}/items/${Uri.encodeComponent(position)}/session',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return StudySession.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 明确结束本人当前轮次，保留题目、会话及所有草稿
+  Future<DiagnosticWorkspace> abandonDiagnostic({
+    required String diagnosticId,
+    required DiagnosticRevision body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/diagnostics/${Uri.encodeComponent(diagnosticId)}/abandon',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DiagnosticWorkspace.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 服务健康状态与关键开关
   Future<Health> getHealth({
     String? requestId,
@@ -53,6 +138,28 @@ class TutorApiClient {
     return LocalIdentity.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 下载本人当前可访问学生用途媒体的ZIP档案
+  Future<StudentMediaExport> getStudentMediaExport({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/profile/media-export',
+      requestId: requestId,
+    );
+    return StudentMediaExport.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 导出当前学生的服务端学习记录
+  Future<StudentLearningExport> getStudentLearningExport({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/profile/learning-export',
+      requestId: requestId,
+    );
+    return StudentLearningExport.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 当前学生的资料
   Future<StudentProfile> getProfile({
     String? requestId,
@@ -67,14 +174,205 @@ class TutorApiClient {
   /// 保存地区、年级、学科、考试年份与教材版本
   Future<StudentProfile> updateProfile({
     required ProfileUpdate body,
+    required String idempotencyKey,
     String? requestId,
   }) async {
     final data = await _core.send(
       'PUT', '/profile',
       body: body.toJson(),
+      idempotencyKey: idempotencyKey,
       requestId: requestId,
     );
     return StudentProfile.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 分页列出本人已发布的纸包
+  Future<LearningPackHistory> listLearningPacks({
+    String? after,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs',
+      query: {'after': after},
+      requestId: requestId,
+    );
+    return LearningPackHistory.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 提交学习包准备任务
+  Future<LearningJobStatus> createLearningPack({
+    required LearningPackRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/learning/packs',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return LearningJobStatus.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 下载本人已发布学习包的学生版
+  Future<LearningPackPdf> downloadLearningPackStudentPdf({
+    required String jobId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs/${Uri.encodeComponent(jobId)}/student-pdf',
+      requestId: requestId,
+    );
+    return LearningPackPdf.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 主动结束本人纸包的独立作答并开放解析
+  Future<LearningJobStatus> abandonLearningPack({
+    required String jobId,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/learning/packs/${Uri.encodeComponent(jobId)}/abandon',
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return LearningJobStatus.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 下载本人已完成回收的解析版
+  Future<LearningPackPdf> downloadLearningPackSolutionPdf({
+    required String jobId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs/${Uri.encodeComponent(jobId)}/solution-pdf',
+      requestId: requestId,
+    );
+    return LearningPackPdf.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 列出本人已发布纸包的题目定位信息
+  Future<LearningPackItems> listLearningPackItems({
+    required String jobId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs/${Uri.encodeComponent(jobId)}/items',
+      requestId: requestId,
+    );
+    return LearningPackItems.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 用二维码定位本人纸包中的印刷题目
+  Future<LearningPackItem> resolveLearningPackPage({
+    required String jobId,
+    String? token,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs/${Uri.encodeComponent(jobId)}/page',
+      query: {'token': token},
+      requestId: requestId,
+    );
+    return LearningPackItem.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 按包号和短码定位本人纸包中的已打印题目版本
+  Future<LearningPackItem> resolveLearningPackItem({
+    required String jobId,
+    required String code,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs/${Uri.encodeComponent(jobId)}/items/${Uri.encodeComponent(code)}',
+      requestId: requestId,
+    );
+    return LearningPackItem.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 读取本人已确认的纸笔作答转写
+  Future<LearningPackReturnRecord> getLearningPackReturn({
+    required String jobId,
+    required String code,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs/${Uri.encodeComponent(jobId)}/items/${Uri.encodeComponent(code)}/returns',
+      requestId: requestId,
+    );
+    return LearningPackReturnRecord.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 按版本校正本人已回收的转写
+  Future<LearningPackReturnRecord> correctLearningPackReturn({
+    required String jobId,
+    required String code,
+    required LearningPackCorrection body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/learning/packs/${Uri.encodeComponent(jobId)}/items/${Uri.encodeComponent(code)}/returns',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return LearningPackReturnRecord.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 保存本人确认过的纸笔作答转写
+  Future<LearningPackItem> submitLearningPackReturn({
+    required String jobId,
+    required String code,
+    required LearningPackReturnRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/learning/packs/${Uri.encodeComponent(jobId)}/items/${Uri.encodeComponent(code)}/returns',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return LearningPackItem.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查看本人的纸笔复测候选日期
+  Future<PaperReviewSchedule> getPaperReviewSchedule({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/review-schedule',
+      requestId: requestId,
+    );
+    return PaperReviewSchedule.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查询本人学习任务
+  Future<LearningJobStatus> getLearningJob({
+    required String jobId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/jobs/${Uri.encodeComponent(jobId)}',
+      requestId: requestId,
+    );
+    return LearningJobStatus.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 取消本人尚未结束的学习任务
+  Future<LearningJobStatus> cancelLearningJob({
+    required String jobId,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/learning/jobs/${Uri.encodeComponent(jobId)}/cancel',
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return LearningJobStatus.fromJson(data as Map<String, dynamic>);
   }
 
   /// 今日任务
@@ -93,6 +391,7 @@ class TutorApiClient {
     Subject? subject,
     AnswerMode? answerMode,
     SourceCategory? sourceCategory,
+    String? knowledgeId,
     QuestionScope? scope,
     String? cursor,
     int? limit,
@@ -100,10 +399,25 @@ class TutorApiClient {
   }) async {
     final data = await _core.send(
       'GET', '/questions',
-      query: {'subject': subject?.value, 'answer_mode': answerMode?.value, 'source_category': sourceCategory?.value, 'scope': scope?.value, 'cursor': cursor, 'limit': limit?.toString()},
+      query: {'subject': subject?.value, 'answer_mode': answerMode?.value, 'source_category': sourceCategory?.value, 'knowledge_id': knowledgeId, 'scope': scope?.value, 'cursor': cursor, 'limit': limit?.toString()},
       requestId: requestId,
     );
     return QuestionPage.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 当前可练题目的知识点与题量
+  Future<QuestionTopicPage> listQuestionTopics({
+    Subject? subject,
+    AnswerMode? answerMode,
+    QuestionScope? scope,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/questions/topics',
+      query: {'subject': subject?.value, 'answer_mode': answerMode?.value, 'scope': scope?.value},
+      requestId: requestId,
+    );
+    return QuestionTopicPage.fromJson(data as Map<String, dynamic>);
   }
 
   /// 题目与结构
@@ -143,6 +457,33 @@ class TutorApiClient {
       requestId: requestId,
     );
     return StudySession.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 读取本人学习会话固定版本的题面
+  Future<Question> getSessionQuestion({
+    required String sessionId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/sessions/${Uri.encodeComponent(sessionId)}/question',
+      requestId: requestId,
+    );
+    return Question.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 分页发现本人该题的未提交草稿与副本
+  Future<QuestionDraftPage> listQuestionDrafts({
+    required String questionId,
+    String? cursor,
+    int? limit,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/questions/${Uri.encodeComponent(questionId)}/drafts',
+      query: {'cursor': cursor, 'limit': limit?.toString()},
+      requestId: requestId,
+    );
+    return QuestionDraftPage.fromJson(data as Map<String, dynamic>);
   }
 
   /// 按 seq 恢复教学事件
@@ -185,6 +526,22 @@ class TutorApiClient {
       requestId: requestId,
     );
     return Attempt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 明确保留本机快照为同会话独立草稿副本
+  Future<DraftCopy> createDraftCopy({
+    required String attemptId,
+    required DraftCopyCreate body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/attempts/${Uri.encodeComponent(attemptId)}/copies',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DraftCopy.fromJson(data as Map<String, dynamic>);
   }
 
   /// 云端草稿（未提交的答案与笔迹）
@@ -290,6 +647,18 @@ class TutorApiClient {
     return ReviewPage.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 读取本人复测项的当前紧凑状态
+  Future<ReviewState> getReviewState({
+    required String reviewId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/reviews/${Uri.encodeComponent(reviewId)}/state',
+      requestId: requestId,
+    );
+    return ReviewState.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 用一次已判定的复测作答完成复测项
   Future<ReviewCompletion> completeReview({
     required String reviewId,
@@ -317,9 +686,37 @@ class TutorApiClient {
     return ProgressSummary.fromJson(data as Map<String, dynamic>);
   }
 
-  /// 获取短期上传 URL（planned）
-  ///
-  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  /// 学生读取已发布题目当前引用且独立审校确认的静态题面图片
+  Future<MediaContent> getPublishedQuestionMedia({
+    required String questionId,
+    required String mediaId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/questions/${Uri.encodeComponent(questionId)}/media/${Uri.encodeComponent(mediaId)}/content',
+      requestId: requestId,
+    );
+    return MediaContent.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 审核员声明已查看当前版本题面图片
+  Future<MediaReviewDeclaration> confirmQuestionMediaReview({
+    required String questionId,
+    required String mediaId,
+    required MediaReviewConfirmation body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/questions/${Uri.encodeComponent(questionId)}/media/${Uri.encodeComponent(mediaId)}/review-confirmations',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return MediaReviewDeclaration.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 创建本地短期附件上传凭据
   Future<MediaUpload> createMediaUpload({
     required MediaUploadRequest body,
     required String idempotencyKey,
@@ -334,9 +731,239 @@ class TutorApiClient {
     return MediaUpload.fromJson(data as Map<String, dynamic>);
   }
 
-  /// 对已上传的单题图片启动 OCR（planned）
-  ///
-  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
+  /// 上传者读取已确认附件
+  Future<MediaContent> getMediaContent({
+    required String mediaId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/media/${Uri.encodeComponent(mediaId)}/content',
+      requestId: requestId,
+    );
+    return MediaContent.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 上传有界本地附件字节
+  Future<MediaAssetInfo> uploadMediaContent({
+    required String mediaId,
+    required MediaBlobUpload body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/media/${Uri.encodeComponent(mediaId)}/content',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return MediaAssetInfo.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 确认本地附件大小摘要和格式
+  Future<MediaAssetInfo> confirmMediaUpload({
+    required String mediaId,
+    required MediaConfirm body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/media/${Uri.encodeComponent(mediaId)}/confirm',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return MediaAssetInfo.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 幂等删除本地附件
+  Future<MediaDeleted> deleteMedia({
+    required String mediaId,
+    required MediaDelete body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/media/${Uri.encodeComponent(mediaId)}/delete',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return MediaDeleted.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 审核员读取当前题目实际引用的附件
+  Future<MediaContent> getQuestionMediaContent({
+    required String mediaId,
+    required String questionId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/questions/${Uri.encodeComponent(questionId)}/media/${Uri.encodeComponent(mediaId)}/content',
+      requestId: requestId,
+    );
+    return MediaContent.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 提交本人已上传的学校材料
+  Future<LearningJobStatus> submitSchoolMaterial({
+    required SchoolMaterialSubmitRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/school-materials',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return LearningJobStatus.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查看本人学校材料的待核对页面
+  Future<SchoolMaterialPages> listSchoolMaterialPages({
+    required String jobId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/school-materials/${Uri.encodeComponent(jobId)}/pages',
+      requestId: requestId,
+    );
+    return SchoolMaterialPages.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 保存本人学校材料的逐页转写校正
+  Future<SchoolMaterialCorrectionReceipt> correctSchoolMaterialPage({
+    required String jobId,
+    required String pageNumber,
+    required SchoolMaterialPageCorrection body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/school-materials/${Uri.encodeComponent(jobId)}/pages/${Uri.encodeComponent(pageNumber)}/correction',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return SchoolMaterialCorrectionReceipt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查看本人学校材料的分题候选
+  Future<SchoolMaterialCandidates> listSchoolMaterialCandidates({
+    required String jobId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/school-materials/${Uri.encodeComponent(jobId)}/candidates',
+      requestId: requestId,
+    );
+    return SchoolMaterialCandidates.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 保存本人核对过的学校材料分题
+  Future<SchoolMaterialConfirmationReceipt> confirmSchoolMaterialCandidates({
+    required String jobId,
+    required SchoolMaterialConfirmationRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/school-materials/${Uri.encodeComponent(jobId)}/confirmation',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return SchoolMaterialConfirmationReceipt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 预览本人学校材料原件的一页
+  Future<MediaContent> getSchoolMaterialPagePreview({
+    required String jobId,
+    required String pageNumber,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/school-materials/${Uri.encodeComponent(jobId)}/pages/${Uri.encodeComponent(pageNumber)}/preview',
+      requestId: requestId,
+    );
+    return MediaContent.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 预留本人学校材料临时上传凭据
+  Future<MediaUpload> createSchoolMaterialUpload({
+    required SchoolMaterialUploadRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/school-materials/uploads',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return MediaUpload.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 上传本人学校材料原件
+  Future<SchoolMaterialSource> uploadSchoolMaterialContent({
+    required String mediaId,
+    required MediaBlobUpload body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/school-materials/uploads/${Uri.encodeComponent(mediaId)}/content',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return SchoolMaterialSource.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 学生专用本地临时拍题图片（Mock，不实际识别）
+  Future<MediaUpload> createScanUpload({
+    required MediaUploadRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/scans/uploads',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return MediaUpload.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 预览本人仍有效的临时作答照片
+  Future<MediaContent> getScanUploadContent({
+    required String mediaId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/scans/uploads/${Uri.encodeComponent(mediaId)}/content',
+      requestId: requestId,
+    );
+    return MediaContent.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 学生专用本地临时拍题图片（Mock，不实际识别）
+  Future<MediaAssetInfo> uploadScanContent({
+    required String mediaId,
+    required MediaBlobUpload body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'PUT', '/scans/uploads/${Uri.encodeComponent(mediaId)}/content',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return MediaAssetInfo.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 本地Mock：返回空候选，未实际识别图片
   Future<Scan> createScan({
     required ScanCreate body,
     required String idempotencyKey,
@@ -352,8 +979,6 @@ class TutorApiClient {
   }
 
   /// OCR 状态与可编辑题干（planned）
-  ///
-  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
   Future<Scan> getScan({
     required String scanId,
     String? requestId,
@@ -366,8 +991,6 @@ class TutorApiClient {
   }
 
   /// 学生确认题干后关联已有题或生成待审题草案（planned）
-  ///
-  /// 契约已规划、服务端尚未实现：调用会得到 501 `not_implemented`。
   Future<ScanConfirmation> confirmScan({
     required String scanId,
     required ScanConfirm body,
@@ -385,11 +1008,13 @@ class TutorApiClient {
 
   /// 学生生成一次性的家长邀请码（学生明确授权的第一步）
   Future<ParentInvite> createParentInvite({
+    required ParentInviteCreate body,
     required String idempotencyKey,
     String? requestId,
   }) async {
     final data = await _core.send(
       'POST', '/me/parent-invites',
+      body: body.toJson(),
       idempotencyKey: idempotencyKey,
       requestId: requestId,
     );
@@ -410,11 +1035,13 @@ class TutorApiClient {
   /// 学生撤销对一位家长的授权
   Future<ParentLink> revokeParentLink({
     required String linkId,
+    required ParentLinkRevoke body,
     required String idempotencyKey,
     String? requestId,
   }) async {
     final data = await _core.send(
       'POST', '/me/parent-links/${Uri.encodeComponent(linkId)}/revoke',
+      body: body.toJson(),
       idempotencyKey: idempotencyKey,
       requestId: requestId,
     );
@@ -461,6 +1088,21 @@ class TutorApiClient {
     return ParentWeekly.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 查看已授权学生的周报快照
+  Future<ParentWeeklySnapshot> getParentWeeklySnapshot({
+    required String studentId,
+    required String weekStart,
+    int? revision,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/parents/students/${Uri.encodeComponent(studentId)}/weekly-snapshots/${Uri.encodeComponent(weekStart)}',
+      query: {'revision': revision?.toString()},
+      requestId: requestId,
+    );
+    return ParentWeeklySnapshot.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 审核队列：全部状态的题目
   Future<AdminQuestionPage> listAdminQuestions({
     QuestionStatus? status,
@@ -485,6 +1127,182 @@ class TutorApiClient {
   }) async {
     final data = await _core.send(
       'GET', '/admin/questions/${Uri.encodeComponent(questionId)}',
+      requestId: requestId,
+    );
+    return AdminQuestionDetail.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 文档导入限额与可用能力
+  Future<DocImportOptions> getDocumentImportOptions({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/import-options',
+      requestId: requestId,
+    );
+    return DocImportOptions.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 我的导入任务
+  Future<DocImportJobPage> listDocumentImportJobs({
+    String? cursor,
+    int? limit,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/import-jobs',
+      query: {'cursor': cursor, 'limit': limit?.toString()},
+      requestId: requestId,
+    );
+    return DocImportJobPage.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 创建多文件导入任务
+  Future<DocImportJobSummary> createDocumentImportJob({
+    required DocImportJobCreate body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/import-jobs',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DocImportJobSummary.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 导入进度与候选题
+  Future<DocImportJobDetail> getDocumentImportJob({
+    required String jobId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/import-jobs/${Uri.encodeComponent(jobId)}',
+      requestId: requestId,
+    );
+    return DocImportJobDetail.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 上传文件到导入任务
+  Future<DocImportUploadResult> uploadDocumentImportFile({
+    required String jobId,
+    required DocImportUpload body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/import-jobs/${Uri.encodeComponent(jobId)}/files',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DocImportUploadResult.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 读取临时原文件
+  Future<DocImportContent> getDocumentImportContent({
+    required String jobId,
+    required String fileId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/import-jobs/${Uri.encodeComponent(jobId)}/files/${Uri.encodeComponent(fileId)}/content',
+      requestId: requestId,
+    );
+    return DocImportContent.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 读取受控页面预览
+  Future<DocImportContent> getDocumentImportPreview({
+    required String jobId,
+    required String fileId,
+    required String page,
+    int? mediaIndex,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/import-jobs/${Uri.encodeComponent(jobId)}/files/${Uri.encodeComponent(fileId)}/previews/${Uri.encodeComponent(page)}',
+      query: {'media_index': mediaIndex?.toString()},
+      requestId: requestId,
+    );
+    return DocImportContent.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 排队提取文件并建议切题
+  Future<DocImportJobSummary> processDocumentImportJob({
+    required String jobId,
+    required DocImportRevision body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/import-jobs/${Uri.encodeComponent(jobId)}/process',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DocImportJobSummary.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 取消尚未完成的导入工作
+  Future<DocImportJobSummary> cancelDocumentImportJob({
+    required String jobId,
+    required DocImportRevision body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/import-jobs/${Uri.encodeComponent(jobId)}/cancel',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DocImportJobSummary.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 保存拆分合并与人工校对结果
+  Future<DocImportJobDetail> editDocumentImportCandidates({
+    required String jobId,
+    required DocImportCandidatesEdit body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/import-jobs/${Uri.encodeComponent(jobId)}/candidates',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DocImportJobDetail.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 批量创建已确认候选题的待审草稿
+  Future<DocImportBatchResult> submitDocumentImportCandidates({
+    required String jobId,
+    required DocImportSubmit body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/import-jobs/${Uri.encodeComponent(jobId)}/submit',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return DocImportBatchResult.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 导入结构化题目为待审草稿
+  Future<AdminQuestionDetail> importQuestionDraft({
+    required AdminQuestionImport body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/question-imports',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
       requestId: requestId,
     );
     return AdminQuestionDetail.fromJson(data as Map<String, dynamic>);
@@ -533,5 +1351,20 @@ class TutorApiClient {
       requestId: requestId,
     );
     return QuestionReviewState.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 逐题显式确认后的批量审核
+  Future<ReviewBatchResult> reviewQuestionBatch({
+    required ReviewBatch body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/question-reviews/batch',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ReviewBatchResult.fromJson(data as Map<String, dynamic>);
   }
 }

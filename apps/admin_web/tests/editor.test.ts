@@ -1,11 +1,14 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {installBrowserStorage,flushRecovery as flushPromises} from './support/browser-storage'
+import { mount,enableAutoUnmount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../src/api/admin'
 import { ApiError } from '../src/api/client'
 import { clearSession, setSession } from '../src/session'
 import QuestionView from '../src/views/QuestionView.vue'
 import { AUTHOR, detail, experimentDetail, ME, proofDetail, QUESTION_ID, writtenDetail } from './fixtures'
+
+enableAutoUnmount(afterEach)
 
 vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
@@ -35,6 +38,7 @@ async function openPage() {
 }
 
 beforeEach(() => {
+  installBrowserStorage()
   vi.resetAllMocks()
   clearSession()
   setSession({ token: 'tok', userId: ME, role: 'reviewer' })
@@ -47,6 +51,7 @@ describe('编辑题目', () => {
 
     expect(wrapper.find('[data-testid="decision-panel"]').exists()).toBe(true)
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
 
     expect(wrapper.find('[data-testid="editor"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="decision-panel"]').exists()).toBe(false)
@@ -64,10 +69,11 @@ describe('编辑题目', () => {
 
   it('没改动时不能保存；改了标题之后可以，请求里带着当前版本、全部内容和幂等键', async () => {
     const saved = detail({ version: 2, title: '新的标题', created_by: ME })
-    mocked.getQuestion.mockResolvedValue(detail())
+    mocked.getQuestion.mockResolvedValueOnce(detail()).mockResolvedValue(saved)
     mocked.createQuestionVersion.mockResolvedValue(saved)
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
 
     expect(wrapper.get('[data-testid="save"]').attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-testid="unchanged"]').exists()).toBe(true)
@@ -100,6 +106,7 @@ describe('编辑题目', () => {
     mocked.createQuestionVersion.mockResolvedValue(detail({ version: 2 }))
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
 
     await wrapper.get('[data-testid="option-correct-0"]').setValue(false)
     await wrapper.get('[data-testid="option-correct-1"]').setValue(true)
@@ -115,6 +122,7 @@ describe('编辑题目', () => {
     )
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
 
     await wrapper.get('[data-testid="rules"]').setValue('{坏了')
 
@@ -131,6 +139,7 @@ describe('编辑题目', () => {
     )
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="knowledge"]').setValue('math.no.such')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
@@ -149,6 +158,7 @@ describe('编辑题目', () => {
     )
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="title"]').setValue('我的修改')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
@@ -165,13 +175,16 @@ describe('编辑题目', () => {
     mocked.createQuestionVersion.mockRejectedValue(new ApiError(0, 'network_error', '连不上服务器'))
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="title"]').setValue('第一版内容')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
-    await wrapper.get('[data-testid="save"]').trigger('click')
+    await wrapper.get('[data-testid="edit-retry"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="title"]').setValue('改了主意')
+    await wrapper.get('[data-testid="edit-release"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
 
@@ -184,6 +197,7 @@ describe('编辑题目', () => {
     mocked.getQuestion.mockResolvedValue(detail())
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="title"]').setValue('不要了')
 
     await wrapper.get('[data-testid="cancel"]').trigger('click')
@@ -226,6 +240,7 @@ describe('编辑解答题', () => {
     mocked.getQuestion.mockResolvedValue(source)
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
     return wrapper
   }
 
@@ -323,6 +338,7 @@ describe('编辑实验题', () => {
     mocked.getQuestion.mockResolvedValue(source)
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
     return wrapper
   }
 
@@ -387,6 +403,7 @@ describe('编辑证明题', () => {
     mocked.getQuestion.mockResolvedValue(source)
     const wrapper = await openPage()
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
     return wrapper
   }
 
@@ -510,3 +527,6 @@ describe('编辑证明题', () => {
     expect(points.map((point) => point.part)).toEqual(['conclusion', 'construction', 'reasoning', 'conclusion', null])
   })
 })
+
+
+

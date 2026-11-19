@@ -4,6 +4,42 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tutor_student/features/visual/visual_math.dart';
 
 void main() {
+  test('圆示意只定位圆心和圆上不同两点，不输出推导关系', () {
+    for (final a in [.05, .1, .2]) {
+      for (final b in [.3, .4, .45]) {
+        final layout = circleOf({'a_position': a, 'b_position': b});
+        expect(layout.points.first, (0.0, 0.0));
+        expect(layout.points[1], isNot(layout.points[2]));
+        for (final point in layout.points.skip(1)) {
+          expect(point.$1 * point.$1 + point.$2 * point.$2, closeTo(1, 1e-12));
+        }
+        expect(layout.description, contains('非按比例'));
+        expect(layout.description, isNot(contains('OA=OB')));
+      }
+    }
+    expect(circleOf({'focus': 3}).description, contains('当前焦点：B'));
+  });
+  test('固定工艺拓扑只按配置显示支路回流', () {
+    final plain = processOf({});
+    expect(plain.nodes, ['原料', '处理Ⅰ', '分离', '处理Ⅱ', '产物']);
+    expect(plain.edges.length, 4);
+    final all = processOf({'branch': 1, 'recycle': 1, 'focus': 2});
+    expect(all.edges, containsAll([(2, 5), (3, 1)]));
+    expect(all.focus, 2);
+    expect(all.description, contains('分离到支路'));
+    expect(all.description, contains('处理Ⅱ回到处理Ⅰ'));
+  });
+  test('三角形仅保存给定坐标与顶点焦点，不生成构造或结论', () {
+    for (final x in [.2, .35, .8]) {
+      for (final y in [.3, .65, .9]) {
+        final triangle = triangleOf({'apex_x': x, 'height': y});
+        expect(triangle.apexX, x);
+        expect(triangle.height, y);
+        expect(triangle.description, contains('不能凭外观推断'));
+        expect(triangle.description, isNot(contains('面积')));
+      }
+    }
+  });
   group('二次函数', () {
     test('a=1, b=-2, c=-3：对称轴 x=1，顶点 (1, -4)，开口向上', () {
       final q = quadraticOf({'a': 1, 'b': -2, 'c': -3});

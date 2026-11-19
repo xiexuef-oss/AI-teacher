@@ -130,4 +130,37 @@ const Map<String, VisualTemplateSpec> visualTemplates = {
       VisualParamSpec(name: 'molar_mass_b', label: '所求物摩尔质量 M(B)（g/mol）', min: 1.0, max: 400.0, step: 0.5, defaultValue: 44.0, integer: false, adjustable: true),
     ],
   ),
+  'chemical_process': VisualTemplateSpec(
+    id: 'chemical_process',
+    title: '工艺流程结构示意',
+    summary: '只观察题目已给的处理、分离、支路与回流关系，不推断物质、反应或操作。',
+    staticFallback: '原料依次经过处理Ⅰ、分离、处理Ⅱ到达产物。支路与回流是否存在以题干文字为准；这只是通用流程骨架，不是反应机理或实验操作指南。',
+    params: [
+      VisualParamSpec(name: 'focus', label: '观察位置', min: 0.0, max: 4.0, step: 1.0, defaultValue: 0.0, integer: true, adjustable: true),
+      VisualParamSpec(name: 'branch', label: '题设有支路', min: 0.0, max: 1.0, step: 1.0, defaultValue: 0.0, integer: true, adjustable: false),
+      VisualParamSpec(name: 'recycle', label: '题设有回流', min: 0.0, max: 1.0, step: 1.0, defaultValue: 0.0, integer: true, adjustable: false),
+    ],
+  ),
+  'triangle_schematic': VisualTemplateSpec(
+    id: 'triangle_schematic',
+    title: '三角形已知位置示意',
+    summary: '只定位题目已给的A、B、C和三边，不增加辅助线、长度、角度或证明结论。',
+    staticFallback: 'A、B位于基线两端，C位于基线上方，三边连接A、B、C。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。',
+    params: [
+      VisualParamSpec(name: 'apex_x', label: 'C点相对横向位置', min: 0.2, max: 0.8, step: 0.05, defaultValue: 0.35, integer: false, adjustable: false),
+      VisualParamSpec(name: 'height', label: 'C点相对绘图高度', min: 0.3, max: 0.9, step: 0.05, defaultValue: 0.65, integer: false, adjustable: false),
+      VisualParamSpec(name: 'focus', label: '观察顶点', min: 0.0, max: 3.0, step: 1.0, defaultValue: 0.0, integer: true, adjustable: true),
+    ],
+  ),
+  'circle_schematic': VisualTemplateSpec(
+    id: 'circle_schematic',
+    title: '圆与已知点的位置示意',
+    summary: '只定位已给的圆O和圆上两点A、B，不增加连线、辅助点或证明结论。',
+    staticFallback: 'O是圆心，A、B是圆上不同的两点。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。',
+    params: [
+      VisualParamSpec(name: 'a_position', label: 'A点相对绘图位置', min: 0.05, max: 0.2, step: 0.01, defaultValue: 0.1, integer: false, adjustable: false),
+      VisualParamSpec(name: 'b_position', label: 'B点相对绘图位置', min: 0.3, max: 0.45, step: 0.01, defaultValue: 0.37, integer: false, adjustable: false),
+      VisualParamSpec(name: 'focus', label: '观察已知点', min: 0.0, max: 3.0, step: 1.0, defaultValue: 0.0, integer: true, adjustable: true),
+    ],
+  ),
 };

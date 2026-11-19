@@ -22,6 +22,16 @@
   answer:
     value: [B]
   teaching:
+    reference_links:
+      - target_block_id: hint:1
+        source_span: {block_id: stem, block_sha256: 4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7, start: 0, end: 2}
+        independent_safe: true
+      - target_block_id: rephrase
+        source_span: {block_id: stem, block_sha256: 4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7, start: 0, end: 2}
+        independent_safe: true
+      - target_block_id: solution:standard:step:1
+        source_span: {block_id: stem, block_sha256: 4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7, start: 0, end: 2}
+        independent_safe: true
     concept: 函数的单调性
     hints:
       - '先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。'

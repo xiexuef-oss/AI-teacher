@@ -30,7 +30,7 @@ def test_new_student_gets_one_starter_question_per_selected_subject(onboarded):
     assert _summary(onboarded) == [
         ("new_topic", "math-mono-quadratic"),
         ("new_topic", "phys-force-analysis"),
-        ("new_topic", "chem-conservation-co2"),
+        ("new_topic", "chem-process-reading"),
     ]
     first = today["items"][0]
     assert first["subject"] == "math"
@@ -51,9 +51,7 @@ def test_student_who_has_not_configured_anything_can_still_start(student):
 
 
 def test_tasks_follow_the_selected_subjects(student):
-    student.data(
-        "PUT", "/profile", json={"region_code": "CN-51", "grade": "G12", "subjects": ["chemistry"]}
-    )
+    student.save_profile(json={"region_code": "CN-51", "grade": "G12", "subjects": ["chemistry"]})
     assert [task["subject"] for task in _tasks(student)] == ["chemistry"]
 
 
@@ -61,10 +59,8 @@ def test_switching_region_changes_the_recommendations(onboarded):
     """docs/09 验收：四川、重庆各有独立配置，切换后训练推荐可变化。"""
     sichuan = {key for _, key in _summary(onboarded)}
 
-    onboarded.data(
-        "PUT",
-        "/profile",
-        json={"region_code": "CN-50", "grade": "G12", "subjects": ["math", "physics", "chemistry"]},
+    onboarded.save_profile(
+        json={"region_code": "CN-50", "grade": "G12", "subjects": ["math", "physics", "chemistry"]}
     )
     chongqing = _summary(onboarded)
 
@@ -118,15 +114,11 @@ def test_later_rounds_are_labelled_as_retest(onboarded, clock):
 
 
 def test_due_reviews_are_shown_even_for_unselected_subjects(student, clock):
-    student.data(
-        "PUT",
-        "/profile",
-        json={"region_code": "CN-51", "grade": "G12", "subjects": ["math", "physics"]},
+    student.save_profile(
+        json={"region_code": "CN-51", "grade": "G12", "subjects": ["math", "physics"]}
     )
     solve(student, "phys-newton2-force", choice("D"))
-    student.data(
-        "PUT", "/profile", json={"region_code": "CN-51", "grade": "G12", "subjects": ["math"]}
-    )
+    student.save_profile(json={"region_code": "CN-51", "grade": "G12", "subjects": ["math"]})
     clock.advance(days=1)
 
     summary = _summary(student)
@@ -256,7 +248,7 @@ def test_no_content_means_an_empty_list_not_an_error(onboarded, db):
     db.execute(update(Question).values(status="withdrawn"))
     db.commit()
 
-    assert _today(onboarded) == {"date": "2026-11-10", "items": []}
+    assert _today(onboarded) == {"date": "2026-11-10", "items": [], "cold_start": True}
 
 
 def test_tasks_require_authentication(anon):

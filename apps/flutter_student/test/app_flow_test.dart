@@ -188,9 +188,10 @@ void main() {
     testWidgets('今日任务：显示类别、理由、预计时间、来源适用性', (tester) async {
       await launch(tester, h);
 
-      expect(find.text('二次函数的单调递增区间'), findsOneWidget);
-      expect(find.text('静止在粗糙斜面上的物块的受力'), findsOneWidget);
-      expect(find.text('由碳酸钙质量求二氧化碳质量'), findsOneWidget);
+      for (final task
+          in h.backend.fixtures.value('tasks_today')['items'] as List) {
+        expect(find.text(task['title'] as String), findsOneWidget);
+      }
       expect(find.text('新题'), findsNWidgets(3));
       expect(find.textContaining('还没有学习记录'), findsWidgets);
       expect(find.textContaining('全国通用基础题'), findsWidgets);
@@ -395,7 +396,7 @@ void main() {
       await tapAndSettle(tester, key('filter.scope.region'));
 
       final last = h.backend
-          .requestsTo('GET', '/questions')
+          .requestsTo('GET', r'/questions$')
           .last
           .uri
           .queryParameters;
@@ -414,7 +415,7 @@ void main() {
       expect(find.text('解答题'), findsWidgets);
       expect(
         h.backend
-            .requestsTo('GET', '/questions')
+            .requestsTo('GET', r'/questions$')
             .last
             .uri
             .queryParameters['answer_mode'],
@@ -432,7 +433,7 @@ void main() {
       expect(find.text('实验题'), findsWidgets);
       expect(
         h.backend
-            .requestsTo('GET', '/questions')
+            .requestsTo('GET', r'/questions$')
             .last
             .uri
             .queryParameters['answer_mode'],
@@ -450,7 +451,7 @@ void main() {
       expect(find.text('证明题'), findsWidgets);
       expect(
         h.backend
-            .requestsTo('GET', '/questions')
+            .requestsTo('GET', r'/questions$')
             .last
             .uri
             .queryParameters['answer_mode'],
@@ -467,7 +468,7 @@ void main() {
 
       expect(
         h.backend
-            .requestsTo('GET', '/questions')
+            .requestsTo('GET', r'/questions$')
             .last
             .uri
             .queryParameters['cursor'],
@@ -696,7 +697,11 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.textContaining('草稿和笔迹先保存在这台设备上'), findsOneWidget);
-      expect(find.textContaining('现在还没有'), findsOneWidget);
+      expect(find.textContaining('云端完整数据导出和删除仍未开放'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('profile.exportDrafts')),
+        findsOneWidget,
+      );
       await teardownTree(tester);
     });
 
@@ -706,6 +711,8 @@ void main() {
       await reveal(tester, key('profile.curriculum.PEP'));
       await tester.tap(key('profile.curriculum.PEP'));
       await tester.pump();
+      await tester.drag(find.byType(ListView).first, const Offset(0, 1400));
+      await tester.pumpAndSettle();
       await reveal(tester, find.text('重庆'));
       await tester.pump();
       await tester.tap(find.text('重庆'));
@@ -716,6 +723,186 @@ void main() {
       expect(body['region_code'], 'CN-50');
       expect(body['curriculum_version'], 'PEP');
       expect(find.text('已保存。'), findsOneWidget);
+      await teardownTree(tester);
+    });
+
+    testWidgets('住校学习可以保存零分钟预算', (tester) async {
+      await openProfile(tester);
+      await tapAndSettle(tester, key('profile.learningMode.null'));
+      await tester.tap(find.text('住校纸笔学习').last);
+      await tester.pumpAndSettle();
+      final minutes = find.widgetWithText(TextField, '每周可用分钟');
+      await reveal(tester, minutes);
+      await tester.enterText(minutes, '0');
+      await tester.pumpAndSettle();
+      await tapAndSettle(tester, key('profile.save'));
+
+      final settings = h.backend.lastProfileUpdate!['learning_settings'] as Map;
+      expect(settings['mode'], 'boarding');
+      expect(settings['weekly_minutes'], 0);
+      expect(settings['weekdays'], [1, 2, 3, 4, 5]);
+      const jobId = '03fb9db8-aed3-44d2-a605-56a9debe29c9';
+      final keys = <String?>[];
+      h.backend.on('POST', '/learning/packs', (request) {
+        keys.add(request.headers['Idempotency-Key']);
+        expect((jsonDecode(request.body!) as Map)['school_minutes'], 0);
+        return keys.length == 1
+            ? errorResponse(500, 'internal_error')
+            : okResponse({
+                'id': jobId,
+                'status': 'queued',
+                'attempts': 0,
+              }, status: 202);
+      });
+      h.backend.on('GET', '/learning/packs/$jobId/items/001', (_) {
+        return okResponse({
+          'revision': 1,
+          'code': '001',
+          'question_version_id': jobId,
+        });
+      });
+      await tapAndSettle(tester, find.text('生成学习包'));
+      await tapAndSettle(tester, find.text('重试生成'));
+      expect(keys, hasLength(2));
+      expect(keys.first, isNotNull);
+      expect(keys.last, keys.first);
+      h.backend.on(
+        'POST',
+        '/learning/packs',
+        (_) => okResponse({
+          'id': '28f02454-aed3-44d2-a605-56a9debe29c9',
+          'status': 'queued',
+          'attempts': 0,
+        }, status: 202),
+      );
+      await tapAndSettle(tester, find.text('生成学习包'));
+      await tapAndSettle(tester, find.text('纸包 28f02454').last);
+      await tester.tap(find.text('纸包 03fb9db8').last);
+      await tester.pumpAndSettle();
+      final shortCode = find.widgetWithText(TextField, '本包题目短码');
+      final owner = h.store.data['auth.userId'];
+      expect(owner, isNotNull);
+      const photoOne = '75d722ab-7d3b-4c65-986e-902edfe66fce';
+      const photoTwo = '49667e05-c973-427e-9868-6c90694d2f14';
+      await h.store.write(
+        'learning-pack.latest.$owner.$jobId.001',
+        jsonEncode({
+          'text': '',
+          'photo_ids': [photoOne, photoTwo],
+        }),
+      );
+      await reveal(tester, shortCode);
+      await tester.enterText(shortCode, '001');
+      await tapAndSettle(tester, find.text('定位印刷题目'));
+      expect(find.text('已定位第 1 版纸包的 001 号题。'), findsOneWidget);
+      await tapAndSettle(tester, find.byTooltip('调整第 2 页'));
+      await tapAndSettle(tester, find.text('前移一页'));
+      final returnKeys = <String?>[];
+      h.backend.on('POST', '/learning/packs/$jobId/items/001/returns', (
+        request,
+      ) {
+        returnKeys.add(request.headers['Idempotency-Key']);
+        final body = jsonDecode(request.body!) as Map;
+        expect(body['transcript'], '选 B');
+        expect(body['independence'], 'independent');
+        expect(body['photo_ids'], [photoTwo, photoOne]);
+        expect(body.containsKey('completed_on'), isFalse);
+        return returnKeys.length == 1
+            ? errorResponse(500, 'internal_error')
+            : okResponse({
+                'revision': 1,
+                'code': '001',
+                'question_version_id': jobId,
+              }, status: 201);
+      });
+      await tapAndSettle(tester, find.text('不确定').last);
+      await tapAndSettle(tester, find.text('独立完成').last);
+      final transcript = find.widgetWithText(TextField, '纸笔作答转写');
+      await reveal(tester, transcript);
+      await tester.enterText(transcript, '选 B');
+      await tapAndSettle(tester, find.text('确认并回收作答'));
+      await tapAndSettle(tester, find.text('重试回收'));
+      expect(returnKeys, hasLength(2));
+      expect(returnKeys.first, isNotNull);
+      expect(returnKeys.last, returnKeys.first);
+      expect(find.text('纸笔作答已回收。'), findsOneWidget);
+      h.backend.on(
+        'GET',
+        '/learning/packs/$jobId/items',
+        (_) => okResponse({
+          'items': [
+            {'revision': 1, 'code': '001', 'question_version_id': jobId},
+          ],
+        }),
+      );
+      await tapAndSettle(tester, find.text('手动选题'));
+      await tapAndSettle(tester, find.text('001 号题 · 第 1 版'));
+      expect(find.text('已回收'), findsOneWidget);
+      h.backend.on(
+        'GET',
+        '/learning/packs',
+        (_) => okResponse({
+          'ids': ['507313ab-53ee-4be2-b557-226d1b17c831'],
+        }),
+      );
+      await tapAndSettle(tester, find.text('同步纸包历史'));
+      await tapAndSettle(tester, find.text('纸包 03fb9db8').last);
+      expect(find.text('纸包 507313ab'), findsOneWidget);
+      const cloudJob = '507313ab-53ee-4be2-b557-226d1b17c831';
+      final cloudItem = {
+        'revision': 1,
+        'code': '001',
+        'question_version_id': jobId,
+      };
+      h.backend.on(
+        'GET',
+        '/learning/packs/$cloudJob/items/001',
+        (_) => okResponse(cloudItem),
+      );
+      h.backend.on(
+        'GET',
+        '/learning/packs/$cloudJob/items/001/returns',
+        (_) => okResponse({
+          'item': cloudItem,
+          'transcript': '另一台设备回收的作答',
+          'confirmed_at': '2026-11-18T00:00:00Z',
+        }),
+      );
+      await tester.tap(find.text('纸包 507313ab').last);
+      await tester.pumpAndSettle();
+      await reveal(tester, shortCode);
+      await tester.enterText(shortCode, '001');
+      await tapAndSettle(tester, find.text('定位印刷题目'));
+      await reveal(tester, transcript);
+      expect(
+        tester.widget<TextField>(transcript).controller!.text,
+        '另一台设备回收的作答',
+      );
+      expect(tester.widget<TextField>(transcript).enabled, isFalse);
+      h.backend.on('PUT', '/learning/packs/$cloudJob/items/001/returns', (
+        request,
+      ) {
+        expect((jsonDecode(request.body!) as Map)['expected_revision'], 0);
+        return errorResponse(
+          409,
+          'paper_return_revision_conflict',
+          details: {
+            'server_return': {
+              'item': cloudItem,
+              'transcript': '更新后的云端转写',
+              'confirmed_at': '2026-11-18T00:00:00Z',
+              'transcript_revision': 1,
+            },
+          },
+        );
+      });
+      await tapAndSettle(tester, find.text('校正转写'));
+      await reveal(tester, transcript);
+      await tester.enterText(transcript, '本机校正');
+      await tapAndSettle(tester, find.text('保存校正'));
+      expect(find.textContaining('本机校正'), findsWidgets);
+      await tapAndSettle(tester, find.text('采用云端'));
+      expect(tester.widget<TextField>(transcript).controller!.text, '更新后的云端转写');
       await teardownTree(tester);
     });
 
@@ -770,8 +957,8 @@ void main() {
       await tapAndSettle(tester, key('home.scan'), frames: 10);
 
       expect(key('scan.page'), findsOneWidget);
-      expect(find.text('拍题还在准备中'), findsOneWidget);
-      expect(find.textContaining('不会没经过你确认就当成原题'), findsOneWidget);
+      expect(find.text('本地手工确认原型，未实际 OCR。上传不会自动开始练习。'), findsOneWidget);
+      expect(find.textContaining('未实际 OCR'), findsOneWidget);
       await tapAndSettle(tester, key('scan.practice'), frames: 10);
       expect(key('practice.page'), findsOneWidget);
       await teardownTree(tester);

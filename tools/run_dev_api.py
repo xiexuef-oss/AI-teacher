@@ -22,6 +22,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 HOST = "127.0.0.1"  # 原型只绑定回环地址，不提供改成其他地址的选项
 
 
+def create_dev_app():
+    from tutor_api.main import create_app
+    from tutor_api.receipts import SqlReceiptStore
+    from tutor_api.settings import Settings
+
+    settings = Settings()
+    return create_app(
+        settings,
+        receipt_store=SqlReceiptStore() if settings.durable_model_invocations_enabled else None,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="启动本地开发 API（仅回环地址）")
     parser.add_argument("--port", type=int, default=8000)
@@ -36,13 +48,18 @@ def main() -> None:
     os.environ.setdefault("TUTOR_ENV", "local")
     os.environ.setdefault("TUTOR_LOCAL_IDENTITY_MOCK", "true")
     os.environ.setdefault("TUTOR_SEED_SAMPLE_CONTENT", "true")
+    os.environ.setdefault("TUTOR_IMPORT_WORKER_ENABLED", "true")
+    os.environ.setdefault("TUTOR_LEARNING_PACK_WORKER_ENABLED", "true")
+    if sys.platform == "win32":
+        os.environ.setdefault("TUTOR_IMPORT_MEMORY_LIMIT_BYTES", str(512 * 1024 * 1024))
+        os.environ.setdefault("TUTOR_IMPORT_CPU_LIMIT_SECONDS", "20")
     if args.review_minutes:
         os.environ["TUTOR_REVIEW_INTERVALS_MINUTES"] = args.review_minutes
 
     import uvicorn
 
     print(f"本地 API：http://{HOST}:{args.port}/api/v1/health  （身份 Mock 与样题已显式开启）")
-    uvicorn.run("tutor_api.main:create_app", factory=True, host=HOST, port=args.port)
+    uvicorn.run(create_dev_app, factory=True, host=HOST, port=args.port, proxy_headers=False)
 
 
 if __name__ == "__main__":

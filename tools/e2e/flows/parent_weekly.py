@@ -143,7 +143,13 @@ def run(ctx: Context) -> None:
         parent.responses[-4:],
     )
     check("出现这位学生，用的是学生设置的称呼", has(parent, "小明", role="button"))
-    check("有“已经绑定”的提示", "已经绑定" in all_text(parent))
+    linked_text = all_text(parent)
+    check(
+        "明确确认原绑定，并说明当前授权以上方列表为准",
+        "原绑定操作已确认" in linked_text
+        and "目前可查看的学生以上方授权列表为准" in linked_text
+        and has(parent, "小明", role="button"),
+    )
     ctx.shot(parent, "03_parent_home_linked")
 
     say("== 家长：看周报")

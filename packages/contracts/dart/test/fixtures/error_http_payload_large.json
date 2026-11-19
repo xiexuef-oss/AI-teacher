@@ -1,0 +1,23 @@
+{
+  "name": "error_http_payload_large",
+  "method": "PUT",
+  "path": "/api/v1/profile",
+  "status": 413,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "payload_too_large",
+      "message": "请求体超过上限",
+      "details": {},
+      "request_id": "357dd43b40ad42028d65b04c43400cc8"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "payload_too_large",
+      "message": "请求体超过上限",
+      "details": {},
+      "request_id": "357dd43b40ad42028d65b04c43400cc8"
+    }
+  }
+}

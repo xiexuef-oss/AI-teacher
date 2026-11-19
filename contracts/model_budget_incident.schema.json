@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tutor:model-budget-incident:1",
+  "title": "Internal cost estimate overrun incident",
+  "description": "Metadata-only operational record. Observed cost is still an estimate from usage and configured prices, not a vendor invoice. No prompt, response, image, endpoint or credential may enter this record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "attempt_id", "invocation_id", "actor_digest", "budget_key", "quota_day", "reason", "policy", "reserved_cost_micros", "observed_estimated_cost_micros", "detected_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "attempt_id": {"$ref": "#/$defs/id"},
+    "invocation_id": {"$ref": "#/$defs/id"},
+    "actor_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "budget_key": {"type": "string", "pattern": "^stu_[a-f0-9]{32}$"},
+    "quota_day": {"type": "string", "format": "date"},
+    "reason": {"const": "estimate_overrun"},
+    "policy": {"enum": ["record_only", "pause_platform"]},
+    "reserved_cost_micros": {"type": "integer", "minimum": 0},
+    "observed_estimated_cost_micros": {"type": "integer", "minimum": 0},
+    "detected_at": {"type": "string", "format": "date-time"},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "review_reason": {"enum": ["pricing_corrected", "provider_usage_verified", "configuration_changed"]}
+  },
+  "dependentRequired": {"reviewed_at": ["review_reason"], "review_reason": ["reviewed_at"]},
+  "$defs": {"id": {"type": "string", "pattern": "^[a-f0-9]{32}$"}}
+}

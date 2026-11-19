@@ -1,5 +1,6 @@
 import { request } from './client'
 import type {
+  AdminQuestionImport,
   AdminQuestionDetail,
   AdminQuestionEdit,
   AdminQuestionPage,
@@ -12,6 +13,9 @@ import type {
   ReviewDecision,
   Subject,
 } from './types'
+
+export const importQuestion = (token: string, body: AdminQuestionImport, idempotencyKey: string) =>
+  request<AdminQuestionDetail>('POST', '/admin/question-imports', { token, body, idempotencyKey })
 
 export const getHealth = () => request<Health>('GET', '/health')
 
@@ -60,3 +64,6 @@ export const createQuestionVersion = (
 /** 题目某一个版本的完整内容（回看、对比用）。 */
 export const getQuestionVersion = (token: string, id: string, version: number) =>
   request<AdminVersionSnapshot>('GET', `/admin/questions/${id}/versions/${version}`, { token })
+
+import type { components } from './schema'
+export const reviewQuestionBatch = (token: string, body: components['schemas']['ReviewBatch'], idempotencyKey: string) => request<components['schemas']['ReviewBatchResult']>('POST', '/admin/question-reviews/batch', { token, body, idempotencyKey })

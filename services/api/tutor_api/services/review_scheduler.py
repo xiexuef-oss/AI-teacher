@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from tutor_api.db import new_id
 from tutor_api.errors import conflict, not_found
-from tutor_api.models import Attempt, Question, ReviewItem, StudySession
+from tutor_api.models import Attempt, Question, ReviewCompletionRecord, ReviewItem, StudySession
 from tutor_api.schemas import ReviewCompletion, ReviewItemOut, ReviewPage
 from tutor_api.services import question_service
 from tutor_api.settings import Settings
@@ -133,24 +133,126 @@ def complete(
     attempt_id: str,
     now: datetime,
 ) -> ReviewCompletion:
-    item = get_owned_item(db, student_id, review_id)
-    attempt = db.get(Attempt, attempt_id)
-    session = db.get(StudySession, attempt.session_id) if attempt is not None else None
-    if attempt is None or session is None or session.student_id != student_id:
-        raise not_found()
-    if session.review_item_id != item.id:
-        raise conflict("attempt_not_for_this_review", "这份作答不是用这个复测项开启的会话里产生的")
-
-    # 复测的结果看这次复测会话里的第一份提交：之后的重试已经看过反馈，不算
-    first = db.scalar(
-        select(Attempt).where(Attempt.session_id == session.id, Attempt.attempt_no == 1)
+    # Match submit's lock order: owned sessions, their attempts, then review.
+    # Never look up an arbitrary supplied attempt ID in a locking query: even a
+    # rejected foreign ID can take a primary-key lock in InnoDB.
+    get_owned_item(db, student_id, review_id)
+    sessions_query = select(StudySession).where(
+        StudySession.student_id == student_id, StudySession.review_item_id == review_id
     )
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(
+            update(StudySession)
+            .where(StudySession.student_id == student_id, StudySession.review_item_id == review_id)
+            .values(updated_at=StudySession.updated_at)
+        )
+    sessions = list(
+        db.scalars(
+            sessions_query.with_hint(
+                StudySession, "FORCE INDEX (ix_sessions_review_owner)", "mysql"
+            )
+            .order_by(StudySession.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    )
+    attempts = []
+    for session in sessions:
+        attempts.extend(
+            db.scalars(
+                select(Attempt)
+                .where(Attempt.session_id == session.id)
+                .with_hint(Attempt, "FORCE INDEX (uq_attempt_no)", "mysql")
+                .order_by(Attempt.attempt_no)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        )
+    attempt = next((row for row in attempts if row.id == attempt_id), None)
+    if attempt is None:
+        # Nonlocking reads preserve the existing wrong-review error without
+        # acquiring a lock outside the owned review group.
+        supplied = db.get(Attempt, attempt_id)
+        supplied_session = db.get(StudySession, supplied.session_id) if supplied else None
+        if supplied_session is None or supplied_session.student_id != student_id:
+            raise not_found()
+        raise conflict("attempt_not_for_this_review", "这份作答不是用这个复测项开启的会话里产生的")
+    first = next(
+        (
+            row
+            for row in attempts
+            if row.session_id == attempt.session_id and row.submission_no == 1
+        ),
+        None,
+    )
+    item = db.scalar(
+        select(ReviewItem)
+        .where(ReviewItem.id == review_id, ReviewItem.student_id == student_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if item is None:
+        raise not_found()
+    source_session = next(row for row in sessions if row.id == attempt.session_id)
+    if source_session.question_id != item.question_id or source_session.origin != "review":
+        raise conflict("attempt_not_for_this_review", "这份作答不是用这个复测项开启的会话里产生的")
     if first is None or first.status != "submitted" or first.evaluation_state != "verified":
         raise conflict("attempt_not_verified", "这次复测的作答还没有确定的判定，暂时不能完成复测")
+    passed = bool(first.is_correct) and bool(first.independent)
+    values = dict(
+        review_id=item.id,
+        first_attempt_id=first.id,
+        student_id=student_id,
+        question_id=item.question_id,
+        state="completed",
+        result="passed" if passed else "failed",
+        completed_at=now,
+    )
+    # Reserve atomically before reading: SELECT FOR UPDATE on a missing history
+    # key takes gap locks under MySQL RR and can deadlock unrelated reviews.
+    if db.get_bind().dialect.name == "mysql":
+        from sqlalchemy.dialects.mysql import insert
+
+        statement = insert(ReviewCompletionRecord).values(**values).prefix_with("IGNORE")
+    else:
+        from sqlalchemy.dialects.sqlite import insert
+
+        statement = (
+            insert(ReviewCompletionRecord)
+            .values(**values)
+            .on_conflict_do_nothing(index_elements=["review_id", "first_attempt_id"])
+        )
+    inserted = db.execute(statement).rowcount
+    if not inserted:
+        history = db.scalar(
+            select(ReviewCompletionRecord)
+            .where(
+                ReviewCompletionRecord.review_id == item.id,
+                ReviewCompletionRecord.first_attempt_id == first.id,
+            )
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if (
+            history is None
+            or history.student_id != student_id
+            or history.question_id != item.question_id
+        ):
+            raise conflict(
+                "review_completion_history_unknown", "复测历史关联不一致，请保留作答并联系支持"
+            )
+        if history.state != "completed" or history.result != values["result"]:
+            raise conflict(
+                "review_completion_history_unknown", "这份旧作答的复测完成历史无法确认，请保留作答"
+            )
+        raise conflict("review_already_completed", "这次复测已经记录过了")
     if item.last_attempt_id == first.id:
         raise conflict("review_already_completed", "这次复测已经记录过了")
+    # Multiple sessions can be opened in the same due window. Completing one
+    # advances the schedule; an already-open second session cannot skip it.
+    if item.status != "scheduled" or item.due_at > now:
+        raise conflict("review_not_due", "这项复测尚未到期，暂时不能完成复测")
 
-    passed = bool(first.is_correct) and bool(first.independent)
     intervals = settings.review_intervals
     if passed:
         item.stage += 1

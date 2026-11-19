@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from tutor_api.db import new_id
@@ -38,7 +38,9 @@ from tutor_api.schemas import (
     AdminAnswer,
     AdminHistoryEntry,
     AdminQuestionDetail,
+    AdminQuestionDraftIn,
     AdminQuestionEditIn,
+    AdminQuestionImportIn,
     AdminQuestionPage,
     AdminQuestionSummary,
     AdminQuestionVersion,
@@ -49,10 +51,14 @@ from tutor_api.schemas import (
     AdminVersionSnapshot,
     AdminVisual,
     QuestionContent,
+    QuestionOriginLocation,
+    QuestionProvenance,
     QuestionReviewStateOut,
     ReviewDecisionIn,
 )
 from tutor_api.services import content_seed, question_service
+from tutor_api.services.media_service import require_media_review, validate_attachments
+from tutor_api.services.question_provenance import derived_provenance
 
 STATUSES = ("draft", "reviewed", "published", "withdrawn")
 # 决策 → (允许从哪些状态出发, 到哪个状态)
@@ -85,9 +91,67 @@ EDIT_PARTS = (
 # ---------------------------------------------------------------- 程序校验
 
 
+def _current(db, statement):
+    if db.info.get("review_question_locks"):
+        return statement.with_for_update().execution_options(populate_existing=True)
+    return statement
+
+
+def _lock_question(db, identifier):
+    if db.bind.dialect.name == "sqlite":
+        db.execute(
+            update(Question)
+            .where(Question.id == identifier)
+            .values(version=Question.version)
+            .execution_options(synchronize_session=False)
+        )
+    question = db.scalar(
+        select(Question)
+        .where(Question.id == identifier)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    db.info.setdefault("review_question_locks", set()).add(identifier)
+    return question
+
+
+def _check_review_revision(question, body):
+    if body.expected_review_revision != question.review_revision:
+        raise conflict(
+            "review_revision_conflict",
+            "审核状态已变化，请重新查看后确认",
+            {
+                "current_version": question.version,
+                "current_review_revision": question.review_revision,
+                "current_status": question.status,
+            },
+        )
+
+
+def _claim_review_revision(db, question, body):
+    changed = db.execute(
+        update(Question)
+        .where(
+            Question.id == question.id,
+            Question.version == body.expected_version,
+            Question.review_revision == body.expected_review_revision,
+        )
+        .values(review_revision=Question.review_revision + 1)
+        .execution_options(synchronize_session=False)
+    )
+    if changed.rowcount != 1:
+        raise conflict("review_revision_conflict", "审核状态已变化，请重新查看后确认")
+    db.refresh(question)
+
+
 def _solutions(db: Session, question_id: str, version: int) -> dict[str, Solution]:
     rows = db.scalars(
-        select(Solution).where(Solution.question_id == question_id, Solution.version == version)
+        _current(
+            db,
+            select(Solution).where(
+                Solution.question_id == question_id, Solution.version == version
+            ),
+        )
     )
     return {row.kind: row for row in rows}
 
@@ -110,8 +174,11 @@ def _seed_shape(
             entry["boundary"] = (row.conditions_json or {}).get("boundary")
         seed_solutions[kind] = entry
     tags = db.scalars(
-        select(QuestionRegionApplicability).where(
-            QuestionRegionApplicability.question_id == question.id
+        _current(
+            db,
+            select(QuestionRegionApplicability).where(
+                QuestionRegionApplicability.question_id == question.id
+            ),
         )
     )
     return {
@@ -152,24 +219,36 @@ def _seed_shape(
 
 
 def _rubric(db: Session, question_id: str, version: int) -> dict[str, Any]:
-    return question_service.get_rubric(db, question_id, version)
+    row = db.scalar(
+        _current(
+            db, select(Rubric).where(Rubric.question_id == question_id, Rubric.version == version)
+        )
+    )
+    return dict(row.rubric_json) if row else {}
 
 
 def check_problems(db: Session, question: Question) -> list[str]:
     """程序校验发现的问题；空列表表示通过。"""
     version = db.scalar(
-        select(QuestionVersion).where(
-            QuestionVersion.question_id == question.id, QuestionVersion.version == question.version
+        _current(
+            db,
+            select(QuestionVersion).where(
+                QuestionVersion.question_id == question.id,
+                QuestionVersion.version == question.version,
+            ),
         )
     )
     if version is None:
         return [f"{question.id}: 找不到当前版本（{question.version}）的内容"]
     knowledge = list(
         db.scalars(
-            select(KnowledgeNode)
-            .join(QuestionKnowledge, QuestionKnowledge.knowledge_id == KnowledgeNode.id)
-            .where(QuestionKnowledge.question_id == question.id)
-            .order_by(KnowledgeNode.code)
+            _current(
+                db,
+                select(KnowledgeNode)
+                .join(QuestionKnowledge, QuestionKnowledge.knowledge_id == KnowledgeNode.id)
+                .where(QuestionKnowledge.question_id == question.id)
+                .order_by(KnowledgeNode.code),
+            )
         )
     )
     shaped = _seed_shape(
@@ -203,6 +282,7 @@ def _summaries(db: Session, questions: list[Question]) -> list[AdminQuestionSumm
     return [
         AdminQuestionSummary(
             id=q.id,
+            review_revision=q.review_revision,
             subject=q.subject,
             type=q.type,
             answer_mode=q.answer_mode,
@@ -335,6 +415,7 @@ def _admin_teaching(question: Question, version: QuestionVersion) -> AdminTeachi
     teaching = version.teaching_json or {}
     visual = teaching.get("visual")
     return AdminTeaching(
+        reference_links=teaching.get("reference_links") or [],
         concept=teaching.get("concept"),
         hints=list(teaching.get("hints") or []),
         concept_rephrase=teaching.get("concept_rephrase"),
@@ -386,6 +467,7 @@ def version_snapshot(db: Session, question_id: str, version_no: int) -> AdminVer
         question_id=question.id,
         version=version.version,
         is_current=current,
+        provenance=version.provenance_json,
         created_by=version.created_by,
         created_at=version.created_at,
         title=content.get("title") or "",
@@ -429,6 +511,8 @@ def question_detail(db: Session, question_id: str) -> AdminQuestionDetail:
     )
     return AdminQuestionDetail(
         id=question.id,
+        review_revision=question.review_revision,
+        provenance=version.provenance_json,
         subject=question.subject,
         type=question.type,
         answer_mode=question.answer_mode,
@@ -497,13 +581,72 @@ def _require_confirmable(available: dict[str, Solution], kinds: list[str]) -> No
 def _audit_time(db: Session, question_id: str, now: datetime) -> datetime:
     """同一道题的审计记录时间严格递增：审计表的 ID 是随机 UUID，时间相同就排不出先后（历史会乱序）。"""
     last = db.scalar(
-        select(func.max(AuditLog.created_at)).where(
-            AuditLog.target_type == "question", AuditLog.target_id == question_id
+        _current(
+            db,
+            select(AuditLog.created_at)
+            .where(AuditLog.target_type == "question", AuditLog.target_id == question_id)
+            .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+            .limit(1),
         )
     )
     if last is not None and last >= now:
         return last + timedelta(milliseconds=1)
     return now
+
+
+def require_independent(question, actor_id):
+    if question.created_by is not None and question.created_by == actor_id:
+        raise ApiError(
+            403, "self_review_forbidden", "提交内容的人不能审核自己的题，请换另一位审校员"
+        )
+
+
+def decide_batch(ctx, body):
+    """Bounded savepoints inside run_idempotent's ONE outer transaction.
+
+    Expected domain failures roll back only that item. Fatal/DB errors propagate;
+    the outer rollback removes every success, together with its audit records.
+    Never commit here: business results and the replay receipt must commit together.
+    """
+    results = []
+    for identifier in sorted({item.question_id.lower() for item in body.items}):
+        _lock_question(ctx.db, identifier)
+    for item in body.items:
+        question_id = item.question_id.lower()
+        try:
+            with ctx.db.begin_nested():
+                state = decide(
+                    ctx.db,
+                    actor_id=ctx.actor_id,
+                    question_id=question_id,
+                    body=ReviewDecisionIn.model_validate(
+                        item.model_dump(exclude={"question_id", "confirmed"})
+                    ),
+                    now=ctx.now(),
+                    request_id=ctx.request_id,
+                )
+            results.append(
+                {
+                    "question_id": question_id,
+                    "status": "succeeded",
+                    "state": state.model_dump(mode="json"),
+                    "error": None,
+                }
+            )
+        except ApiError as error:
+            results.append(
+                {
+                    "question_id": question_id,
+                    "status": "failed",
+                    "state": None,
+                    "error": {
+                        "status": error.status_code,
+                        "code": error.code,
+                        "message": error.message,
+                    },
+                }
+            )
+    return {"items": results}
 
 
 def decide(
@@ -515,7 +658,7 @@ def decide(
     now: datetime,
     request_id: str,
 ) -> QuestionReviewStateOut:
-    question = db.get(Question, question_id)
+    question = _lock_question(db, question_id)
     if question is None:
         raise not_found()
     if body.expected_version != question.version:
@@ -525,6 +668,7 @@ def decide(
             {"current_version": question.version},
         )
 
+    _check_review_revision(question, body)
     allowed_from, target = TRANSITIONS[body.decision]
     before = question.status
     if before not in allowed_from:
@@ -538,14 +682,11 @@ def decide(
     if body.decision in COMMENT_REQUIRED and comment is None:
         raise ApiError(422, "comment_required", f"{body.decision} 必须写明原因")
 
-    if (
-        body.decision in INDEPENDENT_REVIEW
-        and question.created_by is not None
-        and question.created_by == actor_id
-    ):
-        raise ApiError(
-            403, "self_review_forbidden", "提交内容的人不能审核自己的题，请换另一位审校员"
-        )
+    if body.decision in INDEPENDENT_REVIEW:
+        require_independent(question, actor_id)
+        require_media_review(db, question, actor_id, now)
+        if body.decision == "publish":
+            require_media_review(db, question, question.reviewed_by, now)
 
     confirmed: list[str] = []
     if body.decision in INDEPENDENT_REVIEW:
@@ -559,6 +700,7 @@ def decide(
             )
 
     solutions = _solutions(db, question.id, question.version)
+    _claim_review_revision(db, question, body)
     if body.decision == "approve":
         confirmed = list(dict.fromkeys(body.solution_kinds or ["standard"]))
         _require_confirmable(solutions, confirmed)
@@ -583,6 +725,7 @@ def decide(
         "from": before,
         "to": target,
         "version": question.version,
+        "review_revision": question.review_revision,
         "comment": comment,
     }
     if body.decision == "approve":
@@ -602,6 +745,7 @@ def decide(
     db.flush()
     return QuestionReviewStateOut(
         question_id=question.id,
+        review_revision=question.review_revision,
         status=question.status,
         version=question.version,
         reviewed_by=question.reviewed_by,
@@ -654,7 +798,15 @@ def _editable_snapshot(db: Session, question: Question, version: QuestionVersion
             for kind, row in sorted(solutions.items())
         ],
         "knowledge": sorted(
-            node.code for node in question_service.knowledge_refs(db, [question.id])[question.id]
+            node.code
+            for node in db.scalars(
+                _current(
+                    db,
+                    select(KnowledgeNode)
+                    .join(QuestionKnowledge, QuestionKnowledge.knowledge_id == KnowledgeNode.id)
+                    .where(QuestionKnowledge.question_id == question.id),
+                )
+            )
         ),
         "rubric": _rubric(db, question.id, version.version),
     }
@@ -696,7 +848,7 @@ def create_version(
     now: datetime,
     request_id: str,
 ) -> AdminQuestionDetail:
-    question = db.get(Question, question_id)
+    question = _lock_question(db, question_id)
     if question is None:
         raise not_found()
     if body.expected_version != question.version:
@@ -705,6 +857,7 @@ def create_version(
             f"题目已经是第 {question.version} 版，你看到的是第 {body.expected_version} 版，请刷新后再改",
             {"current_version": question.version},
         )
+    _check_review_revision(question, body)
     before_status = question.status
     if before_status not in EDITABLE_FROM:
         raise conflict(
@@ -717,8 +870,11 @@ def create_version(
     nodes = {
         node.code: node
         for node in db.scalars(
-            select(KnowledgeNode).where(
-                KnowledgeNode.subject == question.subject, KnowledgeNode.code.in_(codes)
+            _current(
+                db,
+                select(KnowledgeNode).where(
+                    KnowledgeNode.subject == question.subject, KnowledgeNode.code.in_(codes)
+                ),
             )
         )
     }
@@ -731,17 +887,64 @@ def create_version(
     if len(set(kinds)) != len(kinds):
         raise unprocessable("solutions", "同一种解法只能有一个")
 
-    previous = question_service.get_version(db, question.id, question.version)
+    previous = db.scalar(
+        _current(
+            db,
+            select(QuestionVersion).where(
+                QuestionVersion.question_id == question.id,
+                QuestionVersion.version == question.version,
+            ),
+        )
+    )
+    if previous is None:
+        raise not_found()
+    validate_attachments(
+        db, actor_id, body.content.attachments, previous.content_json.get("attachments", [])
+    )
     before, after = _editable_snapshot(db, question, previous), _request_snapshot(body)
     changes = [part for part in EDIT_PARTS if before[part] != after[part]]
     if not changes:
         raise ApiError(422, "no_changes", "没有任何改动，不产生新版本")
 
+    _claim_review_revision(db, question, body)
+
     # 难度、年级、知识点原来只在题目行和关联表里，下面会把它们覆盖掉：先记进旧版本，回看和对比才不会丢
     snapshot_keys = {key: before[key] for key in ("difficulty", "grade", "knowledge")}
     previous.content_json = {**snapshot_keys, **previous.content_json}
 
-    new_version = question.version + 1
+    return _save_version(
+        db,
+        question,
+        body,
+        actor_id,
+        now,
+        request_id,
+        codes,
+        nodes,
+        question.version + 1,
+        before_status,
+        changes,
+        EDIT_ACTION,
+        provenance=derived_provenance(previous),
+    )
+
+
+def _save_version(
+    db,
+    question,
+    body: AdminQuestionDraftIn,
+    actor_id,
+    now,
+    request_id,
+    codes,
+    nodes,
+    new_version,
+    before_status,
+    changes,
+    action,
+    *,
+    provenance: QuestionProvenance | None = None,
+):
     content = body.content
     answer = {
         "value": body.answer.value,
@@ -749,6 +952,19 @@ def create_version(
         "units": body.answer.units,
     }
     teaching: dict[str, Any] = {"hints": list(body.teaching.hints)}
+    teaching["reference_links"] = [link.model_dump() for link in body.teaching.reference_links]
+    from tutor_api.services.content_references import validate_links
+
+    try:
+        validate_links(
+            body.content.model_dump(),
+            body.teaching.model_dump(),
+            {item.kind: item.model_dump() for item in body.solutions},
+            body.rubric,
+            body.answer.model_dump(),
+        )
+    except ValueError as error:
+        raise unprocessable("teaching.reference_links", str(error)) from error
     if body.teaching.concept is not None:
         teaching["concept"] = body.teaching.concept
     if body.teaching.concept_rephrase is not None:
@@ -783,6 +999,7 @@ def create_version(
             },
             answer_json=answer,
             teaching_json=teaching,
+            provenance_json=provenance.model_dump(mode="json") if provenance else None,
             created_by=actor_id,
             created_at=now,
         )
@@ -837,7 +1054,7 @@ def create_version(
         AuditLog(
             id=new_id(),
             actor_id=actor_id,
-            action=EDIT_ACTION,
+            action=action,
             target_type="question",
             target_id=question.id,
             detail_json={
@@ -845,6 +1062,7 @@ def create_version(
                 "to": "draft",
                 "version": new_version,
                 "previous_version": new_version - 1,
+                "review_revision": question.review_revision,
                 "comment": comment,
                 "changes": changes,
             },
@@ -854,3 +1072,77 @@ def create_version(
     )
     db.flush()
     return question_detail(db, question.id)
+
+
+def check_import_source(source) -> None:
+    if source.source_category == "gaokao_real" and source.source_type != "gaokao_licensed":
+        raise unprocessable("source", "高考真题必须有真题使用授权")
+    if source.source_category == "ai_variant":
+        raise unprocessable("source", "本导入入口暂不接收 AI 变式")
+
+
+def import_draft(
+    db: Session,
+    *,
+    actor_id: str,
+    body: AdminQuestionImportIn,
+    now: datetime,
+    request_id: str,
+    document_origins: list[QuestionOriginLocation] | None = None,
+) -> AdminQuestionDetail:
+    source = body.source
+    validate_attachments(db, actor_id, body.question.content.attachments)
+    check_import_source(source)
+    question = Question(
+        id=new_id(),
+        subject=body.subject,
+        type=content_seed._TYPE_BY_MODE[body.answer_mode],
+        answer_mode=body.answer_mode,
+        status="draft",
+        version=1,
+        difficulty=body.question.difficulty,
+        grade=body.question.grade,
+        **source.model_dump(),
+        created_by=actor_id,
+        created_at=now,
+        updated_at=now,
+    )
+    codes = list(dict.fromkeys(body.question.knowledge))
+    nodes = {
+        node.code: node
+        for node in db.scalars(
+            select(KnowledgeNode).where(
+                KnowledgeNode.subject == question.subject, KnowledgeNode.code.in_(codes)
+            )
+        )
+    }
+    if any(code not in nodes for code in codes):
+        raise unprocessable("knowledge", "知识点不存在，或不属于这道题的学科")
+    kinds = [item.kind for item in body.question.solutions]
+    if len(set(kinds)) != len(kinds):
+        raise unprocessable("solutions", "同一种解法只能有一个")
+    db.add(question)
+    db.flush()
+    return _save_version(
+        db,
+        question,
+        body.question,
+        actor_id,
+        now,
+        request_id,
+        codes,
+        nodes,
+        1,
+        None,
+        list(EDIT_PARTS),
+        AUDIT_PREFIX + "import",
+        provenance=QuestionProvenance(
+            source_snapshot=question_service.build_source(question),
+            origins=document_origins,
+            relation="declared",
+            parent_version=None,
+            access="metadata_only",
+        )
+        if document_origins is not None
+        else None,
+    )

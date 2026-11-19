@@ -196,6 +196,9 @@ def test_registry_rejects_unknown_template():
     with pytest.raises(VisualTemplateError):
         registry.normalize("free_canvas", {})
     assert registry.template_ids() == {
+        "chemical_process",
+        "triangle_schematic",
+        "circle_schematic",
         "quadratic_graph",
         "rectangle_area",
         "number_line",

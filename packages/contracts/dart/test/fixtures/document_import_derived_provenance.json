@@ -1,0 +1,407 @@
+{
+  "name": "document_import_derived_provenance",
+  "method": "POST",
+  "path": "/api/v1/admin/questions/92a2d869-1afa-4bea-9772-8bfdcbe5e3e8/versions",
+  "status": 201,
+  "schema": "AdminQuestionDetail",
+  "value": {
+    "provenance": {
+      "source_snapshot": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "origins": [
+        {
+          "file_sha256": "a5c0001f03021934e5eaf330f94a92e354e3ba27adeac6517f96df96f312cd50",
+          "file_kind": "json",
+          "locator_kind": "json_fragment",
+          "index": 1,
+          "declared_block": null
+        }
+      ],
+      "relation": "derived_unverified",
+      "parent_version": 1,
+      "access": "metadata_only"
+    },
+    "review_revision": 2,
+    "id": "92a2d869-1afa-4bea-9772-8bfdcbe5e3e8",
+    "subject": "math",
+    "type": "single_choice",
+    "answer_mode": "single_choice",
+    "difficulty": 2,
+    "grade": "G10",
+    "title": "二次函数的单调递增区间 derived metadata sample",
+    "status": "draft",
+    "version": 2,
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "variant_of": null,
+    "created_by": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+    "reviewed_by": null,
+    "published_at": null,
+    "updated_at": "2026-11-10T08:00:00Z",
+    "content": {
+      "stem": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+      "options": [
+        {
+          "key": "A",
+          "text": "$(-\\infty,1]$"
+        },
+        {
+          "key": "B",
+          "text": "$[1,+\\infty)$"
+        },
+        {
+          "key": "C",
+          "text": "$(-\\infty,-1]$"
+        },
+        {
+          "key": "D",
+          "text": "$[-1,+\\infty)$"
+        }
+      ],
+      "blanks": [],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null,
+      "proof": null
+    },
+    "answer": {
+      "value": [
+        "B"
+      ],
+      "equivalence_rules": {},
+      "units": {}
+    },
+    "teaching": {
+      "reference_links": [],
+      "concept": "函数的单调性",
+      "hints": [
+        "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+        "二次函数的增减在对称轴处发生改变。用 $x=-\\dfrac{b}{2a}$ 求出对称轴，注意 $b$ 的符号。",
+        "开口向上的抛物线，在对称轴的一侧下降、另一侧上升。画个草图，看看上升的是哪一侧。"
+      ],
+      "concept_rephrase": "单调递增的意思是：在这个区间里任取两个数，较大的那个对应的函数值也较大。比如 $y=x^2$，在 $[0,+\\infty)$ 上取 $1<2$，对应的函数值 $1<4$，一路往上走；在 $(-\\infty,0]$ 上取 $-2<-1$，对应的函数值却是 $4>1$，是往下走的。所以同一个函数在不同区间上可以有不同的增减。",
+      "option_analysis": {
+        "A": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。",
+        "B": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。",
+        "C": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。",
+        "D": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+      },
+      "visual": {
+        "template_id": "quadratic_graph",
+        "params": {
+          "a": 1.0,
+          "b": -2.0,
+          "c": -3.0
+        },
+        "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。"
+      },
+      "leak_markers": []
+    },
+    "solutions": [
+      {
+        "kind": "standard",
+        "steps": [
+          "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。",
+          "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。",
+          "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+        ],
+        "final_answer": "B",
+        "key_points": [
+          "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+          "开口方向决定哪一侧递增"
+        ],
+        "conditions": null,
+        "boundary": null,
+        "reviewed": false,
+        "reviewed_by": null
+      },
+      {
+        "kind": "fast",
+        "steps": [
+          "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。",
+          "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+        ],
+        "final_answer": "B",
+        "key_points": [],
+        "conditions": [
+          "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+          "定义域是全体实数，没有被限制在某个区间内"
+        ],
+        "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。",
+        "reviewed": false,
+        "reviewed_by": null
+      }
+    ],
+    "rubric": {},
+    "knowledge": [
+      {
+        "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+        "code": "math.function.monotonicity",
+        "title": "函数的单调性"
+      },
+      {
+        "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+        "code": "math.quadratic.graph",
+        "title": "二次函数的图像与对称轴"
+      }
+    ],
+    "region_tags": [],
+    "check_problems": [],
+    "versions": [
+      {
+        "version": 1,
+        "created_by": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+        "created_at": "2026-11-10T08:00:00Z"
+      },
+      {
+        "version": 2,
+        "created_by": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+        "created_at": "2026-11-10T08:00:00Z"
+      }
+    ],
+    "history": [
+      {
+        "id": "edad74a3-e507-446f-89e1-a8cd0bd82b35",
+        "action": "import",
+        "actor_id": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+        "from_status": null,
+        "to_status": "draft",
+        "version": 1,
+        "comment": null,
+        "changes": null,
+        "created_at": "2026-11-10T08:00:00Z"
+      },
+      {
+        "id": "df193d77-b03a-4625-a9c4-0c851659a970",
+        "action": "edit",
+        "actor_id": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+        "from_status": "draft",
+        "to_status": "draft",
+        "version": 2,
+        "comment": null,
+        "changes": [
+          "title"
+        ],
+        "created_at": "2026-11-10T08:00:00.001000Z"
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "provenance": {
+        "source_snapshot": {
+          "source_type": "self_authored",
+          "source_category": "foundation",
+          "source_name": "自编工程样题",
+          "source_year": null,
+          "source_license": "internal-engineering-sample",
+          "source_url": null,
+          "is_engineering_sample": true,
+          "label": "自编工程样题 · 未经学科审校"
+        },
+        "origins": [
+          {
+            "file_sha256": "a5c0001f03021934e5eaf330f94a92e354e3ba27adeac6517f96df96f312cd50",
+            "file_kind": "json",
+            "locator_kind": "json_fragment",
+            "index": 1,
+            "declared_block": null
+          }
+        ],
+        "relation": "derived_unverified",
+        "parent_version": 1,
+        "access": "metadata_only"
+      },
+      "review_revision": 2,
+      "id": "92a2d869-1afa-4bea-9772-8bfdcbe5e3e8",
+      "subject": "math",
+      "type": "single_choice",
+      "answer_mode": "single_choice",
+      "difficulty": 2,
+      "grade": "G10",
+      "title": "二次函数的单调递增区间 derived metadata sample",
+      "status": "draft",
+      "version": 2,
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "variant_of": null,
+      "created_by": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+      "reviewed_by": null,
+      "published_at": null,
+      "updated_at": "2026-11-10T08:00:00Z",
+      "content": {
+        "stem": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+        "options": [
+          {
+            "key": "A",
+            "text": "$(-\\infty,1]$"
+          },
+          {
+            "key": "B",
+            "text": "$[1,+\\infty)$"
+          },
+          {
+            "key": "C",
+            "text": "$(-\\infty,-1]$"
+          },
+          {
+            "key": "D",
+            "text": "$[-1,+\\infty)$"
+          }
+        ],
+        "blanks": [],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null,
+        "proof": null
+      },
+      "answer": {
+        "value": [
+          "B"
+        ],
+        "equivalence_rules": {},
+        "units": {}
+      },
+      "teaching": {
+        "reference_links": [],
+        "concept": "函数的单调性",
+        "hints": [
+          "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+          "二次函数的增减在对称轴处发生改变。用 $x=-\\dfrac{b}{2a}$ 求出对称轴，注意 $b$ 的符号。",
+          "开口向上的抛物线，在对称轴的一侧下降、另一侧上升。画个草图，看看上升的是哪一侧。"
+        ],
+        "concept_rephrase": "单调递增的意思是：在这个区间里任取两个数，较大的那个对应的函数值也较大。比如 $y=x^2$，在 $[0,+\\infty)$ 上取 $1<2$，对应的函数值 $1<4$，一路往上走；在 $(-\\infty,0]$ 上取 $-2<-1$，对应的函数值却是 $4>1$，是往下走的。所以同一个函数在不同区间上可以有不同的增减。",
+        "option_analysis": {
+          "A": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。",
+          "B": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。",
+          "C": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。",
+          "D": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+        },
+        "visual": {
+          "template_id": "quadratic_graph",
+          "params": {
+            "a": 1.0,
+            "b": -2.0,
+            "c": -3.0
+          },
+          "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。"
+        },
+        "leak_markers": []
+      },
+      "solutions": [
+        {
+          "kind": "standard",
+          "steps": [
+            "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。",
+            "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。",
+            "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+          ],
+          "final_answer": "B",
+          "key_points": [
+            "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+            "开口方向决定哪一侧递增"
+          ],
+          "conditions": null,
+          "boundary": null,
+          "reviewed": false,
+          "reviewed_by": null
+        },
+        {
+          "kind": "fast",
+          "steps": [
+            "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。",
+            "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+          ],
+          "final_answer": "B",
+          "key_points": [],
+          "conditions": [
+            "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+            "定义域是全体实数，没有被限制在某个区间内"
+          ],
+          "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。",
+          "reviewed": false,
+          "reviewed_by": null
+        }
+      ],
+      "rubric": {},
+      "knowledge": [
+        {
+          "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+          "code": "math.function.monotonicity",
+          "title": "函数的单调性"
+        },
+        {
+          "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+          "code": "math.quadratic.graph",
+          "title": "二次函数的图像与对称轴"
+        }
+      ],
+      "region_tags": [],
+      "check_problems": [],
+      "versions": [
+        {
+          "version": 1,
+          "created_by": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+          "created_at": "2026-11-10T08:00:00Z"
+        },
+        {
+          "version": 2,
+          "created_by": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+          "created_at": "2026-11-10T08:00:00Z"
+        }
+      ],
+      "history": [
+        {
+          "id": "edad74a3-e507-446f-89e1-a8cd0bd82b35",
+          "action": "import",
+          "actor_id": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+          "from_status": null,
+          "to_status": "draft",
+          "version": 1,
+          "comment": null,
+          "changes": null,
+          "created_at": "2026-11-10T08:00:00Z"
+        },
+        {
+          "id": "df193d77-b03a-4625-a9c4-0c851659a970",
+          "action": "edit",
+          "actor_id": "cb2faf91-1390-4451-8416-e9c88f6b5c9c",
+          "from_status": "draft",
+          "to_status": "draft",
+          "version": 2,
+          "comment": null,
+          "changes": [
+            "title"
+          ],
+          "created_at": "2026-11-10T08:00:00.001000Z"
+        }
+      ]
+    }
+  }
+}

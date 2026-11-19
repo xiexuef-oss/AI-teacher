@@ -43,6 +43,7 @@
       }
     ],
     "variant_of": null,
+    "provenance": null,
     "version": 1,
     "grade": "G10",
     "content": {
@@ -118,6 +119,7 @@
         }
       ],
       "variant_of": null,
+      "provenance": null,
       "version": 1,
       "grade": "G10",
       "content": {

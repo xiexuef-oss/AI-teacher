@@ -16,7 +16,10 @@ import '../../core/widgets.dart';
 import 'answer_input.dart';
 import 'experiment_input.dart';
 import 'proof_input.dart';
+import 'question_attachments.dart';
 import 'ink/ink_canvas.dart';
+import 'ink/ink_controller.dart';
+import 'draft_store.dart';
 import 'self_check_card.dart';
 import 'solve_controller.dart';
 import 'tutor_panel.dart';
@@ -43,10 +46,12 @@ class _SolvePageState extends ConsumerState<SolvePage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final owner = ref.read(userIdProvider)!;
     _controller = SolveController(
       api: ref.read(apiClientProvider),
       store: ref.read(keyValueStoreProvider),
-      userId: ref.read(userIdProvider)!,
+      userId: owner,
+      isCurrentUser: () => mounted && ref.read(userIdProvider) == owner,
       args: widget.args,
     );
     _controller.addListener(_onControllerChanged);
@@ -121,6 +126,25 @@ class _SolvePageState extends ConsumerState<SolvePage>
   }
 
   // ------------------------------------------------------------ 动作
+
+  Future<void> _openLatestWorkspace() async {
+    await _controller.openLatestWorkspace();
+    if (!mounted || !_controller.hasOpenedNewWorkspace) return;
+    _eventCount = _controller.events.length;
+    _selfCheckRevealed = false;
+    // The explicit route selected the old draft. Once the student opens a new
+    // workspace, refresh must use its persisted active/local workspace instead.
+    if (widget.args.sessionId != null || widget.args.attemptId != null) {
+      GoRouter.maybeOf(context)?.replace(
+        solveRoute(
+          widget.args.questionId,
+          origin: widget.args.origin,
+          reviewItemId: widget.args.reviewItemId,
+          parentSessionId: widget.args.parentSessionId,
+        ),
+      );
+    }
+  }
 
   Future<void> _tutor(TutorActionType action) async {
     var outcome = await _controller.tutor(action);
@@ -214,6 +238,18 @@ class _SolvePageState extends ConsumerState<SolvePage>
 
   @override
   Widget build(BuildContext context) {
+    if (ref.watch(userIdProvider) != _controller.userId) {
+      return Scaffold(
+        body: EmptyView(
+          title: '账号已变更',
+          message: '旧草稿保留在原账号的本机空间，请返回首页继续。',
+          action: TextButton(
+            onPressed: () => context.go('/home'),
+            child: const Text('回首页'),
+          ),
+        ),
+      );
+    }
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
@@ -226,6 +262,14 @@ class _SolvePageState extends ConsumerState<SolvePage>
             titleSpacing: 0,
             title: _Title(controller: c),
             actions: [
+              TextButton(
+                key: const ValueKey('workspace.archives'),
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => _LocalWorkspaceDialog(controller: c),
+                ),
+                child: const Text('本机旧稿'),
+              ),
               if (c.phase == SolvePhase.answering ||
                   c.phase == SolvePhase.submitted)
                 Padding(
@@ -236,9 +280,20 @@ class _SolvePageState extends ConsumerState<SolvePage>
           ),
           body: switch (c.phase) {
             SolvePhase.loading => const LoadingView(label: '正在准备题目…'),
-            SolvePhase.failed => ErrorView(
-              error: c.failure!,
-              onRetry: () => unawaited(c.start()),
+            SolvePhase.failed => Column(
+              children: [
+                Expanded(
+                  child: ErrorView(
+                    error: c.failure!,
+                    onRetry: () => unawaited(c.start()),
+                  ),
+                ),
+                if (c.creationBlockedReason != null)
+                  TextButton(
+                    onPressed: () => unawaited(_openLatestWorkspace()),
+                    child: const Text('保留旧稿，另开新版'),
+                  ),
+              ],
             ),
             _ => _body(context, c),
           },
@@ -251,7 +306,130 @@ class _SolvePageState extends ConsumerState<SolvePage>
     return SafeArea(
       child: Column(
         children: [
-          _Banners(controller: c, onRelogin: _relogin),
+          if (c.phase == SolvePhase.readonly)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('当前本机输入已保留为未提交内容。下方教学记录属于服务器原作答；本机输入不据此判定。'),
+            ),
+          if (c.needsTutorRecovery)
+            MaterialBanner(
+              content: const Text('上次辅导动作尚未确认，请明确恢复。'),
+              actions: [
+                TextButton(
+                  key: const ValueKey('action.recoverTutor'),
+                  onPressed: c.tutorBusy
+                      ? null
+                      : () => unawaited(c.recoverTutor()),
+                  child: const Text('恢复原辅导动作'),
+                ),
+              ],
+            ),
+          if (c.canRecordSubmittedReview && c.reviewCompletion == null)
+            TextButton(
+              key: const ValueKey('action.recordSubmittedReview'),
+              onPressed: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('记录已提交复测'),
+                    content: const Text('确认记录此会话已经提交的首次复测作答？当前草稿会保留。'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('取消'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('确认记录'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true) {
+                  await c.recordSubmittedReview(explicitConfirmation: true);
+                }
+              },
+              child: const Text('记录已提交复测'),
+            ),
+          if (c.needsReviewRecovery)
+            MaterialBanner(
+              content: const Text('上次复测记录尚未确认，当前阶段以最新状态为准。'),
+              actions: [
+                TextButton(
+                  key: const ValueKey('action.recoverReview'),
+                  onPressed: c.tutorBusy || c.needsSubmissionRecovery
+                      ? null
+                      : () => unawaited(c.recoverReviewCompletion()),
+                  child: const Text('恢复复测记录'),
+                ),
+              ],
+            ),
+          if (c.historicalReviewCompletion != null)
+            Text(
+              '原复测记录结果：${c.historicalReviewCompletion!.result == ReviewResult.passed ? '已通过' : '未通过'}',
+            ),
+          if (c.reviewState != null)
+            Text(
+              '当前复测阶段：${c.reviewState!.stage}/${c.reviewState!.totalStages}',
+            ),
+          if (c.selfCheckRemoteConflict)
+            MaterialBanner(
+              content: Text(
+                '云端自查与上次确认的内容不同。云端：${c.selfCheck!.marks.map((m) => '${m.pointKey} ${m.level.toJson()}').join('；')}。本机勾选仍保留，请选择。',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => unawaited(c.chooseRemoteSelfCheck()),
+                  child: const Text('使用云端自查'),
+                ),
+                TextButton(
+                  onPressed: () => unawaited(c.keepLocalSelfCheck()),
+                  child: const Text('保存本机自查'),
+                ),
+              ],
+            ),
+          if (c.needsSubmissionRecovery)
+            MaterialBanner(
+              content: const Text('原提交结果尚未确认。当前修改保留在本机；恢复会重放原提交。'),
+              actions: [
+                TextButton(
+                  key: const ValueKey('action.recoverSubmission'),
+                  onPressed: c.submitting
+                      ? null
+                      : () => unawaited(c.recoverOriginalSubmission()),
+                  child: const Text('恢复原提交，当前修改保留'),
+                ),
+              ],
+            ),
+          for (final continuation in c.continuations)
+            ListTile(
+              title: const Text('未提交续稿（与上次提交分别保存）'),
+              trailing: TextButton(
+                key: ValueKey('continuation.view.${continuation.id}'),
+                onPressed: () => unawaited(
+                  showDialog<void>(
+                    context: context,
+                    builder: (context) => _ContinuationDialog(
+                      draft: continuation.draft,
+                      canContinue:
+                          c.phase == SolvePhase.submitted &&
+                          !c.isFinished &&
+                          !c.submitting,
+                      onContinue: () {
+                        Navigator.pop(context);
+                        unawaited(c.continueDraft(continuation.id));
+                      },
+                    ),
+                  ),
+                ),
+                child: const Text('查看与继续续稿'),
+              ),
+            ),
+          _Banners(
+            controller: c,
+            onRelogin: _relogin,
+            onOpenLatest: _openLatestWorkspace,
+          ),
           Expanded(
             child: AdaptiveSplit(
               primary: _QuestionPane(
@@ -266,8 +444,13 @@ class _SolvePageState extends ConsumerState<SolvePage>
                   key: const ValueKey('solve.scratchPane'),
                   borderRadius: BorderRadius.circular(16),
                   child: InkCanvas(
+                    key: ValueKey(
+                      'solve.ink.${c.phase == SolvePhase.answering ? 'write' : 'read'}',
+                    ),
                     controller: c.ink,
-                    readOnly: c.phase == SolvePhase.submitted,
+                    readOnly:
+                        c.phase != SolvePhase.answering ||
+                        !c.hasVerifiedWorkspace,
                   ),
                 ),
               ),
@@ -382,10 +565,15 @@ class _SaveChip extends StatelessWidget {
 // ---------------------------------------------------------------- 横幅
 
 class _Banners extends StatelessWidget {
-  const _Banners({required this.controller, required this.onRelogin});
+  const _Banners({
+    required this.controller,
+    required this.onRelogin,
+    required this.onOpenLatest,
+  });
 
   final SolveController controller;
   final Future<void> Function() onRelogin;
+  final Future<void> Function() onOpenLatest;
 
   String _summary(AnswerPayload? answer, StrokeDoc? strokes) {
     final parts = <String>[];
@@ -412,6 +600,48 @@ class _Banners extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final banners = <Widget>[];
+    if (c.selectableCopy != null) {
+      banners.add(
+        Callout(
+          tone: Tone.info,
+          child: OutlinedButton(
+            key: const ValueKey('copy.openCreated'),
+            onPressed: c.recoveryBusy
+                ? null
+                : () => unawaited(c.openCreatedCopy()),
+            child: const Text('打开已创建的副本'),
+          ),
+        ),
+      );
+    }
+
+    if (c.creationBlockedReason != null) {
+      banners.add(
+        Callout(
+          tone: Tone.warning,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                c.hasVerifiedWorkspace
+                    ? '创建已暂停：${c.creationBlockedReason}。原题面与草稿保留，不会自动转到新版。'
+                    : '创建已暂停：${c.creationBlockedReason}。草稿原文保留；缓存题面不能证明旧稿的来源版本。',
+              ),
+              OutlinedButton(
+                key: const ValueKey('creation.openLatest'),
+                onPressed: () => unawaited(onOpenLatest()),
+                child: const Text('保留旧稿，另开新版'),
+              ),
+              if (c.canResumeCreation)
+                OutlinedButton(
+                  onPressed: () => unawaited(c.resumeAuthenticatedCreation()),
+                  child: const Text('同一账号恢复后重试'),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (c.authExpired) {
       banners.add(
@@ -457,13 +687,24 @@ class _Banners extends StatelessWidget {
                 children: [
                   FilledButton(
                     key: const ValueKey('banner.keepLocal'),
-                    onPressed: () => unawaited(c.resolveConflictKeepLocal()),
+                    onPressed: c.recoveryBusy
+                        ? null
+                        : () => unawaited(c.resolveConflictKeepLocal()),
                     child: const Text('保留我的'),
                   ),
                   OutlinedButton(
                     key: const ValueKey('banner.useServer'),
-                    onPressed: () => unawaited(c.resolveConflictUseServer()),
+                    onPressed: c.recoveryBusy
+                        ? null
+                        : () => unawaited(c.resolveConflictUseServer()),
                     child: const Text('用云端的'),
+                  ),
+                  OutlinedButton(
+                    key: const ValueKey('banner.createCopy'),
+                    onPressed: c.recoveryBusy
+                        ? null
+                        : () => unawaited(c.resolveConflictCreateCopy()),
+                    child: const Text('创建独立云端副本'),
                   ),
                 ],
               ),
@@ -490,12 +731,45 @@ class _Banners extends StatelessWidget {
         ),
       );
     }
-    if (c.questionFromCache) {
+    if (c.questionFromCache && c.sync == SaveStatus.offline) {
       banners.add(
         const Callout(
           tone: Tone.info,
           icon: Icons.offline_pin_outlined,
           child: Text('没有网络：显示的是上次保存的题目。云端提示和判分要联网后才能用。'),
+        ),
+      );
+    }
+    if (c.recoveryCopies.isNotEmpty && c.phase == SolvePhase.answering) {
+      banners.add(
+        Callout(
+          tone: Tone.info,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('本机留档副本（仅保存在这台设备，不是新的云端作答）。恢复前会保留当前内容。'),
+              DropdownButton<int>(
+                key: const ValueKey('banner.restoreCopy'),
+                isExpanded: true,
+                hint: Text('查看并恢复 ${c.recoveryCopies.length} 份本机副本'),
+                items: [
+                  for (var i = 0; i < c.recoveryCopies.length; i++)
+                    DropdownMenuItem(
+                      value: i,
+                      child: Text(
+                        '${i + 1} · ${c.recoveryCopies[i].savedAt.toLocal()} · ${c.recoveryCopies[i].hasContent ? "有作答或笔迹" : "空稿"}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: c.recoveryBusy
+                    ? null
+                    : (index) {
+                        if (index != null) unawaited(c.restoreCopy(index));
+                      },
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -582,7 +856,7 @@ class _QuestionPane extends StatelessWidget {
     final c = controller;
     final q = c.question!;
     final theme = Theme.of(context);
-    final answering = c.phase == SolvePhase.answering;
+    final answering = c.phase == SolvePhase.answering && c.hasVerifiedWorkspace;
     return ListView(
       key: const ValueKey('solve.questionPane'),
       controller: scroll,
@@ -614,6 +888,15 @@ class _QuestionPane extends StatelessWidget {
             ),
           ),
         ),
+        if (q.content.attachments.isNotEmpty)
+          QuestionAttachments(
+            key: ValueKey('attachments.${c.userId}.${q.id}.${q.version}'),
+            attachments: q.content.attachments,
+            load: (mediaId) => c.api.getPublishedQuestionMedia(
+              questionId: q.id,
+              mediaId: mediaId,
+            ),
+          ),
         if (q.content.proof != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -664,7 +947,19 @@ class _QuestionPane extends StatelessWidget {
           ),
         ],
         const SizedBox(height: kGap),
-        TutorTimeline(events: c.events, onSuggestion: onSuggestion),
+        TutorTimeline(
+          events: c.events,
+          onSuggestion: onSuggestion,
+          sessionId: c.eventSessionId,
+          questionId: q.id,
+          questionVersion:
+              c.session?.questionId == q.id &&
+                  c.session?.questionVersion == q.version
+              ? q.version
+              : c.session == null && c.eventSessionId != null
+              ? q.version
+              : null,
+        ),
         const SizedBox(height: 24),
       ],
     );
@@ -779,7 +1074,17 @@ class _ActionBar extends StatelessWidget {
     final busy = c.tutorBusy || c.submitting;
     final children = <Widget>[];
 
-    if (c.phase == SolvePhase.answering) {
+    if (c.isFinished) {
+      children.add(
+        FilledButton.icon(
+          key: const ValueKey('action.done'),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/home'),
+          icon: const Icon(Icons.task_alt),
+          label: const Text('完成'),
+        ),
+      );
+    } else if (c.phase == SolvePhase.answering) {
       children.add(
         FilledButton.icon(
           key: const ValueKey('action.submit'),
@@ -865,14 +1170,16 @@ class _ActionBar extends StatelessWidget {
         );
       }
       if (!c.isFinished) {
-        children.add(
-          OutlinedButton.icon(
-            key: const ValueKey('action.retry'),
-            onPressed: busy ? null : () => unawaited(c.retry()),
-            icon: const Icon(Icons.replay),
-            label: const Text('再试一次'),
-          ),
-        );
+        if (c.continuations.isEmpty) {
+          children.add(
+            OutlinedButton.icon(
+              key: const ValueKey('action.retry'),
+              onPressed: busy ? null : () => unawaited(c.retry()),
+              icon: const Icon(Icons.replay),
+              label: const Text('再试一次'),
+            ),
+          );
+        }
         children.add(
           TextButton(
             key: const ValueKey('action.confused'),
@@ -923,4 +1230,209 @@ class _ActionBar extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LocalWorkspaceDialog extends StatefulWidget {
+  const _LocalWorkspaceDialog({required this.controller});
+  final SolveController controller;
+  @override
+  State<_LocalWorkspaceDialog> createState() => _LocalWorkspaceDialogState();
+}
+
+class _LocalWorkspaceDialogState extends State<_LocalWorkspaceDialog> {
+  late final records = widget.controller.readLocalWorkspaces();
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('本机旧稿（只读）'),
+    content: SizedBox(
+      width: 720,
+      height: 480,
+      child: FutureBuilder(
+        future: records,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Text('记录暂不能读取，原文保留；不会用新版题面猜测旧稿来源。');
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final values = snapshot.data!;
+          if (values.isEmpty) return const Text('没有可查看的本机旧稿');
+          return ListView(
+            children: [
+              for (final record in values)
+                ExpansionTile(
+                  title: Text(record.question?.title ?? '来源版本不明的旧稿'),
+                  subtitle: Text(
+                    record.question == null
+                        ? '题面来源未验证'
+                        : '题目版本 ${record.question!.version} · ${record.draft.savedAt.toLocal()}',
+                  ),
+                  children: [
+                    _LocalWorkspaceContent(
+                      draft: record.draft,
+                      question: record.question,
+                    ),
+                  ],
+                ),
+            ],
+          );
+        },
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('关闭'),
+      ),
+    ],
+  );
+}
+
+class _LocalWorkspaceContent extends StatefulWidget {
+  const _LocalWorkspaceContent({required this.draft, this.question});
+  final LocalDraft draft;
+  final Question? question;
+  @override
+  State<_LocalWorkspaceContent> createState() => _LocalWorkspaceContentState();
+}
+
+class _LocalWorkspaceContentState extends State<_LocalWorkspaceContent> {
+  late final InkController preview = InkController(onCommit: () {})
+    ..loadContract(widget.draft.strokes);
+  @override
+  void dispose() {
+    preview.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final draft = widget.draft, question = widget.question;
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (question != null) ...[
+            MathText(question.content.stem),
+            if (question.content.proof != null)
+              ProofStatementBlock(proof: question.content.proof!),
+            if (question.content.safety != null)
+              ExperimentSafetyNotice(safety: question.content.safety!),
+            if (question.answerMode == AnswerMode.experiment)
+              ExperimentInput(
+                tables: question.content.dataTables,
+                subquestions: question.content.subquestions,
+                cells: draft.cells,
+                parts: draft.parts,
+                onCell: (_, _, _, _) {},
+                onPart: (_, _) {},
+                enabled: false,
+              ),
+            if (question.answerMode == AnswerMode.written)
+              WrittenInput(
+                subquestions: question.content.subquestions,
+                values: draft.parts,
+                onChanged: (_, _) {},
+                enabled: false,
+              ),
+            if (question.answerMode == AnswerMode.fill)
+              FillInput(
+                blanks: question.content.blanks,
+                values: draft.blanks,
+                onChanged: (_, _) {},
+                enabled: false,
+              ),
+            for (final option in question.content.options)
+              MathText('${option.key}. ${option.text}'),
+          ],
+          if (draft.selected.isNotEmpty) Text('选择：${draft.selected.join('、')}'),
+          for (final entry in draft.blanks.entries)
+            Text('${entry.key}：${entry.value}'),
+          for (final entry in draft.parts.entries)
+            Text('${entry.key}：${entry.value}'),
+          for (final entry in draft.cells.entries)
+            Text('${entry.key}：${entry.value}'),
+          for (final step in draft.steps)
+            Text('${step.text}\n依据：${step.reason}'),
+          if (draft.strokes != null)
+            SizedBox(
+              height: 320,
+              child: InkCanvas(controller: preview, readOnly: true),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContinuationDialog extends StatefulWidget {
+  const _ContinuationDialog({
+    required this.draft,
+    required this.canContinue,
+    required this.onContinue,
+  });
+  final LocalDraft draft;
+  final bool canContinue;
+  final VoidCallback onContinue;
+  @override
+  State<_ContinuationDialog> createState() => _ContinuationDialogState();
+}
+
+class _ContinuationDialogState extends State<_ContinuationDialog> {
+  late final InkController ink = InkController()
+    ..loadContract(widget.draft.strokes);
+
+  String get _answerText => [
+    if (widget.draft.selected.isNotEmpty)
+      '选项：${widget.draft.selected.join('、')}',
+    for (final e in widget.draft.blanks.entries) '${e.key}：${e.value}',
+    for (final e in widget.draft.parts.entries) '${e.key}：${e.value}',
+    for (final e in widget.draft.cells.entries) '${e.key}：${e.value}',
+    for (final e in widget.draft.steps) '${e.text}\n依据：${e.reason}',
+  ].join('\n');
+
+  @override
+  void dispose() {
+    ink.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('未提交续稿'),
+    content: SizedBox(
+      width: 600,
+      height: 400,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Semantics(
+                container: true,
+                label: _answerText,
+                excludeSemantics: true,
+                child: SelectableText(_answerText),
+              ),
+            ),
+          ),
+          if (widget.draft.strokes != null)
+            Expanded(child: InkCanvas(controller: ink, readOnly: true)),
+          if (!widget.canContinue) const Text('续稿已保留，可继续查看。'),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('关闭'),
+      ),
+      if (widget.canContinue)
+        FilledButton(
+          onPressed: widget.onContinue,
+          child: const Text('在原会话继续此稿'),
+        ),
+    ],
+  );
 }

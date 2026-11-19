@@ -8,12 +8,19 @@ ProviderErrorKind = Literal["timeout", "unavailable", "rate_limited", "rejected"
 RETRYABLE_KINDS: frozenset[str] = frozenset({"timeout", "unavailable"})
 
 
+class InvocationBudgetExceeded(ValueError):
+    """Durable admission declined atomically before sending."""
+
+
 class ProviderError(Exception):
     """供应商适配器抛出的、已归类的错误。message 只进日志，不进任何响应。"""
 
-    def __init__(self, kind: ProviderErrorKind, message: str = "") -> None:
+    def __init__(
+        self, kind: ProviderErrorKind, message: str = "", *, outcome_known: bool = False
+    ) -> None:
         super().__init__(message)
         self.kind: ProviderErrorKind = kind
+        self.outcome_known = outcome_known
 
 
 class OutputRejected(Exception):

@@ -23,6 +23,22 @@ if TYPE_CHECKING:
 CHROMIUM_ARGS = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader", "--ignore-gpu-blocklist"]
 
 
+def read_admin_session(page: Any) -> dict[str, Any]:
+    """Read the product's active Mock identity without changing auth storage."""
+    session = page.evaluate(
+        """() => {
+          const active = JSON.parse(localStorage.getItem('tutor_admin_session') || 'null');
+          if (active?.version === 2) {
+            return JSON.parse(localStorage.getItem('tutor_admin_auth_record:' + active.recordId) || 'null');
+          }
+          return active;
+        }"""
+    )
+    if not isinstance(session, dict) or not session.get("token"):
+        raise RuntimeError("The admin page has no active test identity")
+    return session
+
+
 def launch(playwright: Any, *, headed: bool = False) -> Browser:
     return playwright.chromium.launch(headless=not headed, args=CHROMIUM_ARGS)
 
@@ -130,13 +146,14 @@ def reopen(page: Page, path: str) -> None:
 
 
 def labels(page: Page) -> list[str]:
-    """语义树里每个有文字的节点：`角色[状态] | 文字`。"""
+    """Flutter 语义节点（含原生 banner/heading）：`角色[状态] | 文字`。"""
     return page.evaluate(
-        """() => Array.from(document.querySelectorAll('flt-semantics')).map(e => {
+        """() => Array.from(document.querySelectorAll('flt-semantics, flt-semantics-host :is(header,h1,h2,h3,h4,h5,h6)')).map(e => {
             const own = (e.getAttribute('aria-label') || '').trim();
             const text = Array.from(e.childNodes).filter(n => n.nodeType === 3 || (n.tagName === 'SPAN')).map(n => n.textContent).join('').trim();
             const flags = ['aria-checked', 'aria-selected', 'aria-disabled', 'aria-current'].map(a => e.hasAttribute(a) ? a.replace('aria-', '') + '=' + e.getAttribute(a) : '').filter(Boolean).join(',');
-            return (e.getAttribute('role') || '-') + (flags ? '[' + flags + ']' : '') + ' | ' + (own || text);
+            const implicit = e.tagName === 'HEADER' ? 'banner' : /^H[1-6]$/.test(e.tagName) ? 'heading' : '-';
+            return (e.getAttribute('role') || implicit) + (flags ? '[' + flags + ']' : '') + ' | ' + (own || text);
         }).filter(s => s.split(' | ')[1])"""
     )
 

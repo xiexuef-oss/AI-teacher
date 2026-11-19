@@ -82,7 +82,7 @@ def test_seed_covers_the_sample_topics_of_prd_4_1(bundle):
 
 
 def test_seed_exercises_both_explanation_paths_and_all_templates(bundle):
-    """一部分题带审核过的"换种讲法"，一部分不带（走模型网关）；六个图解模板都有题目用到。"""
+    """两种讲解路径和全部注册图解模板都有样题覆盖。"""
     with_rephrase = [q for q in bundle.questions if q["teaching"].get("concept_rephrase")]
     assert 0 < len(with_rephrase) < len(bundle.questions)
     used = {
@@ -91,6 +91,9 @@ def test_seed_exercises_both_explanation_paths_and_all_templates(bundle):
         if q["teaching"].get("visual")
     }
     assert used == {
+        "chemical_process",
+        "triangle_schematic",
+        "circle_schematic",
         "quadratic_graph",
         "rectangle_area",
         "number_line",

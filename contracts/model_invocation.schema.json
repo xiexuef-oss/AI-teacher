@@ -1,0 +1,378 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tutor:model-invocation:1",
+  "title": "Internal model invocation metadata v1/v2/v3",
+  "description": "Metadata only. Dispatch is a durable may-have-sent boundary; unknown dispatch must never be automatically repeated. Not an external API or production retention policy. Version 1 binds a tutoring session and fixed question version; version 2 binds a document OCR resource/page without fabricating a student session. The legacy SQL active_session_digest slot stores the domain-separated context digest for either kind. Version 3 binds standalone SDK requests to a pseudonym and stable transport request key without fabricating tutoring sessions or document pages. Model text is never persisted here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "invocation_id",
+    "actor_digest",
+    "budget_key",
+    "context_generation",
+    "context_digest",
+    "fingerprint",
+    "quota_day",
+    "fence",
+    "state",
+    "attempts"
+  ],
+  "properties": {
+    "schema_version": {
+      "enum": [
+        1,
+        2,
+        3
+      ]
+    },
+    "invocation_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "actor_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "budget_key": {
+      "type": "string",
+      "pattern": "^stu_[a-f0-9]{32}$",
+      "minLength": 36,
+      "maxLength": 36
+    },
+    "session_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "question_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "context_generation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/digest"
+    },
+    "context_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "quota_day": {
+      "type": "string",
+      "format": "date"
+    },
+    "fence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "state": {
+      "enum": [
+        "prepared",
+        "dispatch_unknown",
+        "outcome_unknown",
+        "settled_metadata",
+        "closed_unknown",
+        "applied",
+        "cancelled_unsent",
+        "stale"
+      ]
+    },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attempt_id",
+          "fence",
+          "estimated_cost_micros",
+          "state"
+        ],
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "fence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "estimated_cost_micros": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recover_after": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "enum": [
+              "dispatch_unknown",
+              "outcome_unknown",
+              "settled"
+            ]
+          },
+          "retryable_failure": {
+            "type": "boolean",
+            "description": "Only SDK v3: confirmed completed failure eligible for a subsequent separately reserved attempt. Absent/false never authorizes continuation."
+          },
+          "sdk_context": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "routing_digest",
+              "candidate_index",
+              "retry_index",
+              "provider_digest",
+              "external",
+              "continuation"
+            ],
+            "properties": {
+              "routing_digest": {
+                "$ref": "#/$defs/digest"
+              },
+              "candidate_index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "retry_index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "provider_digest": {
+                "$ref": "#/$defs/digest"
+              },
+              "external": {
+                "type": "boolean"
+              },
+              "continuation": {
+                "enum": [
+                  "none",
+                  "retry",
+                  "fallback"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "context_kind": {
+      "enum": [
+        "document_ocr",
+        "sdk_request"
+      ]
+    },
+    "resource_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "file_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "page": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "prepared",
+              "cancelled_unsent"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attempts": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "dispatch_unknown",
+              "outcome_unknown",
+              "settled_metadata",
+              "closed_unknown",
+              "applied"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attempts": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "session_digest",
+          "question_version"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "context_kind"
+              ]
+            },
+            {
+              "required": [
+                "resource_digest"
+              ]
+            },
+            {
+              "required": [
+                "file_digest"
+              ]
+            },
+            {
+              "required": [
+                "page"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 2
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "context_kind",
+          "resource_digest",
+          "file_digest",
+          "page"
+        ],
+        "properties": {
+          "context_kind": {
+            "const": "document_ocr"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "session_digest"
+              ]
+            },
+            {
+              "required": [
+                "question_version"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": 3
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "context_kind",
+          "resource_digest"
+        ],
+        "properties": {
+          "context_kind": {
+            "const": "sdk_request"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "session_digest"
+              ]
+            },
+            {
+              "required": [
+                "question_version"
+              ]
+            },
+            {
+              "required": [
+                "file_digest"
+              ]
+            },
+            {
+              "required": [
+                "page"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "enum": [
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "attempts": {
+            "items": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "retryable_failure"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "sdk_context"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

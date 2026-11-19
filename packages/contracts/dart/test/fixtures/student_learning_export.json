@@ -1,0 +1,5657 @@
+{
+  "name": "student_learning_export",
+  "method": "GET",
+  "path": "/api/v1/profile/learning-export",
+  "status": 200,
+  "schema": "StudentLearningExport",
+  "value": {
+    "format_version": 1,
+    "scope": "server_learning_records",
+    "exported_at": "2026-11-11T08:00:00Z",
+    "profile": {
+      "learning_settings": null,
+      "user_id": "702aea2c-c351-4d7c-9416-6a0b2c2b4c54",
+      "revision": 1,
+      "display_name": null,
+      "region_code": "CN-51",
+      "grade": "G12",
+      "subjects": [
+        "math",
+        "physics",
+        "chemistry"
+      ],
+      "exam_year": 2027,
+      "exam_year_source": "estimated",
+      "exam_scheme_code": null,
+      "curriculum_version": null,
+      "onboarding_completed": true,
+      "notices": [
+        {
+          "code": "exam_year_estimated",
+          "message": "考试年份按年级估算为 2027 年，可以在“我的”里修改。"
+        },
+        {
+          "code": "curriculum_unknown",
+          "message": "还没有设置教材版本，目前按通用知识点推荐；确认后可以在“我的”里补充。"
+        }
+      ],
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "sessions": [
+      {
+        "session": {
+          "id": "01611e61-b265-4539-b587-da5fbbd04595",
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "origin": "task",
+          "state": "DONE",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": true,
+          "used_solution": true,
+          "independent_ended": false,
+          "hint_level_revealed": 1,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+          "submitted_attempts": 1,
+          "last_event_seq": 9,
+          "created_at": "2026-11-10T08:00:00Z",
+          "updated_at": "2026-11-10T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "selected_options": [
+                "A"
+              ]
+            },
+            "draft_revision": 1,
+            "assisted": true,
+            "used_solution": false,
+            "independent": false,
+            "evaluation": {
+              "state": "verified",
+              "outcome": "incorrect",
+              "is_correct": false,
+              "independent": false,
+              "assisted": true,
+              "used_solution": false,
+              "review_required": false,
+              "feedback": [
+                {
+                  "target": "A",
+                  "code": "wrong_option",
+                  "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                }
+              ],
+              "message": "这次没有答对，看看下面的分析。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-10T08:00:00Z",
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+            "revision": 1,
+            "answer": {
+              "selected_options": [
+                "A"
+              ]
+            },
+            "strokes": {
+              "version": 1,
+              "pages": [
+                {
+                  "width": 800.0,
+                  "height": 1100.0,
+                  "strokes": [
+                    {
+                      "color": "#1A1A1A",
+                      "width": 2.5,
+                      "points": [
+                        10.0,
+                        20.0,
+                        0.0,
+                        0.5,
+                        14.0,
+                        26.0,
+                        16.0,
+                        0.6
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "de30cebc-62b4-45aa-a3ca-98e59748b44d",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 1,
+            "type": "hint",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "HINTED",
+            "payload": {
+              "level": 1,
+              "total_levels": 3,
+              "style": "layered",
+              "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+              "concept": "函数的单调性"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "6b742465a7ca4b5b83bb48f45b26ee5d"
+            },
+            "references": [
+              {
+                "block_id": "stem",
+                "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+                "start": 0,
+                "end": 2,
+                "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                "label": "题干"
+              }
+            ]
+          },
+          {
+            "id": "a3ac35bd-cf79-4ae8-8808-4d186368c201",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 2,
+            "type": "notice",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "HINTED",
+            "payload": {
+              "code": "visual_not_available",
+              "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "e953eccac37f4d53803686559859b169"
+            }
+          },
+          {
+            "id": "6f247297-d828-42aa-9a23-feb0585c23be",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 3,
+            "type": "diagnosis",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "outcome": "incorrect",
+              "summary": "这次没有答对，看看下面的分析。",
+              "feedback": [
+                {
+                  "target": "A",
+                  "code": "wrong_option",
+                  "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                }
+              ],
+              "knowledge": [
+                {
+                  "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+                  "code": "math.function.monotonicity",
+                  "title": "函数的单调性"
+                },
+                {
+                  "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+                  "code": "math.quadratic.graph",
+                  "title": "二次函数的图像与对称轴"
+                }
+              ],
+              "suggestions": [
+                {
+                  "action": "request_hint",
+                  "label": "给点提示",
+                  "question_id": null,
+                  "knowledge_id": null
+                },
+                {
+                  "action": "retry_attempt",
+                  "label": "再试一次",
+                  "question_id": null,
+                  "knowledge_id": null
+                },
+                {
+                  "action": "request_standard",
+                  "label": "看常规解法",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "5130b69cb9494fa0a4ef7ae7d9fa304a"
+            }
+          },
+          {
+            "id": "b50d3634-c252-4730-9222-d0a6feb7819b",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 4,
+            "type": "visual",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "VISUAL",
+            "payload": {
+              "template_id": "quadratic_graph",
+              "params": {
+                "a": 1,
+                "b": -2,
+                "c": -3
+              },
+              "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。",
+              "static_fallback": "二次函数 y = ax² + bx + c 的对称轴是 x = -b/(2a)。a > 0 时开口向上，对称轴左侧递减、右侧递增；a < 0 时相反。"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "11644d982bd441f088c49d239085d737"
+            }
+          },
+          {
+            "id": "fc501515-c7b8-4ffe-a15e-2cf39c3a7fe8",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 5,
+            "type": "standard",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "STANDARD",
+            "payload": {
+              "title": "常规解法",
+              "steps": [
+                {
+                  "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+                },
+                {
+                  "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+                },
+                {
+                  "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+                }
+              ],
+              "final_answer": "B",
+              "option_analysis": [
+                {
+                  "key": "A",
+                  "verdict": "wrong",
+                  "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                },
+                {
+                  "key": "B",
+                  "verdict": "correct",
+                  "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+                },
+                {
+                  "key": "C",
+                  "verdict": "wrong",
+                  "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+                },
+                {
+                  "key": "D",
+                  "verdict": "wrong",
+                  "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+                }
+              ],
+              "key_points": [
+                "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+                "开口方向决定哪一侧递增"
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "b21c33c6cfb24ba280b7ab6a55251d4e"
+            },
+            "references": [
+              {
+                "block_id": "stem",
+                "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+                "start": 0,
+                "end": 2,
+                "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                "label": "题干"
+              }
+            ]
+          },
+          {
+            "id": "131b5b82-d4bb-415b-870d-35b113e2baa7",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 6,
+            "type": "fast",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "FAST",
+            "payload": {
+              "title": "快速解法",
+              "conditions": [
+                "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+                "定义域是全体实数，没有被限制在某个区间内"
+              ],
+              "steps": [
+                {
+                  "text": "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。"
+                },
+                {
+                  "text": "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+                }
+              ],
+              "final_answer": "B",
+              "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。",
+              "reviewed": true
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "837b771a04b04f8887ef2c5e80f76621"
+            }
+          },
+          {
+            "id": "7223fad4-0472-42f5-b887-49b0ac873439",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 7,
+            "type": "ask",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "VARIANT",
+            "payload": {
+              "prompt": "要不要做一道变式题，检验是不是真的掌握了？",
+              "suggestions": [
+                {
+                  "action": "start_variant",
+                  "label": "做一道变式题",
+                  "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+                  "knowledge_id": null
+                },
+                {
+                  "action": "finish",
+                  "label": "先到这里",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "b5da195d273744b5ac131ea8512cafa1"
+            }
+          },
+          {
+            "id": "9d5ff283-8661-4e39-8b93-200b5c1f8689",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 8,
+            "type": "notice",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "REVIEW_SCHEDULED",
+            "payload": {
+              "code": "review_scheduled",
+              "text": "已经安排了复测，到时候不看提示再做一遍，确认是真的会了。",
+              "due_at": "2026-11-11T08:00:00Z"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "b5da195d273744b5ac131ea8512cafa1"
+            }
+          },
+          {
+            "id": "af51e1f9-1e83-4bcf-922a-37de0b901848",
+            "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "seq_no": 9,
+            "type": "notice",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "DONE",
+            "payload": {
+              "code": "session_completed",
+              "text": "这道题先到这里。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "b5da195d273744b5ac131ea8512cafa1"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "07be752e-c44f-4cc7-8683-01d2c6b5d09c",
+          "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "DIAGNOSED",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "3be4a2de-f6c3-41f6-99dc-206e88ebedbe",
+          "submitted_attempts": 1,
+          "last_event_seq": 1,
+          "created_at": "2026-11-10T08:00:00Z",
+          "updated_at": "2026-11-10T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "3be4a2de-f6c3-41f6-99dc-206e88ebedbe",
+            "session_id": "07be752e-c44f-4cc7-8683-01d2c6b5d09c",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "blanks": [
+                {
+                  "key": "b1",
+                  "value": "500 cm/s²"
+                }
+              ]
+            },
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "uncertain",
+              "outcome": "undetermined",
+              "is_correct": null,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": true,
+              "feedback": [
+                {
+                  "target": "b1",
+                  "code": "equivalence_unconfirmed",
+                  "message": "没能识别答案里的单位，无法确认是否等价。"
+                }
+              ],
+              "message": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-10T08:00:00Z",
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "3be4a2de-f6c3-41f6-99dc-206e88ebedbe",
+            "revision": 0,
+            "answer": {
+              "blanks": [
+                {
+                  "key": "b1",
+                  "value": "500 cm/s²"
+                }
+              ]
+            },
+            "strokes": null,
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "88a669e6-533c-4eba-9310-c487607bb916",
+            "session_id": "07be752e-c44f-4cc7-8683-01d2c6b5d09c",
+            "seq_no": 1,
+            "type": "uncertainty",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "reason_code": "equivalence_unconfirmed",
+              "text": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+              "review_required": true
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "383a163c32bd4215afad73c4e27a9f59"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+          "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "HINTED",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": true,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 3,
+          "needs_human_help": true,
+          "active_attempt_id": "b483565e-933b-4401-a5e5-7885674a8877",
+          "first_submitted_attempt_id": null,
+          "submitted_attempts": 0,
+          "last_event_seq": 3,
+          "created_at": "2026-11-10T08:00:00Z",
+          "updated_at": "2026-11-10T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "b483565e-933b-4401-a5e5-7885674a8877",
+            "session_id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+            "attempt_no": 1,
+            "submission_no": null,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "draft",
+            "answer": null,
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": null,
+            "evaluation": null,
+            "submitted_at": null,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "b483565e-933b-4401-a5e5-7885674a8877",
+            "revision": 0,
+            "answer": null,
+            "strokes": null,
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "9636f94a-1f21-4d5f-b872-81f85c8ec9ef",
+            "session_id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+            "seq_no": 1,
+            "type": "hint",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "HINTED",
+            "payload": {
+              "level": 1,
+              "total_levels": 1,
+              "style": "rephrase",
+              "text": "换个说法：在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减。先别急着算，用自己的话把“函数的单调性”说一遍，再回到题目里找对应的量。",
+              "concept": "函数的单调性"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "model",
+              "degraded": false,
+              "provider": "mock",
+              "model_id": "mock-tutor",
+              "prompt_version": "tutor-prompt/2026-11-16.1",
+              "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+              "question_version": 1,
+              "trace_id": "e9af3fed4d2d4f929341539ab3c5cc17",
+              "request_id": "2f704a886d074158a376575436c2377d"
+            }
+          },
+          {
+            "id": "886ef05e-24ac-4569-b49b-bcd9e38b1688",
+            "session_id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+            "seq_no": 2,
+            "type": "ask",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "HINTED",
+            "payload": {
+              "prompt": "可能是前面的知识点没有接上。先确认下面的前置知识；提交或明确查看完整解析后可以结合图解。",
+              "suggestions": [
+                {
+                  "action": "review_prerequisite",
+                  "label": "先复习：函数的概念与定义域",
+                  "question_id": null,
+                  "knowledge_id": "80dea622-89c8-5fec-82f4-021b970c9fa7"
+                },
+                {
+                  "action": "request_visual",
+                  "label": "解析阶段看图",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "3e26610e02194335bb6bdc95a9bbd0ff"
+            }
+          },
+          {
+            "id": "b76ecb68-03fb-475e-879e-67503462a2e0",
+            "session_id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+            "seq_no": 3,
+            "type": "notice",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "HINTED",
+            "payload": {
+              "code": "needs_human_help",
+              "text": "已经换过讲法、也看过前置知识了，先停一下也没关系。这道题已记录为需要老师或家长帮忙。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "1643eb1eb753498ba371d0f9bbd35205"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "79c4894f-953d-47d9-9c2f-7905e349a70c",
+          "question_id": "08f2b6da-8e8a-5da4-866c-16ed0e079a87",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "INDEPENDENT_ATTEMPT",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": "728b7a4c-d6a6-4a44-8f8c-af6245261515",
+          "first_submitted_attempt_id": null,
+          "submitted_attempts": 0,
+          "last_event_seq": 1,
+          "created_at": "2026-11-10T08:00:00Z",
+          "updated_at": "2026-11-10T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "728b7a4c-d6a6-4a44-8f8c-af6245261515",
+            "session_id": "79c4894f-953d-47d9-9c2f-7905e349a70c",
+            "attempt_no": 1,
+            "submission_no": null,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "draft",
+            "answer": null,
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": null,
+            "evaluation": null,
+            "submitted_at": null,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "728b7a4c-d6a6-4a44-8f8c-af6245261515",
+            "revision": 0,
+            "answer": null,
+            "strokes": null,
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "163e8747-3628-4fef-881c-28a4f8000010",
+            "session_id": "79c4894f-953d-47d9-9c2f-7905e349a70c",
+            "seq_no": 1,
+            "type": "notice",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "INDEPENDENT_ATTEMPT",
+            "payload": {
+              "code": "fast_not_applicable",
+              "text": "这道题没有经过审核的快速解法，请用常规解法。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "08f2b6da-8e8a-5da4-866c-16ed0e079a87",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "77f190fb998f496a9efa331c5a2f6e5d"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "bd1f6b6d-a629-4bbe-ab27-7f6d2b199430",
+          "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "DIAGNOSED",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "7634d05a-5f23-489b-bc36-347e56799984",
+          "submitted_attempts": 1,
+          "last_event_seq": 1,
+          "created_at": "2026-11-10T08:00:00Z",
+          "updated_at": "2026-11-10T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "7634d05a-5f23-489b-bc36-347e56799984",
+            "session_id": "bd1f6b6d-a629-4bbe-ab27-7f6d2b199430",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "blanks": [
+                {
+                  "key": "b1",
+                  "value": "4"
+                }
+              ]
+            },
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "verified",
+              "outcome": "correct",
+              "is_correct": true,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": false,
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "message": "回答正确。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-10T08:00:00Z",
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "7634d05a-5f23-489b-bc36-347e56799984",
+            "revision": 0,
+            "answer": {
+              "blanks": [
+                {
+                  "key": "b1",
+                  "value": "4"
+                }
+              ]
+            },
+            "strokes": null,
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "1db0714b-bfca-4f0d-99b4-854825aec499",
+            "session_id": "bd1f6b6d-a629-4bbe-ab27-7f6d2b199430",
+            "seq_no": 1,
+            "type": "diagnosis",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "outcome": "correct",
+              "summary": "回答正确。",
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "knowledge": [
+                {
+                  "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+                  "code": "math.inequality.basic",
+                  "title": "基本不等式"
+                }
+              ],
+              "suggestions": [
+                {
+                  "action": "request_standard",
+                  "label": "看看解法",
+                  "question_id": null,
+                  "knowledge_id": null
+                },
+                {
+                  "action": "finish",
+                  "label": "完成这道题",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "a200466e3cb24d97950373dd6c269732"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "d1d6b3f4-6931-4914-b872-2bf52ac53f33",
+          "question_id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "DIAGNOSED",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "679c5d24-6c62-4961-a5bd-927751368b4d",
+          "submitted_attempts": 1,
+          "last_event_seq": 1,
+          "created_at": "2026-11-10T08:00:00Z",
+          "updated_at": "2026-11-10T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "679c5d24-6c62-4961-a5bd-927751368b4d",
+            "session_id": "d1d6b3f4-6931-4914-b872-2bf52ac53f33",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "parts": [
+                {
+                  "key": "1",
+                  "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"
+                },
+                {
+                  "key": "2",
+                  "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"
+                }
+              ]
+            },
+            "draft_revision": 1,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "pending",
+              "outcome": "undetermined",
+              "is_correct": null,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": true,
+              "feedback": [],
+              "message": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-10T08:00:00Z",
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "679c5d24-6c62-4961-a5bd-927751368b4d",
+            "revision": 1,
+            "answer": {
+              "parts": [
+                {
+                  "key": "1",
+                  "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"
+                },
+                {
+                  "key": "2",
+                  "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"
+                }
+              ]
+            },
+            "strokes": {
+              "version": 1,
+              "pages": [
+                {
+                  "width": 800.0,
+                  "height": 1100.0,
+                  "strokes": [
+                    {
+                      "color": "#1A1A1A",
+                      "width": 2.5,
+                      "points": [
+                        10.0,
+                        20.0,
+                        0.0,
+                        0.5,
+                        14.0,
+                        26.0,
+                        16.0,
+                        0.6
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "self_checks": [
+          {
+            "attempt_id": "679c5d24-6c62-4961-a5bd-927751368b4d",
+            "marks": [
+              {
+                "point_key": "p1",
+                "level": "done"
+              },
+              {
+                "point_key": "p2",
+                "level": "partial"
+              },
+              {
+                "point_key": "p3",
+                "level": "missed"
+              },
+              {
+                "point_key": "p4",
+                "level": "done"
+              },
+              {
+                "point_key": "p5",
+                "level": "partial"
+              },
+              {
+                "point_key": "p6",
+                "level": "missed"
+              },
+              {
+                "point_key": "p7",
+                "level": "done"
+              }
+            ],
+            "saved_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "events": [
+          {
+            "id": "4fe43334-61d7-47aa-8b52-b679cb5c4128",
+            "session_id": "d1d6b3f4-6931-4914-b872-2bf52ac53f33",
+            "seq_no": 1,
+            "type": "uncertainty",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "reason_code": "subjective_self_check",
+              "text": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+              "review_required": true
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "fed15bc02cfa4ad195cea8906265d08d"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+          "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "STANDARD",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": true,
+          "used_solution": true,
+          "independent_ended": true,
+          "hint_level_revealed": 1,
+          "hint_levels_total": 3,
+          "confused_streak": 1,
+          "needs_human_help": false,
+          "active_attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+          "first_submitted_attempt_id": null,
+          "submitted_attempts": 0,
+          "last_event_seq": 3,
+          "created_at": "2026-11-10T08:00:00Z",
+          "updated_at": "2026-11-10T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+            "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+            "attempt_no": 1,
+            "submission_no": null,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "draft",
+            "answer": null,
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": null,
+            "evaluation": null,
+            "submitted_at": null,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+            "revision": 0,
+            "answer": null,
+            "strokes": null,
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "8a5e7d6a-e827-4929-82b1-41846308b4ac",
+            "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+            "seq_no": 1,
+            "type": "hint",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "HINTED",
+            "payload": {
+              "level": 1,
+              "total_levels": 3,
+              "style": "layered",
+              "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+              "concept": "函数的单调性"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "e4395935874849acb4f9d89912848e94"
+            },
+            "references": [
+              {
+                "block_id": "stem",
+                "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+                "start": 7,
+                "end": 12,
+                "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                "label": "题干"
+              }
+            ]
+          },
+          {
+            "id": "baf662bf-7d35-4ff2-aa6d-eef2a73191cc",
+            "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+            "seq_no": 2,
+            "type": "hint",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "HINTED",
+            "payload": {
+              "level": 1,
+              "total_levels": 1,
+              "style": "rephrase",
+              "text": "换个说法：在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减。先别急着算，用自己的话把“函数的单调性”说一遍，再回到题目里找对应的量。",
+              "concept": "函数的单调性"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "model",
+              "degraded": false,
+              "provider": "mock",
+              "model_id": "mock-tutor",
+              "prompt_version": "tutor-prompt/2026-11-16.1",
+              "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+              "question_version": 1,
+              "trace_id": "b0365c43bafe458e9bb6bfb4f4aa5520",
+              "request_id": "f57fd2ee346e484cbcd92d64856bc2cb"
+            },
+            "references": [
+              {
+                "block_id": "stem",
+                "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+                "start": 7,
+                "end": 12,
+                "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                "label": "题干"
+              }
+            ]
+          },
+          {
+            "id": "eee0b788-d798-4cd5-9e85-62ef283c358a",
+            "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+            "seq_no": 3,
+            "type": "standard",
+            "created_at": "2026-11-10T08:00:00Z",
+            "state_after": "STANDARD",
+            "payload": {
+              "title": "常规解法",
+              "steps": [
+                {
+                  "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+                },
+                {
+                  "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+                },
+                {
+                  "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+                }
+              ],
+              "final_answer": "B",
+              "option_analysis": [
+                {
+                  "key": "A",
+                  "verdict": "wrong",
+                  "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                },
+                {
+                  "key": "B",
+                  "verdict": "correct",
+                  "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+                },
+                {
+                  "key": "C",
+                  "verdict": "wrong",
+                  "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+                },
+                {
+                  "key": "D",
+                  "verdict": "wrong",
+                  "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+                }
+              ],
+              "key_points": [
+                "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+                "开口方向决定哪一侧递增"
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "a524f792bd534bc996c7d16c02d59ff8"
+            },
+            "references": [
+              {
+                "block_id": "stem",
+                "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+                "start": 7,
+                "end": 12,
+                "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                "label": "题干"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
+          "question_id": "2e43664d-943a-588a-9378-24094140fda1",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "DIAGNOSED",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+          "submitted_attempts": 1,
+          "last_event_seq": 1,
+          "created_at": "2026-11-11T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+            "session_id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "parts": [
+                {
+                  "key": "1",
+                  "text": "$T=0.10\\ \\text{s}$，平均速度等于距离除以 $T$。"
+                },
+                {
+                  "key": "2",
+                  "text": "用逐差法，$a=2.00\\ \\text{m/s}^2$。"
+                }
+              ],
+              "cells": [
+                {
+                  "table": "t1",
+                  "row": "r1",
+                  "col": "v",
+                  "value": "0.400"
+                },
+                {
+                  "table": "t1",
+                  "row": "r2",
+                  "col": "v",
+                  "value": "0.600"
+                },
+                {
+                  "table": "t1",
+                  "row": "r3",
+                  "col": "v",
+                  "value": "0.800"
+                },
+                {
+                  "table": "t1",
+                  "row": "r4",
+                  "col": "v",
+                  "value": "1.00"
+                },
+                {
+                  "table": "t2",
+                  "row": "r1",
+                  "col": "val",
+                  "value": "2.00"
+                }
+              ]
+            },
+            "draft_revision": 1,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "pending",
+              "outcome": "undetermined",
+              "is_correct": null,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": true,
+              "feedback": [],
+              "message": "实验题不自动评分，作答已保存。请对照参考数据和要点自己检查一遍；这次不算对，也不算错。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-11T08:00:00Z",
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+            "revision": 1,
+            "answer": {
+              "parts": [
+                {
+                  "key": "1",
+                  "text": "$T=0.10\\ \\text{s}$，平均速度等于距离除以 $T$。"
+                },
+                {
+                  "key": "2",
+                  "text": "用逐差法，$a=2.00\\ \\text{m/s}^2$。"
+                }
+              ],
+              "cells": [
+                {
+                  "table": "t1",
+                  "row": "r1",
+                  "col": "v",
+                  "value": "0.400"
+                },
+                {
+                  "table": "t1",
+                  "row": "r2",
+                  "col": "v",
+                  "value": "0.600"
+                },
+                {
+                  "table": "t1",
+                  "row": "r3",
+                  "col": "v",
+                  "value": "0.800"
+                },
+                {
+                  "table": "t1",
+                  "row": "r4",
+                  "col": "v",
+                  "value": "1.00"
+                },
+                {
+                  "table": "t2",
+                  "row": "r1",
+                  "col": "val",
+                  "value": "2.00"
+                }
+              ]
+            },
+            "strokes": {
+              "version": 1,
+              "pages": [
+                {
+                  "width": 800.0,
+                  "height": 1100.0,
+                  "strokes": [
+                    {
+                      "color": "#1A1A1A",
+                      "width": 2.5,
+                      "points": [
+                        10.0,
+                        20.0,
+                        0.0,
+                        0.5,
+                        14.0,
+                        26.0,
+                        16.0,
+                        0.6
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "self_checks": [
+          {
+            "attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+            "marks": [
+              {
+                "point_key": "p1",
+                "level": "done"
+              },
+              {
+                "point_key": "p2",
+                "level": "partial"
+              },
+              {
+                "point_key": "p3",
+                "level": "missed"
+              },
+              {
+                "point_key": "p4",
+                "level": "done"
+              },
+              {
+                "point_key": "p5",
+                "level": "partial"
+              },
+              {
+                "point_key": "p6",
+                "level": "missed"
+              },
+              {
+                "point_key": "p7",
+                "level": "done"
+              },
+              {
+                "point_key": "p8",
+                "level": "partial"
+              },
+              {
+                "point_key": "p9",
+                "level": "missed"
+              }
+            ],
+            "saved_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "events": [
+          {
+            "id": "7e7edd1c-cee8-4b85-885b-34d341fd8186",
+            "session_id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
+            "seq_no": 1,
+            "type": "uncertainty",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "reason_code": "subjective_self_check",
+              "text": "实验题不自动评分，作答已保存。请对照参考数据和要点自己检查一遍；这次不算对，也不算错。",
+              "review_required": true
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "2e43664d-943a-588a-9378-24094140fda1",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "3403540b276a45da98677bca013ec3b7"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "0da0f4ef-24cb-4874-8198-b443f02e66b4",
+          "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "READY",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": null,
+          "submitted_attempts": 0,
+          "last_event_seq": 0,
+          "created_at": "2026-11-11T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        },
+        "attempts": [],
+        "drafts": [],
+        "self_checks": [],
+        "events": []
+      },
+      {
+        "session": {
+          "id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+          "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "VISUAL",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": true,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 2,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+          "submitted_attempts": 1,
+          "last_event_seq": 3,
+          "created_at": "2026-11-11T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+            "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "selected_options": [
+                "B"
+              ]
+            },
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "verified",
+              "outcome": "correct",
+              "is_correct": true,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": false,
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "message": "回答正确。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-11T08:00:00Z",
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+            "revision": 0,
+            "answer": {
+              "selected_options": [
+                "B"
+              ]
+            },
+            "strokes": null,
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "b43d722f-de62-400f-8a4b-f538559b3c21",
+            "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+            "seq_no": 1,
+            "type": "notice",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "INDEPENDENT_ATTEMPT",
+            "payload": {
+              "code": "visual_not_available",
+              "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "6fea1f563e544b5599eecc05ee073693"
+            }
+          },
+          {
+            "id": "9bb9f3c5-6d27-4f0a-b516-4380a8c86e40",
+            "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+            "seq_no": 2,
+            "type": "diagnosis",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "outcome": "correct",
+              "summary": "回答正确。",
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "knowledge": [
+                {
+                  "id": "bb5de35d-378b-5277-9ecf-85b3bfca7895",
+                  "code": "chem.process.reading",
+                  "title": "工艺流程结构阅读"
+                }
+              ],
+              "suggestions": [
+                {
+                  "action": "request_standard",
+                  "label": "看看解法",
+                  "question_id": null,
+                  "knowledge_id": null
+                },
+                {
+                  "action": "finish",
+                  "label": "完成这道题",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "2b03d3666844425a80d6f7e4787d94b9"
+            }
+          },
+          {
+            "id": "931d3ecf-b67c-411a-832b-d406f13346ad",
+            "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+            "seq_no": 3,
+            "type": "visual",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "VISUAL",
+            "payload": {
+              "template_id": "chemical_process",
+              "params": {
+                "focus": 0,
+                "branch": 1,
+                "recycle": 1
+              },
+              "caption": "只定位题干已给出的流程关系，不推断物质、反应或操作。",
+              "static_fallback": "原料依次经过处理Ⅰ、分离、处理Ⅱ到达产物。支路与回流是否存在以题干文字为准；这只是通用流程骨架，不是反应机理或实验操作指南。"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "4492baf4fea24da3938808a6052f5e92"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "38ddf7f4-4cfe-453d-a9b5-8046947ea3db",
+          "question_id": "ffc1ebf1-9bff-5a58-8cba-6a6f295cf534",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "DIAGNOSED",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
+          "submitted_attempts": 1,
+          "last_event_seq": 1,
+          "created_at": "2026-11-11T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
+            "session_id": "38ddf7f4-4cfe-453d-a9b5-8046947ea3db",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "steps": [
+                {
+                  "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+                  "reason": "单调性的定义"
+                },
+                {
+                  "text": "$f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+                  "reason": "作差，通分，提公因式"
+                },
+                {
+                  "text": "$x_1-x_2<0$，$x_1x_2>1$，所以 $f(x_1)<f(x_2)$，$f(x)$ 在 $[1,+\\infty)$ 上单调递增。",
+                  "reason": ""
+                }
+              ]
+            },
+            "draft_revision": 1,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "pending",
+              "outcome": "undetermined",
+              "is_correct": null,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": true,
+              "feedback": [],
+              "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-11T08:00:00Z",
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
+            "revision": 1,
+            "answer": {
+              "steps": [
+                {
+                  "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+                  "reason": "单调性的定义"
+                },
+                {
+                  "text": "$f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+                  "reason": "作差，通分，提公因式"
+                },
+                {
+                  "text": "$x_1-x_2<0$，$x_1x_2>1$，所以 $f(x_1)<f(x_2)$，$f(x)$ 在 $[1,+\\infty)$ 上单调递增。",
+                  "reason": ""
+                }
+              ]
+            },
+            "strokes": {
+              "version": 1,
+              "pages": [
+                {
+                  "width": 800.0,
+                  "height": 1100.0,
+                  "strokes": [
+                    {
+                      "color": "#1A1A1A",
+                      "width": 2.5,
+                      "points": [
+                        10.0,
+                        20.0,
+                        0.0,
+                        0.5,
+                        14.0,
+                        26.0,
+                        16.0,
+                        0.6
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "self_checks": [
+          {
+            "attempt_id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
+            "marks": [
+              {
+                "point_key": "p1",
+                "level": "done"
+              },
+              {
+                "point_key": "p2",
+                "level": "partial"
+              },
+              {
+                "point_key": "p3",
+                "level": "missed"
+              },
+              {
+                "point_key": "p4",
+                "level": "done"
+              },
+              {
+                "point_key": "p5",
+                "level": "partial"
+              },
+              {
+                "point_key": "p6",
+                "level": "missed"
+              }
+            ],
+            "saved_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "events": [
+          {
+            "id": "e86463ed-975a-4448-b315-264ec53b27a3",
+            "session_id": "38ddf7f4-4cfe-453d-a9b5-8046947ea3db",
+            "seq_no": 1,
+            "type": "uncertainty",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "reason_code": "subjective_self_check",
+              "text": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+              "review_required": true
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "ffc1ebf1-9bff-5a58-8cba-6a6f295cf534",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "5572be3e9b6a4585818ec721e53e6779"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "4f71333a-a967-4d74-a9b2-409d6eacb1df",
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "origin": "review",
+          "state": "DIAGNOSED",
+          "review_item_id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+          "submitted_attempts": 1,
+          "last_event_seq": 1,
+          "created_at": "2026-11-11T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+            "session_id": "4f71333a-a967-4d74-a9b2-409d6eacb1df",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "selected_options": [
+                "B"
+              ]
+            },
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "verified",
+              "outcome": "correct",
+              "is_correct": true,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": false,
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "message": "回答正确。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-11T08:00:00Z",
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+            "revision": 0,
+            "answer": {
+              "selected_options": [
+                "B"
+              ]
+            },
+            "strokes": null,
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "6b110a74-88ec-4f8f-822e-72fe5ee1294f",
+            "session_id": "4f71333a-a967-4d74-a9b2-409d6eacb1df",
+            "seq_no": 1,
+            "type": "diagnosis",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "outcome": "correct",
+              "summary": "回答正确。",
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "knowledge": [
+                {
+                  "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+                  "code": "math.function.monotonicity",
+                  "title": "函数的单调性"
+                },
+                {
+                  "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+                  "code": "math.quadratic.graph",
+                  "title": "二次函数的图像与对称轴"
+                }
+              ],
+              "suggestions": [
+                {
+                  "action": "request_standard",
+                  "label": "看看解法",
+                  "question_id": null,
+                  "knowledge_id": null
+                },
+                {
+                  "action": "finish",
+                  "label": "完成这道题",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "cb0d5452270742e4bd2a9dcb869a569e"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+          "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "VISUAL",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": true,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "89ac984b-8d03-4f7e-871b-e5a176d29f09",
+          "submitted_attempts": 1,
+          "last_event_seq": 3,
+          "created_at": "2026-11-11T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "89ac984b-8d03-4f7e-871b-e5a176d29f09",
+            "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "steps": [
+                {
+                  "text": "我使用题设圆方程进行比较。",
+                  "reason": "两点间距离公式"
+                }
+              ]
+            },
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "pending",
+              "outcome": "undetermined",
+              "is_correct": null,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": true,
+              "feedback": [],
+              "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-11T08:00:00Z",
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "89ac984b-8d03-4f7e-871b-e5a176d29f09",
+            "revision": 0,
+            "answer": {
+              "steps": [
+                {
+                  "text": "我使用题设圆方程进行比较。",
+                  "reason": "两点间距离公式"
+                }
+              ]
+            },
+            "strokes": null,
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "d05855a5-34bb-4b85-808e-13fc8a3a4955",
+            "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+            "seq_no": 1,
+            "type": "notice",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "INDEPENDENT_ATTEMPT",
+            "payload": {
+              "code": "visual_not_available",
+              "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "79c5e969e0934b0592c518d14c4c5e32"
+            }
+          },
+          {
+            "id": "966df065-760e-474b-ba2a-c66748935a7a",
+            "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+            "seq_no": 2,
+            "type": "uncertainty",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "reason_code": "subjective_self_check",
+              "text": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+              "review_required": true
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "3463b021e4564a198b7e29b22e051b42"
+            }
+          },
+          {
+            "id": "15978914-a9df-4995-bbc7-fe022cd14673",
+            "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+            "seq_no": 3,
+            "type": "visual",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "VISUAL",
+            "payload": {
+              "template_id": "circle_schematic",
+              "params": {
+                "a_position": 0.1,
+                "b_position": 0.37,
+                "focus": 0
+              },
+              "caption": "只定位已给的圆O和圆上点A、B；不补连线、辅助点或证明结论。",
+              "static_fallback": "O是圆心，A、B是圆上不同的两点。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "160a0a195df84a49b8e6a82c1c509587"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+          "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "DIAGNOSED",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": false,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+          "first_submitted_attempt_id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+          "submitted_attempts": 1,
+          "last_event_seq": 2,
+          "created_at": "2026-11-11T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "bd580882-8390-4831-b421-221578343b82",
+            "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+            "attempt_no": 1,
+            "submission_no": null,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "draft",
+            "answer": {
+              "blanks": [
+                {
+                  "key": "b1",
+                  "value": "云端草稿"
+                }
+              ]
+            },
+            "draft_revision": 1,
+            "assisted": false,
+            "used_solution": false,
+            "independent": null,
+            "evaluation": null,
+            "submitted_at": null,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          {
+            "id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+            "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+            "attempt_no": 2,
+            "submission_no": 1,
+            "copied_from_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+            "copied_from_revision": 1,
+            "status": "submitted",
+            "answer": {
+              "blanks": [
+                {
+                  "key": "b1",
+                  "value": "4"
+                }
+              ]
+            },
+            "draft_revision": 1,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "verified",
+              "outcome": "correct",
+              "is_correct": true,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": false,
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "message": "回答正确。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-11T08:00:00Z",
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+            "revision": 1,
+            "answer": {
+              "blanks": [
+                {
+                  "key": "b1",
+                  "value": "4"
+                }
+              ]
+            },
+            "strokes": {
+              "version": 1,
+              "pages": [
+                {
+                  "width": 800.0,
+                  "height": 1100.0,
+                  "strokes": [
+                    {
+                      "color": "#1A1A1A",
+                      "width": 2.5,
+                      "points": [
+                        10.0,
+                        20.0,
+                        0.0,
+                        0.5,
+                        14.0,
+                        26.0,
+                        16.0,
+                        0.6
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          {
+            "attempt_id": "bd580882-8390-4831-b421-221578343b82",
+            "revision": 1,
+            "answer": {
+              "blanks": [
+                {
+                  "key": "b1",
+                  "value": "云端草稿"
+                }
+              ]
+            },
+            "strokes": null,
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "e65f2696-a020-4d4e-9e85-1581f3214f1a",
+            "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+            "seq_no": 1,
+            "type": "diagnosis",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "outcome": "correct",
+              "summary": "回答正确。",
+              "feedback": [
+                {
+                  "target": "overall",
+                  "code": "correct",
+                  "message": "回答正确。"
+                }
+              ],
+              "knowledge": [
+                {
+                  "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+                  "code": "math.inequality.basic",
+                  "title": "基本不等式"
+                }
+              ],
+              "suggestions": [
+                {
+                  "action": "request_standard",
+                  "label": "看看解法",
+                  "question_id": null,
+                  "knowledge_id": null
+                },
+                {
+                  "action": "finish",
+                  "label": "完成这道题",
+                  "question_id": null,
+                  "knowledge_id": null
+                }
+              ]
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "8e7e674ddc4344e991ac1497bddcdcb4"
+            }
+          },
+          {
+            "id": "6124add8-44f4-4734-8ed2-bc9d10faf0d4",
+            "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+            "seq_no": 2,
+            "type": "notice",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "code": "keep_going",
+              "text": "还有未提交的草稿或副本，仍可继续编辑；没有关闭它们。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "63c324f825df4198a054cb182aae3935"
+            }
+          }
+        ]
+      },
+      {
+        "session": {
+          "id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+          "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+          "question_version": 1,
+          "origin": "practice",
+          "state": "VISUAL",
+          "review_item_id": null,
+          "parent_session_id": null,
+          "region_code_snapshot": "CN-51",
+          "exam_year_snapshot": 2027,
+          "curriculum_version_snapshot": null,
+          "assisted": true,
+          "used_solution": false,
+          "independent_ended": false,
+          "hint_level_revealed": 0,
+          "hint_levels_total": 3,
+          "confused_streak": 0,
+          "needs_human_help": false,
+          "active_attempt_id": null,
+          "first_submitted_attempt_id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+          "submitted_attempts": 1,
+          "last_event_seq": 3,
+          "created_at": "2026-11-11T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        },
+        "attempts": [
+          {
+            "id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+            "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+            "attempt_no": 1,
+            "submission_no": 1,
+            "copied_from_attempt_id": null,
+            "copied_from_revision": null,
+            "status": "submitted",
+            "answer": {
+              "steps": [
+                {
+                  "text": "按给定坐标比较三边。",
+                  "reason": "两点间距离公式"
+                }
+              ]
+            },
+            "draft_revision": 0,
+            "assisted": false,
+            "used_solution": false,
+            "independent": true,
+            "evaluation": {
+              "state": "pending",
+              "outcome": "undetermined",
+              "is_correct": null,
+              "independent": true,
+              "assisted": false,
+              "used_solution": false,
+              "review_required": true,
+              "feedback": [],
+              "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+              "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+            },
+            "submitted_at": "2026-11-11T08:00:00Z",
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "drafts": [
+          {
+            "attempt_id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+            "revision": 0,
+            "answer": {
+              "steps": [
+                {
+                  "text": "按给定坐标比较三边。",
+                  "reason": "两点间距离公式"
+                }
+              ]
+            },
+            "strokes": null,
+            "updated_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "self_checks": [],
+        "events": [
+          {
+            "id": "fdfa9528-c4e0-4e46-9083-0d95c7910034",
+            "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+            "seq_no": 1,
+            "type": "notice",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "INDEPENDENT_ATTEMPT",
+            "payload": {
+              "code": "visual_not_available",
+              "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+              "due_at": null
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "ca4eb6b8fb264cbfbcdffa0c1b68c660"
+            }
+          },
+          {
+            "id": "ceb51a2d-cd50-4f5b-9062-fa8cac38f120",
+            "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+            "seq_no": 2,
+            "type": "uncertainty",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "DIAGNOSED",
+            "payload": {
+              "reason_code": "subjective_self_check",
+              "text": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+              "review_required": true
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "rule_engine",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "d439db48c0f748759d063165f744f14e"
+            }
+          },
+          {
+            "id": "6a53f433-3589-47fc-879e-2bcaf878fd70",
+            "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+            "seq_no": 3,
+            "type": "visual",
+            "created_at": "2026-11-11T08:00:00Z",
+            "state_after": "VISUAL",
+            "payload": {
+              "template_id": "triangle_schematic",
+              "params": {
+                "apex_x": 0.35,
+                "height": 0.65,
+                "focus": 0
+              },
+              "caption": "只定位已给的A、B、C和三条边；不增加辅助线，也不从图形外观推断结论。",
+              "static_fallback": "A、B位于基线两端，C位于基线上方，三边连接A、B、C。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。"
+            },
+            "meta": {
+              "schema_version": "1.0",
+              "source": "reviewed_content",
+              "degraded": false,
+              "provider": null,
+              "model_id": null,
+              "prompt_version": null,
+              "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+              "question_version": 1,
+              "trace_id": null,
+              "request_id": "43d82f3324844b88b573500855ffec88"
+            }
+          }
+        ]
+      }
+    ],
+    "reviews": [
+      {
+        "id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_title": "二次函数的单调递增区间",
+        "subject": "math",
+        "status": "scheduled",
+        "stage": 1,
+        "total_stages": 3,
+        "due_at": "2026-11-14T08:00:00Z",
+        "is_due": false,
+        "last_result": "passed",
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      }
+    ],
+    "review_history": [
+      {
+        "review_id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
+        "first_attempt_id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "state": "completed",
+        "result": "passed",
+        "completed_at": "2026-11-11T08:00:00Z"
+      }
+    ],
+    "diagnostic_runs": [],
+    "diagnostic_workspace": {
+      "revision": 0,
+      "run": null
+    },
+    "parent_access_records": {
+      "history_complete": false,
+      "links": [
+        {
+          "id": "bc82116a-215a-4e80-9197-60c5c49b633c",
+          "authorization_revision": 2,
+          "consent_at": "2026-11-11T08:00:00Z",
+          "revoked_at": "2026-11-11T08:00:00Z",
+          "created_at": "2026-11-11T08:00:00Z"
+        }
+      ],
+      "invites": [
+        {
+          "id": "6fbefec5-c64e-4222-bfbe-a647e260ce8a",
+          "expires_at": "2026-11-12T08:00:00Z",
+          "redeemed_at": "2026-11-11T08:00:00Z",
+          "revoked_at": null,
+          "created_at": "2026-11-11T08:00:00Z"
+        }
+      ]
+    },
+    "stored_scan_records": [
+      {
+        "media_id": "d323d0d9-1716-40de-ab72-2369a54d511c",
+        "expires_at": "2026-11-10T10:00:00Z",
+        "scan": {
+          "id": "8fe1895c-75b3-47cc-a0dd-3c31ed16238e",
+          "status": "confirmed",
+          "confidence": null,
+          "low_confidence": true,
+          "stem_text": "手工录入：未匹配样题",
+          "expressions": [],
+          "matched_question_id": null,
+          "error_code": null,
+          "mock_notice": "本地Mock未实际识别图片；请手工输入并确认题干。仅匹配已发布自编工程样题，不代表学科审校。"
+        }
+      }
+    ],
+    "model_usage": {
+      "history_complete": false,
+      "identity_scope": "current_server_pseudonym",
+      "costs_are_billing": false,
+      "calls": [
+        {
+          "created_at": "2026-11-10T08:00:00Z",
+          "task_type": "tutor_explain",
+          "status": "ok",
+          "provider_calls": 1,
+          "input_tokens": null,
+          "output_tokens": null,
+          "image_units": null,
+          "estimated_cost_micros": 0
+        },
+        {
+          "created_at": "2026-11-10T08:00:00Z",
+          "task_type": "tutor_explain",
+          "status": "ok",
+          "provider_calls": 1,
+          "input_tokens": null,
+          "output_tokens": null,
+          "image_units": null,
+          "estimated_cost_micros": 0
+        }
+      ],
+      "budget_days": [
+        {
+          "usage_date": "2026-11-10",
+          "request_count": 2,
+          "estimated_cost_micros": 0,
+          "updated_at": "2026-11-10T08:00:00Z"
+        }
+      ]
+    },
+    "excluded": [
+      "auth_credentials",
+      "operational_logs",
+      "question_answer_keys",
+      "unsynced_device_data",
+      "media_files"
+    ]
+  },
+  "body": {
+    "data": {
+      "format_version": 1,
+      "scope": "server_learning_records",
+      "exported_at": "2026-11-11T08:00:00Z",
+      "profile": {
+        "learning_settings": null,
+        "user_id": "702aea2c-c351-4d7c-9416-6a0b2c2b4c54",
+        "revision": 1,
+        "display_name": null,
+        "region_code": "CN-51",
+        "grade": "G12",
+        "subjects": [
+          "math",
+          "physics",
+          "chemistry"
+        ],
+        "exam_year": 2027,
+        "exam_year_source": "estimated",
+        "exam_scheme_code": null,
+        "curriculum_version": null,
+        "onboarding_completed": true,
+        "notices": [
+          {
+            "code": "exam_year_estimated",
+            "message": "考试年份按年级估算为 2027 年，可以在“我的”里修改。"
+          },
+          {
+            "code": "curriculum_unknown",
+            "message": "还没有设置教材版本，目前按通用知识点推荐；确认后可以在“我的”里补充。"
+          }
+        ],
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "sessions": [
+        {
+          "session": {
+            "id": "01611e61-b265-4539-b587-da5fbbd04595",
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "origin": "task",
+            "state": "DONE",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": true,
+            "used_solution": true,
+            "independent_ended": false,
+            "hint_level_revealed": 1,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+            "submitted_attempts": 1,
+            "last_event_seq": 9,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "selected_options": [
+                  "A"
+                ]
+              },
+              "draft_revision": 1,
+              "assisted": true,
+              "used_solution": false,
+              "independent": false,
+              "evaluation": {
+                "state": "verified",
+                "outcome": "incorrect",
+                "is_correct": false,
+                "independent": false,
+                "assisted": true,
+                "used_solution": false,
+                "review_required": false,
+                "feedback": [
+                  {
+                    "target": "A",
+                    "code": "wrong_option",
+                    "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                  }
+                ],
+                "message": "这次没有答对，看看下面的分析。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-10T08:00:00Z",
+              "created_at": "2026-11-10T08:00:00Z",
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+              "revision": 1,
+              "answer": {
+                "selected_options": [
+                  "A"
+                ]
+              },
+              "strokes": {
+                "version": 1,
+                "pages": [
+                  {
+                    "width": 800.0,
+                    "height": 1100.0,
+                    "strokes": [
+                      {
+                        "color": "#1A1A1A",
+                        "width": 2.5,
+                        "points": [
+                          10.0,
+                          20.0,
+                          0.0,
+                          0.5,
+                          14.0,
+                          26.0,
+                          16.0,
+                          0.6
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "de30cebc-62b4-45aa-a3ca-98e59748b44d",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 1,
+              "type": "hint",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "HINTED",
+              "payload": {
+                "level": 1,
+                "total_levels": 3,
+                "style": "layered",
+                "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+                "concept": "函数的单调性"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "6b742465a7ca4b5b83bb48f45b26ee5d"
+              },
+              "references": [
+                {
+                  "block_id": "stem",
+                  "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+                  "start": 0,
+                  "end": 2,
+                  "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                  "label": "题干"
+                }
+              ]
+            },
+            {
+              "id": "a3ac35bd-cf79-4ae8-8808-4d186368c201",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 2,
+              "type": "notice",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "HINTED",
+              "payload": {
+                "code": "visual_not_available",
+                "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+                "due_at": null
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "e953eccac37f4d53803686559859b169"
+              }
+            },
+            {
+              "id": "6f247297-d828-42aa-9a23-feb0585c23be",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 3,
+              "type": "diagnosis",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "outcome": "incorrect",
+                "summary": "这次没有答对，看看下面的分析。",
+                "feedback": [
+                  {
+                    "target": "A",
+                    "code": "wrong_option",
+                    "message": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                  }
+                ],
+                "knowledge": [
+                  {
+                    "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+                    "code": "math.function.monotonicity",
+                    "title": "函数的单调性"
+                  },
+                  {
+                    "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+                    "code": "math.quadratic.graph",
+                    "title": "二次函数的图像与对称轴"
+                  }
+                ],
+                "suggestions": [
+                  {
+                    "action": "request_hint",
+                    "label": "给点提示",
+                    "question_id": null,
+                    "knowledge_id": null
+                  },
+                  {
+                    "action": "retry_attempt",
+                    "label": "再试一次",
+                    "question_id": null,
+                    "knowledge_id": null
+                  },
+                  {
+                    "action": "request_standard",
+                    "label": "看常规解法",
+                    "question_id": null,
+                    "knowledge_id": null
+                  }
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "5130b69cb9494fa0a4ef7ae7d9fa304a"
+              }
+            },
+            {
+              "id": "b50d3634-c252-4730-9222-d0a6feb7819b",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 4,
+              "type": "visual",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "VISUAL",
+              "payload": {
+                "template_id": "quadratic_graph",
+                "params": {
+                  "a": 1,
+                  "b": -2,
+                  "c": -3
+                },
+                "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。",
+                "static_fallback": "二次函数 y = ax² + bx + c 的对称轴是 x = -b/(2a)。a > 0 时开口向上，对称轴左侧递减、右侧递增；a < 0 时相反。"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "11644d982bd441f088c49d239085d737"
+              }
+            },
+            {
+              "id": "fc501515-c7b8-4ffe-a15e-2cf39c3a7fe8",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 5,
+              "type": "standard",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "STANDARD",
+              "payload": {
+                "title": "常规解法",
+                "steps": [
+                  {
+                    "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+                  },
+                  {
+                    "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+                  },
+                  {
+                    "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+                  }
+                ],
+                "final_answer": "B",
+                "option_analysis": [
+                  {
+                    "key": "A",
+                    "verdict": "wrong",
+                    "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                  },
+                  {
+                    "key": "B",
+                    "verdict": "correct",
+                    "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+                  },
+                  {
+                    "key": "C",
+                    "verdict": "wrong",
+                    "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+                  },
+                  {
+                    "key": "D",
+                    "verdict": "wrong",
+                    "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+                  }
+                ],
+                "key_points": [
+                  "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+                  "开口方向决定哪一侧递增"
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "b21c33c6cfb24ba280b7ab6a55251d4e"
+              },
+              "references": [
+                {
+                  "block_id": "stem",
+                  "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+                  "start": 0,
+                  "end": 2,
+                  "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                  "label": "题干"
+                }
+              ]
+            },
+            {
+              "id": "131b5b82-d4bb-415b-870d-35b113e2baa7",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 6,
+              "type": "fast",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "FAST",
+              "payload": {
+                "title": "快速解法",
+                "conditions": [
+                  "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+                  "定义域是全体实数，没有被限制在某个区间内"
+                ],
+                "steps": [
+                  {
+                    "text": "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。"
+                  },
+                  {
+                    "text": "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+                  }
+                ],
+                "final_answer": "B",
+                "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。",
+                "reviewed": true
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "837b771a04b04f8887ef2c5e80f76621"
+              }
+            },
+            {
+              "id": "7223fad4-0472-42f5-b887-49b0ac873439",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 7,
+              "type": "ask",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "VARIANT",
+              "payload": {
+                "prompt": "要不要做一道变式题，检验是不是真的掌握了？",
+                "suggestions": [
+                  {
+                    "action": "start_variant",
+                    "label": "做一道变式题",
+                    "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+                    "knowledge_id": null
+                  },
+                  {
+                    "action": "finish",
+                    "label": "先到这里",
+                    "question_id": null,
+                    "knowledge_id": null
+                  }
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "b5da195d273744b5ac131ea8512cafa1"
+              }
+            },
+            {
+              "id": "9d5ff283-8661-4e39-8b93-200b5c1f8689",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 8,
+              "type": "notice",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "REVIEW_SCHEDULED",
+              "payload": {
+                "code": "review_scheduled",
+                "text": "已经安排了复测，到时候不看提示再做一遍，确认是真的会了。",
+                "due_at": "2026-11-11T08:00:00Z"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "b5da195d273744b5ac131ea8512cafa1"
+              }
+            },
+            {
+              "id": "af51e1f9-1e83-4bcf-922a-37de0b901848",
+              "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+              "seq_no": 9,
+              "type": "notice",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "DONE",
+              "payload": {
+                "code": "session_completed",
+                "text": "这道题先到这里。",
+                "due_at": null
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "b5da195d273744b5ac131ea8512cafa1"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "07be752e-c44f-4cc7-8683-01d2c6b5d09c",
+            "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "DIAGNOSED",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "3be4a2de-f6c3-41f6-99dc-206e88ebedbe",
+            "submitted_attempts": 1,
+            "last_event_seq": 1,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "3be4a2de-f6c3-41f6-99dc-206e88ebedbe",
+              "session_id": "07be752e-c44f-4cc7-8683-01d2c6b5d09c",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "blanks": [
+                  {
+                    "key": "b1",
+                    "value": "500 cm/s²"
+                  }
+                ]
+              },
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "uncertain",
+                "outcome": "undetermined",
+                "is_correct": null,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": true,
+                "feedback": [
+                  {
+                    "target": "b1",
+                    "code": "equivalence_unconfirmed",
+                    "message": "没能识别答案里的单位，无法确认是否等价。"
+                  }
+                ],
+                "message": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-10T08:00:00Z",
+              "created_at": "2026-11-10T08:00:00Z",
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "3be4a2de-f6c3-41f6-99dc-206e88ebedbe",
+              "revision": 0,
+              "answer": {
+                "blanks": [
+                  {
+                    "key": "b1",
+                    "value": "500 cm/s²"
+                  }
+                ]
+              },
+              "strokes": null,
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "88a669e6-533c-4eba-9310-c487607bb916",
+              "session_id": "07be752e-c44f-4cc7-8683-01d2c6b5d09c",
+              "seq_no": 1,
+              "type": "uncertainty",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "reason_code": "equivalence_unconfirmed",
+                "text": "这个答案暂时无法自动判定，已标记为待确认，不计入正确率。",
+                "review_required": true
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "bc57de23-1abd-5d5b-9c0b-705d6feb29f4",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "383a163c32bd4215afad73c4e27a9f59"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+            "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "HINTED",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": true,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 3,
+            "needs_human_help": true,
+            "active_attempt_id": "b483565e-933b-4401-a5e5-7885674a8877",
+            "first_submitted_attempt_id": null,
+            "submitted_attempts": 0,
+            "last_event_seq": 3,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "b483565e-933b-4401-a5e5-7885674a8877",
+              "session_id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+              "attempt_no": 1,
+              "submission_no": null,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "draft",
+              "answer": null,
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": null,
+              "evaluation": null,
+              "submitted_at": null,
+              "created_at": "2026-11-10T08:00:00Z",
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "b483565e-933b-4401-a5e5-7885674a8877",
+              "revision": 0,
+              "answer": null,
+              "strokes": null,
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "9636f94a-1f21-4d5f-b872-81f85c8ec9ef",
+              "session_id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+              "seq_no": 1,
+              "type": "hint",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "HINTED",
+              "payload": {
+                "level": 1,
+                "total_levels": 1,
+                "style": "rephrase",
+                "text": "换个说法：在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减。先别急着算，用自己的话把“函数的单调性”说一遍，再回到题目里找对应的量。",
+                "concept": "函数的单调性"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "model",
+                "degraded": false,
+                "provider": "mock",
+                "model_id": "mock-tutor",
+                "prompt_version": "tutor-prompt/2026-11-16.1",
+                "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+                "question_version": 1,
+                "trace_id": "e9af3fed4d2d4f929341539ab3c5cc17",
+                "request_id": "2f704a886d074158a376575436c2377d"
+              }
+            },
+            {
+              "id": "886ef05e-24ac-4569-b49b-bcd9e38b1688",
+              "session_id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+              "seq_no": 2,
+              "type": "ask",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "HINTED",
+              "payload": {
+                "prompt": "可能是前面的知识点没有接上。先确认下面的前置知识；提交或明确查看完整解析后可以结合图解。",
+                "suggestions": [
+                  {
+                    "action": "review_prerequisite",
+                    "label": "先复习：函数的概念与定义域",
+                    "question_id": null,
+                    "knowledge_id": "80dea622-89c8-5fec-82f4-021b970c9fa7"
+                  },
+                  {
+                    "action": "request_visual",
+                    "label": "解析阶段看图",
+                    "question_id": null,
+                    "knowledge_id": null
+                  }
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "3e26610e02194335bb6bdc95a9bbd0ff"
+              }
+            },
+            {
+              "id": "b76ecb68-03fb-475e-879e-67503462a2e0",
+              "session_id": "2a715585-8c34-46f1-b691-9038c9eb5ee7",
+              "seq_no": 3,
+              "type": "notice",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "HINTED",
+              "payload": {
+                "code": "needs_human_help",
+                "text": "已经换过讲法、也看过前置知识了，先停一下也没关系。这道题已记录为需要老师或家长帮忙。",
+                "due_at": null
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "1643eb1eb753498ba371d0f9bbd35205"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "79c4894f-953d-47d9-9c2f-7905e349a70c",
+            "question_id": "08f2b6da-8e8a-5da4-866c-16ed0e079a87",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "INDEPENDENT_ATTEMPT",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": "728b7a4c-d6a6-4a44-8f8c-af6245261515",
+            "first_submitted_attempt_id": null,
+            "submitted_attempts": 0,
+            "last_event_seq": 1,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "728b7a4c-d6a6-4a44-8f8c-af6245261515",
+              "session_id": "79c4894f-953d-47d9-9c2f-7905e349a70c",
+              "attempt_no": 1,
+              "submission_no": null,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "draft",
+              "answer": null,
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": null,
+              "evaluation": null,
+              "submitted_at": null,
+              "created_at": "2026-11-10T08:00:00Z",
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "728b7a4c-d6a6-4a44-8f8c-af6245261515",
+              "revision": 0,
+              "answer": null,
+              "strokes": null,
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "163e8747-3628-4fef-881c-28a4f8000010",
+              "session_id": "79c4894f-953d-47d9-9c2f-7905e349a70c",
+              "seq_no": 1,
+              "type": "notice",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "INDEPENDENT_ATTEMPT",
+              "payload": {
+                "code": "fast_not_applicable",
+                "text": "这道题没有经过审核的快速解法，请用常规解法。",
+                "due_at": null
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "08f2b6da-8e8a-5da4-866c-16ed0e079a87",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "77f190fb998f496a9efa331c5a2f6e5d"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "bd1f6b6d-a629-4bbe-ab27-7f6d2b199430",
+            "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "DIAGNOSED",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "7634d05a-5f23-489b-bc36-347e56799984",
+            "submitted_attempts": 1,
+            "last_event_seq": 1,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "7634d05a-5f23-489b-bc36-347e56799984",
+              "session_id": "bd1f6b6d-a629-4bbe-ab27-7f6d2b199430",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "blanks": [
+                  {
+                    "key": "b1",
+                    "value": "4"
+                  }
+                ]
+              },
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "verified",
+                "outcome": "correct",
+                "is_correct": true,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": false,
+                "feedback": [
+                  {
+                    "target": "overall",
+                    "code": "correct",
+                    "message": "回答正确。"
+                  }
+                ],
+                "message": "回答正确。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-10T08:00:00Z",
+              "created_at": "2026-11-10T08:00:00Z",
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "7634d05a-5f23-489b-bc36-347e56799984",
+              "revision": 0,
+              "answer": {
+                "blanks": [
+                  {
+                    "key": "b1",
+                    "value": "4"
+                  }
+                ]
+              },
+              "strokes": null,
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "1db0714b-bfca-4f0d-99b4-854825aec499",
+              "session_id": "bd1f6b6d-a629-4bbe-ab27-7f6d2b199430",
+              "seq_no": 1,
+              "type": "diagnosis",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "outcome": "correct",
+                "summary": "回答正确。",
+                "feedback": [
+                  {
+                    "target": "overall",
+                    "code": "correct",
+                    "message": "回答正确。"
+                  }
+                ],
+                "knowledge": [
+                  {
+                    "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+                    "code": "math.inequality.basic",
+                    "title": "基本不等式"
+                  }
+                ],
+                "suggestions": [
+                  {
+                    "action": "request_standard",
+                    "label": "看看解法",
+                    "question_id": null,
+                    "knowledge_id": null
+                  },
+                  {
+                    "action": "finish",
+                    "label": "完成这道题",
+                    "question_id": null,
+                    "knowledge_id": null
+                  }
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "a200466e3cb24d97950373dd6c269732"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "d1d6b3f4-6931-4914-b872-2bf52ac53f33",
+            "question_id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "DIAGNOSED",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "679c5d24-6c62-4961-a5bd-927751368b4d",
+            "submitted_attempts": 1,
+            "last_event_seq": 1,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "679c5d24-6c62-4961-a5bd-927751368b4d",
+              "session_id": "d1d6b3f4-6931-4914-b872-2bf52ac53f33",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "parts": [
+                  {
+                    "key": "1",
+                    "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"
+                  },
+                  {
+                    "key": "2",
+                    "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"
+                  }
+                ]
+              },
+              "draft_revision": 1,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "pending",
+                "outcome": "undetermined",
+                "is_correct": null,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": true,
+                "feedback": [],
+                "message": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-10T08:00:00Z",
+              "created_at": "2026-11-10T08:00:00Z",
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "679c5d24-6c62-4961-a5bd-927751368b4d",
+              "revision": 1,
+              "answer": {
+                "parts": [
+                  {
+                    "key": "1",
+                    "text": "对称轴 $x=a$，开口向上，所以 $a\\le 1$。"
+                  },
+                  {
+                    "key": "2",
+                    "text": "配方得 $(x-2)^2-1$，最小值 $-1$，最大值 $3$。"
+                  }
+                ]
+              },
+              "strokes": {
+                "version": 1,
+                "pages": [
+                  {
+                    "width": 800.0,
+                    "height": 1100.0,
+                    "strokes": [
+                      {
+                        "color": "#1A1A1A",
+                        "width": 2.5,
+                        "points": [
+                          10.0,
+                          20.0,
+                          0.0,
+                          0.5,
+                          14.0,
+                          26.0,
+                          16.0,
+                          0.6
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "self_checks": [
+            {
+              "attempt_id": "679c5d24-6c62-4961-a5bd-927751368b4d",
+              "marks": [
+                {
+                  "point_key": "p1",
+                  "level": "done"
+                },
+                {
+                  "point_key": "p2",
+                  "level": "partial"
+                },
+                {
+                  "point_key": "p3",
+                  "level": "missed"
+                },
+                {
+                  "point_key": "p4",
+                  "level": "done"
+                },
+                {
+                  "point_key": "p5",
+                  "level": "partial"
+                },
+                {
+                  "point_key": "p6",
+                  "level": "missed"
+                },
+                {
+                  "point_key": "p7",
+                  "level": "done"
+                }
+              ],
+              "saved_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "events": [
+            {
+              "id": "4fe43334-61d7-47aa-8b52-b679cb5c4128",
+              "session_id": "d1d6b3f4-6931-4914-b872-2bf52ac53f33",
+              "seq_no": 1,
+              "type": "uncertainty",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "reason_code": "subjective_self_check",
+                "text": "解答题不自动评分，作答已保存。请对照要点自己检查一遍；这次不算对，也不算错。",
+                "review_required": true
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "3a71b3e1-e925-53d2-b7ad-b4663196b8a6",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "fed15bc02cfa4ad195cea8906265d08d"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+            "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "STANDARD",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": true,
+            "used_solution": true,
+            "independent_ended": true,
+            "hint_level_revealed": 1,
+            "hint_levels_total": 3,
+            "confused_streak": 1,
+            "needs_human_help": false,
+            "active_attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+            "first_submitted_attempt_id": null,
+            "submitted_attempts": 0,
+            "last_event_seq": 3,
+            "created_at": "2026-11-10T08:00:00Z",
+            "updated_at": "2026-11-10T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+              "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+              "attempt_no": 1,
+              "submission_no": null,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "draft",
+              "answer": null,
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": null,
+              "evaluation": null,
+              "submitted_at": null,
+              "created_at": "2026-11-10T08:00:00Z",
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+              "revision": 0,
+              "answer": null,
+              "strokes": null,
+              "updated_at": "2026-11-10T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "8a5e7d6a-e827-4929-82b1-41846308b4ac",
+              "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+              "seq_no": 1,
+              "type": "hint",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "HINTED",
+              "payload": {
+                "level": 1,
+                "total_levels": 3,
+                "style": "layered",
+                "text": "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+                "concept": "函数的单调性"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "e4395935874849acb4f9d89912848e94"
+              },
+              "references": [
+                {
+                  "block_id": "stem",
+                  "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+                  "start": 7,
+                  "end": 12,
+                  "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                  "label": "题干"
+                }
+              ]
+            },
+            {
+              "id": "baf662bf-7d35-4ff2-aa6d-eef2a73191cc",
+              "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+              "seq_no": 2,
+              "type": "hint",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "HINTED",
+              "payload": {
+                "level": 1,
+                "total_levels": 1,
+                "style": "rephrase",
+                "text": "换个说法：在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减。先别急着算，用自己的话把“函数的单调性”说一遍，再回到题目里找对应的量。",
+                "concept": "函数的单调性"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "model",
+                "degraded": false,
+                "provider": "mock",
+                "model_id": "mock-tutor",
+                "prompt_version": "tutor-prompt/2026-11-16.1",
+                "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+                "question_version": 1,
+                "trace_id": "b0365c43bafe458e9bb6bfb4f4aa5520",
+                "request_id": "f57fd2ee346e484cbcd92d64856bc2cb"
+              },
+              "references": [
+                {
+                  "block_id": "stem",
+                  "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+                  "start": 7,
+                  "end": 12,
+                  "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                  "label": "题干"
+                }
+              ]
+            },
+            {
+              "id": "eee0b788-d798-4cd5-9e85-62ef283c358a",
+              "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+              "seq_no": 3,
+              "type": "standard",
+              "created_at": "2026-11-10T08:00:00Z",
+              "state_after": "STANDARD",
+              "payload": {
+                "title": "常规解法",
+                "steps": [
+                  {
+                    "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+                  },
+                  {
+                    "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+                  },
+                  {
+                    "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+                  }
+                ],
+                "final_answer": "B",
+                "option_analysis": [
+                  {
+                    "key": "A",
+                    "verdict": "wrong",
+                    "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+                  },
+                  {
+                    "key": "B",
+                    "verdict": "correct",
+                    "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+                  },
+                  {
+                    "key": "C",
+                    "verdict": "wrong",
+                    "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+                  },
+                  {
+                    "key": "D",
+                    "verdict": "wrong",
+                    "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+                  }
+                ],
+                "key_points": [
+                  "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+                  "开口方向决定哪一侧递增"
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "a524f792bd534bc996c7d16c02d59ff8"
+              },
+              "references": [
+                {
+                  "block_id": "stem",
+                  "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+                  "start": 7,
+                  "end": 12,
+                  "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                  "label": "题干"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
+            "question_id": "2e43664d-943a-588a-9378-24094140fda1",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "DIAGNOSED",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+            "submitted_attempts": 1,
+            "last_event_seq": 1,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+              "session_id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "parts": [
+                  {
+                    "key": "1",
+                    "text": "$T=0.10\\ \\text{s}$，平均速度等于距离除以 $T$。"
+                  },
+                  {
+                    "key": "2",
+                    "text": "用逐差法，$a=2.00\\ \\text{m/s}^2$。"
+                  }
+                ],
+                "cells": [
+                  {
+                    "table": "t1",
+                    "row": "r1",
+                    "col": "v",
+                    "value": "0.400"
+                  },
+                  {
+                    "table": "t1",
+                    "row": "r2",
+                    "col": "v",
+                    "value": "0.600"
+                  },
+                  {
+                    "table": "t1",
+                    "row": "r3",
+                    "col": "v",
+                    "value": "0.800"
+                  },
+                  {
+                    "table": "t1",
+                    "row": "r4",
+                    "col": "v",
+                    "value": "1.00"
+                  },
+                  {
+                    "table": "t2",
+                    "row": "r1",
+                    "col": "val",
+                    "value": "2.00"
+                  }
+                ]
+              },
+              "draft_revision": 1,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "pending",
+                "outcome": "undetermined",
+                "is_correct": null,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": true,
+                "feedback": [],
+                "message": "实验题不自动评分，作答已保存。请对照参考数据和要点自己检查一遍；这次不算对，也不算错。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-11T08:00:00Z",
+              "created_at": "2026-11-11T08:00:00Z",
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+              "revision": 1,
+              "answer": {
+                "parts": [
+                  {
+                    "key": "1",
+                    "text": "$T=0.10\\ \\text{s}$，平均速度等于距离除以 $T$。"
+                  },
+                  {
+                    "key": "2",
+                    "text": "用逐差法，$a=2.00\\ \\text{m/s}^2$。"
+                  }
+                ],
+                "cells": [
+                  {
+                    "table": "t1",
+                    "row": "r1",
+                    "col": "v",
+                    "value": "0.400"
+                  },
+                  {
+                    "table": "t1",
+                    "row": "r2",
+                    "col": "v",
+                    "value": "0.600"
+                  },
+                  {
+                    "table": "t1",
+                    "row": "r3",
+                    "col": "v",
+                    "value": "0.800"
+                  },
+                  {
+                    "table": "t1",
+                    "row": "r4",
+                    "col": "v",
+                    "value": "1.00"
+                  },
+                  {
+                    "table": "t2",
+                    "row": "r1",
+                    "col": "val",
+                    "value": "2.00"
+                  }
+                ]
+              },
+              "strokes": {
+                "version": 1,
+                "pages": [
+                  {
+                    "width": 800.0,
+                    "height": 1100.0,
+                    "strokes": [
+                      {
+                        "color": "#1A1A1A",
+                        "width": 2.5,
+                        "points": [
+                          10.0,
+                          20.0,
+                          0.0,
+                          0.5,
+                          14.0,
+                          26.0,
+                          16.0,
+                          0.6
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "self_checks": [
+            {
+              "attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+              "marks": [
+                {
+                  "point_key": "p1",
+                  "level": "done"
+                },
+                {
+                  "point_key": "p2",
+                  "level": "partial"
+                },
+                {
+                  "point_key": "p3",
+                  "level": "missed"
+                },
+                {
+                  "point_key": "p4",
+                  "level": "done"
+                },
+                {
+                  "point_key": "p5",
+                  "level": "partial"
+                },
+                {
+                  "point_key": "p6",
+                  "level": "missed"
+                },
+                {
+                  "point_key": "p7",
+                  "level": "done"
+                },
+                {
+                  "point_key": "p8",
+                  "level": "partial"
+                },
+                {
+                  "point_key": "p9",
+                  "level": "missed"
+                }
+              ],
+              "saved_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "events": [
+            {
+              "id": "7e7edd1c-cee8-4b85-885b-34d341fd8186",
+              "session_id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
+              "seq_no": 1,
+              "type": "uncertainty",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "reason_code": "subjective_self_check",
+                "text": "实验题不自动评分，作答已保存。请对照参考数据和要点自己检查一遍；这次不算对，也不算错。",
+                "review_required": true
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "2e43664d-943a-588a-9378-24094140fda1",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "3403540b276a45da98677bca013ec3b7"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "0da0f4ef-24cb-4874-8198-b443f02e66b4",
+            "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "READY",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": null,
+            "submitted_attempts": 0,
+            "last_event_seq": 0,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          "attempts": [],
+          "drafts": [],
+          "self_checks": [],
+          "events": []
+        },
+        {
+          "session": {
+            "id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+            "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "VISUAL",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": true,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 2,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+            "submitted_attempts": 1,
+            "last_event_seq": 3,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+              "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "selected_options": [
+                  "B"
+                ]
+              },
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "verified",
+                "outcome": "correct",
+                "is_correct": true,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": false,
+                "feedback": [
+                  {
+                    "target": "overall",
+                    "code": "correct",
+                    "message": "回答正确。"
+                  }
+                ],
+                "message": "回答正确。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-11T08:00:00Z",
+              "created_at": "2026-11-11T08:00:00Z",
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+              "revision": 0,
+              "answer": {
+                "selected_options": [
+                  "B"
+                ]
+              },
+              "strokes": null,
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "b43d722f-de62-400f-8a4b-f538559b3c21",
+              "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+              "seq_no": 1,
+              "type": "notice",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "INDEPENDENT_ATTEMPT",
+              "payload": {
+                "code": "visual_not_available",
+                "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+                "due_at": null
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "6fea1f563e544b5599eecc05ee073693"
+              }
+            },
+            {
+              "id": "9bb9f3c5-6d27-4f0a-b516-4380a8c86e40",
+              "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+              "seq_no": 2,
+              "type": "diagnosis",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "outcome": "correct",
+                "summary": "回答正确。",
+                "feedback": [
+                  {
+                    "target": "overall",
+                    "code": "correct",
+                    "message": "回答正确。"
+                  }
+                ],
+                "knowledge": [
+                  {
+                    "id": "bb5de35d-378b-5277-9ecf-85b3bfca7895",
+                    "code": "chem.process.reading",
+                    "title": "工艺流程结构阅读"
+                  }
+                ],
+                "suggestions": [
+                  {
+                    "action": "request_standard",
+                    "label": "看看解法",
+                    "question_id": null,
+                    "knowledge_id": null
+                  },
+                  {
+                    "action": "finish",
+                    "label": "完成这道题",
+                    "question_id": null,
+                    "knowledge_id": null
+                  }
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "2b03d3666844425a80d6f7e4787d94b9"
+              }
+            },
+            {
+              "id": "931d3ecf-b67c-411a-832b-d406f13346ad",
+              "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+              "seq_no": 3,
+              "type": "visual",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "VISUAL",
+              "payload": {
+                "template_id": "chemical_process",
+                "params": {
+                  "focus": 0,
+                  "branch": 1,
+                  "recycle": 1
+                },
+                "caption": "只定位题干已给出的流程关系，不推断物质、反应或操作。",
+                "static_fallback": "原料依次经过处理Ⅰ、分离、处理Ⅱ到达产物。支路与回流是否存在以题干文字为准；这只是通用流程骨架，不是反应机理或实验操作指南。"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "4492baf4fea24da3938808a6052f5e92"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "38ddf7f4-4cfe-453d-a9b5-8046947ea3db",
+            "question_id": "ffc1ebf1-9bff-5a58-8cba-6a6f295cf534",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "DIAGNOSED",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
+            "submitted_attempts": 1,
+            "last_event_seq": 1,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
+              "session_id": "38ddf7f4-4cfe-453d-a9b5-8046947ea3db",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "steps": [
+                  {
+                    "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+                    "reason": "单调性的定义"
+                  },
+                  {
+                    "text": "$f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+                    "reason": "作差，通分，提公因式"
+                  },
+                  {
+                    "text": "$x_1-x_2<0$，$x_1x_2>1$，所以 $f(x_1)<f(x_2)$，$f(x)$ 在 $[1,+\\infty)$ 上单调递增。",
+                    "reason": ""
+                  }
+                ]
+              },
+              "draft_revision": 1,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "pending",
+                "outcome": "undetermined",
+                "is_correct": null,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": true,
+                "feedback": [],
+                "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-11T08:00:00Z",
+              "created_at": "2026-11-11T08:00:00Z",
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
+              "revision": 1,
+              "answer": {
+                "steps": [
+                  {
+                    "text": "任取 $x_1,x_2\\in[1,+\\infty)$，且 $x_1<x_2$。",
+                    "reason": "单调性的定义"
+                  },
+                  {
+                    "text": "$f(x_1)-f(x_2)=\\dfrac{(x_1-x_2)(x_1x_2-1)}{x_1x_2}$。",
+                    "reason": "作差，通分，提公因式"
+                  },
+                  {
+                    "text": "$x_1-x_2<0$，$x_1x_2>1$，所以 $f(x_1)<f(x_2)$，$f(x)$ 在 $[1,+\\infty)$ 上单调递增。",
+                    "reason": ""
+                  }
+                ]
+              },
+              "strokes": {
+                "version": 1,
+                "pages": [
+                  {
+                    "width": 800.0,
+                    "height": 1100.0,
+                    "strokes": [
+                      {
+                        "color": "#1A1A1A",
+                        "width": 2.5,
+                        "points": [
+                          10.0,
+                          20.0,
+                          0.0,
+                          0.5,
+                          14.0,
+                          26.0,
+                          16.0,
+                          0.6
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "self_checks": [
+            {
+              "attempt_id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
+              "marks": [
+                {
+                  "point_key": "p1",
+                  "level": "done"
+                },
+                {
+                  "point_key": "p2",
+                  "level": "partial"
+                },
+                {
+                  "point_key": "p3",
+                  "level": "missed"
+                },
+                {
+                  "point_key": "p4",
+                  "level": "done"
+                },
+                {
+                  "point_key": "p5",
+                  "level": "partial"
+                },
+                {
+                  "point_key": "p6",
+                  "level": "missed"
+                }
+              ],
+              "saved_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "events": [
+            {
+              "id": "e86463ed-975a-4448-b315-264ec53b27a3",
+              "session_id": "38ddf7f4-4cfe-453d-a9b5-8046947ea3db",
+              "seq_no": 1,
+              "type": "uncertainty",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "reason_code": "subjective_self_check",
+                "text": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+                "review_required": true
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "ffc1ebf1-9bff-5a58-8cba-6a6f295cf534",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "5572be3e9b6a4585818ec721e53e6779"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "4f71333a-a967-4d74-a9b2-409d6eacb1df",
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "origin": "review",
+            "state": "DIAGNOSED",
+            "review_item_id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+            "submitted_attempts": 1,
+            "last_event_seq": 1,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+              "session_id": "4f71333a-a967-4d74-a9b2-409d6eacb1df",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "selected_options": [
+                  "B"
+                ]
+              },
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "verified",
+                "outcome": "correct",
+                "is_correct": true,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": false,
+                "feedback": [
+                  {
+                    "target": "overall",
+                    "code": "correct",
+                    "message": "回答正确。"
+                  }
+                ],
+                "message": "回答正确。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-11T08:00:00Z",
+              "created_at": "2026-11-11T08:00:00Z",
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+              "revision": 0,
+              "answer": {
+                "selected_options": [
+                  "B"
+                ]
+              },
+              "strokes": null,
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "6b110a74-88ec-4f8f-822e-72fe5ee1294f",
+              "session_id": "4f71333a-a967-4d74-a9b2-409d6eacb1df",
+              "seq_no": 1,
+              "type": "diagnosis",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "outcome": "correct",
+                "summary": "回答正确。",
+                "feedback": [
+                  {
+                    "target": "overall",
+                    "code": "correct",
+                    "message": "回答正确。"
+                  }
+                ],
+                "knowledge": [
+                  {
+                    "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+                    "code": "math.function.monotonicity",
+                    "title": "函数的单调性"
+                  },
+                  {
+                    "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+                    "code": "math.quadratic.graph",
+                    "title": "二次函数的图像与对称轴"
+                  }
+                ],
+                "suggestions": [
+                  {
+                    "action": "request_standard",
+                    "label": "看看解法",
+                    "question_id": null,
+                    "knowledge_id": null
+                  },
+                  {
+                    "action": "finish",
+                    "label": "完成这道题",
+                    "question_id": null,
+                    "knowledge_id": null
+                  }
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "cb0d5452270742e4bd2a9dcb869a569e"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+            "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "VISUAL",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": true,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "89ac984b-8d03-4f7e-871b-e5a176d29f09",
+            "submitted_attempts": 1,
+            "last_event_seq": 3,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "89ac984b-8d03-4f7e-871b-e5a176d29f09",
+              "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "steps": [
+                  {
+                    "text": "我使用题设圆方程进行比较。",
+                    "reason": "两点间距离公式"
+                  }
+                ]
+              },
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "pending",
+                "outcome": "undetermined",
+                "is_correct": null,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": true,
+                "feedback": [],
+                "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-11T08:00:00Z",
+              "created_at": "2026-11-11T08:00:00Z",
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "89ac984b-8d03-4f7e-871b-e5a176d29f09",
+              "revision": 0,
+              "answer": {
+                "steps": [
+                  {
+                    "text": "我使用题设圆方程进行比较。",
+                    "reason": "两点间距离公式"
+                  }
+                ]
+              },
+              "strokes": null,
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "d05855a5-34bb-4b85-808e-13fc8a3a4955",
+              "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+              "seq_no": 1,
+              "type": "notice",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "INDEPENDENT_ATTEMPT",
+              "payload": {
+                "code": "visual_not_available",
+                "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+                "due_at": null
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "79c5e969e0934b0592c518d14c4c5e32"
+              }
+            },
+            {
+              "id": "966df065-760e-474b-ba2a-c66748935a7a",
+              "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+              "seq_no": 2,
+              "type": "uncertainty",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "reason_code": "subjective_self_check",
+                "text": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+                "review_required": true
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "3463b021e4564a198b7e29b22e051b42"
+              }
+            },
+            {
+              "id": "15978914-a9df-4995-bbc7-fe022cd14673",
+              "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+              "seq_no": 3,
+              "type": "visual",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "VISUAL",
+              "payload": {
+                "template_id": "circle_schematic",
+                "params": {
+                  "a_position": 0.1,
+                  "b_position": 0.37,
+                  "focus": 0
+                },
+                "caption": "只定位已给的圆O和圆上点A、B；不补连线、辅助点或证明结论。",
+                "static_fallback": "O是圆心，A、B是圆上不同的两点。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "160a0a195df84a49b8e6a82c1c509587"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+            "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "DIAGNOSED",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": false,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+            "first_submitted_attempt_id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+            "submitted_attempts": 1,
+            "last_event_seq": 2,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "bd580882-8390-4831-b421-221578343b82",
+              "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+              "attempt_no": 1,
+              "submission_no": null,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "draft",
+              "answer": {
+                "blanks": [
+                  {
+                    "key": "b1",
+                    "value": "云端草稿"
+                  }
+                ]
+              },
+              "draft_revision": 1,
+              "assisted": false,
+              "used_solution": false,
+              "independent": null,
+              "evaluation": null,
+              "submitted_at": null,
+              "created_at": "2026-11-11T08:00:00Z",
+              "updated_at": "2026-11-11T08:00:00Z"
+            },
+            {
+              "id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+              "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+              "attempt_no": 2,
+              "submission_no": 1,
+              "copied_from_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+              "copied_from_revision": 1,
+              "status": "submitted",
+              "answer": {
+                "blanks": [
+                  {
+                    "key": "b1",
+                    "value": "4"
+                  }
+                ]
+              },
+              "draft_revision": 1,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "verified",
+                "outcome": "correct",
+                "is_correct": true,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": false,
+                "feedback": [
+                  {
+                    "target": "overall",
+                    "code": "correct",
+                    "message": "回答正确。"
+                  }
+                ],
+                "message": "回答正确。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-11T08:00:00Z",
+              "created_at": "2026-11-11T08:00:00Z",
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+              "revision": 1,
+              "answer": {
+                "blanks": [
+                  {
+                    "key": "b1",
+                    "value": "4"
+                  }
+                ]
+              },
+              "strokes": {
+                "version": 1,
+                "pages": [
+                  {
+                    "width": 800.0,
+                    "height": 1100.0,
+                    "strokes": [
+                      {
+                        "color": "#1A1A1A",
+                        "width": 2.5,
+                        "points": [
+                          10.0,
+                          20.0,
+                          0.0,
+                          0.5,
+                          14.0,
+                          26.0,
+                          16.0,
+                          0.6
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "updated_at": "2026-11-11T08:00:00Z"
+            },
+            {
+              "attempt_id": "bd580882-8390-4831-b421-221578343b82",
+              "revision": 1,
+              "answer": {
+                "blanks": [
+                  {
+                    "key": "b1",
+                    "value": "云端草稿"
+                  }
+                ]
+              },
+              "strokes": null,
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "e65f2696-a020-4d4e-9e85-1581f3214f1a",
+              "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+              "seq_no": 1,
+              "type": "diagnosis",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "outcome": "correct",
+                "summary": "回答正确。",
+                "feedback": [
+                  {
+                    "target": "overall",
+                    "code": "correct",
+                    "message": "回答正确。"
+                  }
+                ],
+                "knowledge": [
+                  {
+                    "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+                    "code": "math.inequality.basic",
+                    "title": "基本不等式"
+                  }
+                ],
+                "suggestions": [
+                  {
+                    "action": "request_standard",
+                    "label": "看看解法",
+                    "question_id": null,
+                    "knowledge_id": null
+                  },
+                  {
+                    "action": "finish",
+                    "label": "完成这道题",
+                    "question_id": null,
+                    "knowledge_id": null
+                  }
+                ]
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "8e7e674ddc4344e991ac1497bddcdcb4"
+              }
+            },
+            {
+              "id": "6124add8-44f4-4734-8ed2-bc9d10faf0d4",
+              "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+              "seq_no": 2,
+              "type": "notice",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "code": "keep_going",
+                "text": "还有未提交的草稿或副本，仍可继续编辑；没有关闭它们。",
+                "due_at": null
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "63c324f825df4198a054cb182aae3935"
+              }
+            }
+          ]
+        },
+        {
+          "session": {
+            "id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+            "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+            "question_version": 1,
+            "origin": "practice",
+            "state": "VISUAL",
+            "review_item_id": null,
+            "parent_session_id": null,
+            "region_code_snapshot": "CN-51",
+            "exam_year_snapshot": 2027,
+            "curriculum_version_snapshot": null,
+            "assisted": true,
+            "used_solution": false,
+            "independent_ended": false,
+            "hint_level_revealed": 0,
+            "hint_levels_total": 3,
+            "confused_streak": 0,
+            "needs_human_help": false,
+            "active_attempt_id": null,
+            "first_submitted_attempt_id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+            "submitted_attempts": 1,
+            "last_event_seq": 3,
+            "created_at": "2026-11-11T08:00:00Z",
+            "updated_at": "2026-11-11T08:00:00Z"
+          },
+          "attempts": [
+            {
+              "id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+              "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+              "attempt_no": 1,
+              "submission_no": 1,
+              "copied_from_attempt_id": null,
+              "copied_from_revision": null,
+              "status": "submitted",
+              "answer": {
+                "steps": [
+                  {
+                    "text": "按给定坐标比较三边。",
+                    "reason": "两点间距离公式"
+                  }
+                ]
+              },
+              "draft_revision": 0,
+              "assisted": false,
+              "used_solution": false,
+              "independent": true,
+              "evaluation": {
+                "state": "pending",
+                "outcome": "undetermined",
+                "is_correct": null,
+                "independent": true,
+                "assisted": false,
+                "used_solution": false,
+                "review_required": true,
+                "feedback": [],
+                "message": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+                "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+              },
+              "submitted_at": "2026-11-11T08:00:00Z",
+              "created_at": "2026-11-11T08:00:00Z",
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "drafts": [
+            {
+              "attempt_id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+              "revision": 0,
+              "answer": {
+                "steps": [
+                  {
+                    "text": "按给定坐标比较三边。",
+                    "reason": "两点间距离公式"
+                  }
+                ]
+              },
+              "strokes": null,
+              "updated_at": "2026-11-11T08:00:00Z"
+            }
+          ],
+          "self_checks": [],
+          "events": [
+            {
+              "id": "fdfa9528-c4e0-4e46-9083-0d95c7910034",
+              "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+              "seq_no": 1,
+              "type": "notice",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "INDEPENDENT_ATTEMPT",
+              "payload": {
+                "code": "visual_not_available",
+                "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+                "due_at": null
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "ca4eb6b8fb264cbfbcdffa0c1b68c660"
+              }
+            },
+            {
+              "id": "ceb51a2d-cd50-4f5b-9062-fa8cac38f120",
+              "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+              "seq_no": 2,
+              "type": "uncertainty",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "DIAGNOSED",
+              "payload": {
+                "reason_code": "subjective_self_check",
+                "text": "证明题不自动评分，作答已保存。请对照参考证明和要点自己检查一遍；这次不算对，也不算错。",
+                "review_required": true
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "rule_engine",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "d439db48c0f748759d063165f744f14e"
+              }
+            },
+            {
+              "id": "6a53f433-3589-47fc-879e-2bcaf878fd70",
+              "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+              "seq_no": 3,
+              "type": "visual",
+              "created_at": "2026-11-11T08:00:00Z",
+              "state_after": "VISUAL",
+              "payload": {
+                "template_id": "triangle_schematic",
+                "params": {
+                  "apex_x": 0.35,
+                  "height": 0.65,
+                  "focus": 0
+                },
+                "caption": "只定位已给的A、B、C和三条边；不增加辅助线，也不从图形外观推断结论。",
+                "static_fallback": "A、B位于基线两端，C位于基线上方，三边连接A、B、C。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。"
+              },
+              "meta": {
+                "schema_version": "1.0",
+                "source": "reviewed_content",
+                "degraded": false,
+                "provider": null,
+                "model_id": null,
+                "prompt_version": null,
+                "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+                "question_version": 1,
+                "trace_id": null,
+                "request_id": "43d82f3324844b88b573500855ffec88"
+              }
+            }
+          ]
+        }
+      ],
+      "reviews": [
+        {
+          "id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_title": "二次函数的单调递增区间",
+          "subject": "math",
+          "status": "scheduled",
+          "stage": 1,
+          "total_stages": 3,
+          "due_at": "2026-11-14T08:00:00Z",
+          "is_due": false,
+          "last_result": "passed",
+          "created_at": "2026-11-10T08:00:00Z",
+          "updated_at": "2026-11-11T08:00:00Z"
+        }
+      ],
+      "review_history": [
+        {
+          "review_id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
+          "first_attempt_id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "state": "completed",
+          "result": "passed",
+          "completed_at": "2026-11-11T08:00:00Z"
+        }
+      ],
+      "diagnostic_runs": [],
+      "diagnostic_workspace": {
+        "revision": 0,
+        "run": null
+      },
+      "parent_access_records": {
+        "history_complete": false,
+        "links": [
+          {
+            "id": "bc82116a-215a-4e80-9197-60c5c49b633c",
+            "authorization_revision": 2,
+            "consent_at": "2026-11-11T08:00:00Z",
+            "revoked_at": "2026-11-11T08:00:00Z",
+            "created_at": "2026-11-11T08:00:00Z"
+          }
+        ],
+        "invites": [
+          {
+            "id": "6fbefec5-c64e-4222-bfbe-a647e260ce8a",
+            "expires_at": "2026-11-12T08:00:00Z",
+            "redeemed_at": "2026-11-11T08:00:00Z",
+            "revoked_at": null,
+            "created_at": "2026-11-11T08:00:00Z"
+          }
+        ]
+      },
+      "stored_scan_records": [
+        {
+          "media_id": "d323d0d9-1716-40de-ab72-2369a54d511c",
+          "expires_at": "2026-11-10T10:00:00Z",
+          "scan": {
+            "id": "8fe1895c-75b3-47cc-a0dd-3c31ed16238e",
+            "status": "confirmed",
+            "confidence": null,
+            "low_confidence": true,
+            "stem_text": "手工录入：未匹配样题",
+            "expressions": [],
+            "matched_question_id": null,
+            "error_code": null,
+            "mock_notice": "本地Mock未实际识别图片；请手工输入并确认题干。仅匹配已发布自编工程样题，不代表学科审校。"
+          }
+        }
+      ],
+      "model_usage": {
+        "history_complete": false,
+        "identity_scope": "current_server_pseudonym",
+        "costs_are_billing": false,
+        "calls": [
+          {
+            "created_at": "2026-11-10T08:00:00Z",
+            "task_type": "tutor_explain",
+            "status": "ok",
+            "provider_calls": 1,
+            "input_tokens": null,
+            "output_tokens": null,
+            "image_units": null,
+            "estimated_cost_micros": 0
+          },
+          {
+            "created_at": "2026-11-10T08:00:00Z",
+            "task_type": "tutor_explain",
+            "status": "ok",
+            "provider_calls": 1,
+            "input_tokens": null,
+            "output_tokens": null,
+            "image_units": null,
+            "estimated_cost_micros": 0
+          }
+        ],
+        "budget_days": [
+          {
+            "usage_date": "2026-11-10",
+            "request_count": 2,
+            "estimated_cost_micros": 0,
+            "updated_at": "2026-11-10T08:00:00Z"
+          }
+        ]
+      },
+      "excluded": [
+        "auth_credentials",
+        "operational_logs",
+        "question_answer_keys",
+        "unsynced_device_data",
+        "media_files"
+      ]
+    }
+  }
+}

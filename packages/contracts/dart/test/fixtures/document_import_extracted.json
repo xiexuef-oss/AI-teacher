@@ -1,0 +1,387 @@
+{
+  "name": "document_import_extracted",
+  "method": "GET",
+  "path": "/api/v1/admin/import-jobs/d728a61f-d463-4e3f-b44c-09cbbb0ff00d",
+  "status": 200,
+  "schema": "DocImportJobDetail",
+  "value": {
+    "job": {
+      "id": "d728a61f-d463-4e3f-b44c-09cbbb0ff00d",
+      "title": "自编工程样题导入",
+      "status": "needs_review",
+      "revision": 6,
+      "file_count": 1,
+      "processed_files": 1,
+      "candidate_count": 1,
+      "confirmed_count": 0,
+      "imported_count": 0,
+      "failed_count": 0,
+      "message": "请人工核对提取文本、公式、图像与题目边界；未确认的内容不能导入题库。",
+      "created_at": "2026-11-10T08:00:00+00:00",
+      "updated_at": "2026-11-10T08:00:00+00:00",
+      "expires_at": "2026-11-10T10:00:00+00:00"
+    },
+    "defaults": {
+      "subject": "math",
+      "answer_mode": "single_choice",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null
+      }
+    },
+    "files": [
+      {
+        "id": "5b9ada99-40a3-45bc-b634-5ac925e4b476",
+        "filename": "sample.json",
+        "kind": "json",
+        "media_type": "application/json",
+        "size_bytes": 3270,
+        "sha256": "a5c0001f03021934e5eaf330f94a92e354e3ba27adeac6517f96df96f312cd50",
+        "status": "ready",
+        "problems": [],
+        "pages": [
+          {
+            "number": 1,
+            "text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+            "method": "json",
+            "warnings": [
+              "结构化题目仍须人工确认。"
+            ],
+            "confidence": null,
+            "media_refs": []
+          }
+        ],
+        "original_available": true
+      }
+    ],
+    "candidates": [
+      {
+        "id": "2836d1e8-6ab9-4044-9fd7-6055a55aecf0",
+        "title": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+        "text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+        "locations": [
+          {
+            "file_id": "5b9ada99-40a3-45bc-b634-5ac925e4b476",
+            "page": 1,
+            "block": null
+          }
+        ],
+        "warnings": [
+          "结构化题目仍须人工确认。",
+          "尚未人工校对，不能直接入库。"
+        ],
+        "payload": {
+          "subject": "math",
+          "answer_mode": "single_choice",
+          "source": {
+            "source_type": "self_authored",
+            "source_category": "foundation",
+            "source_name": "自编工程样题",
+            "source_year": null,
+            "source_license": "internal-engineering-sample",
+            "source_url": null
+          },
+          "question": {
+            "title": "二次函数的单调递增区间",
+            "difficulty": 2,
+            "grade": "G10",
+            "content": {
+              "stem": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+              "options": [
+                {
+                  "key": "A",
+                  "text": "$(-\\infty,1]$"
+                },
+                {
+                  "key": "B",
+                  "text": "$[1,+\\infty)$"
+                },
+                {
+                  "key": "C",
+                  "text": "$(-\\infty,-1]$"
+                },
+                {
+                  "key": "D",
+                  "text": "$[-1,+\\infty)$"
+                }
+              ],
+              "blanks": [],
+              "subquestions": [],
+              "attachments": [],
+              "data_tables": [],
+              "safety": null,
+              "proof": null
+            },
+            "answer": {
+              "value": [
+                "B"
+              ],
+              "equivalence_rules": {},
+              "units": {}
+            },
+            "teaching": {
+              "concept": "函数的单调性",
+              "hints": [
+                "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+                "二次函数的增减在对称轴处发生改变。用 $x=-\\dfrac{b}{2a}$ 求出对称轴，注意 $b$ 的符号。",
+                "开口向上的抛物线，在对称轴的一侧下降、另一侧上升。画个草图，看看上升的是哪一侧。"
+              ],
+              "concept_rephrase": "单调递增的意思是：在这个区间里任取两个数，较大的那个对应的函数值也较大。比如 $y=x^2$，在 $[0,+\\infty)$ 上取 $1<2$，对应的函数值 $1<4$，一路往上走；在 $(-\\infty,0]$ 上取 $-2<-1$，对应的函数值却是 $4>1$，是往下走的。所以同一个函数在不同区间上可以有不同的增减。",
+              "option_analysis": {
+                "A": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。",
+                "B": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。",
+                "C": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。",
+                "D": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+              },
+              "visual": {
+                "template_id": "quadratic_graph",
+                "params": {
+                  "a": 1.0,
+                  "b": -2.0,
+                  "c": -3.0
+                },
+                "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。"
+              },
+              "leak_markers": []
+            },
+            "solutions": [
+              {
+                "kind": "standard",
+                "steps": [
+                  "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。",
+                  "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。",
+                  "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+                ],
+                "final_answer": "B",
+                "key_points": [
+                  "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+                  "开口方向决定哪一侧递增"
+                ],
+                "conditions": null,
+                "boundary": null
+              },
+              {
+                "kind": "fast",
+                "steps": [
+                  "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。",
+                  "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+                ],
+                "final_answer": "B",
+                "key_points": [],
+                "conditions": [
+                  "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+                  "定义域是全体实数，没有被限制在某个区间内"
+                ],
+                "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。"
+              }
+            ],
+            "knowledge": [
+              "math.function.monotonicity",
+              "math.quadratic.graph"
+            ],
+            "rubric": {}
+          }
+        },
+        "confirmed": false,
+        "confirmed_by": null,
+        "question_id": null,
+        "error": null
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "job": {
+        "id": "d728a61f-d463-4e3f-b44c-09cbbb0ff00d",
+        "title": "自编工程样题导入",
+        "status": "needs_review",
+        "revision": 6,
+        "file_count": 1,
+        "processed_files": 1,
+        "candidate_count": 1,
+        "confirmed_count": 0,
+        "imported_count": 0,
+        "failed_count": 0,
+        "message": "请人工核对提取文本、公式、图像与题目边界；未确认的内容不能导入题库。",
+        "created_at": "2026-11-10T08:00:00+00:00",
+        "updated_at": "2026-11-10T08:00:00+00:00",
+        "expires_at": "2026-11-10T10:00:00+00:00"
+      },
+      "defaults": {
+        "subject": "math",
+        "answer_mode": "single_choice",
+        "source": {
+          "source_type": "self_authored",
+          "source_category": "foundation",
+          "source_name": "自编工程样题",
+          "source_year": null,
+          "source_license": "internal-engineering-sample",
+          "source_url": null
+        }
+      },
+      "files": [
+        {
+          "id": "5b9ada99-40a3-45bc-b634-5ac925e4b476",
+          "filename": "sample.json",
+          "kind": "json",
+          "media_type": "application/json",
+          "size_bytes": 3270,
+          "sha256": "a5c0001f03021934e5eaf330f94a92e354e3ba27adeac6517f96df96f312cd50",
+          "status": "ready",
+          "problems": [],
+          "pages": [
+            {
+              "number": 1,
+              "text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+              "method": "json",
+              "warnings": [
+                "结构化题目仍须人工确认。"
+              ],
+              "confidence": null,
+              "media_refs": []
+            }
+          ],
+          "original_available": true
+        }
+      ],
+      "candidates": [
+        {
+          "id": "2836d1e8-6ab9-4044-9fd7-6055a55aecf0",
+          "title": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+          "text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+          "locations": [
+            {
+              "file_id": "5b9ada99-40a3-45bc-b634-5ac925e4b476",
+              "page": 1,
+              "block": null
+            }
+          ],
+          "warnings": [
+            "结构化题目仍须人工确认。",
+            "尚未人工校对，不能直接入库。"
+          ],
+          "payload": {
+            "subject": "math",
+            "answer_mode": "single_choice",
+            "source": {
+              "source_type": "self_authored",
+              "source_category": "foundation",
+              "source_name": "自编工程样题",
+              "source_year": null,
+              "source_license": "internal-engineering-sample",
+              "source_url": null
+            },
+            "question": {
+              "title": "二次函数的单调递增区间",
+              "difficulty": 2,
+              "grade": "G10",
+              "content": {
+                "stem": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+                "options": [
+                  {
+                    "key": "A",
+                    "text": "$(-\\infty,1]$"
+                  },
+                  {
+                    "key": "B",
+                    "text": "$[1,+\\infty)$"
+                  },
+                  {
+                    "key": "C",
+                    "text": "$(-\\infty,-1]$"
+                  },
+                  {
+                    "key": "D",
+                    "text": "$[-1,+\\infty)$"
+                  }
+                ],
+                "blanks": [],
+                "subquestions": [],
+                "attachments": [],
+                "data_tables": [],
+                "safety": null,
+                "proof": null
+              },
+              "answer": {
+                "value": [
+                  "B"
+                ],
+                "equivalence_rules": {},
+                "units": {}
+              },
+              "teaching": {
+                "concept": "函数的单调性",
+                "hints": [
+                  "先判断这是哪一类函数，它的图像是什么形状、开口朝哪边。",
+                  "二次函数的增减在对称轴处发生改变。用 $x=-\\dfrac{b}{2a}$ 求出对称轴，注意 $b$ 的符号。",
+                  "开口向上的抛物线，在对称轴的一侧下降、另一侧上升。画个草图，看看上升的是哪一侧。"
+                ],
+                "concept_rephrase": "单调递增的意思是：在这个区间里任取两个数，较大的那个对应的函数值也较大。比如 $y=x^2$，在 $[0,+\\infty)$ 上取 $1<2$，对应的函数值 $1<4$，一路往上走；在 $(-\\infty,0]$ 上取 $-2<-1$，对应的函数值却是 $4>1$，是往下走的。所以同一个函数在不同区间上可以有不同的增减。",
+                "option_analysis": {
+                  "A": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。",
+                  "B": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。",
+                  "C": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。",
+                  "D": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+                },
+                "visual": {
+                  "template_id": "quadratic_graph",
+                  "params": {
+                    "a": 1.0,
+                    "b": -2.0,
+                    "c": -3.0
+                  },
+                  "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。"
+                },
+                "leak_markers": []
+              },
+              "solutions": [
+                {
+                  "kind": "standard",
+                  "steps": [
+                    "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。",
+                    "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。",
+                    "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+                  ],
+                  "final_answer": "B",
+                  "key_points": [
+                    "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+                    "开口方向决定哪一侧递增"
+                  ],
+                  "conditions": null,
+                  "boundary": null
+                },
+                {
+                  "kind": "fast",
+                  "steps": [
+                    "对称轴 $x=-\\dfrac{b}{2a}=-\\dfrac{-2}{2\\times 1}=1$。",
+                    "$a>0$ 时对称轴右侧递增，直接得 $[1,+\\infty)$。"
+                  ],
+                  "final_answer": "B",
+                  "key_points": [],
+                  "conditions": [
+                    "函数是二次函数 $y=ax^2+bx+c$（$a\\ne 0$）",
+                    "定义域是全体实数，没有被限制在某个区间内"
+                  ],
+                  "boundary": "如果定义域被限制（例如只在 $[0,3]$ 上讨论），递增区间要与定义域取交集；$a<0$ 时结论相反，对称轴左侧才是递增区间。"
+                }
+              ],
+              "knowledge": [
+                "math.function.monotonicity",
+                "math.quadratic.graph"
+              ],
+              "rubric": {}
+            }
+          },
+          "confirmed": false,
+          "confirmed_by": null,
+          "question_id": null,
+          "error": null
+        }
+      ]
+    }
+  }
+}

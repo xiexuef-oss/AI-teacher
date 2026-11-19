@@ -1,7 +1,7 @@
 {
   "name": "error_weekly_not_linked",
   "method": "GET",
-  "path": "/api/v1/parents/students/c4995e91-962f-43a8-ac8d-be1f189f5e70/weekly",
+  "path": "/api/v1/parents/students/10f62184-eb72-46d1-8601-43cba69fdcc5/weekly",
   "status": 404,
   "schema": "ErrorEnvelope",
   "value": {
@@ -9,7 +9,7 @@
       "code": "not_found",
       "message": "资源不存在",
       "details": {},
-      "request_id": "a14c214a4a9040d4816970e0fe655c9a"
+      "request_id": "38481b749f974773b1e61a37421d0b72"
     }
   },
   "body": {
@@ -17,7 +17,7 @@
       "code": "not_found",
       "message": "资源不存在",
       "details": {},
-      "request_id": "a14c214a4a9040d4816970e0fe655c9a"
+      "request_id": "38481b749f974773b1e61a37421d0b72"
     }
   }
 }

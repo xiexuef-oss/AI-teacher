@@ -32,7 +32,13 @@ from tutor_api.models import (
     StudySession,
 )
 from tutor_api.schemas import TutorActionIn, TutorStep
-from tutor_api.services import events, question_service, review_scheduler, session_service
+from tutor_api.services import (
+    content_references,
+    events,
+    question_service,
+    review_scheduler,
+    session_service,
+)
 from tutor_api.settings import Settings
 from tutor_api.timefmt import iso
 from tutor_api.visuals import normalized_visual
@@ -55,6 +61,7 @@ class TutorContext:
     pseudonym: str
     request_id: str
     now: datetime
+    allow_gateway: bool = True
 
 
 @dataclass
@@ -78,6 +85,20 @@ class _Turn:
         source: str = "reviewed_content",
         **meta: Any,
     ) -> dict[str, Any]:
+        targets = []
+        if event_type == "hint":
+            targets = [
+                "rephrase" if payload.get("style") == "rephrase" else f"hint:{payload['level']}"
+            ]
+        elif event_type in {"standard", "fast"}:
+            targets = [
+                f"solution:{event_type}:step:{i}"
+                for i in range(1, len(payload.get("steps", [])) + 1)
+            ]
+        elif event_type == "visual":
+            targets = ["visual:caption"]
+        if source != "model" and targets and "references" not in meta:
+            meta["references"] = content_references.catalog(self, targets)
         return events.append_event(
             self.tc.db,
             self.session,
@@ -235,6 +256,15 @@ def _request_visual(turn: _Turn) -> list[dict]:
     visual = turn.visual
     if visual is None:
         return [turn.notice("visual_not_available", "这道题没有合适的图解，可以先看文字提示。")]
+    # A registered numeric template can still calculate this question's answer.
+    # The visual action's confirmation flag is not a full-solution action.
+    if turn.submitted == 0 and not turn.session.used_solution:
+        return [
+            turn.notice(
+                "visual_not_available",
+                "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+            )
+        ]
     turn.session.assisted = True
     return [turn.emit("visual", visual, state_after="VISUAL")]
 
@@ -273,7 +303,7 @@ def _prerequisites(turn: _Turn) -> list[KnowledgeNode]:
 def _fallback_suggestions(turn: _Turn) -> list[dict[str, Any]]:
     suggestions = []
     if turn.visual is not None:
-        suggestions.append(events.suggestion("request_visual", "看图理解"))
+        suggestions.append(events.suggestion("request_visual", "解析阶段看图"))
     if turn.session.hint_level_revealed < len(turn.hints):
         suggestions.append(events.suggestion("request_hint", "给点提示"))
     suggestions.append(events.suggestion("request_standard", "看常规解法"))
@@ -297,6 +327,26 @@ def _rephrase(turn: _Turn) -> list[dict]:
         }
         return [turn.emit("hint", payload, state_after="HINTED")]
 
+    if not tc.allow_gateway:
+        session.confused_streak = 1
+        return [
+            turn.emit(
+                "fallback",
+                {
+                    "reason_code": "MODEL_UNAVAILABLE",
+                    "text": "当前受控运行仅提供受审讲解；可以先看分层提示，或提交后查看解析与图解。",
+                    "suggestions": _fallback_suggestions(turn),
+                },
+                state_after="FALLBACK",
+                source="rule_engine",
+                degraded=True,
+            )
+        ]
+
+    tc.db.refresh(turn.version)
+    turn.teaching = turn.version.teaching_json or {}
+    initial_identity = (session.question_id, session.question_version, session.student_id)
+    reference_catalog = content_references.catalog(turn, ["rephrase"])
     node = _concept_node(turn)
     request = GatewayRequest(
         request_id=tc.request_id,
@@ -314,7 +364,10 @@ def _rephrase(turn: _Turn) -> list[dict]:
                 },
             )
         ],
-        constraints=Constraints(forbidden_substrings=list(turn.teaching.get("leak_markers") or [])),
+        constraints=Constraints(
+            forbidden_substrings=list(turn.teaching.get("leak_markers") or []),
+            reference_catalog=reference_catalog,
+        ),
         trace_id=uuid.uuid4().hex,
     )
     # 到这里为止还没有任何写入。先结束读事务再调模型：模型调用期间不占数据库，
@@ -325,8 +378,25 @@ def _rephrase(turn: _Turn) -> list[dict]:
     if session.state == "DONE":
         raise conflict("invalid_state", "这次学习已经结束")
 
-    session.confused_streak = 1
+    if initial_identity != (session.question_id, session.question_version, session.student_id):
+        raise conflict("invalid_state", "学习题版本或身份已变化")
+    tc.db.refresh(turn.version)
+    turn.teaching = turn.version.teaching_json or {}
+    turn.submitted = session_service.submitted_count(tc.db, session.id)
+    _block_in_retest(turn)
+    approved_references = []
+    reference_valid = True
     if response.status == "ok" and response.validated_output is not None:
+        try:
+            approved_references = content_references.resolve_proposals(
+                response.validated_output.get("references", []),
+                reference_catalog,
+                content_references.catalog(turn, ["rephrase"]),
+            )
+        except (ValueError, TypeError, KeyError):
+            reference_valid = False
+    session.confused_streak = 1
+    if response.status == "ok" and response.validated_output is not None and reference_valid:
         session.assisted = True
         return [
             turn.emit(
@@ -334,6 +404,7 @@ def _rephrase(turn: _Turn) -> list[dict]:
                 response.validated_output["payload"],
                 state_after="HINTED",
                 source="model",
+                references=approved_references,
                 provider=response.provider,
                 model_id=response.model_id,
                 prompt_version=response.prompt_version,
@@ -342,11 +413,15 @@ def _rephrase(turn: _Turn) -> list[dict]:
         ]
 
     reason = (
-        response.error_code if response.error_code in _FALLBACK_REASONS else "MODEL_UNAVAILABLE"
+        "SCHEMA_INVALID"
+        if not reference_valid
+        else (
+            response.error_code if response.error_code in _FALLBACK_REASONS else "MODEL_UNAVAILABLE"
+        )
     )
     payload = {
         "reason_code": reason,
-        "text": "换种讲法暂时生成不了。可以先看图解，或者查看审核过的常规解法。",
+        "text": "换种讲法暂时生成不了。可以先看分层提示；图解在提交作答或明确查看完整解析后提供。",
         "suggestions": _fallback_suggestions(turn),
     }
     return [
@@ -380,13 +455,13 @@ def _mark_confused(turn: _Turn) -> list[dict]:
             for node in prerequisites[:2]
         ]
         if turn.visual is not None:
-            suggestions.append(events.suggestion("request_visual", "看图理解"))
+            suggestions.append(events.suggestion("request_visual", "解析阶段看图"))
         if not suggestions:
             suggestions = _fallback_suggestions(turn)
         prompt = (
-            "可能是前面的知识点没有接上。先确认下面的前置知识，再配合图解看一遍。"
+            "可能是前面的知识点没有接上。先确认下面的前置知识；提交或明确查看完整解析后可以结合图解。"
             if prerequisites
-            else "换个方式试试：配合图解或提示再看一遍。"
+            else "换个方式试试：先看提示；提交或明确查看完整解析后可以结合图解。"
         )
         return [
             turn.emit("ask", {"prompt": prompt, "suggestions": suggestions}, source="rule_engine")
@@ -434,6 +509,9 @@ def _mark_understood(turn: _Turn) -> list[dict]:
     if turn.submitted == 0:
         return [turn.notice("keep_going", "好，继续完成作答吧。")]
 
+    if session_service.open_attempt(turn.tc.db, session.id) is not None:
+        return [turn.notice("keep_going", "还有未提交的草稿或副本，仍可继续编辑；没有关闭它们。")]
+
     produced = []
     variant = _next_variant(turn)
     if variant is not None:
@@ -473,7 +551,7 @@ _HANDLERS = {
 
 
 def next_step(tc: TutorContext, session_id: str, body: TutorActionIn) -> TutorStep:
-    session = session_service.get_owned_session(tc.db, tc.student_id, session_id)
+    session = session_service.lock_owned_session(tc.db, tc.student_id, session_id)
     if session.state == "DONE":
         raise conflict("invalid_state", "这次学习已经结束，请重新开始一次会话")
 

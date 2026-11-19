@@ -1,14 +1,14 @@
 {
   "name": "session_events",
   "method": "GET",
-  "path": "/api/v1/sessions/d4196b2a-3ce8-4050-a179-931911e7e133/events",
+  "path": "/api/v1/sessions/01611e61-b265-4539-b587-da5fbbd04595/events",
   "status": 200,
   "schema": "TutorEventPage",
   "value": {
     "items": [
       {
-        "id": "bd16539a-f6ef-41be-9cf1-feb15282bebb",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "de30cebc-62b4-45aa-a3ca-98e59748b44d",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
         "seq_no": 1,
         "type": "hint",
         "created_at": "2026-11-10T08:00:00Z",
@@ -30,29 +30,34 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "d8ab128a55204895b7f8f508176e78b0"
-        }
+          "request_id": "6b742465a7ca4b5b83bb48f45b26ee5d"
+        },
+        "references": [
+          {
+            "block_id": "stem",
+            "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+            "start": 0,
+            "end": 2,
+            "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+            "label": "题干"
+          }
+        ]
       },
       {
-        "id": "f9391f93-3a26-4d82-b744-7b7e9ab84e2f",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "a3ac35bd-cf79-4ae8-8808-4d186368c201",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
         "seq_no": 2,
-        "type": "visual",
+        "type": "notice",
         "created_at": "2026-11-10T08:00:00Z",
-        "state_after": "VISUAL",
+        "state_after": "HINTED",
         "payload": {
-          "template_id": "quadratic_graph",
-          "params": {
-            "a": 1,
-            "b": -2,
-            "c": -3
-          },
-          "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。",
-          "static_fallback": "二次函数 y = ax² + bx + c 的对称轴是 x = -b/(2a)。a > 0 时开口向上，对称轴左侧递减、右侧递增；a < 0 时相反。"
+          "code": "visual_not_available",
+          "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+          "due_at": null
         },
         "meta": {
           "schema_version": "1.0",
-          "source": "reviewed_content",
+          "source": "rule_engine",
           "degraded": false,
           "provider": null,
           "model_id": null,
@@ -60,12 +65,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "d1d42092dc16453a853637519e2af31c"
+          "request_id": "e953eccac37f4d53803686559859b169"
         }
       },
       {
-        "id": "87d46d7a-1eae-4224-a0b2-eb3458242008",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "6f247297-d828-42aa-9a23-feb0585c23be",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
         "seq_no": 3,
         "type": "diagnosis",
         "created_at": "2026-11-10T08:00:00Z",
@@ -123,13 +128,43 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "12c20bf9e63e443b8448a6749f9432b0"
+          "request_id": "5130b69cb9494fa0a4ef7ae7d9fa304a"
         }
       },
       {
-        "id": "e7fcc6bd-5d59-4d31-9fad-d3f5d50208be",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "b50d3634-c252-4730-9222-d0a6feb7819b",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
         "seq_no": 4,
+        "type": "visual",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "VISUAL",
+        "payload": {
+          "template_id": "quadratic_graph",
+          "params": {
+            "a": 1,
+            "b": -2,
+            "c": -3
+          },
+          "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。",
+          "static_fallback": "二次函数 y = ax² + bx + c 的对称轴是 x = -b/(2a)。a > 0 时开口向上，对称轴左侧递减、右侧递增；a < 0 时相反。"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "11644d982bd441f088c49d239085d737"
+        }
+      },
+      {
+        "id": "fc501515-c7b8-4ffe-a15e-2cf39c3a7fe8",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+        "seq_no": 5,
         "type": "standard",
         "created_at": "2026-11-10T08:00:00Z",
         "state_after": "STANDARD",
@@ -184,13 +219,23 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "49d182f0d1d24f54a7bbe5d468f5951d"
-        }
+          "request_id": "b21c33c6cfb24ba280b7ab6a55251d4e"
+        },
+        "references": [
+          {
+            "block_id": "stem",
+            "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+            "start": 0,
+            "end": 2,
+            "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+            "label": "题干"
+          }
+        ]
       },
       {
-        "id": "2c377e2e-2765-45e2-b94f-e81cf4c91610",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
-        "seq_no": 5,
+        "id": "131b5b82-d4bb-415b-870d-35b113e2baa7",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+        "seq_no": 6,
         "type": "fast",
         "created_at": "2026-11-10T08:00:00Z",
         "state_after": "FAST",
@@ -222,13 +267,13 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "61e6eb9dd504446c882150deab37544e"
+          "request_id": "837b771a04b04f8887ef2c5e80f76621"
         }
       },
       {
-        "id": "5b852118-d3c0-468c-82a6-9021490c06c0",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
-        "seq_no": 6,
+        "id": "7223fad4-0472-42f5-b887-49b0ac873439",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+        "seq_no": 7,
         "type": "ask",
         "created_at": "2026-11-10T08:00:00Z",
         "state_after": "VARIANT",
@@ -259,13 +304,13 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "d189f1bb102943d59ed095c71fc72de3"
+          "request_id": "b5da195d273744b5ac131ea8512cafa1"
         }
       },
       {
-        "id": "ee82d452-b780-411d-b5e5-9d0f7bd4f1ab",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
-        "seq_no": 7,
+        "id": "9d5ff283-8661-4e39-8b93-200b5c1f8689",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+        "seq_no": 8,
         "type": "notice",
         "created_at": "2026-11-10T08:00:00Z",
         "state_after": "REVIEW_SCHEDULED",
@@ -284,13 +329,13 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "d189f1bb102943d59ed095c71fc72de3"
+          "request_id": "b5da195d273744b5ac131ea8512cafa1"
         }
       },
       {
-        "id": "c911e194-9f3a-4d27-9012-720a148a35bb",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
-        "seq_no": 8,
+        "id": "af51e1f9-1e83-4bcf-922a-37de0b901848",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+        "seq_no": 9,
         "type": "notice",
         "created_at": "2026-11-10T08:00:00Z",
         "state_after": "DONE",
@@ -309,18 +354,18 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "d189f1bb102943d59ed095c71fc72de3"
+          "request_id": "b5da195d273744b5ac131ea8512cafa1"
         }
       }
     ],
-    "last_seq": 8
+    "last_seq": 9
   },
   "body": {
     "data": {
       "items": [
         {
-          "id": "bd16539a-f6ef-41be-9cf1-feb15282bebb",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+          "id": "de30cebc-62b4-45aa-a3ca-98e59748b44d",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
           "seq_no": 1,
           "type": "hint",
           "created_at": "2026-11-10T08:00:00Z",
@@ -342,29 +387,34 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "d8ab128a55204895b7f8f508176e78b0"
-          }
+            "request_id": "6b742465a7ca4b5b83bb48f45b26ee5d"
+          },
+          "references": [
+            {
+              "block_id": "stem",
+              "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+              "start": 0,
+              "end": 2,
+              "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+              "label": "题干"
+            }
+          ]
         },
         {
-          "id": "f9391f93-3a26-4d82-b744-7b7e9ab84e2f",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+          "id": "a3ac35bd-cf79-4ae8-8808-4d186368c201",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
           "seq_no": 2,
-          "type": "visual",
+          "type": "notice",
           "created_at": "2026-11-10T08:00:00Z",
-          "state_after": "VISUAL",
+          "state_after": "HINTED",
           "payload": {
-            "template_id": "quadratic_graph",
-            "params": {
-              "a": 1,
-              "b": -2,
-              "c": -3
-            },
-            "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。",
-            "static_fallback": "二次函数 y = ax² + bx + c 的对称轴是 x = -b/(2a)。a > 0 时开口向上，对称轴左侧递减、右侧递增；a < 0 时相反。"
+            "code": "visual_not_available",
+            "text": "图解可能包含答案或关键推导，请先提交作答，或明确选择完整解析。现在可以先看分层提示。",
+            "due_at": null
           },
           "meta": {
             "schema_version": "1.0",
-            "source": "reviewed_content",
+            "source": "rule_engine",
             "degraded": false,
             "provider": null,
             "model_id": null,
@@ -372,12 +422,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "d1d42092dc16453a853637519e2af31c"
+            "request_id": "e953eccac37f4d53803686559859b169"
           }
         },
         {
-          "id": "87d46d7a-1eae-4224-a0b2-eb3458242008",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+          "id": "6f247297-d828-42aa-9a23-feb0585c23be",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
           "seq_no": 3,
           "type": "diagnosis",
           "created_at": "2026-11-10T08:00:00Z",
@@ -435,13 +485,43 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "12c20bf9e63e443b8448a6749f9432b0"
+            "request_id": "5130b69cb9494fa0a4ef7ae7d9fa304a"
           }
         },
         {
-          "id": "e7fcc6bd-5d59-4d31-9fad-d3f5d50208be",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+          "id": "b50d3634-c252-4730-9222-d0a6feb7819b",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
           "seq_no": 4,
+          "type": "visual",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "VISUAL",
+          "payload": {
+            "template_id": "quadratic_graph",
+            "params": {
+              "a": 1,
+              "b": -2,
+              "c": -3
+            },
+            "caption": "拖动 a、b、c，观察对称轴的位置和开口方向怎样决定图像在哪一侧上升。",
+            "static_fallback": "二次函数 y = ax² + bx + c 的对称轴是 x = -b/(2a)。a > 0 时开口向上，对称轴左侧递减、右侧递增；a < 0 时相反。"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "11644d982bd441f088c49d239085d737"
+          }
+        },
+        {
+          "id": "fc501515-c7b8-4ffe-a15e-2cf39c3a7fe8",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+          "seq_no": 5,
           "type": "standard",
           "created_at": "2026-11-10T08:00:00Z",
           "state_after": "STANDARD",
@@ -496,13 +576,23 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "49d182f0d1d24f54a7bbe5d468f5951d"
-          }
+            "request_id": "b21c33c6cfb24ba280b7ab6a55251d4e"
+          },
+          "references": [
+            {
+              "block_id": "stem",
+              "block_sha256": "4eecb58c384cdd0f06fa33079ed19c6e25b2a716eedf1a6cafeb03ce2e033cd7",
+              "start": 0,
+              "end": 2,
+              "block_text": "函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+              "label": "题干"
+            }
+          ]
         },
         {
-          "id": "2c377e2e-2765-45e2-b94f-e81cf4c91610",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
-          "seq_no": 5,
+          "id": "131b5b82-d4bb-415b-870d-35b113e2baa7",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+          "seq_no": 6,
           "type": "fast",
           "created_at": "2026-11-10T08:00:00Z",
           "state_after": "FAST",
@@ -534,13 +624,13 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "61e6eb9dd504446c882150deab37544e"
+            "request_id": "837b771a04b04f8887ef2c5e80f76621"
           }
         },
         {
-          "id": "5b852118-d3c0-468c-82a6-9021490c06c0",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
-          "seq_no": 6,
+          "id": "7223fad4-0472-42f5-b887-49b0ac873439",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+          "seq_no": 7,
           "type": "ask",
           "created_at": "2026-11-10T08:00:00Z",
           "state_after": "VARIANT",
@@ -571,13 +661,13 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "d189f1bb102943d59ed095c71fc72de3"
+            "request_id": "b5da195d273744b5ac131ea8512cafa1"
           }
         },
         {
-          "id": "ee82d452-b780-411d-b5e5-9d0f7bd4f1ab",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
-          "seq_no": 7,
+          "id": "9d5ff283-8661-4e39-8b93-200b5c1f8689",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+          "seq_no": 8,
           "type": "notice",
           "created_at": "2026-11-10T08:00:00Z",
           "state_after": "REVIEW_SCHEDULED",
@@ -596,13 +686,13 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "d189f1bb102943d59ed095c71fc72de3"
+            "request_id": "b5da195d273744b5ac131ea8512cafa1"
           }
         },
         {
-          "id": "c911e194-9f3a-4d27-9012-720a148a35bb",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
-          "seq_no": 8,
+          "id": "af51e1f9-1e83-4bcf-922a-37de0b901848",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
+          "seq_no": 9,
           "type": "notice",
           "created_at": "2026-11-10T08:00:00Z",
           "state_after": "DONE",
@@ -621,11 +711,11 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "d189f1bb102943d59ed095c71fc72de3"
+            "request_id": "b5da195d273744b5ac131ea8512cafa1"
           }
         }
       ],
-      "last_seq": 8
+      "last_seq": 9
     }
   }
 }

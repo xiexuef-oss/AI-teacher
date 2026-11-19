@@ -13,7 +13,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Any
 
@@ -41,6 +41,8 @@ from tutor_api.schemas import (
     QuestionPage,
     QuestionSource,
     QuestionSummary,
+    QuestionTopicOut,
+    QuestionTopicPage,
 )
 from tutor_api.services.content_seed import ENGINEERING_SAMPLE_LICENSE
 from tutor_api.visuals import normalized_visual
@@ -306,11 +308,21 @@ def _summary_fields(
     }
 
 
-def serialize_question(db: Session, question: Question, scope: StudentScope) -> QuestionOut:
-    version = get_version(db, question.id, question.version)
+def serialize_question(
+    db: Session, question: Question, scope: StudentScope, *, version_no: int | None = None
+) -> QuestionOut:
+    version = get_version(db, question.id, question.version if version_no is None else version_no)
     tags = approved_tags(db, [question.id])[question.id]
     knowledge = knowledge_refs(db, [question.id])[question.id]
     content = version.content_json
+    historical = version.version != question.version
+    if historical and "knowledge" in content:
+        nodes = db.scalars(
+            select(KnowledgeNode)
+            .where(KnowledgeNode.code.in_(content["knowledge"]))
+            .order_by(KnowledgeNode.code)
+        )
+        knowledge = [KnowledgeRef(id=node.id, code=node.code, title=node.title) for node in nodes]
     rubric = get_rubric(db, question.id, version.version)
     judging_note = None
     if question.answer_mode == "multiple_choice":
@@ -321,10 +333,14 @@ def serialize_question(db: Session, question: Question, scope: StudentScope) -> 
         judging_note = _EXPERIMENT_NOTE
     elif question.answer_mode == "proof":
         judging_note = _PROOF_NOTE
+    summary = _summary_fields(question, version, tags, knowledge, scope)
+    if historical:
+        summary["difficulty"] = content.get("difficulty", question.difficulty)
     return QuestionOut(
-        **_summary_fields(question, version, tags, knowledge, scope),
+        **summary,
         version=version.version,
-        grade=question.grade,
+        provenance=version.provenance_json,
+        grade=content.get("grade", question.grade) if historical else question.grade,
         content=content_from_json(content),
         assists=build_assists(db, question, version),
         judging_note=judging_note,
@@ -375,9 +391,18 @@ def deliverable_questions(
     answer_mode: str | None = None,
     source_category: str | None = None,
     scope_filter: str = "all",
+    knowledge_id: str | None = None,
 ) -> list[tuple[Question, str]]:
     """可以发给这名学生的题目及其分类（region / general），地区适用题排在前面。"""
     query = select(Question).where(Question.status == "published")
+    if knowledge_id is not None:
+        query = query.where(
+            Question.id.in_(
+                select(QuestionKnowledge.question_id).where(
+                    QuestionKnowledge.knowledge_id == knowledge_id
+                )
+            )
+        )
     if subject is not None:
         query = query.where(Question.subject == subject)
     if answer_mode is not None:
@@ -413,6 +438,7 @@ def list_questions(
     scope_filter: str,
     cursor: str | None,
     limit: int,
+    knowledge_id: str | None = None,
 ) -> QuestionPage:
     offset = decode_cursor(cursor)
     kept = deliverable_questions(
@@ -422,6 +448,7 @@ def list_questions(
         answer_mode=answer_mode,
         source_category=source_category,
         scope_filter=scope_filter,
+        knowledge_id=knowledge_id,
     )
     page = [q for q, _ in kept[offset : offset + limit]]
     summaries = summarize(db, page, scope)
@@ -429,4 +456,33 @@ def list_questions(
     return QuestionPage(
         items=[summaries[q.id] for q in page],
         next_cursor=encode_cursor(next_offset) if next_offset < len(kept) else None,
+    )
+
+
+def list_topics(db, scope, *, subject=None, answer_mode=None, scope_filter="all"):
+    visible = deliverable_questions(
+        db, scope, subject=subject, answer_mode=answer_mode, scope_filter=scope_filter
+    )
+    counts = Counter(
+        db.scalars(
+            select(QuestionKnowledge.knowledge_id).where(
+                QuestionKnowledge.question_id.in_([q.id for q, _ in visible])
+            )
+        )
+    )
+    nodes = db.scalars(select(KnowledgeNode).where(KnowledgeNode.id.in_(counts)))
+    return QuestionTopicPage(
+        items=[
+            QuestionTopicOut(
+                id=node.id,
+                code=node.code,
+                title=node.title,
+                subject=node.subject,
+                question_count=counts[node.id],
+            )
+            for node in sorted(
+                nodes,
+                key=lambda node: (launch.SUBJECT_ORDER.get(node.subject, 99), node.code, node.id),
+            )
+        ]
     )

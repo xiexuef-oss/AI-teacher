@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 
 from e2e import data
@@ -20,12 +19,12 @@ from e2e.browser import (
     open_flutter,
     reopen,
     stored,
-    stored_all,
     tap,
     type_into,
 )
 from e2e.checks import say
 from e2e.flowbase import Context, Flow
+from e2e.flows.student_draft_recovery import _record
 
 KEY = "math-mono-def-proof"
 STAGE_LABEL = {"premise": "前提", "construction": "构造", "reasoning": "推理", "conclusion": "结论"}
@@ -35,6 +34,15 @@ STEP_A = ("任取两个数，设 x1 小于 x2，都在区间里", "单调性的�
 STEP_B = ("作差之后通分、提公因式", "通分，提公因式")
 STEP_C = ("所以 f(x1) 小于 f(x2)，函数递增", "")
 SUBMITTED = [STEP_A, STEP_C, STEP_B]  # 第 3 步上移之后
+
+
+def _draft_cleared(page, question_id: str, attempt_id: str | None) -> bool:
+    """Require the actual submitted slot's removal and its product tombstone."""
+    if not attempt_id:
+        return False
+    bundle = _record(page, "draft-bundle", question_id)
+    scope = f"attempt/{attempt_id}"
+    return scope not in bundle.get("drafts", {}) and scope in bundle.get("cleared", [])
 
 
 def _as_steps(pairs):
@@ -135,12 +143,9 @@ def run(ctx: Context) -> None:
 
     say("== 先落本机：2 秒后草稿在 localStorage 里，步骤按排好的顺序")
     page.wait_for_timeout(2600)
-    drafts = {key: value for key, value in stored_all(page).items() if "/draft/" in key}
-    check("本机有这道题的草稿", len(drafts) == 1, list(drafts))
-    local = {}
-    if drafts:
-        raw = json.loads(next(iter(drafts.values())))
-        local = json.loads(raw) if isinstance(raw, str) else raw
+    local = _record(page, "draft", data.question_id(KEY))
+    local_attempt_id = local.get("attemptId")
+    check("本机有这道题的草稿", bool(local_attempt_id), local.get("questionId"))
     check(
         "草稿里是按顺序排好的步骤（文字和依据）",
         (local.get("answer") or {}).get("steps") == _as_steps(SUBMITTED),
@@ -168,18 +173,14 @@ def run(ctx: Context) -> None:
     tap(page, "提交", wait=3500)
     text = all_text(page)
     ctx.shot(page, "04_submitted")
-    attempt_id = next(
-        (
-            re.search(r"/attempts/([^/]+)/", r[1]).group(1)
-            for r in page.responses
-            if "/attempts/" in r[1]
-        ),
-        None,
-    )
+    attempt_id = local_attempt_id
     submit_calls = [r for r in page.responses if r[1].endswith("/submit")]
     check(
         "提交成功（POST /submit 2xx）",
-        submit_calls and submit_calls[-1][2] in (200, 201),
+        submit_calls
+        and submit_calls[-1][0] == "POST"
+        and submit_calls[-1][1] == f"/attempts/{attempt_id}/submit"
+        and submit_calls[-1][2] in (200, 201),
         submit_calls,
     )
     body = page.submit_bodies[-1] if page.submit_bodies else {}
@@ -219,7 +220,7 @@ def run(ctx: Context) -> None:
     )
     check(
         "本机草稿提交后已清除",
-        not [key for key in stored_all(page) if "/draft/" in key and "draft-corrupt" not in key],
+        _draft_cleared(page, data.question_id(KEY), local_attempt_id),
     )
 
     say("== 自查：每一条标做到了，保存")

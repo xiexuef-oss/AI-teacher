@@ -256,7 +256,8 @@ def test_missing_reviewed_solution_falls_back_honestly(onboarded, db):
 
 
 def test_visual_event_uses_a_whitelisted_template_with_complete_params(onboarded):
-    session, _ = begin(onboarded, RICH)
+    session, attempt = begin(onboarded, RICH)
+    submit(onboarded, attempt["id"], choice("B"))
 
     step = tutor(onboarded, session["id"], "request_visual")
 
@@ -271,7 +272,8 @@ def test_visual_event_uses_a_whitelisted_template_with_complete_params(onboarded
 
 
 def test_visual_params_are_completed_from_the_registry(onboarded):
-    session, _ = begin(onboarded, "math-mono-judge")
+    session, attempt = begin(onboarded, "math-mono-judge")
+    submit(onboarded, attempt["id"], choice("A", "C"))
 
     payload = _only(tutor(onboarded, session["id"], "request_visual"))["payload"]
 
@@ -323,13 +325,13 @@ def test_visual_that_fails_the_whitelist_is_never_sent(onboarded, db, visual):
     assert onboarded.data("GET", f"/questions/{qid(RICH)}")["assists"]["visual_available"] is False
 
 
-def test_looking_at_the_visual_before_submitting_counts_as_assistance(onboarded):
+def test_blocked_visual_before_submitting_preserves_independent_attempt(onboarded):
     session, attempt = begin(onboarded, RICH)
     tutor(onboarded, session["id"], "request_visual")
 
     result = submit(onboarded, attempt["id"], choice("B"))
 
-    assert result["evaluation"]["independent"] is False
+    assert result["evaluation"]["independent"] is True
 
 
 # ---------------------------------------------------------------- "没懂"的三级回退（docs/06 §4）
@@ -643,8 +645,8 @@ def test_events_can_be_restored_in_order(onboarded):
     everything = events(onboarded, session["id"])
 
     assert [e["seq_no"] for e in everything] == [1, 2, 3, 4]
-    assert [e["type"] for e in everything] == ["hint", "visual", "diagnosis", "standard"]
-    assert [e["state_after"] for e in everything] == ["HINTED", "VISUAL", "DIAGNOSED", "STANDARD"]
+    assert [e["type"] for e in everything] == ["hint", "notice", "diagnosis", "standard"]
+    assert [e["state_after"] for e in everything] == ["HINTED", "HINTED", "DIAGNOSED", "STANDARD"]
     assert [e["seq_no"] for e in events(onboarded, session["id"], after_seq=2)] == [3, 4]
     assert [e["seq_no"] for e in events(onboarded, session["id"], after_seq=1, limit=1)] == [2]
     page = onboarded.data("GET", f"/sessions/{session['id']}/events", params={"after_seq": 4})

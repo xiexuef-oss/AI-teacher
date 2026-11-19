@@ -1,0 +1,131 @@
+{
+  "name": "question_circle_schematic",
+  "method": "GET",
+  "path": "/api/v1/questions/76903fe9-da47-5aad-8500-75ea36c553f5",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+    "subject": "math",
+    "type": "proof",
+    "answer_mode": "proof",
+    "difficulty": 1,
+    "title": "在单位圆上比较两条线段",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "754612bb-bd06-5cf0-8bc7-c665cc078b51",
+        "code": "math.geometry.coordinate",
+        "title": "平面坐标与线段长度"
+      }
+    ],
+    "variant_of": null,
+    "provenance": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "自编圆的坐标工程示例。只根据已知条件证明，不从示意图外观推断关系；无需图片即可作答。",
+      "options": [],
+      "blanks": [],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null,
+      "proof": {
+        "givens": [
+          "在平面直角坐标系中，O是原点，圆O的方程为 $x^2+y^2=1$。",
+          "A、B是圆O上两个不同的点。"
+        ],
+        "claim": "证明 $OA=OB$。"
+      }
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": true
+    },
+    "judging_note": "证明题不自动评分：把证明一步一步写下来、每一步写上依据，提交后对照参考证明和要点自己检查一遍。证明的写法不止一种；这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+  },
+  "body": {
+    "data": {
+      "id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+      "subject": "math",
+      "type": "proof",
+      "answer_mode": "proof",
+      "difficulty": 1,
+      "title": "在单位圆上比较两条线段",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "754612bb-bd06-5cf0-8bc7-c665cc078b51",
+          "code": "math.geometry.coordinate",
+          "title": "平面坐标与线段长度"
+        }
+      ],
+      "variant_of": null,
+      "provenance": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "自编圆的坐标工程示例。只根据已知条件证明，不从示意图外观推断关系；无需图片即可作答。",
+        "options": [],
+        "blanks": [],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null,
+        "proof": {
+          "givens": [
+            "在平面直角坐标系中，O是原点，圆O的方程为 $x^2+y^2=1$。",
+            "A、B是圆O上两个不同的点。"
+          ],
+          "claim": "证明 $OA=OB$。"
+        }
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": true
+      },
+      "judging_note": "证明题不自动评分：把证明一步一步写下来、每一步写上依据，提交后对照参考证明和要点自己检查一遍。证明的写法不止一种；这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+    }
+  }
+}

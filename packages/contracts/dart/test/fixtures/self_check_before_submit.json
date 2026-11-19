@@ -1,7 +1,7 @@
 {
   "name": "self_check_before_submit",
   "method": "GET",
-  "path": "/api/v1/attempts/d85852a6-1984-4d02-b457-9e2a7508ee05/self-check",
+  "path": "/api/v1/attempts/679c5d24-6c62-4961-a5bd-927751368b4d/self-check",
   "status": 409,
   "schema": "ErrorEnvelope",
   "value": {
@@ -9,7 +9,7 @@
       "code": "attempt_not_submitted",
       "message": "提交之后才能对照要点自查",
       "details": {},
-      "request_id": "9caa6a2486124b239658a383c4044cd5"
+      "request_id": "27ecf1b3e6214f39868e5009fa2b8079"
     }
   },
   "body": {
@@ -17,7 +17,7 @@
       "code": "attempt_not_submitted",
       "message": "提交之后才能对照要点自查",
       "details": {},
-      "request_id": "9caa6a2486124b239658a383c4044cd5"
+      "request_id": "27ecf1b3e6214f39868e5009fa2b8079"
     }
   }
 }

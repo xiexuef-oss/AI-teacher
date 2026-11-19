@@ -1,0 +1,25 @@
+{
+  "name": "image_question_published",
+  "method": "POST",
+  "path": "/api/v1/admin/questions/e879ddf6-bebd-4f94-86fa-1773fbe2d606/review",
+  "status": 200,
+  "schema": "QuestionReviewState",
+  "value": {
+    "review_revision": 3,
+    "question_id": "e879ddf6-bebd-4f94-86fa-1773fbe2d606",
+    "status": "published",
+    "version": 1,
+    "reviewed_by": "9367b555-7ebf-4884-bb1c-a99974c3ad85",
+    "updated_at": "2026-11-10T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "review_revision": 3,
+      "question_id": "e879ddf6-bebd-4f94-86fa-1773fbe2d606",
+      "status": "published",
+      "version": 1,
+      "reviewed_by": "9367b555-7ebf-4884-bb1c-a99974c3ad85",
+      "updated_at": "2026-11-10T08:00:00Z"
+    }
+  }
+}

@@ -25,7 +25,7 @@ DIFF = "math-ineq-diff-proof"
 MONO = "math-mono-def-proof"
 MUL = "math-ineq-mul-proof"
 ENERGY = "phys-work-energy-proof"
-PROOF_KEYS = (DIFF, MONO, MUL, ENERGY)
+PROOF_KEYS = (DIFF, MONO, MUL, ENERGY, "math-triangle-coordinate-proof", "math-circle-radius-proof")
 STAGES = ("premise", "construction", "reasoning", "conclusion")
 
 
@@ -51,6 +51,12 @@ def _steps(question: dict) -> list[dict]:
 # ---------------------------------------------------------------- 整体
 
 
+@pytest.mark.parametrize("expression", ["OA^2=1", "OB^2=1", "OA²=1", "OB²=1"])
+def test_circle_reference_transform_is_explicitly_blocked_in_hints(bundle, expression):
+    question = _by_key(bundle)["math-circle-radius-proof"]
+    assert find_leak(expression, leak_markers(question)) is not None
+
+
 def test_the_proof_samples_are_valid(bundle):
     assert validate_seed(bundle) == []
 
@@ -63,7 +69,7 @@ def test_there_are_proof_samples_for_math_and_physics(bundle):
     assert {q["type"] for q in proofs.values()} == {"proof"}
     # 都是通用题，没有地区标签
     assert all(not q.get("region_tags") for q in proofs.values())
-    # 三道数学证明各讲一个主题，物理那道是推导
+    # 数学覆盖多个证明主题，物理样题是推导。
     assert {code for q in proofs.values() for code in q["knowledge"]} >= {
         "math.inequality.basic",
         "math.function.monotonicity",

@@ -1,0 +1,189 @@
+{
+  "name": "draft_copy_replayed",
+  "method": "POST",
+  "path": "/api/v1/attempts/bd580882-8390-4831-b421-221578343b82/copies",
+  "status": 201,
+  "schema": "DraftCopy",
+  "value": {
+    "session": {
+      "id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+      "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "INDEPENDENT_ATTEMPT",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+      "first_submitted_attempt_id": null,
+      "submitted_attempts": 0,
+      "last_event_seq": 0,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "attempt": {
+      "id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+      "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+      "attempt_no": 2,
+      "submission_no": null,
+      "copied_from_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+      "copied_from_revision": 1,
+      "status": "draft",
+      "answer": {
+        "blanks": [
+          {
+            "key": "b1",
+            "value": "本机草稿"
+          }
+        ]
+      },
+      "draft_revision": 1,
+      "assisted": false,
+      "used_solution": false,
+      "independent": null,
+      "evaluation": null,
+      "submitted_at": null,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "draft": {
+      "attempt_id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+      "revision": 1,
+      "answer": {
+        "blanks": [
+          {
+            "key": "b1",
+            "value": "本机草稿"
+          }
+        ]
+      },
+      "strokes": {
+        "version": 1,
+        "pages": [
+          {
+            "width": 800.0,
+            "height": 1100.0,
+            "strokes": [
+              {
+                "color": "#1A1A1A",
+                "width": 2.5,
+                "points": [
+                  10.0,
+                  20.0,
+                  0.0,
+                  0.5,
+                  14.0,
+                  26.0,
+                  16.0,
+                  0.6
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "updated_at": "2026-11-11T08:00:00Z"
+    }
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+        "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "INDEPENDENT_ATTEMPT",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+        "first_submitted_attempt_id": null,
+        "submitted_attempts": 0,
+        "last_event_seq": 0,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "attempt": {
+        "id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+        "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+        "attempt_no": 2,
+        "submission_no": null,
+        "copied_from_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+        "copied_from_revision": 1,
+        "status": "draft",
+        "answer": {
+          "blanks": [
+            {
+              "key": "b1",
+              "value": "本机草稿"
+            }
+          ]
+        },
+        "draft_revision": 1,
+        "assisted": false,
+        "used_solution": false,
+        "independent": null,
+        "evaluation": null,
+        "submitted_at": null,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "draft": {
+        "attempt_id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+        "revision": 1,
+        "answer": {
+          "blanks": [
+            {
+              "key": "b1",
+              "value": "本机草稿"
+            }
+          ]
+        },
+        "strokes": {
+          "version": 1,
+          "pages": [
+            {
+              "width": 800.0,
+              "height": 1100.0,
+              "strokes": [
+                {
+                  "color": "#1A1A1A",
+                  "width": 2.5,
+                  "points": [
+                    10.0,
+                    20.0,
+                    0.0,
+                    0.5,
+                    14.0,
+                    26.0,
+                    16.0,
+                    0.6
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "updated_at": "2026-11-11T08:00:00Z"
+      }
+    }
+  }
+}

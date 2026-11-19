@@ -162,10 +162,8 @@ def parent(new_parent) -> ApiClient:
 @pytest.fixture
 def onboarded(student) -> ApiClient:
     """已完成引导的四川高三学生，三科全选。考试年份按夹具时钟估算为 2027。"""
-    student.data(
-        "PUT",
-        "/profile",
-        json={"region_code": "CN-51", "grade": "G12", "subjects": ["math", "physics", "chemistry"]},
+    student.save_profile(
+        json={"region_code": "CN-51", "grade": "G12", "subjects": ["math", "physics", "chemistry"]}
     )
     return student
 
@@ -193,14 +191,12 @@ def custom_student(settings, clock) -> Iterator[Callable[..., tuple[object, ApiC
                 "POST", "/dev/local-identities", expect=201, auth=False, key=False
             )
             learner = ApiClient(raw, token=identity["access_token"], user_id=identity["user_id"])
-            learner.data(
-                "PUT",
-                "/profile",
+            learner.save_profile(
                 json={
                     "region_code": "CN-51",
                     "grade": "G12",
                     "subjects": ["math", "physics", "chemistry"],
-                },
+                }
             )
             return custom_app, learner
 

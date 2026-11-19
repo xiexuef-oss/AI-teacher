@@ -8,7 +8,7 @@
     "date": "2026-11-10",
     "items": [
       {
-        "id": "79948ad8-2259-5ffe-b185-d4035f6261f0",
+        "id": "17ef6197-667e-59ef-94c3-64df6a71b93b",
         "kind": "new_topic",
         "title": "二次函数的单调递增区间",
         "reason": "还没有学习记录，先从基础题开始。",
@@ -29,7 +29,7 @@
         "estimated_minutes": 5
       },
       {
-        "id": "242b5643-607d-56dc-b76c-c08afa5a2052",
+        "id": "ce968120-0d1d-53df-9ab0-f7eab6135ace",
         "kind": "new_topic",
         "title": "静止在粗糙斜面上的物块的受力",
         "reason": "还没有学习记录，先从基础题开始。",
@@ -50,12 +50,12 @@
         "estimated_minutes": 5
       },
       {
-        "id": "cc62671e-20c5-5eb3-989d-d9ef568babd7",
+        "id": "6e033652-f058-5761-a2bf-0520de60bdea",
         "kind": "new_topic",
-        "title": "由碳酸钙质量求二氧化碳质量",
+        "title": "阅读通用流程中的回流关系",
         "reason": "还没有学习记录，先从基础题开始。",
         "subject": "chemistry",
-        "question_id": "eb6592f7-34f3-58db-9b1f-ea832ab7fb61",
+        "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
         "review_item_id": null,
         "applicability": {
           "scope": "general",
@@ -66,16 +66,17 @@
           "exam_year_to": null,
           "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
         },
-        "estimated_minutes": 5
+        "estimated_minutes": 4
       }
-    ]
+    ],
+    "cold_start": true
   },
   "body": {
     "data": {
       "date": "2026-11-10",
       "items": [
         {
-          "id": "79948ad8-2259-5ffe-b185-d4035f6261f0",
+          "id": "17ef6197-667e-59ef-94c3-64df6a71b93b",
           "kind": "new_topic",
           "title": "二次函数的单调递增区间",
           "reason": "还没有学习记录，先从基础题开始。",
@@ -96,7 +97,7 @@
           "estimated_minutes": 5
         },
         {
-          "id": "242b5643-607d-56dc-b76c-c08afa5a2052",
+          "id": "ce968120-0d1d-53df-9ab0-f7eab6135ace",
           "kind": "new_topic",
           "title": "静止在粗糙斜面上的物块的受力",
           "reason": "还没有学习记录，先从基础题开始。",
@@ -117,12 +118,12 @@
           "estimated_minutes": 5
         },
         {
-          "id": "cc62671e-20c5-5eb3-989d-d9ef568babd7",
+          "id": "6e033652-f058-5761-a2bf-0520de60bdea",
           "kind": "new_topic",
-          "title": "由碳酸钙质量求二氧化碳质量",
+          "title": "阅读通用流程中的回流关系",
           "reason": "还没有学习记录，先从基础题开始。",
           "subject": "chemistry",
-          "question_id": "eb6592f7-34f3-58db-9b1f-ea832ab7fb61",
+          "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
           "review_item_id": null,
           "applicability": {
             "scope": "general",
@@ -133,9 +134,10 @@
             "exam_year_to": null,
             "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
           },
-          "estimated_minutes": 5
+          "estimated_minutes": 4
         }
-      ]
+      ],
+      "cold_start": true
     }
   }
 }

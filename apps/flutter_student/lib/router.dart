@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:tutor_contracts/tutor_contracts.dart' show LocalRole;
 
 import 'core/widgets.dart';
+import 'features/diagnostic/diagnostic_page.dart';
+import 'features/diagnostic/diagnostic_history_page.dart';
 import 'features/home/home_page.dart';
 import 'features/misc/misc_pages.dart';
+import 'features/scan/scan_page.dart';
 import 'features/onboarding/onboarding_page.dart';
 import 'features/parent/parent_home_page.dart';
 import 'features/parent/parent_weekly_page.dart';
@@ -15,6 +18,7 @@ import 'features/progress/progress_page.dart';
 import 'features/review/review_page.dart';
 import 'features/solve/solve_controller.dart';
 import 'features/solve/solve_page.dart';
+import 'features/solve/cloud_drafts_page.dart';
 import 'features/startup/startup_gate.dart';
 
 /// 页面清单（docs/03 §2）。除了入口 `/`，所有页面都要等登录状态就绪；
@@ -57,6 +61,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => guarded(const PracticePage()),
       ),
       GoRoute(
+        path: '/diagnostic',
+        builder: (context, state) => guarded(const DiagnosticPage()),
+      ),
+      GoRoute(
+        path: '/diagnostic/history',
+        builder: (context, state) => guarded(
+          DiagnosticHistoryScreen(cursor: state.uri.queryParameters['cursor']),
+        ),
+      ),
+      GoRoute(
         path: '/review',
         builder: (context, state) => guarded(const ReviewPage()),
       ),
@@ -67,6 +81,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => guarded(const ProfilePage()),
+      ),
+      GoRoute(
+        path: '/questions/:id/drafts',
+        builder: (context, state) =>
+            guarded(CloudDraftsPage(questionId: state.pathParameters['id']!)),
       ),
       GoRoute(
         path: '/questions/:id/solve',
@@ -85,12 +104,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                 : 'practice',
             reviewItemId: query['review'],
             parentSessionId: query['parent'],
+            sessionId: query['session'],
+            attemptId: query['attempt'],
           );
           // key 带上参数：同一个页面位置换了题，要整个重建（草稿控制器是按题建的）
           return guarded(
             SolvePage(
               key: ValueKey(
-                'solve.${args.questionId}.${args.origin}.${args.reviewItemId}',
+                'solve.${args.questionId}.${args.origin}.${args.reviewItemId}.${args.sessionId}.${args.attemptId}',
               ),
               args: args,
             ),

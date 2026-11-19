@@ -48,11 +48,18 @@ class AppHarness {
     store.data['auth.role'] = role;
   }
 
-  List<Override> get overrides => [
-    keyValueStoreProvider.overrideWithValue(store),
-    apiTransportProvider.overrideWithValue(backend),
-    clockProvider.overrideWithValue(() => testNow),
-  ];
+  List<Override> get overrides {
+    final token = store.data['auth.token'];
+    final owner = store.data['auth.userId'];
+    if (token != null && owner != null && store.data['auth.role'] != 'parent') {
+      backend.bindStudentIdentity(token, owner);
+    }
+    return [
+      keyValueStoreProvider.overrideWithValue(store),
+      apiTransportProvider.overrideWithValue(backend),
+      clockProvider.overrideWithValue(() => testNow),
+    ];
+  }
 
   /// 整个应用（含路由、启动判断）。
   Widget app({ThemeMode themeMode = ThemeMode.light}) => ProviderScope(

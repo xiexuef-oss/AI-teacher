@@ -17,6 +17,7 @@ def list_questions(
     subject: Subject | None = None,
     answer_mode: AnswerMode | None = None,
     source_category: SourceCategory | None = None,
+    knowledge_id: UUID | None = None,
     scope: QuestionScope = "all",
     cursor: str | None = Query(default=None, min_length=1, max_length=256),
     limit: int = Query(default=20, ge=1, le=50),
@@ -28,11 +29,30 @@ def list_questions(
         subject=subject,
         answer_mode=answer_mode,
         source_category=source_category,
+        knowledge_id=str(knowledge_id) if knowledge_id is not None else None,
         scope_filter=scope,
         cursor=cursor,
         limit=limit,
     )
     return ok(page)
+
+
+@router.get("/questions/topics")
+def list_question_topics(
+    subject: Subject | None = None,
+    answer_mode: AnswerMode | None = None,
+    scope: QuestionScope = "all",
+    ctx: Ctx = Depends(student_ctx),
+) -> JSONResponse:
+    return ok(
+        question_service.list_topics(
+            ctx.db,
+            question_service.student_scope(ctx.db, ctx.student_id),
+            subject=subject,
+            answer_mode=answer_mode,
+            scope_filter=scope,
+        )
+    )
 
 
 @router.get("/questions/{question_id}")

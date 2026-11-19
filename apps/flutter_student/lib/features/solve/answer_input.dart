@@ -239,23 +239,28 @@ class _FillInputState extends State<FillInput> {
         for (var i = 0; i < widget.blanks.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: TextField(
-              key: ValueKey('blank.${widget.blanks[i].key}'),
-              controller: _controllers[widget.blanks[i].key],
-              focusNode: _focus[widget.blanks[i].key],
-              enabled: widget.enabled,
-              maxLength: 200,
-              maxLines: 1,
-              style: theme.textTheme.bodyLarge,
-              decoration: InputDecoration(
-                labelText:
-                    widget.blanks[i].label ?? (many ? '第 ${i + 1} 空' : '你的答案'),
-                hintText: widget.blanks[i].placeholder,
-                helperText: widget.blanks[i].unitHint,
-                counterText: '',
+            child: Semantics(
+              container: true,
+              explicitChildNodes: true,
+              child: TextField(
+                key: ValueKey('blank.${widget.blanks[i].key}'),
+                controller: _controllers[widget.blanks[i].key],
+                focusNode: _focus[widget.blanks[i].key],
+                enabled: widget.enabled,
+                maxLength: 200,
+                maxLines: 1,
+                style: theme.textTheme.bodyLarge,
+                decoration: InputDecoration(
+                  labelText:
+                      widget.blanks[i].label ??
+                      (many ? '第 ${i + 1} 空' : '你的答案'),
+                  hintText: widget.blanks[i].placeholder,
+                  helperText: widget.blanks[i].unitHint,
+                  counterText: '',
+                ),
+                onChanged: (value) =>
+                    widget.onChanged(widget.blanks[i].key, value),
               ),
-              onChanged: (value) =>
-                  widget.onChanged(widget.blanks[i].key, value),
             ),
           ),
         SymbolPalette(

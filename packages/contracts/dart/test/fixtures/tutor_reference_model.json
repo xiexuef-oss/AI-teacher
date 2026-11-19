@@ -1,0 +1,141 @@
+{
+  "name": "tutor_reference_model",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/d8bf6e9b-49c5-4c9a-9949-3845e11602aa/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+      "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "HINTED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 1,
+      "hint_levels_total": 3,
+      "confused_streak": 1,
+      "needs_human_help": false,
+      "active_attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+      "first_submitted_attempt_id": null,
+      "submitted_attempts": 0,
+      "last_event_seq": 2,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "baf662bf-7d35-4ff2-aa6d-eef2a73191cc",
+        "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+        "seq_no": 2,
+        "type": "hint",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "HINTED",
+        "payload": {
+          "level": 1,
+          "total_levels": 1,
+          "style": "rephrase",
+          "text": "换个说法：在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减。先别急着算，用自己的话把“函数的单调性”说一遍，再回到题目里找对应的量。",
+          "concept": "函数的单调性"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "model",
+          "degraded": false,
+          "provider": "mock",
+          "model_id": "mock-tutor",
+          "prompt_version": "tutor-prompt/2026-11-16.1",
+          "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+          "question_version": 1,
+          "trace_id": "b0365c43bafe458e9bb6bfb4f4aa5520",
+          "request_id": "f57fd2ee346e484cbcd92d64856bc2cb"
+        },
+        "references": [
+          {
+            "block_id": "stem",
+            "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+            "start": 7,
+            "end": 12,
+            "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+            "label": "题干"
+          }
+        ]
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+        "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "HINTED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 1,
+        "needs_human_help": false,
+        "active_attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+        "first_submitted_attempt_id": null,
+        "submitted_attempts": 0,
+        "last_event_seq": 2,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "baf662bf-7d35-4ff2-aa6d-eef2a73191cc",
+          "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+          "seq_no": 2,
+          "type": "hint",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "HINTED",
+          "payload": {
+            "level": 1,
+            "total_levels": 1,
+            "style": "rephrase",
+            "text": "换个说法：在一个区间上，自变量增大时函数值也一直增大，就说函数在这个区间上单调递增；一直减小则是单调递减。先别急着算，用自己的话把“函数的单调性”说一遍，再回到题目里找对应的量。",
+            "concept": "函数的单调性"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "model",
+            "degraded": false,
+            "provider": "mock",
+            "model_id": "mock-tutor",
+            "prompt_version": "tutor-prompt/2026-11-16.1",
+            "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+            "question_version": 1,
+            "trace_id": "b0365c43bafe458e9bb6bfb4f4aa5520",
+            "request_id": "f57fd2ee346e484cbcd92d64856bc2cb"
+          },
+          "references": [
+            {
+              "block_id": "stem",
+              "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+              "start": 7,
+              "end": 12,
+              "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+              "label": "题干"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

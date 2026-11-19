@@ -12,18 +12,29 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from tutor_api.db import new_id
 from tutor_api.errors import conflict, not_found, unprocessable
-from tutor_api.models import Attempt, HandwritingDraft, Question, StudentProfile, StudySession
+from tutor_api.models import (
+    Attempt,
+    HandwritingDraft,
+    Question,
+    QuestionVersion,
+    StudentProfile,
+    StudySession,
+)
 from tutor_api.schemas import (
     AttemptOut,
+    DraftCopyCreateIn,
+    DraftCopyOut,
     DraftOut,
     DraftSyncIn,
     Evaluation,
     FeedbackItem,
+    QuestionDraftPageOut,
+    QuestionDraftRefOut,
     SessionCreateIn,
     StudySessionOut,
     SubmitIn,
@@ -39,6 +50,33 @@ DISCLAIMER = "这是练习反馈，不是官方阅卷分数。"
 # ---------------------------------------------------------------- 读取与归属
 
 
+def _locked(db, session_id):
+    transaction = db.get_transaction()
+    return (
+        transaction is not None
+        and db.info.get("session_write_locks", {}).get(session_id) is transaction
+    )
+
+
+def lock_owned_session(db, student_id, session_id):
+    statement = select(StudySession).where(
+        StudySession.id == session_id, StudySession.student_id == student_id
+    )
+    if db.get_bind().dialect.name == "sqlite":
+        guarded = db.execute(
+            update(StudySession)
+            .where(StudySession.id == session_id, StudySession.student_id == student_id)
+            .values(updated_at=StudySession.updated_at)
+        )
+        if guarded.rowcount != 1:
+            raise not_found()
+    session = db.scalar(statement.with_for_update().execution_options(populate_existing=True))
+    if session is None:
+        raise not_found()
+    db.info.setdefault("session_write_locks", {})[session.id] = db.get_transaction()
+    return session
+
+
 def get_owned_session(db: Session, student_id: str, session_id: str) -> StudySession:
     session = db.get(StudySession, session_id)
     if session is None or session.student_id != student_id:
@@ -47,17 +85,39 @@ def get_owned_session(db: Session, student_id: str, session_id: str) -> StudySes
 
 
 def get_owned_attempt(
-    db: Session, student_id: str, attempt_id: str
+    db: Session, student_id: str, attempt_id: str, *, write=False
 ) -> tuple[Attempt, StudySession]:
-    attempt = db.get(Attempt, attempt_id)
-    session = db.get(StudySession, attempt.session_id) if attempt is not None else None
+    if write:
+        identifier = db.scalar(
+            select(Attempt.session_id)
+            .join(StudySession, StudySession.id == Attempt.session_id)
+            .where(Attempt.id == attempt_id, StudySession.student_id == student_id)
+        )
+        if identifier is None:
+            raise not_found()
+        session = lock_owned_session(db, student_id, identifier)
+        attempt = db.scalar(
+            select(Attempt)
+            .where(Attempt.id == attempt_id, Attempt.session_id == session.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    else:
+        attempt = db.get(Attempt, attempt_id)
+        session = db.get(StudySession, attempt.session_id) if attempt is not None else None
     if attempt is None or session is None or session.student_id != student_id:
         raise not_found()
     return attempt, session
 
 
 def get_draft(db: Session, attempt_id: str) -> HandwritingDraft:
-    draft = db.scalar(select(HandwritingDraft).where(HandwritingDraft.attempt_id == attempt_id))
+    statement = select(HandwritingDraft).where(HandwritingDraft.attempt_id == attempt_id)
+    if any(
+        transaction is db.get_transaction()
+        for transaction in db.info.get("session_write_locks", {}).values()
+    ):
+        statement = statement.with_for_update().execution_options(populate_existing=True)
+    draft = db.scalar(statement)
     if draft is None:
         raise not_found()
     return draft
@@ -69,29 +129,43 @@ def _has_ink(draft: HandwritingDraft) -> bool:
     return any(page.get("strokes") for page in pages)
 
 
-def submitted_count(db: Session, session_id: str) -> int:
-    return (
-        db.scalar(
-            select(func.count())
-            .select_from(Attempt)
-            .where(Attempt.session_id == session_id, Attempt.status == "submitted")
-        )
-        or 0
+def _submitted_rows(db: Session, session_id: str) -> list[tuple[str, int | None]]:
+    statement = select(Attempt.id, Attempt.submission_no).where(
+        Attempt.session_id == session_id, Attempt.status == "submitted"
     )
+    if _locked(db, session_id):
+        statement = statement.with_for_update()
+    return [(identifier, number) for identifier, number in db.execute(statement)]
+
+
+def submitted_count(db: Session, session_id: str) -> int:
+    return len(_submitted_rows(db, session_id))
 
 
 def open_attempt(db: Session, session_id: str) -> Attempt | None:
-    return db.scalar(
-        select(Attempt).where(Attempt.session_id == session_id, Attempt.status == "draft")
+    statement = (
+        select(Attempt)
+        .where(Attempt.session_id == session_id, Attempt.status == "draft")
+        .order_by(Attempt.attempt_no, Attempt.id)
+        .limit(1)
     )
+    if _locked(db, session_id):
+        statement = statement.with_for_update().execution_options(populate_existing=True)
+    return db.scalar(statement)
 
 
 # ---------------------------------------------------------------- 序列化
 
 
 def serialize_session(db: Session, session: StudySession) -> StudySessionOut:
-    version = question_service.get_version(db, session.question_id, session.question_version)
+    created = db.info.get("created_session_versions", {}).get(session.id)
+    version = (
+        created[1]
+        if created is not None and created[0] is db.get_transaction()
+        else question_service.get_version(db, session.question_id, session.question_version)
+    )
     active = open_attempt(db, session.id)
+    submitted = _submitted_rows(db, session.id)
     return StudySessionOut(
         id=session.id,
         question_id=session.question_id,
@@ -111,7 +185,10 @@ def serialize_session(db: Session, session: StudySession) -> StudySessionOut:
         confused_streak=session.confused_streak,
         needs_human_help=session.needs_human_help,
         active_attempt_id=active.id if active else None,
-        submitted_attempts=submitted_count(db, session.id),
+        first_submitted_attempt_id=next(
+            (identifier for identifier, number in submitted if number == 1), None
+        ),
+        submitted_attempts=len(submitted),
         last_event_seq=events.last_seq(db, session.id),
         created_at=session.created_at,
         updated_at=session.updated_at,
@@ -124,6 +201,9 @@ def serialize_attempt(db: Session, attempt: Attempt) -> AttemptOut:
         id=attempt.id,
         session_id=attempt.session_id,
         attempt_no=attempt.attempt_no,
+        submission_no=attempt.submission_no,
+        copied_from_attempt_id=attempt.copied_from_attempt_id,
+        copied_from_revision=attempt.copied_from_revision,
         status=attempt.status,
         answer=attempt.answer_json,
         draft_revision=draft.revision,
@@ -153,7 +233,46 @@ def serialize_draft(attempt: Attempt, draft: HandwritingDraft) -> DraftOut:
 def create_session(
     db: Session, student_id: str, body: SessionCreateIn, *, now: datetime
 ) -> StudySession:
-    question = question_service.get_published_question(db, body.question_id.lower())
+    question_id = body.question_id.lower()
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(
+            update(Question).where(Question.id == question_id).values(version=Question.version)
+        )
+    question = db.scalar(
+        select(Question)
+        .where(Question.id == question_id)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )
+    if question is None or question.status != "published":
+        raise not_found()
+    if (
+        body.expected_question_version is not None
+        and body.expected_question_version != question.version
+    ):
+        raise conflict(
+            "question_version_conflict",
+            "题目版本已更新，请保留原稿并确认要使用的题面",
+            {
+                "expected_question_version": body.expected_question_version,
+                "current_question_version": question.version,
+            },
+        )
+
+    # A locking/current read can observe a freshly published version which the
+    # transaction's earlier RR snapshot cannot yet see. Keep that immutable row
+    # for this transaction's create response rather than re-reading its snapshot.
+    version = db.scalar(
+        select(QuestionVersion)
+        .where(
+            QuestionVersion.question_id == question.id,
+            QuestionVersion.version == question.version,
+        )
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )
+    if version is None:
+        raise not_found()
 
     if body.origin == "review":
         if body.review_item_id is None:
@@ -191,6 +310,10 @@ def create_session(
     )
     db.add(session)
     db.flush()
+    db.info.setdefault("created_session_versions", {})[session.id] = (
+        db.get_transaction(),
+        version,
+    )
     return session
 
 
@@ -198,7 +321,7 @@ def create_session(
 
 
 def create_attempt(db: Session, student_id: str, session_id: str, *, now: datetime) -> Attempt:
-    session = get_owned_session(db, student_id, session_id.lower())
+    session = lock_owned_session(db, student_id, session_id.lower())
     if session.state == "DONE":
         raise conflict("invalid_state", "这次学习已经结束，请重新开始一次会话")
     existing = open_attempt(db, session.id)
@@ -207,23 +330,53 @@ def create_attempt(db: Session, student_id: str, session_id: str, *, now: dateti
             "attempt_in_progress", "这次会话里还有一份没有提交的作答", {"attempt_id": existing.id}
         )
 
-    attempt_no = (
-        db.scalar(select(func.max(Attempt.attempt_no)).where(Attempt.session_id == session.id)) or 0
-    ) + 1
+    return _append_attempt(db, session, now=now)
+
+
+def _append_attempt(
+    db: Session,
+    session: StudySession,
+    *,
+    now: datetime,
+    source: Attempt | None = None,
+    source_revision: int | None = None,
+    answer: dict | None = None,
+    strokes: dict | None = None,
+) -> Attempt:
+
+    last_number = db.scalar(
+        select(Attempt.attempt_no)
+        .where(Attempt.session_id == session.id)
+        .order_by(Attempt.attempt_no.desc())
+        .limit(1)
+        .with_for_update()
+    )
+    attempt_no = (last_number or 0) + 1
     attempt = Attempt(
         id=new_id(),
         session_id=session.id,
         attempt_no=attempt_no,
         status="draft",
+        copied_from_attempt_id=source.id if source is not None else None,
+        copied_from_revision=source_revision,
+        answer_json=answer,
         # 同一会话里的重试已经看过上一次的反馈，不再算独立作答
-        assisted=session.assisted or attempt_no > 1,
+        assisted=session.assisted or submitted_count(db, session.id) > 0,
         used_solution=session.used_solution,
         created_at=now,
         updated_at=now,
     )
     db.add(attempt)
     db.flush()
-    db.add(HandwritingDraft(id=new_id(), attempt_id=attempt.id, revision=0, updated_at=now))
+    db.add(
+        HandwritingDraft(
+            id=new_id(),
+            attempt_id=attempt.id,
+            revision=1 if source is not None else 0,
+            strokes_json=strokes,
+            updated_at=now,
+        )
+    )
     if session.state == "READY":
         session.state = "INDEPENDENT_ATTEMPT"
     session.updated_at = now
@@ -231,10 +384,89 @@ def create_attempt(db: Session, student_id: str, session_id: str, *, now: dateti
     return attempt
 
 
+def create_draft_copy(
+    db: Session, student_id: str, attempt_id: str, body: DraftCopyCreateIn, *, now: datetime
+) -> DraftCopyOut:
+    source, session = get_owned_attempt(db, student_id, attempt_id, write=True)
+    if source.status != "draft":
+        raise conflict("attempt_already_submitted", "源作答已经提交，不能再创建草稿副本")
+    if session.state == "DONE":
+        raise conflict("invalid_state", "这次学习已经结束，草稿仍保留")
+    draft = get_draft(db, source.id)
+    if draft.revision != body.source_revision:
+        raise conflict(
+            "draft_revision_conflict",
+            "云端草稿又有更新，没有覆盖任何一方",
+            {
+                "server_revision": draft.revision,
+                "server_draft": serialize_draft(source, draft).model_dump(mode="json"),
+            },
+        )
+    # Use a current locking read after the owned-session lock, including MySQL RR.
+    published = db.scalar(
+        select(Question)
+        .where(Question.id == session.question_id, Question.status == "published")
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )
+    if published is None:
+        raise not_found()
+    new = _append_attempt(
+        db,
+        session,
+        now=now,
+        source=source,
+        source_revision=draft.revision,
+        answer=body.answer.model_dump(exclude_none=True) if body.answer is not None else None,
+        strokes=body.strokes.model_dump() if body.strokes is not None else None,
+    )
+    return DraftCopyOut(
+        session=serialize_session(db, session),
+        attempt=serialize_attempt(db, new),
+        draft=serialize_draft(new, get_draft(db, new.id)),
+    )
+
+
+def list_question_drafts(db, student_id, question_id, *, cursor, limit):
+    question_service.get_published_question(db, question_id)
+    offset = question_service.decode_cursor(cursor)
+    statement = (
+        select(
+            StudySession.id.label("session_id"),
+            Attempt.id.label("attempt_id"),
+            StudySession.question_version,
+            Attempt.attempt_no,
+            HandwritingDraft.revision.label("draft_revision"),
+            Attempt.copied_from_attempt_id,
+            Attempt.copied_from_revision,
+            StudySession.origin,
+            StudySession.review_item_id,
+            StudySession.state.label("session_state"),
+            Attempt.updated_at,
+        )
+        .select_from(Attempt)
+        .join(StudySession, StudySession.id == Attempt.session_id)
+        .join(HandwritingDraft, HandwritingDraft.attempt_id == Attempt.id)
+        .where(
+            StudySession.student_id == student_id,
+            StudySession.question_id == question_id,
+            Attempt.status == "draft",
+        )
+        .order_by(StudySession.created_at.desc(), StudySession.id, Attempt.attempt_no, Attempt.id)
+        .offset(offset)
+        .limit(limit + 1)
+    )
+    rows = list(db.execute(statement).mappings())
+    return QuestionDraftPageOut(
+        items=[QuestionDraftRefOut(**row) for row in rows[:limit]],
+        next_cursor=question_service.encode_cursor(offset + limit) if len(rows) > limit else None,
+    )
+
+
 def sync_draft(
     db: Session, student_id: str, attempt_id: str, body: DraftSyncIn, *, now: datetime
 ) -> DraftOut:
-    attempt, _ = get_owned_attempt(db, student_id, attempt_id)
+    attempt, _ = get_owned_attempt(db, student_id, attempt_id, write=True)
     if attempt.status != "draft":
         raise conflict("attempt_already_submitted", "这份作答已经提交，草稿不能再修改")
     draft = get_draft(db, attempt.id)
@@ -287,9 +519,21 @@ def submit_attempt(
     request_id: str,
     now: datetime,
 ) -> SubmitResult:
-    attempt, session = get_owned_attempt(db, student_id, attempt_id)
+    attempt, session = get_owned_attempt(db, student_id, attempt_id, write=True)
     if attempt.status != "draft":
         raise conflict("attempt_already_submitted", "这份作答已经提交过了")
+
+    draft = get_draft(db, attempt.id)
+    if body.expected_draft_revision is not None and body.expected_draft_revision != draft.revision:
+        raise conflict(
+            "submission_draft_revision_conflict",
+            "草稿已在别处更新，请保留双方内容并确认提交快照",
+            {
+                "expected_draft_revision": body.expected_draft_revision,
+                "server_revision": draft.revision,
+                "server_draft": serialize_draft(attempt, draft).model_dump(mode="json"),
+            },
+        )
 
     question = db.get(Question, session.question_id)
     assert question is not None
@@ -305,13 +549,14 @@ def submit_attempt(
             teaching=teaching,
             answer=answer,
             # 解答题可以只手写、不打字：笔迹随草稿同步，这里看草稿里有没有笔迹
-            has_ink=_has_ink(get_draft(db, attempt.id)),
+            has_ink=_has_ink(draft),
         )
     except grading.AnswerShapeError as error:
         raise unprocessable(error.field, error.message) from error
 
+    submission_no = submitted_count(db, session.id) + 1
     independent = (
-        attempt.attempt_no == 1
+        submission_no == 1
         and not session.assisted
         and not session.used_solution
         and not session.independent_ended
@@ -332,6 +577,7 @@ def submit_attempt(
     )
 
     attempt.status = "submitted"
+    attempt.submission_no = submission_no
     attempt.answer_json = answer
     attempt.independent = independent
     attempt.assisted = not independent

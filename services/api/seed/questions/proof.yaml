@@ -10,6 +10,112 @@
 # 参考证明里出现过的每个阶段至少要有一条。
 # 证明的关键构造和关键变形推不出自动的泄题标记，所以必须在 teaching.leak_markers 里自己列出：提示只给方向，不给式子。
 
+- key: math-circle-radius-proof
+  subject: math
+  type: proof
+  answer_mode: proof
+  difficulty: 1
+  grade: G10
+  title: 在单位圆上比较两条线段
+  knowledge: [math.geometry.coordinate]
+  content:
+    stem: '自编圆的坐标工程示例。只根据已知条件证明，不从示意图外观推断关系；无需图片即可作答。'
+    proof:
+      givens:
+        - '在平面直角坐标系中，O是原点，圆O的方程为 $x^2+y^2=1$。'
+        - 'A、B是圆O上两个不同的点。'
+      claim: '证明 $OA=OB$。'
+  answer:
+    value:
+      steps:
+        - stage: premise
+          text: '设A、B的坐标分别为 $(x_A,y_A)$、$(x_B,y_B)$，两点的坐标都满足圆O的方程。'
+          reason: 'A、B在圆O上，圆上点的坐标满足其方程'
+        - stage: reasoning
+          text: '由两点间距离公式，$OA^2=x_A^2+y_A^2=1$，$OB^2=x_B^2+y_B^2=1$。'
+          reason: 'O是原点；分别代入距离公式和已知圆方程'
+        - stage: conclusion
+          text: '所以 $OA=OB$。'
+          reason: '两条线段的长度为正，且它们的平方相等'
+  rubric:
+    points:
+      - {key: p1, part: premise, text: '明确使用A、B在给定圆上这一条件，不从图形估计坐标'}
+      - {key: p2, part: reasoning, text: '把两条线段长度的平方与题设圆方程联系起来，并写明依据'}
+      - {key: p3, part: conclusion, text: '由长度平方的比较得到结论，不用示意图外观代替证明'}
+      - {key: p4, part: null, text: '每一步都写出依据，不以图形外观代替推理'}
+  teaching:
+    concept: 用圆的方程和距离公式比较线段长度
+    leak_markers: ['OA^2=x_A^2+y_A^2=1', 'OB^2=x_B^2+y_B^2=1', 'OA^2=OB^2', 'OA=OB=1', 'OA^2=1', 'OB^2=1', 'OA=1', 'OB=1', '长度均为1', '长度都是1']
+    hints:
+      - '先区分题目已经给出的条件与图形外观，回想怎样用坐标表示线段长度。'
+      - '把圆上点的坐标与题目给定的方程联系起来，检查哪些量可以进行比较。'
+      - '写清从比较的量回到线段长度时所用的依据，每一步都说明理由。'
+    visual:
+      template_id: circle_schematic
+      params: {a_position: 0.1, b_position: 0.37, focus: 0}
+      caption: '只定位已给的圆O和圆上点A、B；不补连线、辅助点或证明结论。'
+  solutions:
+    standard:
+      steps:
+        - '由A、B在圆上，两点的坐标分别满足题设方程。'
+        - '用两点间距离公式表示它们到原点的距离平方，再与圆方程比较。'
+        - '两条线段长度的平方相等，长度均为正，所以长度相等。'
+      final_answer: '$OA=OB$。'
+      key_points: ['使用题设圆方程和距离公式', '说明由平方比较回到长度比较的依据']
+
+- key: math-triangle-coordinate-proof
+  subject: math
+  type: proof
+  answer_mode: proof
+  difficulty: 2
+  grade: G10
+  title: 用给定坐标比较三角形的三边
+  knowledge: [math.geometry.coordinate]
+  content:
+    stem: '自编坐标几何工程示例。只根据已知坐标证明，不凭示意图的外观判断关系；无需图片即可作答。'
+    proof:
+      givens:
+        - '在同一平面直角坐标系中，A(0,0)，B(1,0)，C(0.35,0.65)。'
+        - '连接AB、BC、CA，得到三角形ABC。'
+      claim: '证明三角形ABC的三边长度互不相等。'
+  answer:
+    value:
+      steps:
+        - stage: premise
+          text: '三个点的坐标已知，且C不在AB所在直线上。'
+          reason: '已知坐标；AB所在直线的纵坐标为零，而C的纵坐标非零'
+        - stage: reasoning
+          text: '由两点间距离公式，AB的平方为1，AC的平方为0.545，BC的平方为0.845。'
+          reason: '分别代入坐标，横坐标差的平方加纵坐标差的平方'
+        - stage: conclusion
+          text: '三个平方值互不相等，所以三角形ABC的三边长度互不相等。'
+          reason: '线段长度为正；长度相等则它们的平方也相等'
+  rubric:
+    points:
+      - {key: p1, part: premise, text: '确认使用题目已给坐标，而不是从图形外观猜测条件'}
+      - {key: p2, part: reasoning, text: '分别按两点间距离公式计算三条边长度的平方'}
+      - {key: p3, part: conclusion, text: '比较平方值，给出三边互不相等的结论及依据'}
+      - {key: p4, part: null, text: '每一步都写出依据，不能以示意图外观代替推理'}
+  teaching:
+    concept: 用坐标条件比较线段长度
+    leak_markers: ['0.545', '0.845', '0.35^2+0.65^2', '0.65^2+0.65^2']
+    hints:
+      - '已知的是点的坐标。回想怎样从两个点的坐标得到线段的长度。'
+      - '比较正数的长度时，可以先比较它们的平方，减少开方计算。每一步都说明用到的依据。'
+      - '检查比较结果能否支持求证，并说明从平方的比较回到长度的比较所用的理由。'
+    visual:
+      template_id: triangle_schematic
+      params: {apex_x: 0.35, height: 0.65, focus: 0}
+      caption: '只定位已给的A、B、C和三条边；不增加辅助线，也不从图形外观推断结论。'
+  solutions:
+    standard:
+      steps:
+        - '由已知坐标，分别用两点间距离公式计算三条边长度的平方。'
+        - '得到AB的平方为1，AC的平方为0.545，BC的平方为0.845，三个值互不相等。'
+        - '若任意两条边长度相等，它们的平方也会相等，与计算结果矛盾，故三边互不相等。'
+      final_answer: '三角形ABC的三边长度互不相等。'
+      key_points: ['使用已给坐标计算，不凭图形猜测', '比较正线段长度的平方']
+
 - key: math-ineq-diff-proof
   subject: math
   type: proof

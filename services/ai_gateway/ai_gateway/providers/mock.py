@@ -52,6 +52,17 @@ class MockProvider:
             return ProviderResult(
                 output={
                     "event_type": "hint",
+                    **(
+                        {
+                            "references": [
+                                request.constraints.reference_catalog[0].model_dump(
+                                    include={"block_id", "block_sha256", "start", "end"}
+                                )
+                            ]
+                        }
+                        if request.constraints.reference_catalog
+                        else {}
+                    ),
                     "payload": {
                         "level": 1,
                         "total_levels": 1,

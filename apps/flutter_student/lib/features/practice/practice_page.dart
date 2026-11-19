@@ -13,20 +13,26 @@ class PracticeFilters {
     this.subject,
     this.mode,
     this.scope = QuestionScope.all,
+    this.knowledgeId,
   });
 
   final Subject? subject;
   final AnswerMode? mode;
   final QuestionScope scope;
+  final String? knowledgeId;
 
   PracticeFilters copyWith({
     Object? subject = _keep,
     Object? mode = _keep,
     QuestionScope? scope,
+    Object? knowledgeId = _keep,
   }) => PracticeFilters(
     subject: identical(subject, _keep) ? this.subject : subject as Subject?,
     mode: identical(mode, _keep) ? this.mode : mode as AnswerMode?,
     scope: scope ?? this.scope,
+    knowledgeId: identical(knowledgeId, _keep)
+        ? this.knowledgeId
+        : knowledgeId as String?,
   );
 }
 
@@ -36,6 +42,7 @@ class PracticeState {
   const PracticeState({
     this.filters = const PracticeFilters(),
     this.items = const [],
+    this.topics = const [],
     this.nextCursor,
     this.loading = false,
     this.loaded = false,
@@ -44,6 +51,7 @@ class PracticeState {
 
   final PracticeFilters filters;
   final List<QuestionSummary> items;
+  final List<QuestionTopic> topics;
   final String? nextCursor;
   final bool loading;
   final bool loaded;
@@ -52,6 +60,7 @@ class PracticeState {
   PracticeState copyWith({
     PracticeFilters? filters,
     List<QuestionSummary>? items,
+    List<QuestionTopic>? topics,
     Object? nextCursor = _keep,
     bool? loading,
     bool? loaded,
@@ -59,6 +68,7 @@ class PracticeState {
   }) => PracticeState(
     filters: filters ?? this.filters,
     items: items ?? this.items,
+    topics: topics ?? this.topics,
     nextCursor: identical(nextCursor, _keep)
         ? this.nextCursor
         : nextCursor as String?,
@@ -98,21 +108,33 @@ class PracticeController extends Notifier<PracticeState> {
     try {
       await ref.read(authProvider.future);
       final f = state.filters;
-      final page = await ref
-          .read(apiClientProvider)
-          .listQuestions(
-            subject: f.subject,
-            answerMode: f.mode,
-            scope: f.scope == QuestionScope.all ? null : f.scope,
-            cursor: reset ? null : state.nextCursor,
-            limit: 20,
-          );
+      final api = ref.read(apiClientProvider);
+      final request = api.listQuestions(
+        subject: f.subject,
+        answerMode: f.mode,
+        knowledgeId: f.knowledgeId,
+        scope: f.scope == QuestionScope.all ? null : f.scope,
+        cursor: reset ? null : state.nextCursor,
+        limit: 20,
+      );
+      final results = reset
+          ? await Future.wait<Object>([
+              request,
+              api.listQuestionTopics(
+                subject: f.subject,
+                answerMode: f.mode,
+                scope: f.scope,
+              ),
+            ])
+          : [await request];
+      final page = results[0] as QuestionPage;
       if (generation != _generation) return;
       state = state.copyWith(
         items: reset ? page.items : [...state.items, ...page.items],
         nextCursor: page.nextCursor,
         loading: false,
         loaded: true,
+        topics: reset ? (results[1] as QuestionTopicPage).items : state.topics,
       );
     } catch (error) {
       if (generation != _generation) return;
@@ -169,6 +191,8 @@ class _PracticePageState extends ConsumerState<PracticePage> {
               children: [
                 _Filters(
                   filters: state.filters,
+                  topics: state.topics,
+                  loading: state.loading,
                   onChanged: controller.setFilters,
                 ),
                 Expanded(
@@ -184,9 +208,16 @@ class _PracticePageState extends ConsumerState<PracticePage> {
 }
 
 class _Filters extends StatelessWidget {
-  const _Filters({required this.filters, required this.onChanged});
+  const _Filters({
+    required this.filters,
+    required this.onChanged,
+    required this.topics,
+    required this.loading,
+  });
 
   final PracticeFilters filters;
+  final List<QuestionTopic> topics;
+  final bool loading;
   final ValueChanged<PracticeFilters> onChanged;
 
   @override
@@ -214,14 +245,16 @@ class _Filters extends StatelessWidget {
               key: const ValueKey('filter.subject.all'),
               label: const Text('全部'),
               selected: filters.subject == null,
-              onSelected: (_) => onChanged(filters.copyWith(subject: null)),
+              onSelected: (_) =>
+                  onChanged(filters.copyWith(subject: null, knowledgeId: null)),
             ),
             for (final s in [Subject.math, Subject.physics, Subject.chemistry])
               ChoiceChip(
                 key: ValueKey('filter.subject.${s.value}'),
                 label: Text(subjectName(s)),
                 selected: filters.subject == s,
-                onSelected: (_) => onChanged(filters.copyWith(subject: s)),
+                onSelected: (_) =>
+                    onChanged(filters.copyWith(subject: s, knowledgeId: null)),
               ),
           ]),
           row('题型', [
@@ -229,7 +262,8 @@ class _Filters extends StatelessWidget {
               key: const ValueKey('filter.mode.all'),
               label: const Text('全部'),
               selected: filters.mode == null,
-              onSelected: (_) => onChanged(filters.copyWith(mode: null)),
+              onSelected: (_) =>
+                  onChanged(filters.copyWith(mode: null, knowledgeId: null)),
             ),
             for (final m in [
               AnswerMode.singleChoice,
@@ -243,7 +277,8 @@ class _Filters extends StatelessWidget {
                 key: ValueKey('filter.mode.${m.value}'),
                 label: Text(answerModeName(m)),
                 selected: filters.mode == m,
-                onSelected: (_) => onChanged(filters.copyWith(mode: m)),
+                onSelected: (_) =>
+                    onChanged(filters.copyWith(mode: m, knowledgeId: null)),
               ),
           ]),
           row('范围', [
@@ -256,9 +291,51 @@ class _Filters extends StatelessWidget {
                 key: ValueKey('filter.scope.${scope.value}'),
                 label: Text(label),
                 selected: filters.scope == scope,
-                onSelected: (_) => onChanged(filters.copyWith(scope: scope)),
+                onSelected: (_) => onChanged(
+                  filters.copyWith(scope: scope, knowledgeId: null),
+                ),
               ),
           ]),
+          Row(
+            children: [
+              const SizedBox(width: 52, child: Text('知识点')),
+              Expanded(
+                child: DropdownButton<String>(
+                  key: const ValueKey('filter.knowledge'),
+                  isExpanded: true,
+                  value: filters.knowledgeId ?? '',
+                  items: [
+                    const DropdownMenuItem(value: '', child: Text('全部知识点')),
+                    if (filters.knowledgeId != null &&
+                        !topics.any((topic) => topic.id == filters.knowledgeId))
+                      DropdownMenuItem(
+                        value: filters.knowledgeId,
+                        child: const Text('已选知识点当前暂无可练题'),
+                      ),
+                    for (final topic in topics)
+                      DropdownMenuItem(
+                        value: topic.id,
+                        child: Text(
+                          '${subjectName(topic.subject)} · ${topic.title}（${topic.questionCount}题）',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                  onChanged: loading
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            onChanged(
+                              filters.copyWith(
+                                knowledgeId: value.isEmpty ? null : value,
+                              ),
+                            );
+                          }
+                        },
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -322,48 +399,60 @@ class _QuestionTile extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       key: ValueKey('question.${question.id}'),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push(solveRoute(question.id)),
-        child: Padding(
-          padding: const EdgeInsets.all(kPad),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  InfoChip(subjectName(question.subject)),
-                  InfoChip(answerModeName(question.answerMode)),
-                  InfoChip(
-                    '难度 ${question.difficulty}',
-                    icon: Icons.signal_cellular_alt,
-                  ),
-                  InfoChip(
-                    question.applicability.label,
-                    icon: Icons.place_outlined,
-                    tone:
-                        question.applicability.scope ==
-                            ApplicabilityScope.region
-                        ? Tone.info
-                        : Tone.neutral,
-                  ),
-                  if (question.variantOf != null)
-                    const InfoChip('变式', icon: Icons.shuffle),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(question.title, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(
-                question.source.label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.all(kPad),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                InfoChip(subjectName(question.subject)),
+                InfoChip(answerModeName(question.answerMode)),
+                InfoChip(
+                  '难度 ${question.difficulty}',
+                  icon: Icons.signal_cellular_alt,
                 ),
+                InfoChip(
+                  question.applicability.label,
+                  icon: Icons.place_outlined,
+                  tone:
+                      question.applicability.scope == ApplicabilityScope.region
+                      ? Tone.info
+                      : Tone.neutral,
+                ),
+                if (question.variantOf != null)
+                  const InfoChip('变式', icon: Icons.shuffle),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              key: ValueKey('question.open.${question.id}'),
+              style: TextButton.styleFrom(
+                alignment: Alignment.centerLeft,
+                minimumSize: const Size(double.infinity, 48),
+                textStyle: theme.textTheme.titleMedium,
               ),
-            ],
-          ),
+              onPressed: () => context.push(solveRoute(question.id)),
+              child: Text(question.title),
+            ),
+            TextButton(
+              onPressed: () => context.push('/questions/${question.id}/drafts'),
+              child: Semantics(
+                label: '云端草稿 · ${question.title}',
+                excludeSemantics: true,
+                child: const Text('云端草稿'),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              question.source.label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     );

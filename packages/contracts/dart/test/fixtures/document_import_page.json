@@ -1,0 +1,51 @@
+{
+  "name": "document_import_page",
+  "method": "GET",
+  "path": "/api/v1/admin/import-jobs",
+  "status": 200,
+  "schema": "DocImportJobPage",
+  "value": {
+    "items": [
+      {
+        "id": "d728a61f-d463-4e3f-b44c-09cbbb0ff00d",
+        "title": "自编工程样题导入",
+        "status": "uploading",
+        "revision": 2,
+        "file_count": 1,
+        "processed_files": 0,
+        "candidate_count": 0,
+        "confirmed_count": 0,
+        "imported_count": 0,
+        "failed_count": 0,
+        "message": null,
+        "created_at": "2026-11-10T08:00:00+00:00",
+        "updated_at": "2026-11-10T08:00:00+00:00",
+        "expires_at": "2026-11-10T10:00:00+00:00"
+      }
+    ],
+    "next_cursor": null
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "id": "d728a61f-d463-4e3f-b44c-09cbbb0ff00d",
+          "title": "自编工程样题导入",
+          "status": "uploading",
+          "revision": 2,
+          "file_count": 1,
+          "processed_files": 0,
+          "candidate_count": 0,
+          "confirmed_count": 0,
+          "imported_count": 0,
+          "failed_count": 0,
+          "message": null,
+          "created_at": "2026-11-10T08:00:00+00:00",
+          "updated_at": "2026-11-10T08:00:00+00:00",
+          "expires_at": "2026-11-10T10:00:00+00:00"
+        }
+      ],
+      "next_cursor": null
+    }
+  }
+}

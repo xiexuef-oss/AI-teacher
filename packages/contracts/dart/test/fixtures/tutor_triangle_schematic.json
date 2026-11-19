@@ -1,0 +1,127 @@
+{
+  "name": "tutor_triangle_schematic",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/cf763db6-956f-4dc7-9a8f-44d718faec10/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+      "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "VISUAL",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "first_submitted_attempt_id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+      "submitted_attempts": 1,
+      "last_event_seq": 3,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "6a53f433-3589-47fc-879e-2bcaf878fd70",
+        "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+        "seq_no": 3,
+        "type": "visual",
+        "created_at": "2026-11-11T08:00:00Z",
+        "state_after": "VISUAL",
+        "payload": {
+          "template_id": "triangle_schematic",
+          "params": {
+            "apex_x": 0.35,
+            "height": 0.65,
+            "focus": 0
+          },
+          "caption": "只定位已给的A、B、C和三条边；不增加辅助线，也不从图形外观推断结论。",
+          "static_fallback": "A、B位于基线两端，C位于基线上方，三边连接A、B、C。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "43d82f3324844b88b573500855ffec88"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+        "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "VISUAL",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "first_submitted_attempt_id": "8f9aa4e5-02da-4d44-9086-49846bc8e54b",
+        "submitted_attempts": 1,
+        "last_event_seq": 3,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "6a53f433-3589-47fc-879e-2bcaf878fd70",
+          "session_id": "cf763db6-956f-4dc7-9a8f-44d718faec10",
+          "seq_no": 3,
+          "type": "visual",
+          "created_at": "2026-11-11T08:00:00Z",
+          "state_after": "VISUAL",
+          "payload": {
+            "template_id": "triangle_schematic",
+            "params": {
+              "apex_x": 0.35,
+              "height": 0.65,
+              "focus": 0
+            },
+            "caption": "只定位已给的A、B、C和三条边；不增加辅助线，也不从图形外观推断结论。",
+            "static_fallback": "A、B位于基线两端，C位于基线上方，三边连接A、B、C。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "43d82f3324844b88b573500855ffec88"
+          }
+        }
+      ]
+    }
+  }
+}

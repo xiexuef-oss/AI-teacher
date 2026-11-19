@@ -1,0 +1,209 @@
+{
+  "name": "tutor_reference_standard",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/d8bf6e9b-49c5-4c9a-9949-3845e11602aa/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+      "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "STANDARD",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": true,
+      "independent_ended": true,
+      "hint_level_revealed": 1,
+      "hint_levels_total": 3,
+      "confused_streak": 1,
+      "needs_human_help": false,
+      "active_attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+      "first_submitted_attempt_id": null,
+      "submitted_attempts": 0,
+      "last_event_seq": 3,
+      "created_at": "2026-11-10T08:00:00Z",
+      "updated_at": "2026-11-10T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "eee0b788-d798-4cd5-9e85-62ef283c358a",
+        "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+        "seq_no": 3,
+        "type": "standard",
+        "created_at": "2026-11-10T08:00:00Z",
+        "state_after": "STANDARD",
+        "payload": {
+          "title": "常规解法",
+          "steps": [
+            {
+              "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+            },
+            {
+              "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+            },
+            {
+              "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+            }
+          ],
+          "final_answer": "B",
+          "option_analysis": [
+            {
+              "key": "A",
+              "verdict": "wrong",
+              "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+            },
+            {
+              "key": "B",
+              "verdict": "correct",
+              "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+            },
+            {
+              "key": "C",
+              "verdict": "wrong",
+              "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+            },
+            {
+              "key": "D",
+              "verdict": "wrong",
+              "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+            }
+          ],
+          "key_points": [
+            "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+            "开口方向决定哪一侧递增"
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "a524f792bd534bc996c7d16c02d59ff8"
+        },
+        "references": [
+          {
+            "block_id": "stem",
+            "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+            "start": 7,
+            "end": 12,
+            "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+            "label": "题干"
+          }
+        ]
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+        "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "STANDARD",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": true,
+        "independent_ended": true,
+        "hint_level_revealed": 1,
+        "hint_levels_total": 3,
+        "confused_streak": 1,
+        "needs_human_help": false,
+        "active_attempt_id": "914697b7-0040-4c41-8d9f-b033f334ad2f",
+        "first_submitted_attempt_id": null,
+        "submitted_attempts": 0,
+        "last_event_seq": 3,
+        "created_at": "2026-11-10T08:00:00Z",
+        "updated_at": "2026-11-10T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "eee0b788-d798-4cd5-9e85-62ef283c358a",
+          "session_id": "d8bf6e9b-49c5-4c9a-9949-3845e11602aa",
+          "seq_no": 3,
+          "type": "standard",
+          "created_at": "2026-11-10T08:00:00Z",
+          "state_after": "STANDARD",
+          "payload": {
+            "title": "常规解法",
+            "steps": [
+              {
+                "text": "配方：$f(x)=x^2-2x-3=(x-1)^2-4$。"
+              },
+              {
+                "text": "二次项系数 $a=1>0$，图像开口向上，对称轴为直线 $x=1$。"
+              },
+              {
+                "text": "开口向上时，对称轴左侧函数递减、右侧函数递增，所以单调递增区间是 $[1,+\\infty)$。"
+              }
+            ],
+            "final_answer": "B",
+            "option_analysis": [
+              {
+                "key": "A",
+                "verdict": "wrong",
+                "text": "这是对称轴左侧的区间。开口向上时，左侧函数值随 $x$ 增大而减小，是递减区间。"
+              },
+              {
+                "key": "B",
+                "verdict": "correct",
+                "text": "对称轴为 $x=1$，开口向上，对称轴右侧函数值随 $x$ 增大而增大。"
+              },
+              {
+                "key": "C",
+                "verdict": "wrong",
+                "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，注意符号；另外这个区间在对称轴左侧。"
+              },
+              {
+                "key": "D",
+                "verdict": "wrong",
+                "text": "对称轴算成了 $x=-1$。由 $x=-\\dfrac{b}{2a}$，这里 $b=-2$，代入时注意符号。"
+              }
+            ],
+            "key_points": [
+              "配方或用 $x=-\\dfrac{b}{2a}$ 求对称轴",
+              "开口方向决定哪一侧递增"
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "bdfa5b8c-e166-415e-bb23-17873da16e46",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "a524f792bd534bc996c7d16c02d59ff8"
+          },
+          "references": [
+            {
+              "block_id": "stem",
+              "block_sha256": "1643e451182331d86fee421ee1aa0722019408b1cf72796edfd652e45f41b3fa",
+              "start": 7,
+              "end": 12,
+              "block_text": "引用验证条件：甲😀é\n函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）",
+              "label": "题干"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

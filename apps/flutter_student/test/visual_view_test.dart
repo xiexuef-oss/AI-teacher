@@ -35,6 +35,59 @@ void main() {
   );
 
   group('VisualView', () {
+    testWidgets('工艺结构只读且文字说明与支路回流一致，焦点可重置', (tester) async {
+      await tester.pumpWidget(
+        host(
+          const VisualView(
+            templateId: 'chemical_process',
+            params: {'branch': 1, 'recycle': 1},
+          ),
+        ),
+      );
+      expect(find.byKey(const ValueKey('visual.slider.focus')), findsOneWidget);
+      expect(find.byKey(const ValueKey('visual.switch.branch')), findsNothing);
+      expect(find.byKey(const ValueKey('visual.switch.recycle')), findsNothing);
+      expect(find.textContaining('分离到支路'), findsOneWidget);
+      expect(find.textContaining('处理Ⅱ回到处理Ⅰ'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('visual.text')));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('分离到支路'), findsNWidgets(2));
+      await tester.tap(find.byKey(const ValueKey('visual.reset')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+    for (final id in ['chemical_process', 'triangle_schematic', 'circle_schematic']) {
+      testWidgets('$id 大字体窄屏保留文字替代，不添加关系或计算', (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: SizedBox(width: 320, child: VisualView(templateId: id)),
+              ),
+            ),
+          ),
+        );
+        expect(find.byKey(const ValueKey('visual.canvas')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        if (id == 'triangle_schematic') {
+          expect(find.textContaining('不能凭外观推断'), findsOneWidget);
+          expect(
+            find.byKey(const ValueKey('visual.slider.apex_x')),
+            findsNothing,
+          );
+          expect(
+            find.byKey(const ValueKey('visual.slider.height')),
+            findsNothing,
+          );
+          expect(describeVisual(id, {}), isNot(contains('面积')));
+        }
+      });
+    }
     testWidgets('带着服务端给的参数显示，并给出每个可调参数的滑块', (tester) async {
       await tester.pumpWidget(
         host(

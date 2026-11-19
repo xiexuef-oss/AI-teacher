@@ -5,10 +5,20 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+import re
+from datetime import UTC, date, datetime
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictInt,
+    field_validator,
+    model_serializer,
+)
 
 RegionCode = Literal["CN-51", "CN-50"]
 Grade = Literal["G10", "G11", "G12"]
@@ -30,7 +40,7 @@ LocalRole = Literal["student", "parent", "reviewer", "admin"]
 QuestionStatus = Literal["draft", "reviewed", "published", "withdrawn"]
 ReviewDecisionType = Literal["approve", "reject", "publish", "withdraw"]
 SolutionKind = Literal["standard", "fast"]
-HistoryAction = Literal["approve", "reject", "publish", "withdraw", "edit"]
+HistoryAction = Literal["approve", "reject", "publish", "withdraw", "edit", "import"]
 
 
 class _In(BaseModel):
@@ -96,8 +106,43 @@ class ProfileNotice(BaseModel):
     message: str
 
 
+class LearningPackReturnRequest(_In):
+    transcript: str = Field(min_length=1, max_length=8000, pattern=r"\S")
+
+
+class LearningPackSubmission(LearningPackReturnRequest):
+    completed_on: date | None = None
+    independence: Literal["independent", "assisted", "unknown"] | None = None
+    photo_ids: list[UUID] | None = Field(default=None, max_length=10)
+
+
+class LearningPackCorrectionRequest(LearningPackReturnRequest):
+    expected_revision: int = Field(strict=True, ge=0)
+
+
+class LearningPackRequest(_In):
+    school_minutes: int = Field(strict=True, ge=0, le=10080)
+
+
+class LearningSettings(_In):
+    mode: Literal["boarding", "weekend", "digital"]
+    weekly_minutes: int = Field(strict=True, ge=0, le=10080)
+    weekdays: list[Annotated[int, Field(strict=True, ge=1, le=7)]] = Field(max_length=7)
+    school_progress: str = Field(default="", max_length=500)
+    exam_scope: str = Field(default="", max_length=500)
+
+    @field_validator("weekdays")
+    @classmethod
+    def _unique_weekdays(cls, value: list[int]) -> list[int]:
+        if len(set(value)) != len(value):
+            raise ValueError("weekdays 不能重复")
+        return value
+
+
 class StudentProfileOut(BaseModel):
+    learning_settings: LearningSettings | None = None
     user_id: str
+    revision: int = Field(ge=0)
     display_name: str | None
     region_code: str | None
     grade: str | None
@@ -112,6 +157,8 @@ class StudentProfileOut(BaseModel):
 
 
 class ProfileUpdateIn(_In):
+    learning_settings: LearningSettings | None = None
+    expected_revision: int = Field(strict=True, ge=0)
     region_code: RegionCode
     subjects: list[Subject] = Field(min_length=1, max_length=3)
     grade: Grade | None = None
@@ -151,10 +198,39 @@ class QuestionSource(BaseModel):
     label: str
 
 
+class QuestionOriginLocation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    file_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    file_kind: Literal["pdf", "doc", "docx", "png", "jpeg", "json"]
+    locator_kind: Literal["pdf_page", "word_fragment", "image_page", "json_fragment", "unknown"]
+    index: int = Field(ge=1, strict=True)
+    declared_block: int | None = Field(ge=1, strict=True)
+
+
+class QuestionProvenance(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source_snapshot: QuestionSource
+    origins: list[QuestionOriginLocation] = Field(max_length=2000)
+    relation: Literal["declared", "derived_unverified"]
+    parent_version: int | None = Field(ge=1, strict=True)
+    access: Literal["metadata_only"]
+
+
 class KnowledgeRef(BaseModel):
     id: str
     code: str
     title: str
+
+
+class QuestionTopicOut(KnowledgeRef):
+    subject: Subject
+    question_count: int = Field(ge=1)
+
+
+class QuestionTopicPage(BaseModel):
+    items: list[QuestionTopicOut]
 
 
 class QuestionOption(BaseModel):
@@ -256,6 +332,7 @@ class QuestionSummary(BaseModel):
 
 
 class QuestionOut(QuestionSummary):
+    provenance: QuestionProvenance | None = None
     version: int
     grade: str | None
     content: QuestionContent
@@ -272,13 +349,72 @@ class QuestionPage(BaseModel):
 
 
 class ReviewDecisionIn(_In):
+    expected_review_revision: int = Field(strict=True, ge=1)
     decision: ReviewDecisionType
     expected_version: int = Field(ge=1)
     comment: str | None = Field(default=None, max_length=2000)
     solution_kinds: list[SolutionKind] | None = None
 
 
+class MediaUploadIn(_In):
+    purpose: Literal["scan", "draft_backup", "question_attachment"]
+    mime: Literal["image/jpeg", "image/png", "image/webp"]
+    size_bytes: int = Field(ge=1)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class MediaBlobIn(_In):
+    content_base64: str = Field(max_length=22369624)
+
+
+class MediaConfirmIn(_In):
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class MediaReviewConfirmationIn(_In):
+    expected_version: int = Field(ge=1)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmed: Literal[True]
+
+    @field_validator("confirmed", mode="before")
+    @classmethod
+    def strict_review_confirmation(cls, value):
+        if not (isinstance(value, bool) and value):
+            raise ValueError("须明确声明当前版本图片")
+        return value
+
+
+class MediaDeleteIn(_In):
+    pass
+
+
+class ReviewBatchItemIn(ReviewDecisionIn):
+    question_id: str = Field(
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    )
+    confirmed: Literal[True]
+
+    @field_validator("confirmed", mode="before")
+    @classmethod
+    def explicit_confirmation(cls, value):
+        if value is not True:
+            raise ValueError("必须逐题明确确认")
+        return value
+
+
+class ReviewBatchIn(_In):
+    items: list[ReviewBatchItemIn] = Field(min_length=1, max_length=50)
+
+    @field_validator("items")
+    @classmethod
+    def unique_questions(cls, items):
+        if len({item.question_id.lower() for item in items}) != len(items):
+            raise ValueError("题目ID不能重复")
+        return items
+
+
 class QuestionReviewStateOut(BaseModel):
+    review_revision: int = Field(ge=1)
     question_id: str
     status: QuestionStatus
     version: int
@@ -287,6 +423,7 @@ class QuestionReviewStateOut(BaseModel):
 
 
 class AdminQuestionSummary(BaseModel):
+    review_revision: int = Field(ge=1)
     id: str
     subject: str
     type: str
@@ -327,7 +464,36 @@ class AdminVisual(BaseModel):
     caption: str
 
 
+class ContentSpanRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    block_id: str = Field(
+        max_length=64,
+        pattern="^(stem|subquestion:[1-9][0-9]{0,2}:stem|option:[1-9][0-9]{0,2}|subquestion:[1-9][0-9]{0,2}:option:[1-9][0-9]{0,2}|proof:given:[1-9][0-9]{0,2}|proof:claim|hint:[1-9][0-9]{0,2}|rephrase|solution:(standard|fast):(step:[1-9][0-9]{0,2}|final_answer|condition:[1-9][0-9]{0,2}|boundary|key_point:[1-9][0-9]{0,2})|visual:(caption|static_fallback)|rubric:point:[1-9][0-9]{0,2}|reference_cell:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}|reference_step:[1-9][0-9]{0,2}:(text|reason))$",
+    )
+    block_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    start: StrictInt = Field(ge=0, le=3999)
+    end: StrictInt = Field(ge=1, le=4000)
+
+    @field_validator("end")
+    @classmethod
+    def nonempty_range(cls, value, info):
+        if value <= info.data.get("start", -1):
+            raise ValueError("reference range must be nonempty")
+        return value
+
+
+class TeachingReferenceLink(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    target_block_id: str = Field(
+        max_length=64,
+        pattern="^(hint:[1-9][0-9]{0,2}|rephrase|solution:(standard|fast):step:[1-9][0-9]{0,2}|visual:caption)$",
+    )
+    source_span: ContentSpanRef
+    independent_safe: StrictBool
+
+
 class AdminTeaching(BaseModel):
+    reference_links: list[TeachingReferenceLink] = Field(default_factory=list, max_length=64)
     concept: str | None
     hints: list[str]
     concept_rephrase: str | None
@@ -375,6 +541,7 @@ class AdminHistoryEntry(BaseModel):
 
 
 class AdminVersionSnapshot(BaseModel):
+    provenance: QuestionProvenance | None = None
     question_id: str
     version: int
     is_current: bool
@@ -392,6 +559,8 @@ class AdminVersionSnapshot(BaseModel):
 
 
 class AdminQuestionDetail(BaseModel):
+    provenance: QuestionProvenance | None = None
+    review_revision: int = Field(ge=1)
     id: str
     subject: str
     type: str
@@ -437,9 +606,19 @@ class StudyTask(BaseModel):
 class TodayTasks(BaseModel):
     date: date
     items: list[StudyTask]
+    cold_start: bool = False
 
 
 # ---------------------------------------------------------------- 会话与作答
+
+
+class DiagnosticRevisionIn(_In):
+    expected_revision: int = Field(strict=True, ge=0)
+
+
+class DiagnosticCreateIn(DiagnosticRevisionIn):
+    subject: Subject
+    expected_profile_revision: int = Field(strict=True, ge=0)
 
 
 class SessionCreateIn(_In):
@@ -447,6 +626,21 @@ class SessionCreateIn(_In):
     origin: SessionOrigin
     review_item_id: str | None = Field(default=None, pattern=r"^[0-9a-fA-F-]{36}$")
     parent_session_id: str | None = Field(default=None, pattern=r"^[0-9a-fA-F-]{36}$")
+    expected_question_version: int | None = Field(default=None, strict=True, ge=1)
+
+    @model_serializer(mode="wrap")
+    def preserve_legacy_fingerprint(self, handler):
+        value = handler(self)
+        if "expected_question_version" not in self.model_fields_set:
+            value.pop("expected_question_version", None)
+        return value
+
+    @field_validator("expected_question_version", mode="before")
+    @classmethod
+    def nonnullable_expected_version(cls, value):
+        if value is None:
+            raise ValueError("提供期望题目版本时不能为null")
+        return value
 
 
 class StudySessionOut(BaseModel):
@@ -468,6 +662,7 @@ class StudySessionOut(BaseModel):
     confused_streak: int
     needs_human_help: bool
     active_attempt_id: str | None
+    first_submitted_attempt_id: str | None = None
     submitted_attempts: int
     last_event_seq: int
     created_at: datetime
@@ -549,6 +744,12 @@ class DraftSyncIn(_In):
     strokes: StrokeDoc | None = None
 
 
+class DraftCopyCreateIn(_In):
+    source_revision: int = Field(ge=0, strict=True)
+    answer: AnswerPayload | None
+    strokes: StrokeDoc | None
+
+
 class DraftOut(BaseModel):
     attempt_id: str
     revision: int
@@ -560,6 +761,21 @@ class DraftOut(BaseModel):
 class SubmitIn(_In):
     answer: AnswerPayload
     elapsed_ms: int | None = Field(default=None, ge=0)
+    expected_draft_revision: int | None = Field(default=None, strict=True, ge=0)
+
+    @field_validator("expected_draft_revision", mode="before")
+    @classmethod
+    def nonnullable_draft_revision(cls, value):
+        if value is None:
+            raise ValueError("提供期望草稿修订时不能为null")
+        return value
+
+    @model_serializer(mode="wrap")
+    def preserve_legacy_fingerprint(self, handler):
+        value = handler(self)
+        if "expected_draft_revision" not in self.model_fields_set:
+            value.pop("expected_draft_revision", None)
+        return value
 
 
 class FeedbackItem(BaseModel):
@@ -585,6 +801,9 @@ class AttemptOut(BaseModel):
     id: str
     session_id: str
     attempt_no: int
+    submission_no: int | None = None
+    copied_from_attempt_id: str | None = None
+    copied_from_revision: int | None = None
     status: str
     answer: dict[str, Any] | None
     draft_revision: int
@@ -594,6 +813,43 @@ class AttemptOut(BaseModel):
     evaluation: Evaluation | None
     submitted_at: datetime | None
     created_at: datetime
+    updated_at: datetime
+
+
+class DraftCopyOut(BaseModel):
+    session: StudySessionOut
+    attempt: AttemptOut
+    draft: DraftOut
+
+
+class QuestionDraftRefOut(BaseModel):
+    session_id: str
+    attempt_id: str
+    question_version: int
+    attempt_no: int
+    draft_revision: int
+    copied_from_attempt_id: str | None
+    copied_from_revision: int | None
+    origin: SessionOrigin
+    review_item_id: str | None
+    session_state: str
+    updated_at: datetime
+
+
+class QuestionDraftPageOut(BaseModel):
+    items: list[QuestionDraftRefOut]
+    next_cursor: str | None
+
+
+class ReviewStateOut(BaseModel):
+    id: str
+    question_id: str
+    status: str
+    stage: int
+    total_stages: int
+    due_at: datetime
+    last_result: str | None
+    last_attempt_id: str | None
     updated_at: datetime
 
 
@@ -754,6 +1010,7 @@ class ProgressSummary(BaseModel):
 
 
 class ParentInviteOut(BaseModel):
+    parent_invite_revision: int = Field(ge=0)
     id: str
     code: str
     created_at: datetime
@@ -764,6 +1021,14 @@ class ParentInviteRedeemIn(_In):
     code: str = Field(min_length=1, max_length=40)
 
 
+class ParentInviteCreateIn(_In):
+    expected_parent_invite_revision: int = Field(strict=True, ge=0)
+
+
+class ParentLinkRevokeIn(_In):
+    expected_authorization_revision: int = Field(strict=True, ge=1)
+
+
 class PendingParentInviteOut(BaseModel):
     id: str
     created_at: datetime
@@ -771,6 +1036,7 @@ class PendingParentInviteOut(BaseModel):
 
 
 class ParentLinkOut(BaseModel):
+    authorization_revision: int = Field(ge=1)
     id: str
     parent_id: str
     parent_label: str | None
@@ -780,6 +1046,7 @@ class ParentLinkOut(BaseModel):
 
 
 class ParentLinksOut(BaseModel):
+    parent_invite_revision: int = Field(ge=0)
     links: list[ParentLinkOut]
     pending_invite: PendingParentInviteOut | None
 
@@ -803,7 +1070,17 @@ class PreviousWeekOut(BaseModel):
     independent: RateStat
 
 
+class PaperWeeklySummary(BaseModel):
+    confirmed: int
+    awaiting_assessment: int
+    late_returns: int
+    unknown_completion_date: int
+    independent: RateStat
+    assisted: RateStat
+
+
 class ParentWeeklyOut(BaseModel):
+    paper: PaperWeeklySummary | None = None
     student_id: str
     student_display_name: str | None
     week_start: date
@@ -927,8 +1204,7 @@ class AdminSolutionInput(_In):
     boundary: Text4000 | None
 
 
-class AdminQuestionEditIn(_In):
-    expected_version: int = Field(ge=1)
+class AdminQuestionDraftIn(_In):
     title: str = Field(min_length=1, max_length=120)
     difficulty: int = Field(ge=1, le=5)
     grade: Grade | None
@@ -939,3 +1215,252 @@ class AdminQuestionEditIn(_In):
     knowledge: list[Annotated[str, Field(max_length=64)]] = Field(max_length=20)
     rubric: dict[str, Any]
     comment: str | None = Field(default=None, max_length=2000)
+
+
+class AdminQuestionEditIn(AdminQuestionDraftIn):
+    expected_review_revision: int = Field(strict=True, ge=1)
+    expected_version: int = Field(ge=1)
+
+
+class AdminImportSourceIn(_In):
+    source_type: Literal["self_authored", "textbook_licensed", "public_license", "gaokao_licensed"]
+    source_category: SourceCategory
+    source_name: str = Field(min_length=1, max_length=200)
+    source_year: int | None = Field(ge=1900, le=2100)
+    source_license: str = Field(min_length=1, max_length=120)
+    source_url: str | None = Field(max_length=500)
+
+    @field_validator("source_name", "source_license")
+    @classmethod
+    def non_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("来源和使用依据不能留空")
+        return value
+
+
+class AdminQuestionImportIn(_In):
+    subject: Subject
+    answer_mode: AnswerMode
+    source: AdminImportSourceIn
+    question: AdminQuestionDraftIn
+
+
+class DocImportDefaultsIn(_In):
+    subject: Subject
+    answer_mode: AnswerMode
+    source: AdminImportSourceIn
+
+
+class DocImportJobCreateIn(_In):
+    creation_deadline: datetime
+
+    @field_validator("creation_deadline", mode="before")
+    @classmethod
+    def aware_creation_deadline(cls, value):
+        if not isinstance(value, str) or not re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)",
+            value,
+        ):
+            raise ValueError("creation_deadline must be an aware RFC3339 timestamp")
+        try:
+            parsed = datetime.fromisoformat(value.upper()).astimezone(UTC)
+        except OverflowError as error:
+            raise ValueError("creation_deadline is outside the UTC datetime range") from error
+        return parsed.replace(microsecond=parsed.microsecond // 1000 * 1000)
+
+    title: str = Field(min_length=1, max_length=120)
+    defaults: DocImportDefaultsIn
+
+
+class DocImportRevisionIn(_In):
+    expected_revision: int = Field(ge=1)
+
+
+class DocImportUploadIn(DocImportRevisionIn):
+    filename: str = Field(min_length=1, max_length=256)
+    content_base64: str = Field(min_length=4, max_length=22_369_624)
+
+    @field_validator("filename")
+    @classmethod
+    def safe_display_filename(cls, value: str) -> str:
+        if not value.strip() or any(c in value for c in "/\\\x00") or value in {".", ".."}:
+            raise ValueError("文件名不能包含路径或空字符")
+        return value
+
+
+class DocImportLocationIn(_In):
+    file_id: str = Field(pattern=r"^[0-9a-fA-F-]{36}$")
+    page: int = Field(ge=1)
+    block: int | None = Field(ge=1)
+
+
+class DocImportCandidateIn(_In):
+    id: str | None = Field(pattern=r"^[0-9a-fA-F-]{36}$")
+    title: str = Field(max_length=120)
+    text: Text4000
+    locations: list[DocImportLocationIn] = Field(max_length=200)
+    payload: AdminQuestionImportIn | None
+    confirmed: bool
+
+
+class DocImportCandidatesEditIn(DocImportRevisionIn):
+    items: list[DocImportCandidateIn] = Field(max_length=200)
+
+
+class DocImportSubmitIn(DocImportRevisionIn):
+    candidate_ids: list[Annotated[str, Field(pattern=r"^[0-9a-fA-F-]{36}$")]] = Field(
+        min_length=1, max_length=50
+    )
+
+    @field_validator("candidate_ids")
+    @classmethod
+    def unique_ids(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("候选题 ID 不能重复")
+        return value
+
+
+class ScanCreateIn(_In):
+    media_id: str = Field(pattern=r"^[0-9a-fA-F-]{36}$")
+
+
+class ScanExpressionIn(_In):
+    span_id: str
+    latex: str
+    confidence: float | None = Field(ge=0, le=1)
+
+
+class ScanConfirmIn(_In):
+    stem_text: str = Field(min_length=1, max_length=4000)
+    expressions: list[ScanExpressionIn] = Field(max_length=50)
+
+
+class ExportSelfCheckOut(BaseModel):
+    attempt_id: str
+    marks: list[SelfCheckMark]
+    saved_at: datetime
+
+
+class ExportReviewHistoryOut(BaseModel):
+    review_id: str
+    first_attempt_id: str
+    question_id: str
+    state: str
+    result: str | None
+    completed_at: datetime | None
+
+
+class ExportLearningSessionOut(BaseModel):
+    session: StudySessionOut
+    attempts: list[AttemptOut]
+    drafts: list[DraftOut]
+    self_checks: list[ExportSelfCheckOut]
+    events: list[dict[str, Any]]
+
+
+class ExportParentAccessLinkOut(BaseModel):
+    id: str
+    authorization_revision: int
+    consent_at: datetime
+    revoked_at: datetime | None
+    created_at: datetime
+
+
+class ExportParentAccessInviteOut(BaseModel):
+    id: str
+    expires_at: datetime
+    redeemed_at: datetime | None
+    revoked_at: datetime | None
+    created_at: datetime
+
+
+class ExportParentAccessRecordsOut(BaseModel):
+    history_complete: Literal[False] = False
+    links: list[ExportParentAccessLinkOut]
+    invites: list[ExportParentAccessInviteOut]
+
+
+class ExportScanExpressionOut(BaseModel):
+    span_id: str
+    latex: str
+    confidence: float | None = Field(strict=True, ge=0, le=1)
+
+
+class ExportScanPayloadOut(BaseModel):
+    id: UUID
+    status: Literal["processing", "needs_confirmation", "confirmed", "failed"]
+    confidence: float | None = Field(strict=True, ge=0, le=1)
+    low_confidence: StrictBool
+    stem_text: str | None
+    expressions: list[ExportScanExpressionOut]
+    matched_question_id: UUID | None
+    error_code: str | None
+    mock_notice: str | None = None
+
+
+class ExportStoredScanOut(BaseModel):
+    media_id: UUID
+    expires_at: datetime
+    scan: dict[str, Any]
+
+
+class StudentMediaExportOut(BaseModel):
+    format_version: Literal[1] = 1
+    scope: Literal["server_current_student_media"] = "server_current_student_media"
+    owner_id: UUID
+    exported_at: datetime
+    history_complete: Literal[False] = False
+    consistent_snapshot: Literal[False] = False
+    objects_count: int = Field(ge=0, le=1000)
+    files_count: int = Field(ge=0, le=1000)
+    size_bytes: int = Field(ge=1, le=16777216)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    archive_base64: str = Field(max_length=22369624)
+
+
+class ExportModelCallOut(BaseModel):
+    created_at: datetime
+    task_type: str
+    status: str
+    provider_calls: int = Field(ge=0)
+    input_tokens: int | None = Field(ge=0)
+    output_tokens: int | None = Field(ge=0)
+    image_units: int | None = Field(ge=0)
+    estimated_cost_micros: int | None = Field(ge=0)
+
+
+class ExportModelBudgetDayOut(BaseModel):
+    usage_date: date
+    request_count: int = Field(ge=0)
+    estimated_cost_micros: int = Field(ge=0)
+    updated_at: datetime
+
+
+class ExportModelUsageOut(BaseModel):
+    history_complete: Literal[False] = False
+    identity_scope: Literal["current_server_pseudonym"] = "current_server_pseudonym"
+    costs_are_billing: Literal[False] = False
+    calls: list[ExportModelCallOut]
+    budget_days: list[ExportModelBudgetDayOut]
+
+
+class StudentLearningExportOut(BaseModel):
+    format_version: Literal[1] = 1
+    scope: Literal["server_learning_records"] = "server_learning_records"
+    exported_at: datetime
+    profile: StudentProfileOut
+    sessions: list[ExportLearningSessionOut]
+    reviews: list[ReviewItemOut]
+    review_history: list[ExportReviewHistoryOut]
+    diagnostic_runs: list[dict[str, Any]]
+    diagnostic_workspace: dict[str, Any]
+    parent_access_records: ExportParentAccessRecordsOut
+    stored_scan_records: list[ExportStoredScanOut] | None
+    model_usage: ExportModelUsageOut
+    excluded: list[str] = [
+        "auth_credentials",
+        "operational_logs",
+        "question_answer_keys",
+        "unsynced_device_data",
+        "media_files",
+    ]

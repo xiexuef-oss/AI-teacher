@@ -1,18 +1,19 @@
 {
   "name": "parent_weekly",
   "method": "GET",
-  "path": "/api/v1/parents/students/d60421fc-ea04-4f6d-b92f-628679003c4d/weekly",
+  "path": "/api/v1/parents/students/702aea2c-c351-4d7c-9416-6a0b2c2b4c54/weekly",
   "status": 200,
   "schema": "ParentWeekly",
   "value": {
-    "student_id": "d60421fc-ea04-4f6d-b92f-628679003c4d",
+    "paper": null,
+    "student_id": "702aea2c-c351-4d7c-9416-6a0b2c2b4c54",
     "student_display_name": null,
     "week_start": "2026-11-09",
     "week_end": "2026-11-15",
     "is_complete": false,
     "generated_at": "2026-11-11T08:00:00Z",
     "min_samples": 5,
-    "sessions_count": 7,
+    "sessions_count": 8,
     "attempts_count": 5,
     "active_days": 2,
     "independent": {
@@ -105,14 +106,15 @@
   },
   "body": {
     "data": {
-      "student_id": "d60421fc-ea04-4f6d-b92f-628679003c4d",
+      "paper": null,
+      "student_id": "702aea2c-c351-4d7c-9416-6a0b2c2b4c54",
       "student_display_name": null,
       "week_start": "2026-11-09",
       "week_end": "2026-11-15",
       "is_complete": false,
       "generated_at": "2026-11-11T08:00:00Z",
       "min_samples": 5,
-      "sessions_count": 7,
+      "sessions_count": 8,
       "attempts_count": 5,
       "active_days": 2,
       "independent": {

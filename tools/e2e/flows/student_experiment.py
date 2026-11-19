@@ -6,29 +6,39 @@
 
 from __future__ import annotations
 
-import json
 import re
 
 from e2e import data
 from e2e.api_client import Api
 from e2e.browser import (
     all_text,
+    has,
     is_disabled,
     labels,
     onboard,
     open_flutter,
     reopen,
     stored,
-    stored_all,
     tap,
     type_into,
 )
 from e2e.checks import say
 from e2e.flowbase import Context, Flow
+from e2e.flows.student_draft_recovery import _record
+from e2e.flows.student_proof import _draft_cleared
 
 KEY = "phys-tape-experiment"
 PART_TEXT = "T 等于 0.10 秒"
 LEVEL_LABEL = {"low": "低风险", "medium": "中等风险"}
+
+
+def _open_experiment_questions(page, title: str) -> None:
+    tap(page, "练习", wait=2500)
+    for role in ("button", "checkbox", "radio"):
+        if has(page, "实验题", role=role, exact=True):
+            tap(page, "实验题", role=role, exact=True, wait=2500)
+            break
+    tap(page, title, wait=3500)
 
 
 def _cell_boxes(page):
@@ -66,8 +76,7 @@ def run(ctx: Context) -> None:
     say("== 引导，进练习页，打开实验题")
     open_flutter(page)
     onboard(page)
-    tap(page, "练习", wait=2500)
-    tap(page, title, wait=3500)
+    _open_experiment_questions(page, title)
     text = all_text(page)
     ctx.shot(page, "01_solve")
     token = stored(page, "auth.token")
@@ -113,12 +122,9 @@ def run(ctx: Context) -> None:
 
     say("== 先落本机：2 秒后草稿在 localStorage 里，格子在里面")
     page.wait_for_timeout(2600)
-    drafts = {key: value for key, value in stored_all(page).items() if "/draft/" in key}
-    check("本机有这道题的草稿", len(drafts) == 1, list(drafts))
-    local = {}
-    if drafts:
-        raw = json.loads(next(iter(drafts.values())))
-        local = json.loads(raw) if isinstance(raw, str) else raw
+    local = _record(page, "draft", data.question_id(KEY))
+    local_attempt_id = local.get("attemptId")
+    check("本机有这道题的草稿", bool(local_attempt_id), local.get("questionId"))
     check(
         "草稿里是 表.行.列 为键的格子",
         (local.get("answer") or {}).get("cells") == local_cells,
@@ -133,8 +139,7 @@ def run(ctx: Context) -> None:
 
     say("== 重新打开（相当于重启）：格子从本机恢复")
     reopen(page, "")
-    tap(page, "练习", wait=2500)
-    tap(page, title, wait=3500)
+    _open_experiment_questions(page, title)
     ctx.shot(page, "02_after_reopen")
     check("草稿状态提示在", "草稿状态" in all_text(page))
     check("重新打开后提交按钮可以点（本机草稿恢复了）", not is_disabled(submit_button))
@@ -143,18 +148,14 @@ def run(ctx: Context) -> None:
     tap(page, "提交", wait=3500)
     text = all_text(page)
     ctx.shot(page, "03_submitted")
-    attempt_id = next(
-        (
-            re.search(r"/attempts/([^/]+)/", r[1]).group(1)
-            for r in page.responses
-            if "/attempts/" in r[1]
-        ),
-        None,
-    )
+    attempt_id = local_attempt_id
     submit_calls = [r for r in page.responses if r[1].endswith("/submit")]
     check(
         "提交成功（POST /submit 2xx）",
-        submit_calls and submit_calls[-1][2] in (200, 201),
+        submit_calls
+        and submit_calls[-1][0] == "POST"
+        and submit_calls[-1][1] == f"/attempts/{attempt_id}/submit"
+        and submit_calls[-1][2] in (200, 201),
         submit_calls,
     )
     body = page.submit_bodies[-1] if page.submit_bodies else {}
@@ -197,7 +198,7 @@ def run(ctx: Context) -> None:
     check("你填的数和参考值并排显示", all(value in text for value in typed.values()))
     check(
         "本机草稿提交后已清除",
-        not [key for key in stored_all(page) if "/draft/" in key and "draft-corrupt" not in key],
+        _draft_cleared(page, data.question_id(KEY), local_attempt_id),
     )
 
     say("== 自查：每一条标做到了，保存")

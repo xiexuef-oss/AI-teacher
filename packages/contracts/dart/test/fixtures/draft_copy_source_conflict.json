@@ -1,0 +1,55 @@
+{
+  "name": "draft_copy_source_conflict",
+  "method": "POST",
+  "path": "/api/v1/attempts/bd580882-8390-4831-b421-221578343b82/copies",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "draft_revision_conflict",
+      "message": "云端草稿又有更新，没有覆盖任何一方",
+      "details": {
+        "server_revision": 1,
+        "server_draft": {
+          "attempt_id": "bd580882-8390-4831-b421-221578343b82",
+          "revision": 1,
+          "answer": {
+            "blanks": [
+              {
+                "key": "b1",
+                "value": "云端草稿"
+              }
+            ]
+          },
+          "strokes": null,
+          "updated_at": "2026-11-11T08:00:00Z"
+        }
+      },
+      "request_id": "33cf2c691b584775ac070c4049eaba0f"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "draft_revision_conflict",
+      "message": "云端草稿又有更新，没有覆盖任何一方",
+      "details": {
+        "server_revision": 1,
+        "server_draft": {
+          "attempt_id": "bd580882-8390-4831-b421-221578343b82",
+          "revision": 1,
+          "answer": {
+            "blanks": [
+              {
+                "key": "b1",
+                "value": "云端草稿"
+              }
+            ]
+          },
+          "strokes": null,
+          "updated_at": "2026-11-11T08:00:00Z"
+        }
+      },
+      "request_id": "33cf2c691b584775ac070c4049eaba0f"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "error_storage_409",
+  "method": "POST",
+  "path": "/api/v1/media/uploads",
+  "status": 409,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "storage_conflict",
+      "message": "媒体状态已变化，请保留原操作后重试",
+      "details": {},
+      "request_id": "88c965c48d034c47a1b1c4d2951aa378"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "storage_conflict",
+      "message": "媒体状态已变化，请保留原操作后重试",
+      "details": {},
+      "request_id": "88c965c48d034c47a1b1c4d2951aa378"
+    }
+  }
+}

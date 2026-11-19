@@ -1,0 +1,23 @@
+{
+  "name": "error_http_rate_limited",
+  "method": "GET",
+  "path": "/api/v1/profile",
+  "status": 429,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "rate_limited",
+      "message": "请求过于频繁或暂不可用，请稍后重试",
+      "details": {},
+      "request_id": "00f1e48f14a34fe08fc092c07a806dfc"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "rate_limited",
+      "message": "请求过于频繁或暂不可用，请稍后重试",
+      "details": {},
+      "request_id": "00f1e48f14a34fe08fc092c07a806dfc"
+    }
+  }
+}

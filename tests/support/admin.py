@@ -31,7 +31,7 @@ def make_draft(db, key: str = KEY, *, created_by: str | None = AUTHOR) -> str:
 
 
 def decide(who, question_id: str, decision: str, *, version: int = 1, expect: int = 200, **extra):
-    body = {"decision": decision, "expected_version": version, **extra}
+    body = {"decision": decision, "expected_version": version, "expected_review_revision": (1 if expect == 404 else who.data("GET", f"/admin/questions/{question_id}")["review_revision"]), **extra}
     path = f"/admin/questions/{question_id}/review"
     if expect == 200:
         return who.data("POST", path, json=body)
@@ -53,6 +53,7 @@ def edit_body(detail: dict[str, Any], **overrides: Any) -> dict[str, Any]:
     """把题目详情原样还原成一次"修改"请求；再用 overrides 改想改的地方。"""
     body: dict[str, Any] = {
         "expected_version": detail["version"],
+        "expected_review_revision": detail["review_revision"],
         "title": detail["title"],
         "difficulty": detail["difficulty"],
         "grade": detail["grade"],

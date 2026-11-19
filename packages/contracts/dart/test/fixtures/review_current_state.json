@@ -1,0 +1,31 @@
+{
+  "name": "review_current_state",
+  "method": "GET",
+  "path": "/api/v1/reviews/a3efac5b-eb72-4b74-8137-5f0fcad0ab86/state",
+  "status": 200,
+  "schema": "ReviewState",
+  "value": {
+    "id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
+    "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+    "status": "scheduled",
+    "stage": 1,
+    "total_stages": 3,
+    "due_at": "2026-11-14T08:00:00Z",
+    "last_result": "passed",
+    "last_attempt_id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+    "updated_at": "2026-11-11T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
+      "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+      "status": "scheduled",
+      "stage": 1,
+      "total_stages": 3,
+      "due_at": "2026-11-14T08:00:00Z",
+      "last_result": "passed",
+      "last_attempt_id": "be1fe686-d681-4b8c-a124-eee74f8ba5b5",
+      "updated_at": "2026-11-11T08:00:00Z"
+    }
+  }
+}

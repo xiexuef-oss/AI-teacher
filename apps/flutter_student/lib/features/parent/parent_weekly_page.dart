@@ -27,12 +27,17 @@ class ParentWeeklyPage extends ConsumerStatefulWidget {
 class _ParentWeeklyPageState extends ConsumerState<ParentWeeklyPage> {
   /// 看的是哪一周的周一（`2026-11-09`）；null 是当前这一周，由服务端按它的日历决定。
   String? _week;
+  String? _snapshotWeek;
+  int? _snapshotRevision;
 
   WeeklyQuery get _query => (studentId: widget.studentId, weekStart: _week);
 
   @override
   Widget build(BuildContext context) {
     final query = _query;
+    if (_snapshotWeek case final week?) {
+      return _snapshotPage(context, week);
+    }
     final weekly = ref.watch(parentWeeklyProvider(query));
 
     // 授权被撤销（或根本没绑定）：服务端对这两种情况都是 404。回去时家长页上不该还留着这位学生。
@@ -75,6 +80,81 @@ class _ParentWeeklyPageState extends ConsumerState<ParentWeeklyPage> {
           data: (report) => _Report(
             report: report,
             onWeek: (week) => setState(() => _week = week),
+            history: report.isComplete
+                ? OutlinedButton(
+                    onPressed: () => setState(() {
+                      _snapshotWeek = report.weekStart;
+                      _snapshotRevision = null;
+                    }),
+                    child: const Text('查看周报历史版本'),
+                  )
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _snapshotPage(BuildContext context, String week) {
+    final provider = parentWeeklySnapshotProvider((
+      studentId: widget.studentId,
+      weekStart: week,
+      revision: _snapshotRevision,
+    ));
+    final snapshot = ref.watch(provider);
+    void back() {
+      ref.invalidate(parentWeeklyProvider(_query));
+      setState(() => _snapshotWeek = null);
+    }
+
+    ref.listen(provider, (_, current) {
+      if (current.error case final error? when isNotFoundError(error)) {
+        ref.invalidate(parentStudentsProvider);
+      }
+    });
+    return Scaffold(
+      appBar: AppBar(
+        leading: BackButton(onPressed: back),
+        title: const Text('周报历史版本'),
+      ),
+      body: SafeArea(
+        child: snapshot.when(
+          skipLoadingOnRefresh: false,
+          loading: () => const LoadingView(),
+          error: (error, _) => isNotFoundError(error)
+              ? const EmptyView(
+                  icon: Icons.history,
+                  title: '这份历史周报不可用',
+                  message: '可能尚未生成，或学生授权已变更。',
+                )
+              : ErrorView(
+                  error: error,
+                  onRetry: () => ref.invalidate(provider),
+                ),
+          data: (saved) => _Report(
+            report: saved.report,
+            onWeek: (nextWeek) {
+              _week = nextWeek;
+              back();
+            },
+            history: Wrap(
+              spacing: kGap,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text('当前查看第 ${saved.revision} 版'),
+                if (saved.revision > 1)
+                  OutlinedButton(
+                    onPressed: () =>
+                        setState(() => _snapshotRevision = saved.revision - 1),
+                    child: const Text('查看上一版'),
+                  ),
+                if (_snapshotRevision != null)
+                  OutlinedButton(
+                    onPressed: () => setState(() => _snapshotRevision = null),
+                    child: const Text('回到最新版本'),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -83,10 +163,11 @@ class _ParentWeeklyPageState extends ConsumerState<ParentWeeklyPage> {
 }
 
 class _Report extends ConsumerWidget {
-  const _Report({required this.report, required this.onWeek});
+  const _Report({required this.report, required this.onWeek, this.history});
 
   final ParentWeekly report;
   final void Function(String weekStart) onWeek;
+  final Widget? history;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -155,7 +236,11 @@ class _Report extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: kPad),
-              if (empty)
+              if (history case final control?) ...[
+                control,
+                const SizedBox(height: kGap),
+              ],
+              if (empty && report.paper == null)
                 Callout(
                   key: const ValueKey('parent.weekly.empty'),
                   tone: Tone.neutral,
@@ -165,7 +250,7 @@ class _Report extends ConsumerWidget {
                     '没有记录不代表出了问题，可能只是这一周没安排练习。',
                   ),
                 )
-              else ...[
+              else if (!empty) ...[
                 Wrap(
                   spacing: kGap,
                   runSpacing: kGap,
@@ -246,6 +331,34 @@ class _Report extends ConsumerWidget {
                   title: '按科目',
                   buckets: report.bySubject,
                   minSamples: report.minSamples,
+                ),
+              ],
+              if (report.paper case final paper?) ...[
+                const SizedBox(height: kPad),
+                Callout(
+                  tone: Tone.neutral,
+                  child: Text(
+                    '纸笔作答已回收 ${paper.confirmed} 份，'
+                    '待确认评估 ${paper.awaitingAssessment} 份，'
+                    '跨周补交 ${paper.lateReturns} 份，'
+                    '作答日期未知 ${paper.unknownCompletionDate} 份。',
+                  ),
+                ),
+                RateCard(
+                  keyPrefix: 'parent.weekly.paper',
+                  keyName: 'independent',
+                  title: '纸笔独立作答正确率',
+                  stat: paper.independent,
+                  minSamples: report.minSamples,
+                  help: '独立性由学生自报，只统计有确定练习反馈的作答。',
+                ),
+                RateCard(
+                  keyPrefix: 'parent.weekly.paper',
+                  keyName: 'assisted',
+                  title: '纸笔辅助作答正确率',
+                  stat: paper.assisted,
+                  minSamples: report.minSamples,
+                  help: '只统计自报用过帮助且有确定练习反馈的作答。',
                 ),
               ],
               const SizedBox(height: 20),

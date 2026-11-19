@@ -1,12 +1,12 @@
 {
   "name": "tutor_fallback",
   "method": "POST",
-  "path": "/api/v1/tutor/sessions/6f22f468-4c22-4a14-b84a-56fb2804f4b3/next",
+  "path": "/api/v1/tutor/sessions/4e8b942a-be1b-485a-993a-b5c26cc13a08/next",
   "status": 200,
   "schema": "TutorStep",
   "value": {
     "session": {
-      "id": "6f22f468-4c22-4a14-b84a-56fb2804f4b3",
+      "id": "4e8b942a-be1b-485a-993a-b5c26cc13a08",
       "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
       "question_version": 1,
       "origin": "practice",
@@ -23,7 +23,8 @@
       "hint_levels_total": 3,
       "confused_streak": 1,
       "needs_human_help": false,
-      "active_attempt_id": "21b93a3b-6534-4be7-937e-492402918ab1",
+      "active_attempt_id": "e0ce744f-c409-4bbe-b0ba-ebc8207c9eed",
+      "first_submitted_attempt_id": null,
       "submitted_attempts": 0,
       "last_event_seq": 1,
       "created_at": "2026-11-11T08:00:00Z",
@@ -31,19 +32,19 @@
     },
     "events": [
       {
-        "id": "8ad5e2bd-c5d7-48d4-9b8f-44d645ed1ea0",
-        "session_id": "6f22f468-4c22-4a14-b84a-56fb2804f4b3",
+        "id": "9b694e0c-693d-4dc8-a5ef-d68b9799ca83",
+        "session_id": "4e8b942a-be1b-485a-993a-b5c26cc13a08",
         "seq_no": 1,
         "type": "fallback",
         "created_at": "2026-11-11T08:00:00Z",
         "state_after": "FALLBACK",
         "payload": {
           "reason_code": "MODEL_UNAVAILABLE",
-          "text": "换种讲法暂时生成不了。可以先看图解，或者查看审核过的常规解法。",
+          "text": "换种讲法暂时生成不了。可以先看分层提示；图解在提交作答或明确查看完整解析后提供。",
           "suggestions": [
             {
               "action": "request_visual",
-              "label": "看图理解",
+              "label": "解析阶段看图",
               "question_id": null,
               "knowledge_id": null
             },
@@ -70,8 +71,8 @@
           "prompt_version": null,
           "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
           "question_version": 1,
-          "trace_id": "9d7ffc7bca4c4bad8f2820a60ea82d14",
-          "request_id": "53776577a2fd4624b1934eaeb664de51"
+          "trace_id": "187bf70bc71e4012a0d1586d40677bb9",
+          "request_id": "ccc41df4d3a94161aee9141044bbbc0c"
         }
       }
     ]
@@ -79,7 +80,7 @@
   "body": {
     "data": {
       "session": {
-        "id": "6f22f468-4c22-4a14-b84a-56fb2804f4b3",
+        "id": "4e8b942a-be1b-485a-993a-b5c26cc13a08",
         "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
         "question_version": 1,
         "origin": "practice",
@@ -96,7 +97,8 @@
         "hint_levels_total": 3,
         "confused_streak": 1,
         "needs_human_help": false,
-        "active_attempt_id": "21b93a3b-6534-4be7-937e-492402918ab1",
+        "active_attempt_id": "e0ce744f-c409-4bbe-b0ba-ebc8207c9eed",
+        "first_submitted_attempt_id": null,
         "submitted_attempts": 0,
         "last_event_seq": 1,
         "created_at": "2026-11-11T08:00:00Z",
@@ -104,19 +106,19 @@
       },
       "events": [
         {
-          "id": "8ad5e2bd-c5d7-48d4-9b8f-44d645ed1ea0",
-          "session_id": "6f22f468-4c22-4a14-b84a-56fb2804f4b3",
+          "id": "9b694e0c-693d-4dc8-a5ef-d68b9799ca83",
+          "session_id": "4e8b942a-be1b-485a-993a-b5c26cc13a08",
           "seq_no": 1,
           "type": "fallback",
           "created_at": "2026-11-11T08:00:00Z",
           "state_after": "FALLBACK",
           "payload": {
             "reason_code": "MODEL_UNAVAILABLE",
-            "text": "换种讲法暂时生成不了。可以先看图解，或者查看审核过的常规解法。",
+            "text": "换种讲法暂时生成不了。可以先看分层提示；图解在提交作答或明确查看完整解析后提供。",
             "suggestions": [
               {
                 "action": "request_visual",
-                "label": "看图理解",
+                "label": "解析阶段看图",
                 "question_id": null,
                 "knowledge_id": null
               },
@@ -143,8 +145,8 @@
             "prompt_version": null,
             "question_id": "02ce0bf9-58d1-536a-a1af-a284329f0c60",
             "question_version": 1,
-            "trace_id": "9d7ffc7bca4c4bad8f2820a60ea82d14",
-            "request_id": "53776577a2fd4624b1934eaeb664de51"
+            "trace_id": "187bf70bc71e4012a0d1586d40677bb9",
+            "request_id": "ccc41df4d3a94161aee9141044bbbc0c"
           }
         }
       ]

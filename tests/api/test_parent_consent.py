@@ -212,7 +212,7 @@ def test_one_parent_can_follow_several_students_and_a_student_can_have_several_p
 
 
 def test_the_student_sees_who_they_authorized_but_never_the_code(onboarded, parent, clock):
-    assert links_of(onboarded) == {"links": [], "pending_invite": None}
+    assert links_of(onboarded) == {"links": [], "pending_invite": None, "parent_invite_revision": 0}
 
     created = invite(onboarded)
     waiting = links_of(onboarded)
@@ -246,15 +246,13 @@ def test_the_parents_own_name_is_shown_when_it_has_one(onboarded, parent, db):
 
 
 def test_the_parent_sees_the_students_own_name_when_it_has_one(onboarded, parent):
-    onboarded.data(
-        "PUT",
-        "/profile",
+    onboarded.save_profile(
         json={
             "region_code": "CN-51",
             "grade": "G12",
             "subjects": ["math", "physics", "chemistry"],
             "display_name": "小明",
-        },
+        }
     )
 
     linked = authorize(onboarded, parent)
@@ -285,7 +283,12 @@ def test_only_the_student_who_granted_it_can_revoke(onboarded, new_student, pare
     (entry,) = links_of(onboarded)["links"]
     path = f"/me/parent-links/{entry['id']}/revoke"
 
-    assert new_student().error("POST", path, expect=404)["code"] == "not_found"
+    assert (
+        new_student().error("POST", path, json={"expected_authorization_revision": 1}, expect=404)[
+            "code"
+        ]
+        == "not_found"
+    )
     assert parent.error("POST", path, expect=403)["code"] == "forbidden"
     assert reviewer.error("POST", path, expect=403)["code"] == "forbidden"
     assert len(links_of(onboarded)["links"]) == 1, "都没有撤销成功"
@@ -297,8 +300,18 @@ def test_revoking_something_that_is_gone_is_404(onboarded, parent):
     (entry,) = links_of(onboarded)["links"]
     revoke(onboarded, entry["id"])
 
-    again = onboarded.error("POST", f"/me/parent-links/{entry['id']}/revoke", expect=404)
-    unknown = onboarded.error("POST", f"/me/parent-links/{uuid.uuid4()}/revoke", expect=404)
+    again = onboarded.error(
+        "POST",
+        f"/me/parent-links/{entry['id']}/revoke",
+        json={"expected_authorization_revision": 2},
+        expect=404,
+    )
+    unknown = onboarded.error(
+        "POST",
+        f"/me/parent-links/{uuid.uuid4()}/revoke",
+        json={"expected_authorization_revision": 1},
+        expect=404,
+    )
 
     assert again["code"] == unknown["code"] == "not_found"
 
@@ -309,8 +322,12 @@ def test_revoking_with_the_same_key_twice_replays_the_first_answer(onboarded, pa
     path = f"/me/parent-links/{entry['id']}/revoke"
     key = f"revoke-{uuid.uuid4()}"
 
-    first = onboarded.post(path, key=key)
-    second = onboarded.post(path, key=key)
+    first = onboarded.post(
+        path, json={"expected_authorization_revision": entry["authorization_revision"]}, key=key
+    )
+    second = onboarded.post(
+        path, json={"expected_authorization_revision": entry["authorization_revision"]}, key=key
+    )
 
     assert first.status_code == second.status_code == 200
     assert first.json() == second.json()
@@ -318,21 +335,33 @@ def test_revoking_with_the_same_key_twice_replays_the_first_answer(onboarded, pa
 
 
 def test_creating_redeeming_and_revoking_all_need_an_idempotency_key(onboarded, parent):
-    assert onboarded.error("POST", "/me/parent-invites", expect=400, key=False)["code"] == (
-        "idempotency_key_required"
-    )
+    assert onboarded.error(
+        "POST",
+        "/me/parent-invites",
+        json={"expected_parent_invite_revision": 0},
+        expect=400,
+        key=False,
+    )["code"] == ("idempotency_key_required")
     assert parent.error(
         "POST", "/parents/links", expect=400, json={"code": "ABCDE23456"}, key=False
     )["code"] == ("idempotency_key_required")
     assert onboarded.error(
-        "POST", f"/me/parent-links/{uuid.uuid4()}/revoke", expect=400, key=False
+        "POST",
+        f"/me/parent-links/{uuid.uuid4()}/revoke",
+        json={"expected_authorization_revision": 1},
+        expect=400,
+        key=False,
     )["code"] == ("idempotency_key_required")
 
 
 def test_the_same_key_creates_one_invite_and_links_once(onboarded, parent, db):
     key = f"invite-{uuid.uuid4()}"
-    first = onboarded.post("/me/parent-invites", key=key)
-    second = onboarded.post("/me/parent-invites", key=key)
+    first = onboarded.post(
+        "/me/parent-invites", json={"expected_parent_invite_revision": 0}, key=key
+    )
+    second = onboarded.post(
+        "/me/parent-invites", json={"expected_parent_invite_revision": 0}, key=key
+    )
 
     assert first.json() == second.json()
     assert second.headers["idempotency-replayed"] == "true"

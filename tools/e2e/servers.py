@@ -162,18 +162,34 @@ def _spawn(name: str, command: list[str], *, cwd: Path, env: dict[str, str], log
     return Service(name, process, log_path, log)
 
 
-def start_api(work_dir: Path) -> Service:
+def start_api(
+    work_dir: Path,
+    *,
+    media_enabled: bool = False,
+    scan_enabled: bool = False,
+    review_minutes: tuple[int, ...] | None = None,
+) -> Service:
     """启动本地开发后端，数据库放在 work_dir 里：每个流程一个全新的库，互不影响，也不碰本机的演示库。"""
     work_dir.mkdir(parents=True, exist_ok=True)
     database = (work_dir / "tutor.sqlite3").resolve().as_posix()
     env = {
         **os.environ,
         "TUTOR_DATABASE_URL": f"sqlite:///{database}",
+        "TUTOR_MEDIA_LOCAL_ENABLED": "true" if media_enabled or scan_enabled else "false",
+        "TUTOR_SCAN_MOCK_ENABLED": "true" if scan_enabled else "false",
+        "TUTOR_MEDIA_ROOT": str((work_dir / "media").resolve()),
         "PYTHONIOENCODING": "utf-8",
     }
+    command = [sys.executable, "-X", "utf8", str(REPO_ROOT / "tools" / "run_dev_api.py")]
+    if review_minutes is not None:
+        if not review_minutes or any(
+            type(value) is not int or value < 1 for value in review_minutes
+        ):
+            raise ValueError("review_minutes必须为非空正整数分钟序列")
+        command.extend(["--review-minutes", ",".join(map(str, review_minutes))])
     service = _spawn(
         "后端",
-        [sys.executable, "-X", "utf8", str(REPO_ROOT / "tools" / "run_dev_api.py")],
+        command,
         cwd=REPO_ROOT,
         env=env,
         log_path=work_dir / "api.log",

@@ -29,7 +29,60 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   };
   String? _curriculum;
   bool _saving = false;
+  int _editSerial = 0;
+  bool _localWriteFailed = false;
   Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final fields = ref.read(profileProvider.notifier).bundle?.edit;
+    if (fields != null) {
+      _region = fields['region_code'] == null
+          ? null
+          : RegionCode.fromJson(fields['region_code']);
+      _grade = fields['grade'] == null ? null : Grade.fromJson(fields['grade']);
+      _subjects
+        ..clear()
+        ..addAll(
+          (fields['subjects'] as List? ?? []).map(
+            (s) => Subject.fromJson(s as String),
+          ),
+        );
+      _curriculum = fields['curriculum_version'] as String?;
+    }
+  }
+
+  void _change(VoidCallback change) {
+    setState(() {
+      change();
+      _editSerial++;
+    });
+    _persist();
+  }
+
+  Future<void> _persist() async {
+    final serial = _editSerial;
+    try {
+      await ref.read(profileProvider.notifier).edit({
+        if (_region != null) 'region_code': _region!.value,
+        if (_grade != null) 'grade': _grade!.value,
+        'subjects': Subject.values
+            .where(_subjects.contains)
+            .map((s) => s.value)
+            .toList(),
+        if (_curriculum != null) 'curriculum_version': _curriculum,
+      });
+      if (serial == _editSerial) _localWriteFailed = false;
+    } catch (error) {
+      if (mounted && serial == _editSerial) {
+        setState(() {
+          _error = error;
+          _localWriteFailed = true;
+        });
+      }
+    }
+  }
 
   bool get _canContinue => switch (_step) {
     0 => _region != null,
@@ -37,23 +90,67 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     _ => true,
   };
 
+  Future<void> _resolve(bool useCloud) async {
+    final serial = _editSerial;
+    try {
+      final controller = ref.read(profileProvider.notifier);
+      if (!useCloud) {
+        await _persist();
+        if (!mounted || _localWriteFailed || serial != _editSerial) return;
+      }
+      await controller.resolveConflict(useCloud: useCloud);
+      if (!mounted || serial != _editSerial) return;
+      if (useCloud && controller.bundle!.cloud!.onboardingCompleted) {
+        context.go('/home');
+      } else {
+        setState(() {
+          if (useCloud) {
+            final cloud = controller.bundle!.cloud!;
+            _region = cloud.regionCode;
+            _grade = cloud.grade;
+            _subjects
+              ..clear()
+              ..addAll(cloud.subjects);
+            _curriculum = cloud.curriculumVersion;
+          }
+        });
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
+  }
+
   Future<void> _finish() async {
+    final serial = _editSerial;
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
-      await ref
-          .read(profileProvider.notifier)
-          .save(
-            ProfileUpdate(
-              regionCode: _region!,
-              subjects: Subject.values.where(_subjects.contains).toList(),
-              grade: _grade,
-              curriculumVersion: _curriculum,
-            ),
-          );
-      if (mounted) context.go('/home');
+      final controller = ref.read(profileProvider.notifier);
+      if (controller.bundle?.pending != null) {
+        await controller.retryPending();
+      } else {
+        await controller.save(
+          ProfileUpdate(
+            expectedRevision: ref
+                .read(profileProvider.notifier)
+                .bundle!
+                .revision!,
+            regionCode: _region!,
+            subjects: Subject.values.where(_subjects.contains).toList(),
+            grade: _grade,
+            curriculumVersion: _curriculum,
+          ),
+        );
+        if (serial == _editSerial) _localWriteFailed = false;
+      }
+      if (mounted &&
+          serial == _editSerial &&
+          !_localWriteFailed &&
+          controller.bundle?.edit == null) {
+        context.go('/home');
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
@@ -64,6 +161,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pending = ref.read(profileProvider.notifier).bundle?.pending;
     return Scaffold(
       key: const ValueKey('onboarding.page'),
       appBar: AppBar(title: const Text('先认识一下你')),
@@ -107,6 +205,49 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                       if (_step == 0) _regionStep(context),
                       if (_step == 1) _gradeStep(context),
                       if (_step == 2) _curriculumStep(context),
+                      if (pending == null &&
+                          ref
+                                  .read(profileProvider.notifier)
+                                  .bundle
+                                  ?.editConflict ==
+                              true) ...[
+                        const Text('你选择之后云端资料已有变化，请明确选择后再保存。'),
+                        OutlinedButton(
+                          key: const ValueKey('onboarding.useLocal'),
+                          onPressed: _saving ? null : () => _resolve(false),
+                          child: const Text('保留本机选择'),
+                        ),
+                        OutlinedButton(
+                          key: const ValueKey('onboarding.useCloud'),
+                          onPressed: _saving ? null : () => _resolve(true),
+                          child: const Text('采用云端资料'),
+                        ),
+                      ],
+                      if (pending != null) ...[
+                        const Callout(
+                          tone: Tone.info,
+                          child: Text('上次保存尚未确认，点击开始学习将重试原保存。'),
+                        ),
+                        if (pending.phase == 'conflict') ...[
+                          const Text('云端资料已改变。本机选择仍保留，请选择后重新保存。'),
+                          Text(
+                            '本机地区：${_region == null ? '未选' : regionName(_region!)}；科目：${_subjects.map(subjectName).join('、')}；教材：${_curriculum ?? '暂不清楚'}',
+                          ),
+                          Text(
+                            '云端地区：${ref.read(profileProvider.notifier).bundle!.cloud!.regionCode == null ? '未选' : regionName(ref.read(profileProvider.notifier).bundle!.cloud!.regionCode!)}；科目：${ref.read(profileProvider.notifier).bundle!.cloud!.subjects.map(subjectName).join('、')}；教材：${ref.read(profileProvider.notifier).bundle!.cloud!.curriculumVersion ?? '暂不清楚'}',
+                          ),
+                          OutlinedButton(
+                            key: const ValueKey('onboarding.useLocal'),
+                            onPressed: _saving ? null : () => _resolve(false),
+                            child: const Text('保留本机选择'),
+                          ),
+                          OutlinedButton(
+                            key: const ValueKey('onboarding.useCloud'),
+                            onPressed: _saving ? null : () => _resolve(true),
+                            child: const Text('采用云端资料'),
+                          ),
+                        ],
+                      ],
                       if (_error != null) ...[
                         const SizedBox(height: kGap),
                         Callout(
@@ -180,7 +321,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     key: ValueKey('region.${region.value}'),
                     label: regionName(region),
                     selected: _region == region,
-                    onTap: () => setState(() => _region = region),
+                    onTap: () => _change(() => _region = region),
                   ),
                 ),
               ),
@@ -215,7 +356,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 key: ValueKey('grade.${grade.value}'),
                 label: Text(gradeName(grade)),
                 selected: _grade == grade,
-                onSelected: (on) => setState(() => _grade = on ? grade : null),
+                onSelected: (on) => _change(() => _grade = on ? grade : null),
               ),
           ],
         ),
@@ -245,7 +386,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 key: ValueKey('subject.${subject.value}'),
                 label: Text(subjectName(subject)),
                 selected: _subjects.contains(subject),
-                onSelected: (on) => setState(
+                onSelected: (on) => _change(
                   () => on ? _subjects.add(subject) : _subjects.remove(subject),
                 ),
               ),
@@ -278,14 +419,14 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               key: const ValueKey('curriculum.unknown'),
               label: const Text('暂不清楚'),
               selected: _curriculum == null,
-              onSelected: (_) => setState(() => _curriculum = null),
+              onSelected: (_) => _change(() => _curriculum = null),
             ),
             for (final option in options)
               ChoiceChip(
                 key: ValueKey('curriculum.${option.code}'),
                 label: Text(option.name),
                 selected: _curriculum == option.code,
-                onSelected: (_) => setState(() => _curriculum = option.code),
+                onSelected: (_) => _change(() => _curriculum = option.code),
               ),
           ],
         ),

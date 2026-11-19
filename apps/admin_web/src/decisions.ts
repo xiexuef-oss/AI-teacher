@@ -19,6 +19,7 @@ export const HISTORY_LABEL: Record<AdminHistoryAction, string> = {
   publish: '上线',
   withdraw: '下线（撤回）',
   edit: '修改（新版本）',
+  import: '导入草稿',
 }
 
 /** 一次修改里"改动了哪些部分"的中文名。 */

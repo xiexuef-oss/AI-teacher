@@ -9,16 +9,36 @@ from fastapi.responses import JSONResponse
 
 from tutor_api.deps import Ctx, ok, reviewer_ctx
 from tutor_api.idempotency import run_idempotent
+from tutor_api.private_route import PrivateRoute
 from tutor_api.schemas import (
     AdminQuestionEditIn,
+    AdminQuestionImportIn,
     QuestionStatus,
+    ReviewBatchIn,
     ReviewDecisionIn,
     SourceCategory,
     Subject,
 )
 from tutor_api.services import review_service
 
-router = APIRouter()
+router = APIRouter(route_class=PrivateRoute)
+
+
+@router.post("/admin/question-reviews/batch")
+def review_batch(body: ReviewBatchIn, ctx: Ctx = Depends(reviewer_ctx)) -> JSONResponse:
+    return run_idempotent(ctx, body, 200, lambda _: review_service.decide_batch(ctx, body))
+
+
+@router.post("/admin/question-imports")
+def import_question_draft(
+    body: AdminQuestionImportIn, ctx: Ctx = Depends(reviewer_ctx)
+) -> JSONResponse:
+    def action(_key_digest: str):
+        return review_service.import_draft(
+            ctx.db, actor_id=ctx.actor_id, body=body, now=ctx.now(), request_id=ctx.request_id
+        )
+
+    return run_idempotent(ctx, body, 201, action)
 
 
 @router.get("/admin/questions")

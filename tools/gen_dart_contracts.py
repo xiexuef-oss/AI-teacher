@@ -50,7 +50,15 @@ _RESERVED = {
 # 教学事件 Schema 里与 OpenAPI 同名但结构略有不同的定义，生成时换个名字
 _EVENT_RENAMES = {"FeedbackItem": "DiagnosisFeedback", "KnowledgeRef": "EventKnowledgeRef"}
 # 这些定义不生成类：基础别名，或 OpenAPI 里已有对应类型
-_EVENT_SKIPPED = {"Text", "ShortText", "EventType", "SessionState", "EventMeta"}
+_EVENT_SKIPPED = {
+    "Text",
+    "ShortText",
+    "EventType",
+    "SessionState",
+    "EventMeta",
+    "ContentSpanRef",
+    "ResolvedContentSpan",
+}
 _HTTP_METHODS = ("get", "put", "post", "delete", "patch")
 
 
@@ -310,6 +318,14 @@ def _render_class(name: str, schema: dict[str, Any], resolver: Resolver) -> str:
     for prop, field, dart_type, optional in fields:
         source = f"json[{_string(prop)}]"
         decoded = dart_type.decode(source)
+        if name in {"ContentSpanRef", "ResolvedContentSpan"} and prop in {"start", "end"}:
+            # 引用坐标不能沿用通用 num.toInt：损坏缓存的小数不得变成合法引用。
+            decoded = f"{source} as int"
+        if name == "TutorEvent" and prop == "references":
+            lines.append(
+                "        references: json.containsKey('references') ? _decodeReferences(json) : null,"
+            )
+            continue
         if dart_type.kind == "dynamic":
             lines.append(f"        {field}: {source},")
         elif optional or dart_type.nullable:
@@ -329,6 +345,31 @@ def _render_class(name: str, schema: dict[str, Any], resolver: Resolver) -> str:
         else:
             lines.append(f"        {_string(prop)}: {encoded},")
     lines.append("      };")
+    if name == "TutorEvent":
+        lines += [
+            "",
+            "  // 损坏的引用局部降级，保留事件正文；无效占位由客户端显示为引用不可用。",
+            "  static List<ResolvedContentSpan> _decodeReferences(Map<String, dynamic> json) {",
+            "    const unavailable = ResolvedContentSpan(blockId: '', blockSha256: '',",
+            "      start: -1, end: 0, blockText: '', label: '');",
+            "    try {",
+            "      final raw = json['references'];",
+            "      final version = (json['meta'] as Map)['question_version'];",
+            "      if (version is! int || version < 1 || json['seq_no'] is! int ||",
+            "          raw is! List || raw.length > 8) return const [unavailable];",
+            "      const keys = {'block_id', 'block_sha256', 'start', 'end', 'block_text', 'label'};",
+            "      final result = <ResolvedContentSpan>[];",
+            "      for (final item in raw) {",
+            "        if (item is! Map<String, dynamic> || item.length != keys.length ||",
+            "            !keys.every(item.containsKey)) return const [unavailable];",
+            "        result.add(ResolvedContentSpan.fromJson(item));",
+            "      }",
+            "      return result;",
+            "    } catch (_) {",
+            "      return const [unavailable];",
+            "    }",
+            "  }",
+        ]
     lines.append("}")
     return "\n".join(lines)
 
@@ -576,6 +617,27 @@ __ENTRIES__
 # ---------------------------------------------------------------- 测试辅助
 
 
+def round_trip_metadata(openapi: dict[str, Any]) -> dict[str, Any]:
+    """仅对具名契约对象规范化；自由 JSON/map 不推断字段含义。"""
+    schemas = openapi["components"]["schemas"]
+    resolver = Resolver(schemas, "#/components/schemas/")
+    result = {}
+    for name, schema in schemas.items():
+        if schema.get("type") != "object" or "properties" not in schema:
+            continue
+        nullable, objects, arrays = [], {}, {}
+        for prop, prop_schema in schema["properties"].items():
+            kind = resolver.resolve(prop_schema, f"{name}.{prop}")
+            if prop not in schema.get("required", []) and kind.nullable:
+                nullable.append(prop)
+            if kind.kind == "object":
+                objects[prop] = kind.name
+            elif kind.kind == "list" and kind.inner and kind.inner.kind == "object":
+                arrays[prop] = kind.inner.name
+        result[name] = {"nullable": nullable, "objects": objects, "arrays": arrays}
+    return result
+
+
 def render_round_trip(openapi: dict[str, Any], event_schema: dict[str, Any]) -> str:
     """Dart 测试用的表：schema 名 → "解析后再序列化"的函数；事件类型 → payload 的往返。"""
     classes = [
@@ -597,6 +659,10 @@ def render_round_trip(openapi: dict[str, Any], event_schema: dict[str, Any]) -> 
         + "final Map<String, RoundTrip> roundTrips = {\n"
         + "\n".join(entries)
         + "\n};\n\n"
+        + "/// 仅允许按契约省略 optional nullable null；嵌套自由 JSON 保持原样。\n"
+        + "const Map<String, dynamic> roundTripMetadata = "
+        + json.dumps(round_trip_metadata(openapi), ensure_ascii=False, indent=2)
+        + ";\n\n"
         + "/// 按事件类型把 payload 过一遍对应的类型；不认识的类型返回 null。\n"
         + "Map<String, dynamic>? payloadRoundTrip(TutorEvent event) => switch (event.type) {\n"
         + "\n".join(cases)

@@ -1,14 +1,17 @@
 {
   "name": "submit_incorrect",
   "method": "POST",
-  "path": "/api/v1/attempts/c14029ae-1bed-4d96-a33c-85295598db43/submit",
+  "path": "/api/v1/attempts/d081b8ee-e501-490e-aae0-df81ad2bec0a/submit",
   "status": 200,
   "schema": "SubmitResult",
   "value": {
     "attempt": {
-      "id": "c14029ae-1bed-4d96-a33c-85295598db43",
-      "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+      "id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+      "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
       "attempt_no": 1,
+      "submission_no": 1,
+      "copied_from_attempt_id": null,
+      "copied_from_revision": null,
       "status": "submitted",
       "answer": {
         "selected_options": [
@@ -60,7 +63,7 @@
       "disclaimer": "这是练习反馈，不是官方阅卷分数。"
     },
     "session": {
-      "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+      "id": "01611e61-b265-4539-b587-da5fbbd04595",
       "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
       "question_version": 1,
       "origin": "task",
@@ -78,6 +81,7 @@
       "confused_streak": 0,
       "needs_human_help": false,
       "active_attempt_id": null,
+      "first_submitted_attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
       "submitted_attempts": 1,
       "last_event_seq": 3,
       "created_at": "2026-11-10T08:00:00Z",
@@ -85,8 +89,8 @@
     },
     "events": [
       {
-        "id": "87d46d7a-1eae-4224-a0b2-eb3458242008",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "6f247297-d828-42aa-9a23-feb0585c23be",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
         "seq_no": 3,
         "type": "diagnosis",
         "created_at": "2026-11-10T08:00:00Z",
@@ -144,12 +148,12 @@
           "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "12c20bf9e63e443b8448a6749f9432b0"
+          "request_id": "5130b69cb9494fa0a4ef7ae7d9fa304a"
         }
       }
     ],
     "review_item": {
-      "id": "ad94ceca-f1aa-42ec-9ede-b69f87a54939",
+      "id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
       "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
       "question_title": "二次函数的单调递增区间",
       "subject": "math",
@@ -166,9 +170,12 @@
   "body": {
     "data": {
       "attempt": {
-        "id": "c14029ae-1bed-4d96-a33c-85295598db43",
-        "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
+        "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
         "attempt_no": 1,
+        "submission_no": 1,
+        "copied_from_attempt_id": null,
+        "copied_from_revision": null,
         "status": "submitted",
         "answer": {
           "selected_options": [
@@ -220,7 +227,7 @@
         "disclaimer": "这是练习反馈，不是官方阅卷分数。"
       },
       "session": {
-        "id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+        "id": "01611e61-b265-4539-b587-da5fbbd04595",
         "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
         "question_version": 1,
         "origin": "task",
@@ -238,6 +245,7 @@
         "confused_streak": 0,
         "needs_human_help": false,
         "active_attempt_id": null,
+        "first_submitted_attempt_id": "d081b8ee-e501-490e-aae0-df81ad2bec0a",
         "submitted_attempts": 1,
         "last_event_seq": 3,
         "created_at": "2026-11-10T08:00:00Z",
@@ -245,8 +253,8 @@
       },
       "events": [
         {
-          "id": "87d46d7a-1eae-4224-a0b2-eb3458242008",
-          "session_id": "d4196b2a-3ce8-4050-a179-931911e7e133",
+          "id": "6f247297-d828-42aa-9a23-feb0585c23be",
+          "session_id": "01611e61-b265-4539-b587-da5fbbd04595",
           "seq_no": 3,
           "type": "diagnosis",
           "created_at": "2026-11-10T08:00:00Z",
@@ -304,12 +312,12 @@
             "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "12c20bf9e63e443b8448a6749f9432b0"
+            "request_id": "5130b69cb9494fa0a4ef7ae7d9fa304a"
           }
         }
       ],
       "review_item": {
-        "id": "ad94ceca-f1aa-42ec-9ede-b69f87a54939",
+        "id": "a3efac5b-eb72-4b74-8137-5f0fcad0ab86",
         "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
         "question_title": "二次函数的单调递增区间",
         "subject": "math",

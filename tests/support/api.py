@@ -80,3 +80,10 @@ class ApiClient:
         response = self.request(method, path, **kwargs)
         assert response.status_code == expect, response.text
         return response.json()["error"]
+
+    def save_profile(self, *, json: dict[str, Any], **kwargs: Any) -> Any:
+        """Explicit convenience for tests unrelated to profile CAS/replay behavior."""
+        current = self.data("GET", "/profile")
+        return self.data(
+            "PUT", "/profile", json={**json, "expected_revision": current["revision"]}, **kwargs
+        )

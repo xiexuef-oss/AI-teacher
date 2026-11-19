@@ -2,7 +2,7 @@ name: tutor_student
 description: "AI 理科私教学生端：平板横屏优先的做题、手写草稿与分层辅导。"
 publish_to: 'none'
 
-# 0.x：本切片只是本地原型，还没有在真机上验证，也没有发布计划。
+# 0.x：本地原型；真机验证按版本和任务单独记录，尚未正式发布。
 version: 0.1.0+1
 
 environment:
@@ -21,6 +21,13 @@ dependencies:
   # 由 contracts/ 生成的 API 模型与客户端
   tutor_contracts:
     path: ../../packages/contracts/dart
+  image_picker: 1.2.4
+  crypto: ^3.0.7
+  share_plus: 13.3.1
+  file_saver: 0.4.0
+  zxing2: ^0.2.4
+  file_selector: 1.1.0
+  mobile_scanner: 7.5.0
 
 dev_dependencies:
   flutter_test:

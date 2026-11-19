@@ -171,3 +171,65 @@ String intervalText(Map<String, double> p) {
   final r = rightUnbounded ? '+∞' : fmt(right, digits: 1);
   return '${leftClosed ? '[' : '('}$l, $r${rightClosed ? ']' : ')'}';
 }
+
+/// Fixed overview topology: no reaction conditions or generated chemical labels.
+class ProcessLayout {
+  ProcessLayout(this.branch, this.recycle, this.focus);
+  final bool branch;
+  final bool recycle;
+  final int focus;
+  List<String> get nodes => ['原料', '处理Ⅰ', '分离', '处理Ⅱ', '产物', if (branch) '支路'];
+  List<(int, int)> get edges => [
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 4),
+    if (branch) (2, 5),
+    if (recycle) (3, 1),
+  ];
+  String get description =>
+      '原料到处理Ⅰ到分离到处理Ⅱ到产物。${branch ? '有分离到支路' : '无支路'}；${recycle ? '有处理Ⅱ回到处理Ⅰ的回流' : '无回流'}。当前焦点：${focus == 0 ? '概览' : nodes[focus]}。流程关系示意；具体物质、条件和操作以题目及审核解析为准。';
+}
+
+ProcessLayout processOf(Map<String, double> p) => ProcessLayout(
+  p['branch'] == 1,
+  p['recycle'] == 1,
+  (p['focus'] ?? 0).round().clamp(0, 4),
+);
+
+/// Coordinates are supplied by the reviewed question, never inferred geometry.
+class TriangleLayout {
+  const TriangleLayout(this.apexX, this.height, this.focus);
+  final double apexX;
+  final double height;
+  final int focus;
+  String get description =>
+      '三角形ABC，仅有顶点A、B、C和三边。当前焦点：${focus == 0 ? '整体' : ['A', 'B', 'C'][focus - 1]}。示意图，非按比例；不能凭外观推断长度、角度或关系。';
+}
+
+TriangleLayout triangleOf(Map<String, double> p) => TriangleLayout(
+  p['apex_x'] ?? .35,
+  p['height'] ?? .65,
+  (p['focus'] ?? 0).round().clamp(0, 3),
+);
+
+/// Relative drawing positions only; they are not given mathematical angles.
+class CircleLayout {
+  const CircleLayout(this.aPosition, this.bPosition, this.focus);
+  final double aPosition;
+  final double bPosition;
+  final int focus;
+  List<(double, double)> get points => [
+    (0, 0),
+    for (final position in [aPosition, bPosition])
+      (math.cos(2 * math.pi * position), math.sin(2 * math.pi * position)),
+  ];
+  String get description =>
+      'O是圆心，A、B是圆上不同的两点；不添加连线或辅助点。当前焦点：${focus == 0 ? '整体' : ['O', 'A', 'B'][focus - 1]}。示意图，非按比例；不能凭外观推断长度、角度或关系。';
+}
+
+CircleLayout circleOf(Map<String, double> p) => CircleLayout(
+  p['a_position'] ?? .1,
+  p['b_position'] ?? .37,
+  (p['focus'] ?? 0).round().clamp(0, 3),
+);

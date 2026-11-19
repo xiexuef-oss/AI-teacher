@@ -1,11 +1,11 @@
 {
   "name": "draft_synced_experiment",
   "method": "PUT",
-  "path": "/api/v1/attempts/ce44b571-d077-4fca-9ce4-8f74b0fac2bf/draft",
+  "path": "/api/v1/attempts/f7f9ebe4-8847-4037-a54d-cc130fac3bd8/draft",
   "status": 200,
   "schema": "Draft",
   "value": {
-    "attempt_id": "ce44b571-d077-4fca-9ce4-8f74b0fac2bf",
+    "attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
     "revision": 1,
     "answer": {
       "parts": [
@@ -80,7 +80,7 @@
   },
   "body": {
     "data": {
-      "attempt_id": "ce44b571-d077-4fca-9ce4-8f74b0fac2bf",
+      "attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
       "revision": 1,
       "answer": {
         "parts": [

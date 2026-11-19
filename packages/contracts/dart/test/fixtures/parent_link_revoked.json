@@ -1,12 +1,13 @@
 {
   "name": "parent_link_revoked",
   "method": "POST",
-  "path": "/api/v1/me/parent-links/5bbe06a4-fcd4-4554-a50c-8ae4b033ce8d/revoke",
+  "path": "/api/v1/me/parent-links/bc82116a-215a-4e80-9197-60c5c49b633c/revoke",
   "status": 200,
   "schema": "ParentLink",
   "value": {
-    "id": "5bbe06a4-fcd4-4554-a50c-8ae4b033ce8d",
-    "parent_id": "19576798-909a-4888-a849-9f74f858f896",
+    "authorization_revision": 2,
+    "id": "bc82116a-215a-4e80-9197-60c5c49b633c",
+    "parent_id": "b3a6717f-bbe7-42c1-aba5-40ef3808c820",
     "parent_label": null,
     "consent_at": "2026-11-11T08:00:00Z",
     "linked_at": "2026-11-11T08:00:00Z",
@@ -14,8 +15,9 @@
   },
   "body": {
     "data": {
-      "id": "5bbe06a4-fcd4-4554-a50c-8ae4b033ce8d",
-      "parent_id": "19576798-909a-4888-a849-9f74f858f896",
+      "authorization_revision": 2,
+      "id": "bc82116a-215a-4e80-9197-60c5c49b633c",
+      "parent_id": "b3a6717f-bbe7-42c1-aba5-40ef3808c820",
       "parent_label": null,
       "consent_at": "2026-11-11T08:00:00Z",
       "linked_at": "2026-11-11T08:00:00Z",

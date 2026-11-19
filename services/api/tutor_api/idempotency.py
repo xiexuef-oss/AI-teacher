@@ -6,7 +6,7 @@
 - 首次请求失败 → 不留记录，重试时重新执行。
 
 去重记录与业务写入在同一个事务里提交，所以不会出现"业务生效了但记录没写上"的情况。
-原型期记录存在 SQLite（proto_idempotency_records）；生产环境按 docs/02 放 Redis。
+原型期兼容 proto_idempotency_records；正式回执与业务写入同一数据库事务，Redis只协调。
 """
 
 from __future__ import annotations
@@ -18,13 +18,13 @@ from collections.abc import Callable
 from typing import Any
 
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from tutor_api.db import new_id
 from tutor_api.deps import Ctx, dump
 from tutor_api.errors import ApiError, conflict
-from tutor_api.proto_models import IdempotencyRecord
+from tutor_api.receipt_coordination import coordinate
+from tutor_api.receipts import LegacyProtoReceiptStore
+from tutor_api.services.parent_invite_security import replay_invite, stored_response
 
 HEADER = "Idempotency-Key"
 REPLAYED_HEADER = "Idempotency-Replayed"
@@ -47,7 +47,7 @@ def key_digest(student_id: str, key: str) -> str:
     return hashlib.sha256(f"{student_id}:{key}".encode()).hexdigest()
 
 
-def _fingerprint(ctx: Ctx, body: Any) -> str:
+def request_fingerprint(ctx: Ctx, body: Any) -> str:
     canonical = json.dumps(
         {"m": ctx.request.method, "p": ctx.request.url.path, "b": dump(body)},
         sort_keys=True,
@@ -56,22 +56,24 @@ def _fingerprint(ctx: Ctx, body: Any) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _lookup(ctx: Ctx, key: str) -> IdempotencyRecord | None:
-    return ctx.db.scalar(
-        select(IdempotencyRecord).where(
-            IdempotencyRecord.user_id == ctx.student_id, IdempotencyRecord.idempotency_key == key
-        )
-    )
+def _store(ctx):
+    return getattr(ctx.request.app.state, "receipt_store", None) or LegacyProtoReceiptStore()
 
 
-def _replay(record: IdempotencyRecord, fingerprint: str) -> JSONResponse:
+def _lookup(ctx: Ctx, key: str):
+    return _store(ctx).lookup(ctx, key, key_digest(ctx.actor_id, key))
+
+
+def _replay(ctx: Ctx, record, fingerprint: str) -> JSONResponse:
     if record.fingerprint != fingerprint:
         raise conflict(
             "idempotency_key_conflict", "同一个 Idempotency-Key 已被用于另一个不同的请求"
         )
     return JSONResponse(
         status_code=record.status_code,
-        content=record.response_json,
+        content=replay_invite(ctx, record)
+        if ctx.request.url.path.endswith("/me/parent-invites")
+        else record.response_json,
         headers={REPLAYED_HEADER: "true"},
     )
 
@@ -81,32 +83,40 @@ def run_idempotent(
 ) -> JSONResponse:
     """执行一次非幂等动作。action 收到的是按用户加盐的键摘要，返回值作为响应的 data。"""
     key = read_key(ctx)
-    fingerprint = _fingerprint(ctx, body)
+    fingerprint = request_fingerprint(ctx, body)
     existing = _lookup(ctx, key)
     if existing is not None:
-        return _replay(existing, fingerprint)
-
+        return _replay(ctx, existing, fingerprint)
+    store = _store(ctx)
+    digest = key_digest(ctx.actor_id, key)
+    store.validate(ctx, digest, fingerprint)
     try:
-        payload = {"data": dump(action(key_digest(ctx.student_id, key)))}
-        ctx.db.add(
-            IdempotencyRecord(
-                id=new_id(),
-                user_id=ctx.student_id,
-                idempotency_key=key,
-                fingerprint=fingerprint,
-                status_code=status_code,
-                response_json=payload,
-                created_at=ctx.now(),
+        with coordinate(ctx, store, digest), store.protect(ctx):
+            reserved = store.reserve(ctx, key, digest, fingerprint)
+            payload = {"data": dump(action(digest))}
+            stored = (
+                stored_response(payload)
+                if ctx.request.url.path.endswith("/me/parent-invites")
+                else payload
             )
-        )
-        ctx.db.commit()
+            store.finish(ctx, reserved, key, digest, fingerprint, status_code, stored)
+            ctx.db.commit()
     except IntegrityError:
         # 并发的重复请求：另一方已经提交。回滚本次的全部写入，改为重放对方的结果。
         ctx.db.rollback()
         winner = _lookup(ctx, key)
         if winner is None:
+            if store.durable:
+                raise
             raise conflict("conflict", "与另一个并发请求冲突，请稍后重试") from None
-        return _replay(winner, fingerprint)
+        return _replay(ctx, winner, fingerprint)
+    except ApiError:
+        ctx.db.rollback()
+        # 读取键后到业务取锁之间，同一请求可能已由并发重试提交。
+        winner = _lookup(ctx, key)
+        if winner is not None:
+            return _replay(ctx, winner, fingerprint)
+        raise
     except BaseException:
         ctx.db.rollback()
         raise

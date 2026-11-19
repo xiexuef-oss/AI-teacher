@@ -69,7 +69,7 @@ def _weak_nodes(db: Session, student_id: str) -> list[KnowledgeNode]:
         .join(Attempt, Attempt.session_id == StudySession.id)
         .where(
             StudySession.student_id == student_id,
-            Attempt.attempt_no == 1,
+            Attempt.submission_no == 1,
             Attempt.status == "submitted",
             Attempt.evaluation_state == "verified",
         )
@@ -253,4 +253,4 @@ def today_tasks(db: Session, student_id: str, *, now: datetime) -> TodayTasks:
                 estimated_minutes=estimated_minutes(question),
             )
         )
-    return TodayTasks(date=today, items=items)
+    return TodayTasks(date=today, items=items, cold_start=not attempted)

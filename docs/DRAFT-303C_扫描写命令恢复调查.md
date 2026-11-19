@@ -1,0 +1,13 @@
+# DRAFT-303C 扫描写命令恢复调查
+
+状态：静态盘点，待Profile与家长包后实施；不把现有Mock当实际OCR。
+
+已有scan_draft.dart保留stem/expressions、scanId/mediaId、pickerPending/hadImage与每动作key；队列按KV实例/owner key串行，租约阻止旧页面写，新格式不能读时保留原文。原图片明确不写草稿存储，页面也提示系统可能保留临时缓存。不能把它描述为完全没有恢复能力。
+
+scan_page.dart的_run在每个动作前保存key，但请求body仍现场构造，未持久不可变command快照或收到结果/ACK阶段。上传创建丢响应且原图重启丢失时，仅有key不一定足以按原body恢复；content动作涉及原图隐私和体积，不能为了通用恢复悄悄把base64图片塞本机journal。确认结果questionId仅页面变量，成功后重启能否用原确认回执恢复需行为验证。_edit会移除confirm key，未决A与编辑B必须分开，不因新输入删除未知原动作。
+
+apiClientProvider动态读取当前身份token；currentRevision只防部分UI更新，不代表账号隔离。待复现切号与迟到响应前，不声称已串号。
+
+后端planned.py已有upload/create/confirm幂等与no-store；blob/scan归属及有效期检查在部分run_idempotent之前，过期后恢复何种错误应明确，不绕过有效期重建。当前仅local显式Mock，不启用外部OCR。
+
+实施前需先逐动作明确：可从非敏感metadata恢复的create、必须重新选原图并校验digest的content、固定scanId与编辑快照的confirm；未决旧动作保留，新选图显式新意图，不上传错误图片。然后契约必要变更→红测→实现→真实浏览器丢响应/重启/换图/过期/切号与隐私检查。原图本机留存政策仍不得由工程恢复功能擅自扩大。

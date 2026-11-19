@@ -11,6 +11,13 @@ import type {
   SolutionKind,
 } from './api/types'
 
+/** Fields shared by a persisted question and an import candidate. */
+export type EditorDetail = Pick<AdminQuestionDetail,
+  'id' | 'version' | 'review_revision' | 'answer_mode' | 'title' | 'difficulty' | 'grade' | 'content' | 'answer' | 'teaching' | 'rubric'> & {
+  solutions: AdminSolutionInput[]
+  knowledge: Array<{ code: string }>
+}
+
 export interface OptionRow {
   key: string
   text: string
@@ -62,6 +69,7 @@ export type SafetyLevel = 'low' | 'medium' | 'high'
 type DataTables = AdminQuestionEdit['content']['data_tables']
 
 export interface EditorForm {
+  attachments: AdminQuestionEdit['content']['attachments']
   title: string
   difficulty: number
   grade: Grade | ''
@@ -94,6 +102,8 @@ export interface EditorForm {
   visualParamsJson: string
   visualCaption: string
   leakMarkers: string[]
+  /** 保留原审核坐标；留空文本不等于明确删除。旧草稿缺字段沿用来源版本。 */
+  referenceLinksJson?: string
   standard: SolutionForm
   fast: SolutionForm
   knowledge: string
@@ -101,7 +111,9 @@ export interface EditorForm {
   comment: string
 }
 
-export type Built = { ok: true; body: AdminQuestionEdit } | { ok: false; errors: string[] }
+/** Internal form projection, also used by unpublished import candidates; never send directly. */
+export type EditorBody = Omit<AdminQuestionEdit, 'expected_review_revision'>
+export type Built = { ok: true; body: EditorBody } | { ok: false; errors: string[] }
 
 const CHOICE_MODES = new Set(['single_choice', 'multiple_choice'])
 const FILL_MODES = new Set(['fill'])
@@ -166,7 +178,7 @@ function referenceSteps(answers: Record<string, unknown>): ProofStepRow[] {
     }))
 }
 
-function solutionForm(detail: AdminQuestionDetail, kind: SolutionKind): SolutionForm {
+function solutionForm(detail: EditorDetail, kind: SolutionKind): SolutionForm {
   const found = detail.solutions.find((solution) => solution.kind === kind)
   return {
     on: found !== undefined,
@@ -178,7 +190,7 @@ function solutionForm(detail: AdminQuestionDetail, kind: SolutionKind): Solution
   }
 }
 
-export function formFromDetail(detail: AdminQuestionDetail): EditorForm {
+export function formFromDetail(detail: EditorDetail): EditorForm {
   const correct = new Set(Array.isArray(detail.answer.value) ? detail.answer.value.map(String) : [])
   const answers =
     detail.answer.value && !Array.isArray(detail.answer.value) && typeof detail.answer.value === 'object'
@@ -188,6 +200,7 @@ export function formFromDetail(detail: AdminQuestionDetail): EditorForm {
   const safety = detail.content.safety
   const cellReferences = Object.fromEntries(Object.entries(answers).filter(([key]) => isCellKey(key)))
   return {
+    attachments: detail.content.attachments.map(item => ({...item})),
     title: detail.title,
     difficulty: detail.difficulty,
     grade: detail.grade ?? '',
@@ -233,6 +246,8 @@ export function formFromDetail(detail: AdminQuestionDetail): EditorForm {
     visualParamsJson: pretty(visual?.params),
     visualCaption: visual?.caption ?? '',
     leakMarkers: [...detail.teaching.leak_markers],
+    referenceLinksJson: detail.teaching.reference_links === undefined
+      ? undefined : JSON.stringify(detail.teaching.reference_links, null, 2),
     standard: solutionForm(detail, 'standard'),
     fast: solutionForm(detail, 'fast'),
     knowledge: detail.knowledge.map((node) => node.code).join(', '),
@@ -255,7 +270,7 @@ function solutionInput(kind: SolutionKind, form: SolutionForm): AdminSolutionInp
 }
 
 /** 题目详情原样还原成一次"修改"请求（不含修改说明）。 */
-export function bodyFromDetail(detail: AdminQuestionDetail): AdminQuestionEdit {
+export function bodyFromDetail(detail: EditorDetail): EditorBody {
   return {
     expected_version: detail.version,
     title: detail.title,
@@ -279,6 +294,43 @@ export function bodyFromDetail(detail: AdminQuestionDetail): AdminQuestionEdit {
 
 /** 契约里 type: object 且没有 properties 的字段，生成出来是 Record<string, never>。 */
 type Obj = Record<string, never>
+
+type ReferenceLinks = NonNullable<AdminQuestionEdit['teaching']['reference_links']>
+const sourceBlock = /^(stem|subquestion:[1-9][0-9]{0,2}:stem|option:[1-9][0-9]{0,2}|subquestion:[1-9][0-9]{0,2}:option:[1-9][0-9]{0,2}|proof:given:[1-9][0-9]{0,2}|proof:claim|hint:[1-9][0-9]{0,2}|rephrase|solution:(standard|fast):(step:[1-9][0-9]{0,2}|final_answer|condition:[1-9][0-9]{0,2}|boundary|key_point:[1-9][0-9]{0,2})|visual:(caption|static_fallback)|rubric:point:[1-9][0-9]{0,2}|reference_cell:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}:[1-9][0-9]{0,2}|reference_step:[1-9][0-9]{0,2}:(text|reason))$/
+const targetBlock = /^(hint:[1-9][0-9]{0,2}|rephrase|solution:(standard|fast):step:[1-9][0-9]{0,2}|visual:caption)$/
+const record = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+const exactKeys = (value: Record<string, unknown>, keys: string[]) =>
+  Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key))
+
+function parseReferenceLinks(text: string, errors: string[]): ReferenceLinks {
+  try {
+    const parsed: unknown = JSON.parse(text)
+    if (!Array.isArray(parsed) || parsed.length > 64) throw new Error()
+    const seen = new Set<string>(), counts = new Map<string, number>()
+    for (const item of parsed) {
+      if (!record(item) || !exactKeys(item, ['target_block_id', 'source_span', 'independent_safe']) ||
+        typeof item.target_block_id !== 'string' || targetBlock.exec(item.target_block_id)?.[0] !== item.target_block_id ||
+        typeof item.independent_safe !== 'boolean' || !record(item.source_span)) throw new Error()
+      const span = item.source_span
+      if (!exactKeys(span, ['block_id', 'block_sha256', 'start', 'end']) ||
+        typeof span.block_id !== 'string' || span.block_id.length > 64 || sourceBlock.exec(span.block_id)?.[0] !== span.block_id ||
+        typeof span.block_sha256 !== 'string' || span.block_sha256.length !== 64 || !/^[a-f0-9]{64}$/.test(span.block_sha256) ||
+        typeof span.start !== 'number' || !Number.isInteger(span.start) || span.start < 0 || span.start > 3999 ||
+        typeof span.end !== 'number' || !Number.isInteger(span.end) || span.end <= span.start || span.end > 4000) throw new Error()
+      const identity = canonical([item.target_block_id, span.block_id, span.block_sha256, span.start, span.end])
+      if (seen.has(identity)) throw new Error()
+      seen.add(identity)
+      const count = (counts.get(item.target_block_id) ?? 0) + 1
+      if (count > 8) throw new Error()
+      counts.set(item.target_block_id, count)
+    }
+    return parsed as ReferenceLinks
+  } catch {
+    errors.push('引用注记必须是有效的 JSON 数组，包含正确的内容块、摘要和整数范围；不能重复或添加未知字段')
+    return []
+  }
+}
 
 function parseObject(label: string, text: string, errors: string[]): Obj {
   if (text.trim() === '') return {}
@@ -316,7 +368,7 @@ function parseReferenceCells(text: string, errors: string[]): Record<string, str
   return cells
 }
 
-export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): Built {
+export function requestFromForm(form: EditorForm, detail: EditorDetail): Built {
   const errors: string[] = []
   const keep = (items: string[]) => items.filter((item) => item.trim() !== '')
 
@@ -333,6 +385,9 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
   const subjective = written || experiment || proof
   const withParts = written || experiment
   const rubric = subjective ? ({} as Obj) : parseObject('评分细则', form.rubricJson, errors)
+  const referenceText = form.referenceLinksJson ?? (detail.teaching.reference_links === undefined
+    ? undefined : JSON.stringify(detail.teaching.reference_links))
+  const referenceLinks = referenceText === undefined ? undefined : parseReferenceLinks(referenceText, errors)
 
   let visual: AdminQuestionEdit['teaching']['visual'] = null
   if (form.visualOn) {
@@ -430,13 +485,14 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
           placeholder: orNull(row.placeholder),
         })),
         subquestions,
-        attachments: detail.content.attachments,
+        attachments: form.attachments,
         data_tables: dataTables,
         safety,
         proof: proofStatement,
       },
       answer: { value, equivalence_rules: rules, units },
       teaching: {
+        ...(referenceLinks === undefined ? {} : { reference_links: referenceLinks }),
         concept: orNull(form.concept),
         hints: keep(form.hints),
         concept_rephrase: orNull(form.conceptRephrase),
@@ -456,7 +512,7 @@ export function requestFromForm(form: EditorForm, detail: AdminQuestionDetail): 
 }
 
 /** 表单现在的内容与题目详情相比有没有改动（不看修改说明）。 */
-export function isUnchanged(body: AdminQuestionEdit, detail: AdminQuestionDetail): boolean {
+export function isUnchanged(body: EditorBody, detail: EditorDetail): boolean {
   const { comment: _comment, ...rest } = body
   return canonical(rest) === canonical(bodyFromDetail(detail))
 }

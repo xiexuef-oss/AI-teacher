@@ -15,6 +15,7 @@ SICHUAN_LATER_YEARS = {"chem-charge-conservation"}  # CN-51，考试年份 2030�
 CHONGQING_TAGGED = {"math-ineq-rect", "phys-tape-accel", "chem-lab-operation"}  # CN-50，2027–2029
 # 可以由服务端确定性判定的样题（单选、多选、填空）
 OBJECTIVE_KEYS = {
+    "chem-process-reading",
     "math-mono-quadratic",
     "math-mono-quadratic-v1",
     "math-mono-judge",
@@ -47,6 +48,8 @@ EXPERIMENT_KEYS = {
 }
 # 证明题：有"已知 / 求证"，学生把证明写成一步一步（每步带依据），同样不自动评分，作答后对照参考证明和要点自查。都是通用题
 PROOF_KEYS = {
+    "math-triangle-coordinate-proof",
+    "math-circle-radius-proof",
     "math-ineq-diff-proof",
     "math-mono-def-proof",
     "math-ineq-mul-proof",

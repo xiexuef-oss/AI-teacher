@@ -1,0 +1,97 @@
+{
+  "source": "Real browser R2 review completion response loss; auth/profile excluded; read-only capture",
+  "storage": {
+    "flutter.u/9e4e7283-0393-4fc3-b069-e9538a183dbe/draft-bundle/78d86cab-1ee9-5126-83af-c3125e4a0daf": "\"{\\\"v\\\":1,\\\"drafts\\\":{},\\\"pending\\\":{},\\\"references\\\":{},\\\"workspaceContexts\\\":{\\\"attempt/b46075cc-9f62-4c64-b49a-656532352320\\\":{\\\"v\\\":1,\\\"workspaceId\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"question\\\":{\\\"id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"subject\\\":\\\"math\\\",\\\"type\\\":\\\"single_choice\\\",\\\"answer_mode\\\":\\\"single_choice\\\",\\\"difficulty\\\":2,\\\"title\\\":\\\"二次函数的单调递增区间\\\",\\\"source\\\":{\\\"source_type\\\":\\\"self_authored\\\",\\\"source_category\\\":\\\"foundation\\\",\\\"source_name\\\":\\\"自编工程样题\\\",\\\"source_year\\\":null,\\\"source_license\\\":\\\"internal-engineering-sample\\\",\\\"source_url\\\":null,\\\"is_engineering_sample\\\":true,\\\"label\\\":\\\"自编工程样题 · 未经学科审校\\\"},\\\"applicability\\\":{\\\"scope\\\":\\\"region\\\",\\\"label\\\":\\\"推荐适用：四川（工程测试标签）\\\",\\\"recommended_regions\\\":[\\\"CN-51\\\"],\\\"origin_region_code\\\":null,\\\"exam_year_from\\\":2027,\\\"exam_year_to\\\":2029,\\\"disclaimer\\\":\\\"自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。\\\"},\\\"knowledge\\\":[{\\\"id\\\":\\\"129748fc-2a3c-5d38-870c-0e2f1d46e6e4\\\",\\\"code\\\":\\\"math.function.monotonicity\\\",\\\"title\\\":\\\"函数的单调性\\\"},{\\\"id\\\":\\\"d5481c2c-10fe-5dbe-be46-fe9573673a6e\\\",\\\"code\\\":\\\"math.quadratic.graph\\\",\\\"title\\\":\\\"二次函数的图像与对称轴\\\"}],\\\"variant_of\\\":null,\\\"version\\\":1,\\\"grade\\\":\\\"G10\\\",\\\"content\\\":{\\\"stem\\\":\\\"函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）\\\",\\\"options\\\":[{\\\"key\\\":\\\"A\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,1]$\\\"},{\\\"key\\\":\\\"B\\\",\\\"text\\\":\\\"$[1,+\\\\\\\\infty)$\\\"},{\\\"key\\\":\\\"C\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,-1]$\\\"},{\\\"key\\\":\\\"D\\\",\\\"text\\\":\\\"$[-1,+\\\\\\\\infty)$\\\"}],\\\"blanks\\\":[],\\\"subquestions\\\":[],\\\"attachments\\\":[],\\\"data_tables\\\":[],\\\"safety\\\":null,\\\"proof\\\":null},\\\"assists\\\":{\\\"hint_levels\\\":3,\\\"has_standard_solution\\\":true,\\\"has_fast_solution\\\":true,\\\"visual_available\\\":true},\\\"judging_note\\\":null},\\\"sessionBody\\\":{\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"expected_question_version\\\":1,\\\"origin\\\":\\\"review\\\",\\\"review_item_id\\\":\\\"75af444a-e8c3-482a-86b6-10e6303e00ae\\\"},\\\"trustedSessionId\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\"}},\\\"active\\\":{\\\"sessionId\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"attemptId\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\"},\\\"activeEpoch\\\":1,\\\"editState\\\":{\\\"attempt/b46075cc-9f62-4c64-b49a-656532352320\\\":{\\\"draftGeneration\\\":1,\\\"marksGeneration\\\":0,\\\"knownRevision\\\":1}},\\\"writeJournal\\\":{\\\"attempt/b46075cc-9f62-4c64-b49a-656532352320\\\":{\\\"draft_sync\\\":{\\\"history\\\":{\\\"write-intent-ho7fl4ewco-pdxk9o-1\\\":{\\\"v\\\":1,\\\"owner\\\":\\\"9e4e7283-0393-4fc3-b069-e9538a183dbe\\\",\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"questionVersion\\\":1,\\\"workspaceId\\\":\\\"attempt/b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"sessionId\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"attemptId\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"lane\\\":\\\"draft_sync\\\",\\\"intentId\\\":\\\"write-intent-ho7fl4ewco-pdxk9o-1\\\",\\\"idempotencyKey\\\":\\\"draft_sync-ho7fl4ewco-e76hup-2\\\",\\\"method\\\":\\\"PUT\\\",\\\"path\\\":\\\"/attempts/b46075cc-9f62-4c64-b49a-656532352320/draft\\\",\\\"phase\\\":\\\"acked\\\",\\\"generation\\\":3,\\\"editGeneration\\\":1,\\\"activationEpoch\\\":1,\\\"sourceSnapshot\\\":{\\\"v\\\":1,\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"sessionId\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"attemptId\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"baseRevision\\\":0,\\\"dirty\\\":true,\\\"answer\\\":{\\\"selected\\\":[\\\"B\\\"],\\\"blanks\\\":{},\\\"parts\\\":{},\\\"cells\\\":{},\\\"steps\\\":[]},\\\"strokes\\\":null,\\\"savedAt\\\":\\\"2026-11-16T05:52:59.226Z\\\"},\\\"sourceHash\\\":\\\"add3258b2a791309715fe5413fd1e810be0e877a8ca81a86d8ffa1af49189e9b\\\",\\\"body\\\":{\\\"base_revision\\\":0,\\\"answer\\\":{\\\"selected_options\\\":[\\\"B\\\"]}},\\\"result\\\":{\\\"attempt_id\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"revision\\\":1,\\\"answer\\\":{\\\"selected_options\\\":[\\\"B\\\"]},\\\"strokes\\\":null,\\\"updated_at\\\":\\\"2026-11-16T05:52:59.252990Z\\\"},\\\"checksum\\\":\\\"b55e762434ac37312b0c9c1144c6c0636a197f79722de7375628b65231b3e625\\\"}},\\\"current\\\":\\\"write-intent-ho7fl4ewco-pdxk9o-1\\\"},\\\"submit\\\":{\\\"history\\\":{\\\"write-intent-ho7fl4ezfs-ks2wqs-3\\\":{\\\"v\\\":1,\\\"owner\\\":\\\"9e4e7283-0393-4fc3-b069-e9538a183dbe\\\",\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"questionVersion\\\":1,\\\"workspaceId\\\":\\\"attempt/b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"sessionId\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"attemptId\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"lane\\\":\\\"submit\\\",\\\"intentId\\\":\\\"write-intent-ho7fl4ezfs-ks2wqs-3\\\",\\\"idempotencyKey\\\":\\\"submit-ho7fl4ezfs-g6j0gz-4\\\",\\\"method\\\":\\\"POST\\\",\\\"path\\\":\\\"/attempts/b46075cc-9f62-4c64-b49a-656532352320/submit\\\",\\\"phase\\\":\\\"acked\\\",\\\"generation\\\":4,\\\"editGeneration\\\":1,\\\"activationEpoch\\\":1,\\\"sourceSnapshot\\\":{\\\"v\\\":1,\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"sessionId\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"attemptId\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"baseRevision\\\":0,\\\"dirty\\\":true,\\\"answer\\\":{\\\"selected\\\":[\\\"B\\\"],\\\"blanks\\\":{},\\\"parts\\\":{},\\\"cells\\\":{},\\\"steps\\\":[]},\\\"strokes\\\":null,\\\"savedAt\\\":\\\"2026-11-16T05:52:59.226Z\\\"},\\\"sourceHash\\\":\\\"add3258b2a791309715fe5413fd1e810be0e877a8ca81a86d8ffa1af49189e9b\\\",\\\"body\\\":{\\\"answer\\\":{\\\"selected_options\\\":[\\\"B\\\"]},\\\"elapsed_ms\\\":4279,\\\"expected_draft_revision\\\":1},\\\"result\\\":{\\\"attempt\\\":{\\\"id\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"session_id\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"attempt_no\\\":1,\\\"submission_no\\\":1,\\\"status\\\":\\\"submitted\\\",\\\"answer\\\":{\\\"selected_options\\\":[\\\"B\\\"]},\\\"draft_revision\\\":1,\\\"assisted\\\":false,\\\"used_solution\\\":false,\\\"independent\\\":true,\\\"evaluation\\\":{\\\"state\\\":\\\"verified\\\",\\\"outcome\\\":\\\"correct\\\",\\\"is_correct\\\":true,\\\"independent\\\":true,\\\"assisted\\\":false,\\\"used_solution\\\":false,\\\"review_required\\\":false,\\\"feedback\\\":[{\\\"target\\\":\\\"overall\\\",\\\"code\\\":\\\"correct\\\",\\\"message\\\":\\\"回答正确。\\\"}],\\\"message\\\":\\\"回答正确。\\\",\\\"disclaimer\\\":\\\"这是练习反馈，不是官方阅卷分数。\\\"},\\\"submitted_at\\\":\\\"2026-11-16T05:52:59.350697Z\\\",\\\"created_at\\\":\\\"2026-11-16T05:52:53.823434Z\\\",\\\"updated_at\\\":\\\"2026-11-16T05:52:59.350697Z\\\"},\\\"evaluation\\\":{\\\"state\\\":\\\"verified\\\",\\\"outcome\\\":\\\"correct\\\",\\\"is_correct\\\":true,\\\"independent\\\":true,\\\"assisted\\\":false,\\\"used_solution\\\":false,\\\"review_required\\\":false,\\\"feedback\\\":[{\\\"target\\\":\\\"overall\\\",\\\"code\\\":\\\"correct\\\",\\\"message\\\":\\\"回答正确。\\\"}],\\\"message\\\":\\\"回答正确。\\\",\\\"disclaimer\\\":\\\"这是练习反馈，不是官方阅卷分数。\\\"},\\\"session\\\":{\\\"id\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"question_version\\\":1,\\\"origin\\\":\\\"review\\\",\\\"state\\\":\\\"DIAGNOSED\\\",\\\"review_item_id\\\":\\\"75af444a-e8c3-482a-86b6-10e6303e00ae\\\",\\\"parent_session_id\\\":null,\\\"region_code_snapshot\\\":\\\"CN-51\\\",\\\"exam_year_snapshot\\\":2027,\\\"curriculum_version_snapshot\\\":null,\\\"assisted\\\":false,\\\"used_solution\\\":false,\\\"independent_ended\\\":false,\\\"hint_level_revealed\\\":0,\\\"hint_levels_total\\\":3,\\\"confused_streak\\\":0,\\\"needs_human_help\\\":false,\\\"active_attempt_id\\\":null,\\\"first_submitted_attempt_id\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"submitted_attempts\\\":1,\\\"last_event_seq\\\":1,\\\"created_at\\\":\\\"2026-11-16T05:52:53.794159Z\\\",\\\"updated_at\\\":\\\"2026-11-16T05:52:59.350697Z\\\"},\\\"events\\\":[{\\\"id\\\":\\\"1bc0dc89-539b-4341-b218-48e69b609dde\\\",\\\"session_id\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"seq_no\\\":1,\\\"type\\\":\\\"diagnosis\\\",\\\"created_at\\\":\\\"2026-11-16T05:52:59.350697Z\\\",\\\"state_after\\\":\\\"DIAGNOSED\\\",\\\"payload\\\":{\\\"outcome\\\":\\\"correct\\\",\\\"summary\\\":\\\"回答正确。\\\",\\\"feedback\\\":[{\\\"target\\\":\\\"overall\\\",\\\"code\\\":\\\"correct\\\",\\\"message\\\":\\\"回答正确。\\\"}],\\\"knowledge\\\":[{\\\"id\\\":\\\"129748fc-2a3c-5d38-870c-0e2f1d46e6e4\\\",\\\"code\\\":\\\"math.function.monotonicity\\\",\\\"title\\\":\\\"函数的单调性\\\"},{\\\"id\\\":\\\"d5481c2c-10fe-5dbe-be46-fe9573673a6e\\\",\\\"code\\\":\\\"math.quadratic.graph\\\",\\\"title\\\":\\\"二次函数的图像与对称轴\\\"}],\\\"suggestions\\\":[{\\\"action\\\":\\\"request_standard\\\",\\\"label\\\":\\\"看看解法\\\",\\\"question_id\\\":null,\\\"knowledge_id\\\":null},{\\\"action\\\":\\\"finish\\\",\\\"label\\\":\\\"完成这道题\\\",\\\"question_id\\\":null,\\\"knowledge_id\\\":null}]},\\\"meta\\\":{\\\"schema_version\\\":\\\"1.0\\\",\\\"source\\\":\\\"rule_engine\\\",\\\"degraded\\\":false,\\\"provider\\\":null,\\\"model_id\\\":null,\\\"prompt_version\\\":null,\\\"question_id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"question_version\\\":1,\\\"trace_id\\\":null,\\\"request_id\\\":\\\"23658c187f824a07bd714d8d9a164613\\\"}}],\\\"review_item\\\":null},\\\"answer\\\":{\\\"selected_options\\\":[\\\"B\\\"]},\\\"elapsedMs\\\":4279,\\\"syncIntentId\\\":\\\"write-intent-ho7fl4ewco-pdxk9o-1\\\",\\\"checksum\\\":\\\"38928045a7259585b985c1a9e005f41238e6a659a76958d74d0c3890390a52a0\\\"}},\\\"current\\\":\\\"write-intent-ho7fl4ezfs-ks2wqs-3\\\"}}},\\\"cleared\\\":[\\\"attempt/b46075cc-9f62-4c64-b49a-656532352320\\\"]}\"",
+    "flutter.u/9e4e7283-0393-4fc3-b069-e9538a183dbe/question/78d86cab-1ee9-5126-83af-c3125e4a0daf/attempt/b46075cc-9f62-4c64-b49a-656532352320": "\"{\\\"id\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"subject\\\":\\\"math\\\",\\\"type\\\":\\\"single_choice\\\",\\\"answer_mode\\\":\\\"single_choice\\\",\\\"difficulty\\\":2,\\\"title\\\":\\\"二次函数的单调递增区间\\\",\\\"source\\\":{\\\"source_type\\\":\\\"self_authored\\\",\\\"source_category\\\":\\\"foundation\\\",\\\"source_name\\\":\\\"自编工程样题\\\",\\\"source_year\\\":null,\\\"source_license\\\":\\\"internal-engineering-sample\\\",\\\"source_url\\\":null,\\\"is_engineering_sample\\\":true,\\\"label\\\":\\\"自编工程样题 · 未经学科审校\\\"},\\\"applicability\\\":{\\\"scope\\\":\\\"region\\\",\\\"label\\\":\\\"推荐适用：四川（工程测试标签）\\\",\\\"recommended_regions\\\":[\\\"CN-51\\\"],\\\"origin_region_code\\\":null,\\\"exam_year_from\\\":2027,\\\"exam_year_to\\\":2029,\\\"disclaimer\\\":\\\"自编工程样题，地区标签仅用于测试筛选，不代表该地区的高考命题规则。\\\"},\\\"knowledge\\\":[{\\\"id\\\":\\\"129748fc-2a3c-5d38-870c-0e2f1d46e6e4\\\",\\\"code\\\":\\\"math.function.monotonicity\\\",\\\"title\\\":\\\"函数的单调性\\\"},{\\\"id\\\":\\\"d5481c2c-10fe-5dbe-be46-fe9573673a6e\\\",\\\"code\\\":\\\"math.quadratic.graph\\\",\\\"title\\\":\\\"二次函数的图像与对称轴\\\"}],\\\"variant_of\\\":null,\\\"version\\\":1,\\\"grade\\\":\\\"G10\\\",\\\"content\\\":{\\\"stem\\\":\\\"函数 $f(x)=x^2-2x-3$ 的单调递增区间是（　）\\\",\\\"options\\\":[{\\\"key\\\":\\\"A\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,1]$\\\"},{\\\"key\\\":\\\"B\\\",\\\"text\\\":\\\"$[1,+\\\\\\\\infty)$\\\"},{\\\"key\\\":\\\"C\\\",\\\"text\\\":\\\"$(-\\\\\\\\infty,-1]$\\\"},{\\\"key\\\":\\\"D\\\",\\\"text\\\":\\\"$[-1,+\\\\\\\\infty)$\\\"}],\\\"blanks\\\":[],\\\"subquestions\\\":[],\\\"attachments\\\":[],\\\"data_tables\\\":[],\\\"safety\\\":null,\\\"proof\\\":null},\\\"assists\\\":{\\\"hint_levels\\\":3,\\\"has_standard_solution\\\":true,\\\"has_fast_solution\\\":true,\\\"visual_available\\\":true},\\\"judging_note\\\":null}\"",
+    "flutter.u/9e4e7283-0393-4fc3-b069-e9538a183dbe/resource-journal/review/75af444a-e8c3-482a-86b6-10e6303e00ae": "\"{\\\"v\\\":1,\\\"owner\\\":\\\"9e4e7283-0393-4fc3-b069-e9538a183dbe\\\",\\\"target\\\":\\\"review/75af444a-e8c3-482a-86b6-10e6303e00ae\\\",\\\"history\\\":{\\\"resource-intent-ho7fl4kmdc-32jir1-5\\\":{\\\"v\\\":1,\\\"owner\\\":\\\"9e4e7283-0393-4fc3-b069-e9538a183dbe\\\",\\\"target\\\":\\\"review/75af444a-e8c3-482a-86b6-10e6303e00ae\\\",\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"source\\\":{\\\"owner\\\":\\\"9e4e7283-0393-4fc3-b069-e9538a183dbe\\\",\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"questionVersion\\\":1,\\\"workspaceId\\\":\\\"attempt/b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"origin\\\":\\\"review\\\",\\\"reviewId\\\":\\\"75af444a-e8c3-482a-86b6-10e6303e00ae\\\",\\\"sessionId\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"attemptId\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"editGeneration\\\":1,\\\"activeEpoch\\\":1,\\\"viewGeneration\\\":0},\\\"intentId\\\":\\\"resource-intent-ho7fl4kmdc-32jir1-5\\\",\\\"idempotencyKey\\\":\\\"review-ho7fl4kmdc-laibot-6\\\",\\\"method\\\":\\\"POST\\\",\\\"path\\\":\\\"/reviews/75af444a-e8c3-482a-86b6-10e6303e00ae/complete\\\",\\\"body\\\":{\\\"attempt_id\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\"},\\\"phase\\\":\\\"prepared\\\",\\\"generation\\\":1,\\\"provenance\\\":{\\\"kind\\\":\\\"submit_receipt\\\",\\\"owner\\\":\\\"9e4e7283-0393-4fc3-b069-e9538a183dbe\\\",\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"questionVersion\\\":1,\\\"sessionId\\\":\\\"2cf618d2-dcbb-4695-b018-0947f45fcfe1\\\",\\\"reviewId\\\":\\\"75af444a-e8c3-482a-86b6-10e6303e00ae\\\",\\\"firstAttemptId\\\":\\\"b46075cc-9f62-4c64-b49a-656532352320\\\",\\\"submitIntentId\\\":\\\"write-intent-ho7fl4ezfs-ks2wqs-3\\\",\\\"submitKey\\\":\\\"submit-ho7fl4ezfs-g6j0gz-4\\\",\\\"resultHash\\\":\\\"3d3532e0e4b00a9923dc704ba8d32d4d9e774411db989d8b78a70f2c299e2840\\\",\\\"submissionNo\\\":1,\\\"evaluationState\\\":\\\"verified\\\"},\\\"checksum\\\":\\\"cfff0089b6893aca9e98068d6a8c49a212d54f3725e49493282f8e8825c25a5b\\\"}},\\\"questionId\\\":\\\"78d86cab-1ee9-5126-83af-c3125e4a0daf\\\",\\\"current\\\":\\\"resource-intent-ho7fl4kmdc-32jir1-5\\\",\\\"checksum\\\":\\\"60fc610f6490be0c3a31816f8b9209d16113c4ac13fc1296ce0f19858b1fd6db\\\"}\""
+  },
+  "responses": [
+    {
+      "path": "/sessions/2cf618d2-dcbb-4695-b018-0947f45fcfe1",
+      "status": 200,
+      "data": {
+        "id": "2cf618d2-dcbb-4695-b018-0947f45fcfe1",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "question_version": 1,
+        "origin": "review",
+        "state": "DIAGNOSED",
+        "review_item_id": "75af444a-e8c3-482a-86b6-10e6303e00ae",
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "first_submitted_attempt_id": "b46075cc-9f62-4c64-b49a-656532352320",
+        "submitted_attempts": 1,
+        "last_event_seq": 1,
+        "created_at": "2026-11-16T05:52:53.794159Z",
+        "updated_at": "2026-11-16T05:52:59.350697Z"
+      }
+    },
+    {
+      "path": "/attempts/b46075cc-9f62-4c64-b49a-656532352320",
+      "status": 200,
+      "data": {
+        "id": "b46075cc-9f62-4c64-b49a-656532352320",
+        "session_id": "2cf618d2-dcbb-4695-b018-0947f45fcfe1",
+        "attempt_no": 1,
+        "submission_no": 1,
+        "copied_from_attempt_id": null,
+        "copied_from_revision": null,
+        "status": "submitted",
+        "answer": {
+          "selected_options": [
+            "B"
+          ]
+        },
+        "draft_revision": 1,
+        "assisted": false,
+        "used_solution": false,
+        "independent": true,
+        "evaluation": {
+          "state": "verified",
+          "outcome": "correct",
+          "is_correct": true,
+          "independent": true,
+          "assisted": false,
+          "used_solution": false,
+          "review_required": false,
+          "feedback": [
+            {
+              "target": "overall",
+              "code": "correct",
+              "message": "回答正确。"
+            }
+          ],
+          "message": "回答正确。",
+          "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+        },
+        "submitted_at": "2026-11-16T05:52:59.350697Z",
+        "created_at": "2026-11-16T05:52:53.823434Z",
+        "updated_at": "2026-11-16T05:52:59.350697Z"
+      }
+    },
+    {
+      "path": "/reviews/75af444a-e8c3-482a-86b6-10e6303e00ae/state",
+      "status": 200,
+      "data": {
+        "id": "75af444a-e8c3-482a-86b6-10e6303e00ae",
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "status": "scheduled",
+        "stage": 1,
+        "total_stages": 3,
+        "due_at": "2026-11-16T05:54:59.516337Z",
+        "last_result": "passed",
+        "last_attempt_id": "b46075cc-9f62-4c64-b49a-656532352320",
+        "updated_at": "2026-11-16T05:52:59.516337Z"
+      }
+    }
+  ]
+}

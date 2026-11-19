@@ -112,6 +112,9 @@ class _TodayColumn extends ConsumerWidget {
         final visible = result.tasks.items
             .where((t) => !skipped.contains(t.id))
             .toList();
+        final starters = visible
+            .where((task) => task.kind == TaskKind.newTopic)
+            .toList();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -122,6 +125,40 @@ class _TodayColumn extends ConsumerWidget {
                   tone: Tone.info,
                   icon: Icons.offline_pin_outlined,
                   child: Text('没有网络：显示的是上次保存的任务。联网之后会自动更新。'),
+                ),
+              ),
+            if (result.tasks.coldStart == true)
+              Padding(
+                padding: const EdgeInsets.only(bottom: kGap),
+                child: Section(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '开始第一次练习',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '还没有练习记录。先从基础题开始，或选择正在学的知识点。这里只帮助选题，不代表掌握度诊断。',
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          if (starters.isNotEmpty)
+                            TextButton(
+                              onPressed: () =>
+                                  startTask(context, starters.first),
+                              child: const Text('先练一道基础题'),
+                            ),
+                          OutlinedButton(
+                            onPressed: () => context.push('/practice'),
+                            child: const Text('按知识点选题'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             _StartCard(
@@ -294,6 +331,13 @@ class _Entries extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tiles = [
+      _EntryTile(
+        key: const ValueKey('home.diagnostic'),
+        icon: Icons.checklist_outlined,
+        title: '三题摸底',
+        subtitle: '做三道题，退出后可以继续',
+        onTap: () => context.push('/diagnostic'),
+      ),
       _EntryTile(
         key: const ValueKey('home.scan'),
         icon: Icons.photo_camera_outlined,

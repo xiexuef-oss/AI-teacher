@@ -1,0 +1,17 @@
+{
+  "name": "school_material_corrected",
+  "method": "PUT",
+  "path": "/api/v1/school-materials/218235b6-9bff-46e8-8417-d0b3faafd96a/pages/1/correction",
+  "status": 200,
+  "schema": "SchoolMaterialCorrectionReceipt",
+  "value": {
+    "page_number": 1,
+    "revision": 1
+  },
+  "body": {
+    "data": {
+      "page_number": 1,
+      "revision": 1
+    }
+  }
+}

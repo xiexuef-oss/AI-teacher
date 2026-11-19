@@ -1,0 +1,19 @@
+{
+  "name": "school_material_submitted",
+  "method": "POST",
+  "path": "/api/v1/school-materials",
+  "status": 202,
+  "schema": "LearningJobStatus",
+  "value": {
+    "id": "218235b6-9bff-46e8-8417-d0b3faafd96a",
+    "status": "queued",
+    "attempts": 0
+  },
+  "body": {
+    "data": {
+      "id": "218235b6-9bff-46e8-8417-d0b3faafd96a",
+      "status": "queued",
+      "attempts": 0
+    }
+  }
+}

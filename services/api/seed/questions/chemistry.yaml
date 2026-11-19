@@ -3,6 +3,45 @@
 # region_tags 只是用来测试地区筛选逻辑的工程标签（ADR-006 Q-09）。
 # 实验类内容只讲安全概念和判断理由，不提供可照做的危险操作指导。
 
+- key: chem-process-reading
+  subject: chemistry
+  type: single_choice
+  answer_mode: single_choice
+  difficulty: 1
+  grade: G10
+  title: 阅读通用流程中的回流关系
+  knowledge: [chem.process.reading]
+  content:
+    stem: '自编工程示例，只讨论流程结构，不代表任何具体化学反应或操作。全部流程关系如下：主线为原料→处理Ⅰ→分离→处理Ⅱ→产物；另有分离→支路，以及处理Ⅱ→处理Ⅰ。把返回主线上较早位置的箭头称为回流。以下哪个箭头是这里的回流？无需图片也可据文字作答。'
+    options:
+      - {key: A, text: '原料→处理Ⅰ'}
+      - {key: B, text: '处理Ⅱ→处理Ⅰ'}
+      - {key: C, text: '分离→支路'}
+      - {key: D, text: '处理Ⅱ→产物'}
+  answer:
+    value: [B]
+  teaching:
+    concept: 区分流程中已给的主线、支路与回流
+    option_analysis:
+      A: '这是主线起始段，尚未返回已经经过的位置。'
+      B: '它从较后的处理位置返回较早位置，符合题干给出的回流定义。'
+      C: '这是从分离位置离开主线的支路。'
+      D: '这是沿主线到达产物的方向。'
+    hints:
+      - '先按题干给出的主线顺序定位各位置，再比较箭头的起点和终点。'
+      - '回流的方向特点是返回已经经过的位置；支路则从主线分出。这里只比较方向，不猜测反应。'
+    visual:
+      template_id: chemical_process
+      params: {focus: 0, branch: 1, recycle: 1}
+      caption: '只定位题干已给出的流程关系，不推断物质、反应或操作。'
+  solutions:
+    standard:
+      steps:
+        - '题干已给出主线的先后顺序，以及支路和返回箭头。'
+        - '处理Ⅱ→处理Ⅰ返回主线上较早的位置，所以是题干定义的回流。'
+      final_answer: B
+      key_points: ['只依据已给流程方向判断，不推断实际化学过程']
+
 - key: chem-conservation-co2
   subject: chemistry
   type: fill_blank

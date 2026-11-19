@@ -1,11 +1,11 @@
 {
   "name": "draft_synced_proof",
   "method": "PUT",
-  "path": "/api/v1/attempts/00c23fe1-8d4d-4ee8-a70f-5d436233aab2/draft",
+  "path": "/api/v1/attempts/fc34c439-f488-4c53-8f23-73af13f7c0c6/draft",
   "status": 200,
   "schema": "Draft",
   "value": {
-    "attempt_id": "00c23fe1-8d4d-4ee8-a70f-5d436233aab2",
+    "attempt_id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
     "revision": 1,
     "answer": {
       "steps": [
@@ -52,7 +52,7 @@
   },
   "body": {
     "data": {
-      "attempt_id": "00c23fe1-8d4d-4ee8-a70f-5d436233aab2",
+      "attempt_id": "fc34c439-f488-4c53-8f23-73af13f7c0c6",
       "revision": 1,
       "answer": {
         "steps": [

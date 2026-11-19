@@ -18,6 +18,9 @@ void main() {
       'force_diagram',
       'motion_chart',
       'chemical_flow',
+      'chemical_process',
+      'triangle_schematic',
+      'circle_schematic',
     });
     for (final entry in templates.entries) {
       final spec = visualTemplates[entry.key]!;
@@ -39,6 +42,32 @@ void main() {
   });
 
   group('normalize', () {
+    test('fixed diagram parameters and defaults remain numeric', () {
+      expect(visualTemplates['circle_schematic']!.normalize({}),
+          {'a_position': 0.1, 'b_position': 0.37, 'focus': 0.0});
+      expect(
+          visualTemplates['circle_schematic']!
+              .params
+              .where((param) => param.adjustable)
+              .map((param) => param.name),
+          ['focus']);
+      expect(visualTemplates['chemical_process']!.normalize({}),
+          {'focus': 0.0, 'branch': 0.0, 'recycle': 0.0});
+      expect(visualTemplates['triangle_schematic']!.normalize({}),
+          {'apex_x': 0.35, 'height': 0.65, 'focus': 0.0});
+      expect(
+          visualTemplates['chemical_process']!
+              .params
+              .where((param) => param.adjustable)
+              .map((param) => param.name),
+          ['focus']);
+      expect(
+          visualTemplates['triangle_schematic']!
+              .params
+              .where((param) => param.adjustable)
+              .map((param) => param.name),
+          ['focus']);
+    });
     final quadratic = visualTemplates['quadratic_graph']!;
 
     test('没给的参数用默认值，按注册顺序返回', () {

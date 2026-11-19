@@ -1,0 +1,63 @@
+{
+  "name": "admin_batch_review",
+  "method": "POST",
+  "path": "/api/v1/admin/question-reviews/batch",
+  "status": 200,
+  "schema": "ReviewBatchResult",
+  "value": {
+    "items": [
+      {
+        "question_id": "b9b79ed9-d806-4041-bf01-4469f7cc6a83",
+        "status": "succeeded",
+        "state": {
+          "review_revision": 2,
+          "question_id": "b9b79ed9-d806-4041-bf01-4469f7cc6a83",
+          "status": "reviewed",
+          "version": 1,
+          "reviewed_by": "9367b555-7ebf-4884-bb1c-a99974c3ad85",
+          "updated_at": "2026-11-10T08:00:00Z"
+        },
+        "error": null
+      },
+      {
+        "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+        "status": "failed",
+        "state": null,
+        "error": {
+          "status": 409,
+          "code": "invalid_transition",
+          "message": "题目现在是 published 状态，不能执行 approve"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "question_id": "b9b79ed9-d806-4041-bf01-4469f7cc6a83",
+          "status": "succeeded",
+          "state": {
+            "review_revision": 2,
+            "question_id": "b9b79ed9-d806-4041-bf01-4469f7cc6a83",
+            "status": "reviewed",
+            "version": 1,
+            "reviewed_by": "9367b555-7ebf-4884-bb1c-a99974c3ad85",
+            "updated_at": "2026-11-10T08:00:00Z"
+          },
+          "error": null
+        },
+        {
+          "question_id": "78d86cab-1ee9-5126-83af-c3125e4a0daf",
+          "status": "failed",
+          "state": null,
+          "error": {
+            "status": 409,
+            "code": "invalid_transition",
+            "message": "题目现在是 published 状态，不能执行 approve"
+          }
+        }
+      ]
+    }
+  }
+}

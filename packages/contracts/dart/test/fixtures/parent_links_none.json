@@ -5,11 +5,13 @@
   "status": 200,
   "schema": "ParentLinks",
   "value": {
+    "parent_invite_revision": 0,
     "links": [],
     "pending_invite": null
   },
   "body": {
     "data": {
+      "parent_invite_revision": 0,
       "links": [],
       "pending_invite": null
     }

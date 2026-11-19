@@ -1,0 +1,153 @@
+{
+  "name": "question_chemical_process",
+  "method": "GET",
+  "path": "/api/v1/questions/fced6a75-5950-593f-9c60-05ba9bab7fac",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+    "subject": "chemistry",
+    "type": "single_choice",
+    "answer_mode": "single_choice",
+    "difficulty": 1,
+    "title": "阅读通用流程中的回流关系",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "bb5de35d-378b-5277-9ecf-85b3bfca7895",
+        "code": "chem.process.reading",
+        "title": "工艺流程结构阅读"
+      }
+    ],
+    "variant_of": null,
+    "provenance": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "自编工程示例，只讨论流程结构，不代表任何具体化学反应或操作。全部流程关系如下：主线为原料→处理Ⅰ→分离→处理Ⅱ→产物；另有分离→支路，以及处理Ⅱ→处理Ⅰ。把返回主线上较早位置的箭头称为回流。以下哪个箭头是这里的回流？无需图片也可据文字作答。",
+      "options": [
+        {
+          "key": "A",
+          "text": "原料→处理Ⅰ"
+        },
+        {
+          "key": "B",
+          "text": "处理Ⅱ→处理Ⅰ"
+        },
+        {
+          "key": "C",
+          "text": "分离→支路"
+        },
+        {
+          "key": "D",
+          "text": "处理Ⅱ→产物"
+        }
+      ],
+      "blanks": [],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null,
+      "proof": null
+    },
+    "assists": {
+      "hint_levels": 2,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": true
+    },
+    "judging_note": null
+  },
+  "body": {
+    "data": {
+      "id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+      "subject": "chemistry",
+      "type": "single_choice",
+      "answer_mode": "single_choice",
+      "difficulty": 1,
+      "title": "阅读通用流程中的回流关系",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "bb5de35d-378b-5277-9ecf-85b3bfca7895",
+          "code": "chem.process.reading",
+          "title": "工艺流程结构阅读"
+        }
+      ],
+      "variant_of": null,
+      "provenance": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "自编工程示例，只讨论流程结构，不代表任何具体化学反应或操作。全部流程关系如下：主线为原料→处理Ⅰ→分离→处理Ⅱ→产物；另有分离→支路，以及处理Ⅱ→处理Ⅰ。把返回主线上较早位置的箭头称为回流。以下哪个箭头是这里的回流？无需图片也可据文字作答。",
+        "options": [
+          {
+            "key": "A",
+            "text": "原料→处理Ⅰ"
+          },
+          {
+            "key": "B",
+            "text": "处理Ⅱ→处理Ⅰ"
+          },
+          {
+            "key": "C",
+            "text": "分离→支路"
+          },
+          {
+            "key": "D",
+            "text": "处理Ⅱ→产物"
+          }
+        ],
+        "blanks": [],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null,
+        "proof": null
+      },
+      "assists": {
+        "hint_levels": 2,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": true
+      },
+      "judging_note": null
+    }
+  }
+}

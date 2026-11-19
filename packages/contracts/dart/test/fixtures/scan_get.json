@@ -1,0 +1,31 @@
+{
+  "name": "scan_get",
+  "method": "GET",
+  "path": "/api/v1/scans/8fe1895c-75b3-47cc-a0dd-3c31ed16238e",
+  "status": 200,
+  "schema": "Scan",
+  "value": {
+    "id": "8fe1895c-75b3-47cc-a0dd-3c31ed16238e",
+    "status": "needs_confirmation",
+    "confidence": null,
+    "low_confidence": true,
+    "stem_text": "",
+    "expressions": [],
+    "matched_question_id": null,
+    "error_code": null,
+    "mock_notice": "本地Mock未实际识别图片；请手工输入并确认题干。仅匹配已发布自编工程样题，不代表学科审校。"
+  },
+  "body": {
+    "data": {
+      "id": "8fe1895c-75b3-47cc-a0dd-3c31ed16238e",
+      "status": "needs_confirmation",
+      "confidence": null,
+      "low_confidence": true,
+      "stem_text": "",
+      "expressions": [],
+      "matched_question_id": null,
+      "error_code": null,
+      "mock_notice": "本地Mock未实际识别图片；请手工输入并确认题干。仅匹配已发布自编工程样题，不代表学科审校。"
+    }
+  }
+}

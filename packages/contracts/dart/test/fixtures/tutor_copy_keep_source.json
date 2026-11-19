@@ -1,0 +1,117 @@
+{
+  "name": "tutor_copy_keep_source",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/ce684dfc-1727-42f9-b500-afd9f6fcf3ac/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+      "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "DIAGNOSED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+      "first_submitted_attempt_id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+      "submitted_attempts": 1,
+      "last_event_seq": 2,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "6124add8-44f4-4734-8ed2-bc9d10faf0d4",
+        "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+        "seq_no": 2,
+        "type": "notice",
+        "created_at": "2026-11-11T08:00:00Z",
+        "state_after": "DIAGNOSED",
+        "payload": {
+          "code": "keep_going",
+          "text": "还有未提交的草稿或副本，仍可继续编辑；没有关闭它们。",
+          "due_at": null
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "63c324f825df4198a054cb182aae3935"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+        "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "DIAGNOSED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+        "first_submitted_attempt_id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+        "submitted_attempts": 1,
+        "last_event_seq": 2,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "6124add8-44f4-4734-8ed2-bc9d10faf0d4",
+          "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+          "seq_no": 2,
+          "type": "notice",
+          "created_at": "2026-11-11T08:00:00Z",
+          "state_after": "DIAGNOSED",
+          "payload": {
+            "code": "keep_going",
+            "text": "还有未提交的草稿或副本，仍可继续编辑；没有关闭它们。",
+            "due_at": null
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "63c324f825df4198a054cb182aae3935"
+          }
+        }
+      ]
+    }
+  }
+}

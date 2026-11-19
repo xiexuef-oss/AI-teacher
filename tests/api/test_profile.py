@@ -6,7 +6,12 @@ import uuid
 
 import pytest
 
-SICHUAN_G12 = {"region_code": "CN-51", "grade": "G12", "subjects": ["math", "physics"]}
+SICHUAN_G12 = {
+    "expected_revision": 0,
+    "region_code": "CN-51",
+    "grade": "G12",
+    "subjects": ["math", "physics"],
+}
 
 
 def _codes(profile: dict) -> set[str]:
@@ -62,8 +67,23 @@ def test_new_student_has_an_empty_profile(student):
     assert profile["onboarding_completed"] is False
 
 
+def test_learning_settings_survive_legacy_profile_updates(student):
+    settings = {
+        "mode": "boarding",
+        "weekly_minutes": 0,
+        "weekdays": [1, 5],
+        "school_progress": "",
+        "exam_scope": "",
+    }
+    first = student.save_profile(json={**SICHUAN_G12, "learning_settings": settings})
+    assert first["learning_settings"] == settings
+    updated = student.save_profile(json={**SICHUAN_G12, "expected_revision": first["revision"]})
+    assert updated["learning_settings"] == student.data("GET", "/profile")["learning_settings"]
+    assert updated["learning_settings"] == settings
+
+
 def test_onboarding_saves_region_grade_and_subjects(student):
-    saved = student.data("PUT", "/profile", json=SICHUAN_G12)
+    saved = student.save_profile(json=SICHUAN_G12)
 
     assert saved["region_code"] == "CN-51"
     assert saved["grade"] == "G12"
@@ -73,7 +93,7 @@ def test_onboarding_saves_region_grade_and_subjects(student):
 
 
 def test_exam_year_defaults_to_the_estimate_and_says_so(student):
-    saved = student.data("PUT", "/profile", json=SICHUAN_G12)
+    saved = student.save_profile(json=SICHUAN_G12)
 
     assert saved["exam_year"] == 2027
     assert saved["exam_year_source"] == "estimated"
@@ -111,9 +131,7 @@ def test_subjects_must_be_a_nonempty_set_of_launch_subjects(student, subjects):
 
 
 def test_grade_can_be_skipped(student):
-    saved = student.data(
-        "PUT", "/profile", json={"region_code": "CN-50", "subjects": ["chemistry"]}
-    )
+    saved = student.save_profile(json={"region_code": "CN-50", "subjects": ["chemistry"]})
 
     assert saved["grade"] is None
     assert saved["exam_year"] is None and saved["exam_year_source"] is None
@@ -125,7 +143,7 @@ def test_grade_can_be_skipped(student):
 
 
 def test_unknown_curriculum_does_not_block_learning_but_prompts_to_complete(student):
-    saved = student.data("PUT", "/profile", json=SICHUAN_G12)
+    saved = student.save_profile(json=SICHUAN_G12)
 
     assert saved["curriculum_version"] is None
     assert saved["onboarding_completed"] is True
@@ -134,9 +152,9 @@ def test_unknown_curriculum_does_not_block_learning_but_prompts_to_complete(stud
 
 def test_curriculum_can_be_added_later(anon, student):
     option = anon.data("GET", "/meta/launch-config", auth=False)["curriculum_versions"][0]["code"]
-    student.data("PUT", "/profile", json=SICHUAN_G12)
+    student.save_profile(json=SICHUAN_G12)
 
-    saved = student.data("PUT", "/profile", json={**SICHUAN_G12, "curriculum_version": option})
+    saved = student.save_profile(json={**SICHUAN_G12, "curriculum_version": option})
 
     assert saved["curriculum_version"] == option
     assert "curriculum_unknown" not in _codes(saved)
@@ -151,7 +169,7 @@ def test_curriculum_must_be_a_listed_option(student):
 def test_region_does_not_imply_a_curriculum(student):
     """docs/09：不得凭省份自动指定教材版本。"""
     for region in ("CN-51", "CN-50"):
-        saved = student.data("PUT", "/profile", json={**SICHUAN_G12, "region_code": region})
+        saved = student.save_profile(json={**SICHUAN_G12, "region_code": region})
         assert saved["curriculum_version"] is None
 
 
@@ -159,19 +177,19 @@ def test_region_does_not_imply_a_curriculum(student):
 
 
 def test_manual_exam_year_is_marked_and_survives_a_grade_change(student):
-    manual = student.data("PUT", "/profile", json={**SICHUAN_G12, "exam_year": 2028})
+    manual = student.save_profile(json={**SICHUAN_G12, "exam_year": 2028})
     assert (manual["exam_year"], manual["exam_year_source"]) == (2028, "user")
     assert "exam_year_estimated" not in _codes(manual)
 
-    later = student.data("PUT", "/profile", json={**SICHUAN_G12, "grade": "G11"})
+    later = student.save_profile(json={**SICHUAN_G12, "grade": "G11"})
 
     assert (later["exam_year"], later["exam_year_source"]) == (2028, "user")
 
 
 def test_estimated_exam_year_follows_a_grade_change(student):
-    student.data("PUT", "/profile", json=SICHUAN_G12)
+    student.save_profile(json=SICHUAN_G12)
 
-    later = student.data("PUT", "/profile", json={**SICHUAN_G12, "grade": "G10"})
+    later = student.save_profile(json={**SICHUAN_G12, "grade": "G10"})
 
     assert (later["exam_year"], later["exam_year_source"]) == (2029, "estimated")
 
@@ -207,7 +225,7 @@ def _add_rule(db, clock, *, status: str, with_basis: bool) -> None:
 
 
 def test_exam_scheme_stays_empty_without_any_rule(student):
-    assert student.data("PUT", "/profile", json=SICHUAN_G12)["exam_scheme_code"] is None
+    assert student.save_profile(json=SICHUAN_G12)["exam_scheme_code"] is None
 
 
 @pytest.mark.parametrize(
@@ -219,16 +237,16 @@ def test_rule_that_is_not_active_with_official_basis_is_ignored(
 ):
     """docs/09：地区规则无依据不得启用。"""
     _add_rule(db, clock, status=status, with_basis=with_basis)
-    assert student.data("PUT", "/profile", json=SICHUAN_G12)["exam_scheme_code"] is None
+    assert student.save_profile(json=SICHUAN_G12)["exam_scheme_code"] is None
 
 
 def test_active_rule_with_basis_applies_only_to_its_region_and_year(student, db, clock):
     _add_rule(db, clock, status="active", with_basis=True)
 
-    assert student.data("PUT", "/profile", json=SICHUAN_G12)["exam_scheme_code"] == "SCHEME-X"
-    other_year = student.data("PUT", "/profile", json={**SICHUAN_G12, "grade": "G11"})
+    assert student.save_profile(json=SICHUAN_G12)["exam_scheme_code"] == "SCHEME-X"
+    other_year = student.save_profile(json={**SICHUAN_G12, "grade": "G11"})
     assert other_year["exam_scheme_code"] is None, "规则不能跨年份套用"
-    other_region = student.data("PUT", "/profile", json={**SICHUAN_G12, "region_code": "CN-50"})
+    other_region = student.save_profile(json={**SICHUAN_G12, "region_code": "CN-50"})
     assert other_region["exam_scheme_code"] is None, "规则不能跨地区套用"
 
 
@@ -242,7 +260,7 @@ def test_unknown_fields_are_rejected(student):
 
 def test_profiles_are_isolated_between_students(new_student):
     alice, bob = new_student(), new_student()
-    alice.data("PUT", "/profile", json=SICHUAN_G12)
+    alice.save_profile(json=SICHUAN_G12)
 
     assert bob.data("GET", "/profile")["region_code"] is None
     assert bob.data("GET", "/profile")["user_id"] == bob.user_id
@@ -253,9 +271,9 @@ def test_switching_region_is_recorded_in_the_audit_log(student, db):
 
     from tutor_api.models import AuditLog
 
-    student.data("PUT", "/profile", json=SICHUAN_G12)
-    student.data("PUT", "/profile", json={**SICHUAN_G12, "region_code": "CN-50"})
-    student.data("PUT", "/profile", json={**SICHUAN_G12, "region_code": "CN-50"})
+    student.save_profile(json=SICHUAN_G12)
+    student.save_profile(json={**SICHUAN_G12, "region_code": "CN-50"})
+    student.save_profile(json={**SICHUAN_G12, "region_code": "CN-50"})
 
     logs = db.scalars(select(AuditLog).where(AuditLog.action == "profile.region_changed")).all()
     assert [(log.actor_id, log.detail_json) for log in logs] == [

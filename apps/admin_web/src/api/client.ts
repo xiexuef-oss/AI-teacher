@@ -32,7 +32,7 @@ export interface RequestOptions {
 }
 
 export async function request<T>(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PUT',
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {

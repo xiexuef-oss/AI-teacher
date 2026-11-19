@@ -16,9 +16,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from tutor_api.errors import unprocessable
-from tutor_api.models import StudySession
-from tutor_api.schemas import ParentWeeklyOut, PreviousWeekOut, WeeklyTrend
+from tutor_api.models import StudySession, User
+from tutor_api.schemas import PaperWeeklySummary, ParentWeeklyOut, PreviousWeekOut, WeeklyTrend
 from tutor_api.services import grading, parent_service, progress_service
+from tutor_api.services.learning_pack_evidence import paper_evidence
 from tutor_api.settings import Settings
 
 DISCLAIMER = (
@@ -72,12 +73,19 @@ def weekly_report(
     now: datetime,
 ) -> ParentWeeklyOut:
     _, student = parent_service.require_link(db, parent_id, student_id)
+    return build_weekly_report(db, settings, student, week_start, now=now)
+
+
+def build_weekly_report(
+    db: Session, settings: Settings, student: User, week_start: date | None, *, now: datetime
+) -> ParentWeeklyOut:
+    student_id = student.id
     start_date, start, end, offset = _window(settings, week_start, now)
     min_samples = settings.progress_min_samples
 
     records = progress_service.load_records(db, student_id, since=start, until=end)
     rows = progress_service.verified_rows(records)
-    first = [row for row in rows if row.attempt_no == 1]
+    first = [row for row in rows if row.submission_no == 1]
     stat = progress_service.rate_stat
     independent = stat((r for r in rows if r.independent), progress_service.is_correct, min_samples)
 
@@ -102,7 +110,38 @@ def weekly_report(
         )
         or 0
     )
+    paper = paper_evidence(db, student_id, since=start, until=end)
+    known = [
+        row
+        for row in paper
+        if row.outcome != "unknown"
+        and row.transcript_revision == 0
+        and row.independence in {"independent", "assisted"}
+    ]
+    paper_summary = (
+        PaperWeeklySummary(
+            confirmed=len(paper),
+            awaiting_assessment=len(paper) - len(known),
+            late_returns=sum(
+                row.completed_on is not None and row.completed_on < start_date for row in paper
+            ),
+            unknown_completion_date=sum(row.completed_on is None for row in paper),
+            independent=stat(
+                (row for row in known if row.independence == "independent"),
+                lambda row: row.outcome == "correct",
+                min_samples,
+            ),
+            assisted=stat(
+                (row for row in known if row.independence == "assisted"),
+                lambda row: row.outcome == "correct",
+                min_samples,
+            ),
+        )
+        if paper
+        else None
+    )
     return ParentWeeklyOut(
+        paper=paper_summary,
         student_id=student.id,
         student_display_name=student.display_name,
         week_start=start_date,

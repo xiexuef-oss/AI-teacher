@@ -1,0 +1,287 @@
+{
+  "name": "submit_chemical_process",
+  "method": "POST",
+  "path": "/api/v1/attempts/13294dd8-16ba-45e3-8599-6c34d4083af6/submit",
+  "status": 200,
+  "schema": "SubmitResult",
+  "value": {
+    "attempt": {
+      "id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+      "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+      "attempt_no": 1,
+      "submission_no": 1,
+      "copied_from_attempt_id": null,
+      "copied_from_revision": null,
+      "status": "submitted",
+      "answer": {
+        "selected_options": [
+          "B"
+        ]
+      },
+      "draft_revision": 0,
+      "assisted": false,
+      "used_solution": false,
+      "independent": true,
+      "evaluation": {
+        "state": "verified",
+        "outcome": "correct",
+        "is_correct": true,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": false,
+        "feedback": [
+          {
+            "target": "overall",
+            "code": "correct",
+            "message": "回答正确。"
+          }
+        ],
+        "message": "回答正确。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "submitted_at": "2026-11-11T08:00:00Z",
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "evaluation": {
+      "state": "verified",
+      "outcome": "correct",
+      "is_correct": true,
+      "independent": true,
+      "assisted": false,
+      "used_solution": false,
+      "review_required": false,
+      "feedback": [
+        {
+          "target": "overall",
+          "code": "correct",
+          "message": "回答正确。"
+        }
+      ],
+      "message": "回答正确。",
+      "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+    },
+    "session": {
+      "id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+      "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "DIAGNOSED",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": false,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 2,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "first_submitted_attempt_id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+      "submitted_attempts": 1,
+      "last_event_seq": 2,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "9bb9f3c5-6d27-4f0a-b516-4380a8c86e40",
+        "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+        "seq_no": 2,
+        "type": "diagnosis",
+        "created_at": "2026-11-11T08:00:00Z",
+        "state_after": "DIAGNOSED",
+        "payload": {
+          "outcome": "correct",
+          "summary": "回答正确。",
+          "feedback": [
+            {
+              "target": "overall",
+              "code": "correct",
+              "message": "回答正确。"
+            }
+          ],
+          "knowledge": [
+            {
+              "id": "bb5de35d-378b-5277-9ecf-85b3bfca7895",
+              "code": "chem.process.reading",
+              "title": "工艺流程结构阅读"
+            }
+          ],
+          "suggestions": [
+            {
+              "action": "request_standard",
+              "label": "看看解法",
+              "question_id": null,
+              "knowledge_id": null
+            },
+            {
+              "action": "finish",
+              "label": "完成这道题",
+              "question_id": null,
+              "knowledge_id": null
+            }
+          ]
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "rule_engine",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "2b03d3666844425a80d6f7e4787d94b9"
+        }
+      }
+    ],
+    "review_item": null
+  },
+  "body": {
+    "data": {
+      "attempt": {
+        "id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+        "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+        "attempt_no": 1,
+        "submission_no": 1,
+        "copied_from_attempt_id": null,
+        "copied_from_revision": null,
+        "status": "submitted",
+        "answer": {
+          "selected_options": [
+            "B"
+          ]
+        },
+        "draft_revision": 0,
+        "assisted": false,
+        "used_solution": false,
+        "independent": true,
+        "evaluation": {
+          "state": "verified",
+          "outcome": "correct",
+          "is_correct": true,
+          "independent": true,
+          "assisted": false,
+          "used_solution": false,
+          "review_required": false,
+          "feedback": [
+            {
+              "target": "overall",
+              "code": "correct",
+              "message": "回答正确。"
+            }
+          ],
+          "message": "回答正确。",
+          "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+        },
+        "submitted_at": "2026-11-11T08:00:00Z",
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "evaluation": {
+        "state": "verified",
+        "outcome": "correct",
+        "is_correct": true,
+        "independent": true,
+        "assisted": false,
+        "used_solution": false,
+        "review_required": false,
+        "feedback": [
+          {
+            "target": "overall",
+            "code": "correct",
+            "message": "回答正确。"
+          }
+        ],
+        "message": "回答正确。",
+        "disclaimer": "这是练习反馈，不是官方阅卷分数。"
+      },
+      "session": {
+        "id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+        "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "DIAGNOSED",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": false,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 2,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "first_submitted_attempt_id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+        "submitted_attempts": 1,
+        "last_event_seq": 2,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "9bb9f3c5-6d27-4f0a-b516-4380a8c86e40",
+          "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+          "seq_no": 2,
+          "type": "diagnosis",
+          "created_at": "2026-11-11T08:00:00Z",
+          "state_after": "DIAGNOSED",
+          "payload": {
+            "outcome": "correct",
+            "summary": "回答正确。",
+            "feedback": [
+              {
+                "target": "overall",
+                "code": "correct",
+                "message": "回答正确。"
+              }
+            ],
+            "knowledge": [
+              {
+                "id": "bb5de35d-378b-5277-9ecf-85b3bfca7895",
+                "code": "chem.process.reading",
+                "title": "工艺流程结构阅读"
+              }
+            ],
+            "suggestions": [
+              {
+                "action": "request_standard",
+                "label": "看看解法",
+                "question_id": null,
+                "knowledge_id": null
+              },
+              {
+                "action": "finish",
+                "label": "完成这道题",
+                "question_id": null,
+                "knowledge_id": null
+              }
+            ]
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "rule_engine",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "2b03d3666844425a80d6f7e4787d94b9"
+          }
+        }
+      ],
+      "review_item": null
+    }
+  }
+}

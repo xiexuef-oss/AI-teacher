@@ -7,10 +7,11 @@ from fastapi.responses import JSONResponse
 
 from tutor_api.deps import Ctx, ok, student_ctx
 from tutor_api.idempotency import run_idempotent
+from tutor_api.private_route import PrivateRoute
 from tutor_api.schemas import SessionCreateIn, TutorEventPage
 from tutor_api.services import events, session_service
 
-router = APIRouter()
+router = APIRouter(route_class=PrivateRoute)
 
 
 @router.post("/sessions")

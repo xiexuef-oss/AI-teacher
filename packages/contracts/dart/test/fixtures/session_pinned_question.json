@@ -1,0 +1,133 @@
+{
+  "name": "session_pinned_question",
+  "method": "GET",
+  "path": "/api/v1/sessions/ce684dfc-1727-42f9-b500-afd9f6fcf3ac/question",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+    "subject": "math",
+    "type": "fill_blank",
+    "answer_mode": "fill",
+    "difficulty": 2,
+    "title": "用基本不等式求最小值",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+        "code": "math.inequality.basic",
+        "title": "基本不等式"
+      }
+    ],
+    "variant_of": null,
+    "provenance": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "已知 $x>0$，则 $x+\\dfrac{4}{x}$ 的最小值为 ____。",
+      "options": [],
+      "blanks": [
+        {
+          "key": "b1",
+          "label": null,
+          "unit_hint": null,
+          "placeholder": "填数值"
+        }
+      ],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null,
+      "proof": null
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": false
+    },
+    "judging_note": null
+  },
+  "body": {
+    "data": {
+      "id": "e57456b4-98d7-5afa-a51b-6e75d834501a",
+      "subject": "math",
+      "type": "fill_blank",
+      "answer_mode": "fill",
+      "difficulty": 2,
+      "title": "用基本不等式求最小值",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+          "code": "math.inequality.basic",
+          "title": "基本不等式"
+        }
+      ],
+      "variant_of": null,
+      "provenance": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "已知 $x>0$，则 $x+\\dfrac{4}{x}$ 的最小值为 ____。",
+        "options": [],
+        "blanks": [
+          {
+            "key": "b1",
+            "label": null,
+            "unit_hint": null,
+            "placeholder": "填数值"
+          }
+        ],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null,
+        "proof": null
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": false
+      },
+      "judging_note": null
+    }
+  }
+}

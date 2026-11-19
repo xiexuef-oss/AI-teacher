@@ -89,6 +89,15 @@ nodes:
     title: 酸碱中和滴定
     summary: 用已知浓度的标准溶液去滴定未知浓度的溶液，由消耗的体积和反应中的物质的量关系算出浓度，滴定管读数要估读到 0.01 mL
 
+  - code: math.geometry.coordinate
+    subject: math
+    title: 平面坐标与线段长度
+    summary: 把已给点的位置放在同一平面坐标系中讨论，图形外观不能代替条件和推理依据
+  - code: chem.process.reading
+    subject: chemistry
+    title: 工艺流程结构阅读
+    summary: 阅读流程时先区分题干明确给出的主线、支路和回流关系，不凭箭头猜测物质或实验条件
+
 # [前置知识点, 目标知识点]
 edges:
   - [math.function.concept, math.function.monotonicity]

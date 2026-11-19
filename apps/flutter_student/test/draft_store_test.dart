@@ -36,9 +36,261 @@ void main() {
     savedAt: DateTime.utc(2026, 11, 10, 8),
   );
 
+  test(
+    'attempt scopes isolate drafts and reject mismatched late writes',
+    () async {
+      final first = store.forAttempt('a1');
+      final second = store.forAttempt('a2');
+      await first.writeDraft(sample());
+      expect(await second.readDraft('q1'), isNull);
+      await expectLater(second.writeDraft(sample()), throwsStateError);
+      expect((await first.readDraft('q1'))!.selected, ['A', 'C']);
+    },
+  );
+
+  test('pending single-record completion retries failed disk writes and keeps newer editor', () async {
+    final scoped = store.forAttempt('a1');
+    await scoped.claimScope('q1');
+    await scoped.archivePair('q1', sample(), sample(), pending: true);
+    final pending = PendingDraftCopy(
+      snapshot: sample(),
+      sourceAttemptId: 'a1',
+      observedRevision: 3,
+      idempotencyKey: 'fixed',
+      recoveryGeneration: 1,
+    );
+    await scoped.savePendingCopy('q1', pending);
+    final copied = LocalDraft.fromJson({
+      ...sample().toJson(),
+      'attemptId': 'a2',
+    });
+    memory.failWrites = true;
+    await expectLater(
+      scoped.completePendingCopy('q1', idempotencyKey: 'fixed', copy: copied),
+      throwsStateError,
+    );
+    memory.failWrites = false;
+    expect((await scoped.readPendingCopy('q1'))!.idempotencyKey, 'fixed');
+    final newer = store.forAttempt('a1');
+    await newer.claimScope('q1');
+    await expectLater(scoped.writeDraft(sample()), throwsStateError);
+    expect(
+      await scoped.completePendingCopy(
+        'q1',
+        idempotencyKey: 'fixed',
+        copy: copied,
+      ),
+      isFalse,
+    );
+    expect(await scoped.readPendingCopy('q1'), isNotNull);
+    expect(
+      await newer.completePendingCopy(
+        'q1',
+        idempotencyKey: 'fixed',
+        copy: copied,
+      ),
+      isTrue,
+    );
+    expect(await newer.readPendingCopy('q1'), isNotNull);
+    final editor = store.forAttempt('a2');
+    await editor.claimScope('q1');
+    final editedJson = copied.toJson();
+    (editedJson['answer'] as Map)['selected'] = ['B'];
+    await editor.writeDraft(LocalDraft.fromJson(editedJson));
+    await newer.completePendingCopy(
+      'q1',
+      idempotencyKey: 'fixed',
+      copy: copied,
+    );
+    expect((await editor.readDraft('q1'))!.selected, ['B']);
+    await expectLater(
+      newer.resolveRecovery('q1', expectedGeneration: 1),
+      throwsStateError,
+    );
+    await expectLater(
+      newer.acknowledgePendingCopy('q1', idempotencyKey: 'fixed'),
+      throwsStateError,
+    );
+    await newer.writeActive(
+      'q1',
+      const ActiveRef(sessionId: 's1', attemptId: 'a2'),
+    );
+    await newer.acknowledgePendingCopy('q1', idempotencyKey: 'fixed');
+    expect(await newer.readPendingCopy('q1'), isNull);
+    expect((await store.forAttempt('a2').readDraft('q1'))!.attemptId, 'a2');
+    expect((await newer.readCopyReferences('q1')).single.attemptId, 'a2');
+  });
+  test(
+    'local id persists, scopes and unknown raw bundle remain isolated',
+    () async {
+      final id = await store.readOrCreateLocalId('q1');
+      expect(await DraftStore(memory, 'u1').readOrCreateLocalId('q1'), id);
+      memory.data['u/u1/draft-bundle/q1'] = '{"v":999}';
+      await expectLater(
+        store.forAttempt('a1').writeDraft(sample()),
+        throwsFormatException,
+      );
+      expect(memory.data['u/u1/draft-bundle/q1'], '{"v":999}');
+    },
+  );
+
+  test('clear scoped migrated draft cannot resurrect legacy source', () async {
+    await store.writeDraft(sample());
+    final scoped = store.forAttempt('a1');
+    await scoped.claimScope('q1');
+    expect(await scoped.readDraft('q1'), isNotNull);
+    await scoped.clearDraft('q1');
+    expect(await scoped.readDraft('q1'), isNull);
+    expect(memory.data['u/u1/draft/q1'], isNotNull);
+  });
+
+  test('promotion atomically consumes default local and preserves legacy active tombstone', () async {
+    final localId = await store.readOrCreateLocalId('q1');
+    final local = store.forLocal(localId);
+    final original = LocalDraft.fromJson({
+      ...sample().toJson(),
+      'sessionId': null,
+      'attemptId': null,
+    });
+    await store.writeDraft(original);
+    await local.writeDraft(original);
+    memory.failWrites = true;
+    await expectLater(local.promoteToAttempt(sample()), throwsStateError);
+    memory.failWrites = false;
+    expect((await local.readDraft('q1'))!.selected, original.selected);
+    expect(await store.readActive('q1'), isNull);
+    await local.promoteToAttempt(sample());
+    expect((await store.readActive('q1'))!.attemptId, 'a1');
+    expect(await local.readDraft('q1'), isNull);
+    await expectLater(local.writeDraft(original), throwsStateError);
+    await store.forAttempt('a1').clearDraft('q1');
+    await store.clearActive('q1');
+    memory.data['u/u1/active/q1'] = jsonEncode(
+      const ActiveRef(sessionId: 'old', attemptId: 'old').toJson(),
+    );
+    expect(await store.readActive('q1'), isNull);
+    final nextId = await store.readOrCreateLocalId('q1');
+    expect(nextId, isNot(localId));
+    expect(await store.forLocal(nextId).readDraft('q1'), isNull);
+  });
+
+  test('promotion preserves newer target and archives complete source without consuming other local', () async {
+    final defaultId = await store.readOrCreateLocalId('q1');
+    final independent = store.forLocal('independent');
+    final original = LocalDraft.fromJson({
+      ...sample().toJson(),
+      'sessionId': null,
+      'attemptId': null,
+    });
+    await independent.writeDraft(original);
+    final newerJson = sample().toJson();
+    (newerJson['answer'] as Map)['selected'] = ['B'];
+    await store.forAttempt('a1').writeDraft(LocalDraft.fromJson(newerJson));
+    await independent.promoteToAttempt(sample());
+    expect((await store.forAttempt('a1').readDraft('q1'))!.selected, ['B']);
+    expect(await store.readOrCreateLocalId('q1'), defaultId);
+    final bundle = jsonDecode(memory.data['u/u1/draft-bundle/q1']!) as Map;
+    expect(
+      bundle['promotions']['local/independent']['source'],
+      original.toJson(),
+    );
+    final revived = store.forLocal('independent');
+    await revived.claimScope('q1');
+    await expectLater(revived.writeDraft(original), throwsStateError);
+  });
+  test('promotion refuses stale snapshot and preserves independently edited local bytes', () async {
+    final id = await store.readOrCreateLocalId('q1');
+    final local = store.forLocal(id);
+    final original = LocalDraft.fromJson({
+      ...sample().toJson(),
+      'sessionId': null,
+      'attemptId': null,
+    });
+    final changed = original.toJson();
+    (changed['answer'] as Map)['steps'] = [
+      {'text': '新的证明', 'reason': '独立编辑'},
+    ];
+    await local.writeDraft(LocalDraft.fromJson(changed));
+    final before = memory.data['u/u1/draft-bundle/q1'];
+    await expectLater(local.promoteToAttempt(sample()), throwsStateError);
+    expect(memory.data['u/u1/draft-bundle/q1'], before);
+    expect(await store.readActive('q1'), isNull);
+  });
+
   setUp(() {
     memory = MemoryStore();
     store = DraftStore(memory, 'u1');
+  });
+
+  test('冲突双方及待解决状态重启可读，账号隔离', () async {
+    final complete = sample().toJson();
+    final answer = complete['answer'] as Map<String, dynamic>;
+    answer['parts'] = {'p1': '实验说明'};
+    answer['cells'] = {'table.row.col': '1.25'};
+    answer['steps'] = [
+      {'text': '证明文字', 'reason': '依据'},
+      {'text': '', 'reason': ''},
+    ];
+    final original = LocalDraft.fromJson(complete);
+    await store.archivePair('q1', original, original, pending: true);
+    final reopened = DraftStore(memory, 'u1');
+    final recovery = await reopened.readRecovery('q1');
+    expect(recovery!.pending, isTrue);
+    expect(recovery.copies.map((d) => d.toJson()), [
+      original.toJson(),
+      original.toJson(),
+    ]);
+    expect(await DraftStore(memory, 'other').readRecovery('q1'), isNull);
+    await reopened.resolveRecovery(
+      'q1',
+      expectedGeneration: recovery.generation,
+    );
+    expect((await reopened.readRecovery('q1'))!.pending, isFalse);
+    expect((await reopened.readRecovery('q1'))!.copies, hasLength(2));
+  });
+
+  test('异常恢复记录原文保留且不能被新留档覆盖', () async {
+    for (final raw in [
+      'broken-json',
+      '{"v":99}',
+      '{"v":1,"pending":true,"copies":[{"v":99}]}',
+    ]) {
+      memory.data['u/u1/draft-recovery/q1'] = raw;
+      await expectLater(store.readRecovery('q1'), throwsA(anything));
+      await expectLater(
+        store.archivePair('q1', sample(), sample(), pending: true),
+        throwsA(anything),
+      );
+      expect(memory.data['u/u1/draft-recovery/q1'], raw);
+    }
+  });
+
+  test('同题两实例的旧选择不能清除较新的待解决冲突', () async {
+    final other = DraftStore(memory, 'u1');
+    final old = await store.archivePair(
+      'q1',
+      sample(),
+      sample(),
+      pending: true,
+    );
+    final newer = await other.archivePair(
+      'q1',
+      sample(),
+      sample(),
+      pending: true,
+    );
+    await expectLater(
+      store.resolveRecovery('q1', expectedGeneration: old.generation),
+      throwsStateError,
+    );
+    await expectLater(
+      store.archivePair('q1', sample(), sample(), pending: false),
+      throwsStateError,
+    );
+    final retained = await other.readRecovery('q1');
+    expect(retained!.pending, isTrue);
+    expect(retained.generation, newer.generation);
+    expect(retained.copies, hasLength(4));
   });
 
   test('草稿写入后能原样读出，包括笔迹', () async {
@@ -341,6 +593,20 @@ void main() {
     'judging_note': null,
   };
 
+  test(
+    'scoped cache never reads unverified base or another attempt snapshot',
+    () async {
+      final question = Question.fromJson(cachedQuestion());
+      await store.writeQuestion(question);
+      expect(await store.forAttempt('a1').readQuestion(question.id), isNull);
+      await store.forAttempt('a1').writeQuestion(question);
+      expect(
+        (await store.forAttempt('a1').readQuestion(question.id))!.version,
+        question.version,
+      );
+      expect(await store.forAttempt('a2').readQuestion(question.id), isNull);
+    },
+  );
   test('题目缓存：断网时可以继续显示', () async {
     final question = Question.fromJson(cachedQuestion());
 

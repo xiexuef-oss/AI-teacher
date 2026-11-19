@@ -5,6 +5,7 @@ import '../../core/format.dart';
 import '../../core/math_text.dart';
 import '../../core/widgets.dart';
 import '../visual/visual_view.dart';
+import 'content_reference.dart';
 
 /// 辅导时间线：按 seq 顺序展示判定、提示、解析、图解、提示语和降级说明。
 ///
@@ -16,11 +17,16 @@ class TutorTimeline extends StatelessWidget {
     required this.events,
     required this.onSuggestion,
     this.now,
+    this.sessionId,
+    this.questionId,
+    this.questionVersion,
   });
 
   final List<TutorEvent> events;
   final ValueChanged<SuggestedAction> onSuggestion;
   final DateTime? now;
+  final String? sessionId, questionId;
+  final int? questionVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +42,9 @@ class TutorTimeline extends StatelessWidget {
               event: event,
               onSuggestion: onSuggestion,
               now: now ?? DateTime.now(),
+              sessionId: sessionId,
+              questionId: questionId,
+              questionVersion: questionVersion,
             ),
           ),
       ],
@@ -48,11 +57,16 @@ class _EventCard extends StatelessWidget {
     required this.event,
     required this.onSuggestion,
     required this.now,
+    required this.sessionId,
+    required this.questionId,
+    required this.questionVersion,
   });
 
   final TutorEvent event;
   final ValueChanged<SuggestedAction> onSuggestion;
   final DateTime now;
+  final String? sessionId, questionId;
+  final int? questionVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -131,9 +145,40 @@ class _EventCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           ...children,
+          ..._references(context),
         ],
       ),
     );
+  }
+
+  List<Widget> _references(BuildContext context) {
+    final checked = validateContentReferences(
+      event.references?.map((r) => r.toJson()).toList(),
+      eventSessionId: event.sessionId,
+      eventQuestionId: event.meta.questionId,
+      eventVersion: event.meta.questionVersion,
+      sessionId: sessionId,
+      questionId: questionId,
+      questionVersion: questionVersion,
+    );
+    return [
+      if (checked.unavailable) const Text('引用不可用'),
+      for (var i = 0; i < checked.references.length; i++)
+        ExpansionTile(
+          key: ValueKey('reference.${event.id}.$i'),
+          leading: const Icon(Icons.find_in_page_outlined),
+          title: Text('查看依据：${checked.references[i].label}'),
+          children: [
+            Text(
+              '依据 · 第 $questionVersion 版 · ${checked.references[i].label}',
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: ContentReferenceContext(checked.references[i]),
+            ),
+          ],
+        ),
+    ];
   }
 
   Widget _suggestions(List<SuggestedAction> suggestions) {

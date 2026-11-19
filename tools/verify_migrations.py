@@ -104,10 +104,16 @@ def _acceptable_sql_types(column: Any) -> set[str]:
     import sqlalchemy as sa
 
     column_type = column.type
+    if isinstance(column_type, sa.LargeBinary):
+        from sqlalchemy.dialects.mysql import dialect
+
+        return {column_type.compile(dialect=dialect()).upper()}
     if type(column_type).__name__ == "UTCDateTime":
         return {"DATETIME(3)"}
     if isinstance(column_type, sa.CHAR):
         return {f"CHAR({column_type.length})"}
+    if isinstance(column_type, sa.Text):
+        return {"TEXT"}
     if isinstance(column_type, sa.String):
         return {f"VARCHAR({column_type.length})"}
     if isinstance(column_type, sa.Boolean):

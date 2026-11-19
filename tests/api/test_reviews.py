@@ -233,6 +233,29 @@ def test_complete_requires_idempotency_key(onboarded, clock):
     assert error["code"] == "idempotency_key_required"
 
 
+def test_old_completed_submission_cannot_advance_a_later_due_window(onboarded, clock):
+    item = _mistake(onboarded)
+    clock.advance(days=1)
+    _, first_attempt, _ = _retest(onboarded, item, blank("4"))
+    first_key = f"complete-first-{uuid.uuid4()}"
+    first = _complete(onboarded, item, first_attempt, key=first_key)
+    assert first["review_item"]["stage"] == 1
+
+    clock.advance(days=3)
+    _, second_attempt, _ = _retest(onboarded, item, blank("4"))
+    second = _complete(onboarded, item, second_attempt)
+    assert second["review_item"]["stage"] == 2
+    assert second["review_item"]["status"] == "scheduled"
+
+    clock.advance(days=7)
+    (before,) = _reviews(onboarded, scope="all")
+    error = _complete_error(onboarded, item["id"], first_attempt["id"], expect=409)
+    assert error["code"] == "review_already_completed"
+    (after,) = _reviews(onboarded, scope="all")
+    assert after == before
+    assert _complete(onboarded, item, first_attempt, key=first_key) == first
+
+
 # ---------------------------------------------------------------- 练习中的表现对排期的影响
 
 
@@ -311,4 +334,202 @@ def test_invalid_review_cursor_is_400(onboarded):
     assert (
         onboarded.error("GET", "/reviews/due", expect=400, params={"cursor": "???"})["code"]
         == "invalid_cursor"
+    )
+
+
+@pytest.mark.parametrize("answer", ["4", "7"])
+def test_completion_history_uses_first_submission_even_when_provided_a_draft(
+    onboarded, clock, app, answer
+):
+    from sqlalchemy import select
+
+    from tutor_api.models import ReviewCompletionRecord
+
+    item = _mistake(onboarded)
+    clock.advance(days=1)
+    session, first, _ = _retest(onboarded, item, blank(answer))
+    draft = new_attempt(onboarded, session["id"])
+    _complete(onboarded, item, draft)
+    clock.advance(days=3)
+    _, later, _ = _retest(onboarded, item, blank("4"))
+    _complete(onboarded, item, later)
+    clock.advance(days=7)
+    before = _reviews(onboarded, scope="all")
+    assert (
+        _complete_error(onboarded, item["id"], draft["id"], expect=409)["code"]
+        == "review_already_completed"
+    )
+    assert _reviews(onboarded, scope="all") == before
+    with app.state.session_factory() as db:
+        records = list(
+            db.scalars(
+                select(ReviewCompletionRecord).where(ReviewCompletionRecord.review_id == item["id"])
+            )
+        )
+        assert {r.first_attempt_id for r in records} == {first["id"], later["id"]}
+        assert all(r.completed_at is not None for r in records)
+
+
+def test_unknown_history_preserves_attempt_and_schedule(onboarded, clock, app):
+    from tutor_api.models import Attempt, ReviewCompletionRecord
+
+    item = _mistake(onboarded)
+    clock.advance(days=1)
+    _, attempt, _ = _retest(onboarded, item, blank("4"))
+    with app.state.session_factory() as db:
+        db.add(
+            ReviewCompletionRecord(
+                review_id=item["id"],
+                first_attempt_id=attempt["id"],
+                student_id=onboarded.user_id,
+                question_id=item["question_id"],
+                state="legacy_unknown",
+            )
+        )
+        db.commit()
+    before = _reviews(onboarded, scope="all")
+    assert (
+        _complete_error(onboarded, item["id"], attempt["id"], expect=409)["code"]
+        == "review_completion_history_unknown"
+    )
+    assert _reviews(onboarded, scope="all") == before
+    with app.state.session_factory() as db:
+        assert db.get(Attempt, attempt["id"]).answer_json == blank("4")
+
+
+@pytest.mark.parametrize("invalid", [False, True])
+def test_old_sqlite_upgrade_backfills_before_create_all(onboarded, clock, app, invalid):
+    from sqlalchemy import inspect, select
+
+    from tutor_api.db import Base
+    from tutor_api.local_schema import upgrade_local_draft_schema
+    from tutor_api.models import Attempt, ReviewCompletionRecord, ReviewItem
+
+    item = _mistake(onboarded)
+    clock.advance(days=1)
+    _, earlier, _ = _retest(onboarded, item, blank("4"))
+    first_response = _complete(onboarded, item, earlier, key="legacy-success")
+    clock.advance(days=3)
+    _, latest, _ = _retest(onboarded, item, blank("4"))
+    _complete(onboarded, item, latest)
+    engine = app.state.session_factory.kw["bind"]
+    with engine.begin() as conn:
+        ReviewCompletionRecord.__table__.drop(conn)
+        if invalid:
+            conn.exec_driver_sql("UPDATE review_items SET last_attempt_id='missing'")
+    with app.state.session_factory() as db:
+        before = db.get(Attempt, earlier["id"]).answer_json
+    if invalid:
+        with pytest.raises(RuntimeError, match="inconsistent last"):
+            upgrade_local_draft_schema(engine)
+        assert not inspect(engine).has_table("review_completion_history")
+        return
+    upgrade_local_draft_schema(engine)
+    Base.metadata.create_all(engine)
+    upgrade_local_draft_schema(engine)
+    with app.state.session_factory() as db:
+        rows = list(db.scalars(select(ReviewCompletionRecord)))
+        assert {(r.first_attempt_id, r.state, r.result, r.completed_at) for r in rows} == {
+            (earlier["id"], "legacy_unknown", None, None),
+            (latest["id"], "completed", "passed", None),
+        }
+        assert db.get(Attempt, earlier["id"]).answer_json == before
+        assert db.get(ReviewItem, item["id"]).last_attempt_id == latest["id"]
+    clock.advance(days=7)
+    assert (
+        _complete_error(onboarded, item["id"], earlier["id"], expect=409)["code"]
+        == "review_completion_history_unknown"
+    )
+    assert _complete(onboarded, item, earlier, key="legacy-success") == first_response
+
+
+def test_local_history_upgrade_failure_rolls_back_table_and_retains_answers(onboarded, clock, app):
+    from sqlalchemy import event, inspect
+
+    from tutor_api.local_schema import upgrade_local_draft_schema
+    from tutor_api.models import Attempt, ReviewCompletionRecord
+
+    item = _mistake(onboarded)
+    clock.advance(days=1)
+    _, first, _ = _retest(onboarded, item, blank("4"))
+    engine = app.state.session_factory.kw["bind"]
+    with engine.begin() as conn:
+        ReviewCompletionRecord.__table__.drop(conn)
+
+    def fail(conn, cursor, sql, params, ctx, many):
+        if "INSERT INTO review_completion_history" in sql:
+            raise RuntimeError("injected history backfill failure")
+
+    event.listen(engine, "before_cursor_execute", fail)
+    try:
+        with pytest.raises(RuntimeError, match="injected history"):
+            upgrade_local_draft_schema(engine)
+    finally:
+        event.remove(engine, "before_cursor_execute", fail)
+    assert not inspect(engine).has_table("review_completion_history")
+    with app.state.session_factory() as db:
+        assert db.get(Attempt, first["id"]).answer_json == blank("4")
+    upgrade_local_draft_schema(engine)
+
+
+@pytest.mark.parametrize("corruption", ["owner", "question", "result"])
+def test_mismatched_history_is_not_accepted(onboarded, new_student, clock, app, corruption):
+    from tutor_api.models import ReviewCompletionRecord
+
+    item = _mistake(onboarded)
+    clock.advance(days=1)
+    _, attempt, _ = _retest(onboarded, item, blank("4"))
+    other_owner = new_student().user_id
+    values = dict(
+        review_id=item["id"],
+        first_attempt_id=attempt["id"],
+        student_id=onboarded.user_id,
+        question_id=item["question_id"],
+        state="completed",
+        result="passed",
+    )
+    values[{"owner": "student_id", "question": "question_id", "result": "result"}[corruption]] = {
+        "owner": other_owner,
+        "question": qid("math-ineq-rect"),
+        "result": "failed",
+    }[corruption]
+    with app.state.session_factory() as db:
+        db.add(ReviewCompletionRecord(**values))
+        db.commit()
+    before = _reviews(onboarded, scope="all")
+    assert (
+        _complete_error(onboarded, item["id"], attempt["id"], expect=409)["code"]
+        == "review_completion_history_unknown"
+    )
+    assert _reviews(onboarded, scope="all") == before
+
+
+def test_completion_receipt_failure_rolls_back_history_and_schedule(onboarded, clock, app):
+    from sqlalchemy import event, func, select
+
+    from tutor_api.models import ReviewCompletionRecord, ReviewItem
+
+    item = _mistake(onboarded)
+    clock.advance(days=1)
+    _, attempt, _ = _retest(onboarded, item, blank("4"))
+    engine = app.state.session_factory.kw["bind"]
+    before = _reviews(onboarded, scope="all")
+
+    def fail(conn, cursor, sql, params, ctx, many):
+        if sql.upper().startswith("INSERT INTO PROTO_IDEMPOTENCY_RECORDS"):
+            raise RuntimeError("injected completion receipt failure")
+
+    event.listen(engine, "before_cursor_execute", fail)
+    try:
+        with pytest.raises(RuntimeError, match="injected completion receipt"):
+            _complete(onboarded, item, attempt, key="receipt-failure-retry")
+    finally:
+        event.remove(engine, "before_cursor_execute", fail)
+    assert _reviews(onboarded, scope="all") == before
+    with app.state.session_factory() as db:
+        assert db.scalar(select(func.count()).select_from(ReviewCompletionRecord)) == 0
+        assert db.get(ReviewItem, item["id"]).last_attempt_id is None
+    assert (
+        _complete(onboarded, item, attempt, key="receipt-failure-retry")["review_item"]["stage"]
+        == 1
     )

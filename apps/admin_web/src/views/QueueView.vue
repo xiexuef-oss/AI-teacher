@@ -22,6 +22,8 @@ const counts = ref<AdminStatusCounts | null>(null)
 const cursor = ref<string | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const selected = ref<string[]>([])
+function toggle(id: string) { selected.value = selected.value.includes(id) ? selected.value.filter(value => value !== id) : selected.value.length < 50 ? [...selected.value,id] : selected.value }
 
 const tabLabel = (value: Tab): string => (value === 'all' ? '全部' : STATUS_LABEL[value])
 const tabCount = (value: Tab): number | null => {
@@ -66,6 +68,7 @@ function open(id: string): void {
   <main class="page">
     <header class="page-head">
       <h1>审核队列</h1>
+      <RouterLink :to="{ name: 'import' }">导入题目</RouterLink>
       <label class="inline">
         学科
         <select v-model="subject" data-testid="subject">
@@ -75,6 +78,7 @@ function open(id: string): void {
       </label>
     </header>
 
+    <RouterLink v-if="selected.length" :to="{name:'batch-review',query:{ids:selected.join(',')}}">逐题确认批量审核（{{selected.length}}/50）</RouterLink>
     <nav class="tabs" role="tablist" aria-label="状态">
       <button
         v-for="value in TABS"
@@ -97,7 +101,7 @@ function open(id: string): void {
     <table v-if="items.length" class="queue" data-testid="queue">
       <thead>
         <tr>
-          <th>题目</th>
+          <th>选择</th><th>题目</th>
           <th>学科 / 题型</th>
           <th>难度</th>
           <th>来源</th>
@@ -109,6 +113,7 @@ function open(id: string): void {
       </thead>
       <tbody>
         <tr v-for="item in items" :key="item.id" class="row-link" tabindex="0" @click="open(item.id)" @keydown.enter="open(item.id)">
+<td @click.stop @keydown.enter.stop><input type="checkbox" :aria-label="`选择 ${item.title}`" :checked="selected.includes(item.id)" @change="toggle(item.id)" /></td>
           <td class="title">{{ item.title }}</td>
           <td>{{ SUBJECT_LABEL[item.subject as Subject] ?? item.subject }} · {{ MODE_LABEL[item.answer_mode] }}</td>
           <td>{{ item.difficulty }}</td>

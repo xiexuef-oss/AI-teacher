@@ -1,17 +1,21 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch, onBeforeUnmount } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { getQuestion } from '../api/admin'
+import { getQuestion, createQuestionVersion, reviewQuestion } from '../api/admin'
 import { ApiError } from '../api/client'
 import { handleUnauthorized } from '../api/guard'
-import type { AdminQuestionDetail, QuestionReviewState, ReviewDecisionType, Subject } from '../api/types'
+import type { AdminQuestionDetail, AdminQuestionEdit, ReviewDecision, QuestionReviewState, ReviewDecisionType, Subject } from '../api/types'
 import DecisionPanel from '../components/DecisionPanel.vue'
 import QuestionEditor from '../components/QuestionEditor.vue'
 import MathText from '../components/MathText.vue'
+import MediaAttachments from '../components/MediaAttachments.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import QuestionProvenance from '../components/QuestionProvenance.vue'
 import { canEdit, DECISION_LABEL, HISTORY_LABEL, PART_LABEL } from '../decisions'
 import { formatTime, MODE_LABEL, PROOF_STAGES, shortId, SOLUTION_LABEL, STAGE_LABEL, SUBJECT_LABEL } from '../labels'
-import { useSession } from '../session'
+import { useSession, captureSessionBinding, isCurrentSessionBinding } from '../session'
+import { QuestionWriteRecovery } from '../question-write-recovery'
+import { WriteCommandStore,browserLocks,type Command,type Json } from '../api/write-command-store'
 
 const route = useRoute()
 const session = useSession()
@@ -21,6 +25,9 @@ const error = ref<{ status: number; message: string } | null>(null)
 const done = ref<string | null>(null)
 const savedVersion = ref<number | null>(null)
 const editing = ref(false)
+const recoveryCommands=shallowRef<Command[]>([]),recoveryMessage=ref('')
+let live=true,loadGeneration=0,pageEpoch=0
+onBeforeUnmount(()=>{live=false;loadGeneration++;pageEpoch++})
 
 const id = computed(() => String(route.params.id ?? ''))
 const isWritten = computed(() => detail.value?.answer_mode === 'written')
@@ -109,26 +116,42 @@ const visualParams = computed(() =>
     .join('，'),
 )
 
-async function load(): Promise<void> {
-  if (!session.session) return
-  loading.value = true
-  error.value = null
-  try {
-    detail.value = await getQuestion(session.session.token, id.value)
-  } catch (failure) {
-    if (handleUnauthorized(failure)) return
-    detail.value = null
-    error.value =
-      failure instanceof ApiError
-        ? { status: failure.status, message: failure.status === 404 ? '没有这道题。' : failure.message }
-        : { status: 0, message: '加载失败' }
-  } finally {
-    loading.value = false
-  }
+async function load():Promise<void>{
+ const binding=captureSessionBinding(),resource=id.value,generation=++loadGeneration,epoch=pageEpoch
+ if(!binding)return
+ const current=()=>live&&epoch===pageEpoch&&generation===loadGeneration&&resource===id.value&&isCurrentSessionBinding(binding)
+ loading.value=true;error.value=null
+ try{const next=await getQuestion(binding.token,resource);if(!current())return;detail.value=next
+  const commands=await new WriteCommandStore(localStorage,browserLocks(),binding.userId).list();if(!current())return
+  const released=[...(await new QuestionWriteRecovery(binding.userId,resource,'edit').load()).released,...(await new QuestionWriteRecovery(binding.userId,resource,'review').load()).released];if(!current())return
+  recoveryCommands.value=commands.filter(c=>!released.some(t=>t.key===c.key&&t.epoch===c.epoch&&t.snapshot===c.snapshot)&&c.owner===binding.userId&&c.method==='POST'&&['versions','review'].some(action=>c.path===`/admin/questions/${encodeURIComponent(resource)}/${action}`&&c.resource===`question:${resource}:${action==='versions'?'edit':'review'}`)&&['prepared','unavailable','result_known'].includes(c.phase))
+ }catch(e){if(!current()||handleUnauthorized(e,binding))return;error.value=e instanceof ApiError?{status:e.status,message:e.status===404?'没有这道题。':e.message}:{status:0,message:'加载失败或恢复存储不可用，请保留本机记录。'}}
+ finally{if(current())loading.value=false}
 }
-
-watch(id, () => void load(), { immediate: true })
-
+watch([()=>route.fullPath,()=>session.session],()=>{pageEpoch++;detail.value=null;editing.value=false;done.value=null;recoveryCommands.value=[];void load()},{immediate:true})
+async function recover(command:Command,ackOnly=false){
+ const binding=captureSessionBinding(),epoch=pageEpoch,resource=id.value
+ const current=()=>live&&epoch===pageEpoch&&id.value===resource&&isCurrentSessionBinding(binding)
+ if(!binding||!current())return
+ const store=new WriteCommandStore(localStorage,browserLocks(),binding.userId)
+ try{if(ackOnly)await store.acknowledgeStoredResult(command)
+  else await store.send(command,async c=>{
+   if(!current())throw Error('原页面或身份已失效，未发送请求')
+   if(c.path===`/admin/questions/${encodeURIComponent(resource)}/versions`)return await createQuestionVersion(binding.token,resource,c.body as unknown as AdminQuestionEdit,c.key) as unknown as Json
+   if(c.path===`/admin/questions/${encodeURIComponent(resource)}/review`)return await reviewQuestion(binding.token,resource,c.body as unknown as ReviewDecision,c.key) as unknown as Json
+   throw Error('恢复资源不匹配')
+  })
+  if(!current()||await new QuestionWriteRecovery(binding.userId,resource,command.path.endsWith('/versions')?'edit':'review').isReleased(command))return;recoveryMessage.value=ackOnly?'已确认历史结果；不会将其覆盖到当前题目。':'原命令历史结果已落盘，请确认；当前题目另行读取。';await load()
+ }catch(e){if(e instanceof ApiError&&e.status===422&&e.code==='validation_error'){try{await store.mark(command,'rejected','validation_error')}catch(storageError){if(current())recoveryMessage.value='拒绝结果未落盘，原命令仍保留。'+String(storageError);return}if(current())await load()}if(current()&&!handleUnauthorized(e,binding))recoveryMessage.value=String(e)}
+}
+async function releaseRecovery(command:Command){
+ const binding=captureSessionBinding(),epoch=pageEpoch,resource=id.value
+ if(!binding)return
+ const current=()=>live&&epoch===pageEpoch&&resource===id.value&&isCurrentSessionBinding(binding)
+ try{await new QuestionWriteRecovery(binding.userId,resource,command.path.endsWith('/versions')?'edit':'review').releaseUnknown(command)
+  if(current()){recoveryMessage.value='未知记录仍保留，仅停止本机重试；未取消服务器操作。';await load()}
+ }catch(e){if(current())recoveryMessage.value='停止重试未落盘，原命令仍保留。'+String(e)}
+}
 async function decided(_state: QuestionReviewState, decision: ReviewDecisionType): Promise<void> {
   done.value = `已执行：${DECISION_LABEL[decision]}`
   savedVersion.value = null
@@ -141,13 +164,12 @@ async function refresh(): Promise<void> {
   await load()
 }
 
-function saved(next: AdminQuestionDetail): void {
-  detail.value = next
-  editing.value = false
-  done.value = `已保存为第 ${next.version} 版，状态回到待审；要由另一位审校员重新二审`
-  savedVersion.value = next.version
-}
-</script>
+async function saved(next:AdminQuestionDetail):Promise<void>{
+ editing.value=false
+ done.value=`原命令已保存第 ${next.version} 版，正在读取当前题目。`
+ savedVersion.value=next.version
+ await load()
+}</script>
 
 <template>
   <main class="page">
@@ -155,6 +177,16 @@ function saved(next: AdminQuestionDetail): void {
     <p v-if="loading && !detail" class="muted" role="status">加载中…</p>
     <p v-if="error" class="notice error" role="alert" data-testid="load-error">{{ error.message }}</p>
 
+    <section v-if="recoveryCommands.length" aria-label="此题历史写入恢复">
+     <p>以下是独立历史命令。当前题目状态不会改写原来源；已上线或已下线时仍可明确恢复原命令。</p>
+     <div v-for="command in recoveryCommands" :key="command.key">
+      <span>{{ command.resource }} · 来源版本 {{ command.body.expected_version }}</span>
+      <button v-if="command.phase==='result_known'" data-testid="question-history-ack" @click="recover(command,true)">确认已保存历史结果（无需网络）</button>
+      <details v-if="command.phase!=='result_known'"><summary>保留旧未知记录，停止重试</summary><p>不代表失败，不取消服务器操作。新来源与新命令须单独明确选择。</p><button data-testid="question-history-release" @click="releaseRecovery(command)">确认停止本机重试</button></details>
+      <button v-if="command.phase!=='result_known'" data-testid="question-history-retry" @click="recover(command)">恢复此题原命令</button>
+     </div>
+    </section>
+    <p v-if="recoveryMessage" role="status">{{ recoveryMessage }}</p>
     <div v-if="detail" class="layout" :class="{ wide: editing }">
       <div class="main">
         <header class="card head">
@@ -169,6 +201,7 @@ function saved(next: AdminQuestionDetail): void {
           <p class="notice info small" data-testid="source">
             来源：{{ detail.source.label }}（许可：{{ detail.source.source_license }}）
           </p>
+          <QuestionProvenance :provenance="detail.provenance" />
           <p v-if="!editing" class="row">
             <button
               type="button"
@@ -219,7 +252,7 @@ function saved(next: AdminQuestionDetail): void {
         <template v-if="!editing">
         <section class="card">
           <h2>题面</h2>
-          <p class="stem"><MathText :text="detail.content.stem" /></p>
+          <p class="stem"><MathText :text="detail.content.stem" /></p><MediaAttachments v-if="detail.content.attachments.length" :model-value="detail.content.attachments" :question-id="detail.id" :question-version="detail.version" :author-id="detail.created_by" readonly />
           <div v-if="detail.content.proof" class="proof-view" data-testid="proof-view">
             <template v-if="detail.content.proof.givens.length">
               <h3 class="small">已知</h3>
@@ -426,7 +459,7 @@ function saved(next: AdminQuestionDetail): void {
         </template>
         <QuestionEditor
           v-else
-          :key="detail.version"
+          :key="`${detail.id}:${detail.version}:${detail.review_revision}`"
           :detail="detail"
           @saved="saved"
           @cancel="editing = false"
@@ -493,8 +526,11 @@ function saved(next: AdminQuestionDetail): void {
       </div>
 
       <aside v-if="!editing" class="side">
-        <DecisionPanel :detail="detail" @decided="decided" @refresh="refresh" />
+        <DecisionPanel :key="`${detail.id}:${detail.version}:${detail.review_revision}`" :detail="detail" @decided="decided" @refresh="refresh" />
       </aside>
     </div>
   </main>
 </template>
+
+
+

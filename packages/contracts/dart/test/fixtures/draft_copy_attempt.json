@@ -1,0 +1,59 @@
+{
+  "name": "draft_copy_attempt",
+  "method": "GET",
+  "path": "/api/v1/attempts/40fd88cd-92c3-486e-9e87-2159789465b6",
+  "status": 200,
+  "schema": "Attempt",
+  "value": {
+    "id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+    "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+    "attempt_no": 2,
+    "submission_no": null,
+    "copied_from_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+    "copied_from_revision": 1,
+    "status": "draft",
+    "answer": {
+      "blanks": [
+        {
+          "key": "b1",
+          "value": "本机草稿"
+        }
+      ]
+    },
+    "draft_revision": 1,
+    "assisted": false,
+    "used_solution": false,
+    "independent": null,
+    "evaluation": null,
+    "submitted_at": null,
+    "created_at": "2026-11-11T08:00:00Z",
+    "updated_at": "2026-11-11T08:00:00Z"
+  },
+  "body": {
+    "data": {
+      "id": "40fd88cd-92c3-486e-9e87-2159789465b6",
+      "session_id": "ce684dfc-1727-42f9-b500-afd9f6fcf3ac",
+      "attempt_no": 2,
+      "submission_no": null,
+      "copied_from_attempt_id": "bd580882-8390-4831-b421-221578343b82",
+      "copied_from_revision": 1,
+      "status": "draft",
+      "answer": {
+        "blanks": [
+          {
+            "key": "b1",
+            "value": "本机草稿"
+          }
+        ]
+      },
+      "draft_revision": 1,
+      "assisted": false,
+      "used_solution": false,
+      "independent": null,
+      "evaluation": null,
+      "submitted_at": null,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    }
+  }
+}

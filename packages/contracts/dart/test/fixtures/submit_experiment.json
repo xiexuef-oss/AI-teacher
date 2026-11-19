@@ -1,14 +1,17 @@
 {
   "name": "submit_experiment",
   "method": "POST",
-  "path": "/api/v1/attempts/ce44b571-d077-4fca-9ce4-8f74b0fac2bf/submit",
+  "path": "/api/v1/attempts/f7f9ebe4-8847-4037-a54d-cc130fac3bd8/submit",
   "status": 200,
   "schema": "SubmitResult",
   "value": {
     "attempt": {
-      "id": "ce44b571-d077-4fca-9ce4-8f74b0fac2bf",
-      "session_id": "eb0ffd94-201b-4956-a929-960dbaa57ffd",
+      "id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+      "session_id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
       "attempt_no": 1,
+      "submission_no": 1,
+      "copied_from_attempt_id": null,
+      "copied_from_revision": null,
       "status": "submitted",
       "answer": {
         "parts": [
@@ -87,7 +90,7 @@
       "disclaimer": "这是练习反馈，不是官方阅卷分数。"
     },
     "session": {
-      "id": "eb0ffd94-201b-4956-a929-960dbaa57ffd",
+      "id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
       "question_id": "2e43664d-943a-588a-9378-24094140fda1",
       "question_version": 1,
       "origin": "practice",
@@ -105,6 +108,7 @@
       "confused_streak": 0,
       "needs_human_help": false,
       "active_attempt_id": null,
+      "first_submitted_attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
       "submitted_attempts": 1,
       "last_event_seq": 1,
       "created_at": "2026-11-11T08:00:00Z",
@@ -112,8 +116,8 @@
     },
     "events": [
       {
-        "id": "fb44d961-da22-4e54-a7ce-eb417d3ca4ad",
-        "session_id": "eb0ffd94-201b-4956-a929-960dbaa57ffd",
+        "id": "7e7edd1c-cee8-4b85-885b-34d341fd8186",
+        "session_id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
         "seq_no": 1,
         "type": "uncertainty",
         "created_at": "2026-11-11T08:00:00Z",
@@ -133,7 +137,7 @@
           "question_id": "2e43664d-943a-588a-9378-24094140fda1",
           "question_version": 1,
           "trace_id": null,
-          "request_id": "071c843663094744976cd2394ae95d08"
+          "request_id": "3403540b276a45da98677bca013ec3b7"
         }
       }
     ],
@@ -142,9 +146,12 @@
   "body": {
     "data": {
       "attempt": {
-        "id": "ce44b571-d077-4fca-9ce4-8f74b0fac2bf",
-        "session_id": "eb0ffd94-201b-4956-a929-960dbaa57ffd",
+        "id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
+        "session_id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
         "attempt_no": 1,
+        "submission_no": 1,
+        "copied_from_attempt_id": null,
+        "copied_from_revision": null,
         "status": "submitted",
         "answer": {
           "parts": [
@@ -223,7 +230,7 @@
         "disclaimer": "这是练习反馈，不是官方阅卷分数。"
       },
       "session": {
-        "id": "eb0ffd94-201b-4956-a929-960dbaa57ffd",
+        "id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
         "question_id": "2e43664d-943a-588a-9378-24094140fda1",
         "question_version": 1,
         "origin": "practice",
@@ -241,6 +248,7 @@
         "confused_streak": 0,
         "needs_human_help": false,
         "active_attempt_id": null,
+        "first_submitted_attempt_id": "f7f9ebe4-8847-4037-a54d-cc130fac3bd8",
         "submitted_attempts": 1,
         "last_event_seq": 1,
         "created_at": "2026-11-11T08:00:00Z",
@@ -248,8 +256,8 @@
       },
       "events": [
         {
-          "id": "fb44d961-da22-4e54-a7ce-eb417d3ca4ad",
-          "session_id": "eb0ffd94-201b-4956-a929-960dbaa57ffd",
+          "id": "7e7edd1c-cee8-4b85-885b-34d341fd8186",
+          "session_id": "03b225cf-e3bb-4f06-a918-caa93499b3e1",
           "seq_no": 1,
           "type": "uncertainty",
           "created_at": "2026-11-11T08:00:00Z",
@@ -269,7 +277,7 @@
             "question_id": "2e43664d-943a-588a-9378-24094140fda1",
             "question_version": 1,
             "trace_id": null,
-            "request_id": "071c843663094744976cd2394ae95d08"
+            "request_id": "3403540b276a45da98677bca013ec3b7"
           }
         }
       ],

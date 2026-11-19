@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from tutor_api import launch
 from tutor_api.db import new_id
-from tutor_api.errors import not_found, unprocessable
+from tutor_api.errors import conflict, not_found, unprocessable
 from tutor_api.models import AuditLog, ExamRegionRule, StudentProfile, User
 from tutor_api.schemas import LaunchConfig, ProfileNotice, ProfileUpdateIn, StudentProfileOut
 
@@ -112,7 +112,9 @@ def serialize_profile(db: Session, profile: StudentProfile) -> StudentProfileOut
             )
 
     return StudentProfileOut(
+        learning_settings=profile.learning_settings_json,
         user_id=profile.user_id,
+        revision=profile.revision,
         display_name=user.display_name if user else None,
         region_code=profile.region_code,
         grade=profile.grade,
@@ -130,7 +132,41 @@ def serialize_profile(db: Session, profile: StudentProfile) -> StudentProfileOut
 def update_profile(
     db: Session, student_id: str, body: ProfileUpdateIn, *, now: datetime, request_id: str
 ) -> StudentProfile:
-    profile = get_profile(db, student_id)
+    # Lock the stable owner first. MySQL locking reads are current reads even
+    # after a REPEATABLE READ snapshot; populate_existing defeats stale ORM rows.
+    if db.bind.dialect.name == "sqlite":
+        db.execute(
+            update(User)
+            .where(User.id == student_id)
+            .values(updated_at=User.updated_at)
+            .execution_options(synchronize_session=False)
+        )
+    owner = db.scalar(
+        select(User)
+        .where(User.id == student_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if owner is None:
+        raise not_found()
+    profile = db.scalar(
+        select(StudentProfile)
+        .where(StudentProfile.user_id == student_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if profile is None:
+        raise not_found()
+    if profile.revision != body.expected_revision:
+        raise conflict(
+            "profile_revision_conflict",
+            "资料已在其他地方更新，请保留双方内容并选择后再保存",
+            {
+                "expected_revision": body.expected_revision,
+                "server_revision": profile.revision,
+                "server_profile": serialize_profile(db, profile).model_dump(mode="json"),
+            },
+        )
     today = now.date()
 
     if (
@@ -150,7 +186,35 @@ def update_profile(
         exam_year = estimate_exam_year(body.grade, today)
         source = "estimated" if exam_year is not None else None
 
-    if profile.region_code != body.region_code:
+    previous_region = profile.region_code
+    result = db.execute(
+        update(StudentProfile)
+        .where(
+            StudentProfile.user_id == student_id,
+            StudentProfile.revision == body.expected_revision,
+        )
+        .values(
+            region_code=body.region_code,
+            learning_settings_json=(
+                body.learning_settings.model_dump(mode="json")
+                if body.learning_settings is not None
+                else profile.learning_settings_json
+            ),
+            grade=body.grade,
+            subjects_json=sorted(body.subjects, key=lambda code: launch.SUBJECT_ORDER[code]),
+            exam_year=exam_year,
+            exam_year_source=source,
+            curriculum_version=body.curriculum_version,
+            exam_scheme_code=resolve_scheme_code(db, body.region_code, exam_year),
+            updated_at=now,
+            revision=StudentProfile.revision + 1,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:
+        raise conflict("profile_revision_conflict", "资料版本已变化，请重新读取后选择保存")
+    db.refresh(profile)
+    if previous_region != body.region_code:
         # 切换地区只影响之后的推荐；已有会话保留各自的地区快照
         db.add(
             AuditLog(
@@ -159,22 +223,13 @@ def update_profile(
                 action="profile.region_changed",
                 target_type="student_profile",
                 target_id=student_id,
-                detail_json={"from": profile.region_code, "to": body.region_code},
+                detail_json={"from": previous_region, "to": body.region_code},
                 request_id=request_id,
                 created_at=now,
             )
         )
 
-    profile.region_code = body.region_code
-    profile.grade = body.grade
-    profile.subjects_json = sorted(body.subjects, key=lambda code: launch.SUBJECT_ORDER[code])
-    profile.exam_year = exam_year
-    profile.exam_year_source = source
-    profile.curriculum_version = body.curriculum_version
-    profile.exam_scheme_code = resolve_scheme_code(db, body.region_code, exam_year)
-    profile.updated_at = now
-
-    user = db.get(User, student_id)
+    user = owner
     if user is not None and body.display_name is not None:
         user.display_name = body.display_name
         user.updated_at = now

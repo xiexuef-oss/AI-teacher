@@ -8,14 +8,15 @@ from fastapi.responses import JSONResponse
 from tutor_api.deps import Ctx, ok, student_ctx
 from tutor_api.errors import ApiError
 from tutor_api.idempotency import run_idempotent
+from tutor_api.private_route import PrivateRoute
 from tutor_api.schemas import AttemptCreateIn, DraftSyncIn, SelfCheckSaveIn, SubmitIn
 from tutor_api.services import self_check_service, session_service
 
-router = APIRouter()
+router = APIRouter(route_class=PrivateRoute)
 
 
 async def enforce_draft_size(request: Request) -> None:
-    """草稿体积上限。作为依赖先于请求体解析执行，超限直接 413。"""
+    """草稿体积上限，先于字段验证和业务写入；接收期边界由HTTP门控处理。"""
     limit = request.app.state.settings.max_draft_bytes
     declared = request.headers.get("content-length", "")
     if (declared.isdigit() and int(declared) > limit) or len(await request.body()) > limit:

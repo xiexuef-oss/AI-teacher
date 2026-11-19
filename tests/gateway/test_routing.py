@@ -26,6 +26,23 @@ UNVERIFIED_PRICING = {
 }
 
 
+@pytest.mark.parametrize("enabled", [True, False])
+def test_network_provider_cannot_be_mislabeled_as_nonexternal(enabled):
+    config = config_dict({"x": external_provider(external=False, enabled=enabled)}, ["x"])
+    with pytest.raises(ValidationError, match="external"):
+        GatewayConfig.model_validate(config)
+
+
+def test_cached_network_provider_cannot_bypass_policy_by_changing_external_flag(make_gateway):
+    adapter = ScriptedProvider(hint_ok())
+    h = make_gateway({"x": external_provider()}, ["x"], {"x": adapter})
+    plan = h.gateway.prepare_single_attempt(make_request())
+    h.gateway._config.providers["x"].external = False
+    assert h.gateway.invoke(make_request()).status == "degraded"
+    assert h.gateway.invoke_single_attempt(plan).error_code == "MODEL_UNAVAILABLE"
+    assert adapter.calls == []
+
+
 def test_candidates_are_tried_in_configured_order(make_gateway):
     a, b = ScriptedProvider(hint_ok("来自 A")), ScriptedProvider(hint_ok("来自 B"))
     h = make_gateway(

@@ -148,16 +148,12 @@ def test_retests_have_their_own_success_rate(linked, clock):
 
 def test_the_students_own_name_is_shown_when_they_set_one(linked):
     student, parent = linked
-    student.data(
-        "PUT",
-        "/profile",
-        json={
+    student.save_profile(json={
             "region_code": "CN-51",
             "grade": "G12",
             "subjects": ["math"],
             "display_name": "小明",
-        },
-    )
+        })
 
     assert weekly(parent, student.user_id)["student_display_name"] == "小明"
 
@@ -415,11 +411,7 @@ def test_work_before_the_authorization_is_part_of_the_report(onboarded, parent):
 def test_a_week_is_aggregated_per_student(linked, new_student, clock):
     student, parent = linked
     other = new_student()
-    other.data(
-        "PUT",
-        "/profile",
-        json={"region_code": "CN-51", "grade": "G12", "subjects": ["math"]},
-    )
+    other.save_profile(json={"region_code": "CN-51", "grade": "G12", "subjects": ["math"]})
     solve(other, "math-mono-quadratic")
     solve(student, "math-ineq-min")
     solve(student, "phys-newton2-force")

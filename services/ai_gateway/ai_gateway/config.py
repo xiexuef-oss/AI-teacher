@@ -30,6 +30,15 @@ class Budgets(_Strict):
     per_request_max_cost_micros: int = Field(ge=0)
     student_daily_requests: int = Field(ge=0)
     platform_daily_requests: int = Field(ge=0)
+    student_daily_max_cost_micros: int | None = Field(default=None, ge=0, strict=True)
+    platform_daily_max_cost_micros: int | None = Field(default=None, ge=0, strict=True)
+
+    @property
+    def has_daily_cost_limits(self) -> bool:
+        return (
+            self.student_daily_max_cost_micros is not None
+            or self.platform_daily_max_cost_micros is not None
+        )
 
 
 class Pricing(_Strict):
@@ -60,6 +69,8 @@ class ProviderConfig(_Strict):
 
     @model_validator(mode="after")
     def _check_external_fields(self) -> Self:
+        if self.kind == "openai_compatible" and not self.external:
+            raise ValueError("openai_compatible 供应商必须标记为 external")
         if self.external:
             if self.kind == "mock":
                 raise ValueError("mock 供应商不能标记为 external")

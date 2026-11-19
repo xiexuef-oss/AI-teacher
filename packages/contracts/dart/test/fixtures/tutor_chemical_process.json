@@ -1,0 +1,127 @@
+{
+  "name": "tutor_chemical_process",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/310d3ab3-ef3e-4010-863e-4aece81c0d3c/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+      "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "VISUAL",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 2,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "first_submitted_attempt_id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+      "submitted_attempts": 1,
+      "last_event_seq": 3,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "931d3ecf-b67c-411a-832b-d406f13346ad",
+        "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+        "seq_no": 3,
+        "type": "visual",
+        "created_at": "2026-11-11T08:00:00Z",
+        "state_after": "VISUAL",
+        "payload": {
+          "template_id": "chemical_process",
+          "params": {
+            "focus": 0,
+            "branch": 1,
+            "recycle": 1
+          },
+          "caption": "只定位题干已给出的流程关系，不推断物质、反应或操作。",
+          "static_fallback": "原料依次经过处理Ⅰ、分离、处理Ⅱ到达产物。支路与回流是否存在以题干文字为准；这只是通用流程骨架，不是反应机理或实验操作指南。"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "4492baf4fea24da3938808a6052f5e92"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+        "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "VISUAL",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 2,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "first_submitted_attempt_id": "13294dd8-16ba-45e3-8599-6c34d4083af6",
+        "submitted_attempts": 1,
+        "last_event_seq": 3,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "931d3ecf-b67c-411a-832b-d406f13346ad",
+          "session_id": "310d3ab3-ef3e-4010-863e-4aece81c0d3c",
+          "seq_no": 3,
+          "type": "visual",
+          "created_at": "2026-11-11T08:00:00Z",
+          "state_after": "VISUAL",
+          "payload": {
+            "template_id": "chemical_process",
+            "params": {
+              "focus": 0,
+              "branch": 1,
+              "recycle": 1
+            },
+            "caption": "只定位题干已给出的流程关系，不推断物质、反应或操作。",
+            "static_fallback": "原料依次经过处理Ⅰ、分离、处理Ⅱ到达产物。支路与回流是否存在以题干文字为准；这只是通用流程骨架，不是反应机理或实验操作指南。"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "fced6a75-5950-593f-9c60-05ba9bab7fac",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "4492baf4fea24da3938808a6052f5e92"
+          }
+        }
+      ]
+    }
+  }
+}

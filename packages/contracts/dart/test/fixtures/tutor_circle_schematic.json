@@ -1,0 +1,127 @@
+{
+  "name": "tutor_circle_schematic",
+  "method": "POST",
+  "path": "/api/v1/tutor/sessions/7450e071-ad41-47f0-bb8e-46d6a27924a1/next",
+  "status": 200,
+  "schema": "TutorStep",
+  "value": {
+    "session": {
+      "id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+      "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+      "question_version": 1,
+      "origin": "practice",
+      "state": "VISUAL",
+      "review_item_id": null,
+      "parent_session_id": null,
+      "region_code_snapshot": "CN-51",
+      "exam_year_snapshot": 2027,
+      "curriculum_version_snapshot": null,
+      "assisted": true,
+      "used_solution": false,
+      "independent_ended": false,
+      "hint_level_revealed": 0,
+      "hint_levels_total": 3,
+      "confused_streak": 0,
+      "needs_human_help": false,
+      "active_attempt_id": null,
+      "first_submitted_attempt_id": "89ac984b-8d03-4f7e-871b-e5a176d29f09",
+      "submitted_attempts": 1,
+      "last_event_seq": 3,
+      "created_at": "2026-11-11T08:00:00Z",
+      "updated_at": "2026-11-11T08:00:00Z"
+    },
+    "events": [
+      {
+        "id": "15978914-a9df-4995-bbc7-fe022cd14673",
+        "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+        "seq_no": 3,
+        "type": "visual",
+        "created_at": "2026-11-11T08:00:00Z",
+        "state_after": "VISUAL",
+        "payload": {
+          "template_id": "circle_schematic",
+          "params": {
+            "a_position": 0.1,
+            "b_position": 0.37,
+            "focus": 0
+          },
+          "caption": "只定位已给的圆O和圆上点A、B；不补连线、辅助点或证明结论。",
+          "static_fallback": "O是圆心，A、B是圆上不同的两点。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。"
+        },
+        "meta": {
+          "schema_version": "1.0",
+          "source": "reviewed_content",
+          "degraded": false,
+          "provider": null,
+          "model_id": null,
+          "prompt_version": null,
+          "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+          "question_version": 1,
+          "trace_id": null,
+          "request_id": "160a0a195df84a49b8e6a82c1c509587"
+        }
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "session": {
+        "id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+        "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+        "question_version": 1,
+        "origin": "practice",
+        "state": "VISUAL",
+        "review_item_id": null,
+        "parent_session_id": null,
+        "region_code_snapshot": "CN-51",
+        "exam_year_snapshot": 2027,
+        "curriculum_version_snapshot": null,
+        "assisted": true,
+        "used_solution": false,
+        "independent_ended": false,
+        "hint_level_revealed": 0,
+        "hint_levels_total": 3,
+        "confused_streak": 0,
+        "needs_human_help": false,
+        "active_attempt_id": null,
+        "first_submitted_attempt_id": "89ac984b-8d03-4f7e-871b-e5a176d29f09",
+        "submitted_attempts": 1,
+        "last_event_seq": 3,
+        "created_at": "2026-11-11T08:00:00Z",
+        "updated_at": "2026-11-11T08:00:00Z"
+      },
+      "events": [
+        {
+          "id": "15978914-a9df-4995-bbc7-fe022cd14673",
+          "session_id": "7450e071-ad41-47f0-bb8e-46d6a27924a1",
+          "seq_no": 3,
+          "type": "visual",
+          "created_at": "2026-11-11T08:00:00Z",
+          "state_after": "VISUAL",
+          "payload": {
+            "template_id": "circle_schematic",
+            "params": {
+              "a_position": 0.1,
+              "b_position": 0.37,
+              "focus": 0
+            },
+            "caption": "只定位已给的圆O和圆上点A、B；不补连线、辅助点或证明结论。",
+            "static_fallback": "O是圆心，A、B是圆上不同的两点。示意图，非按比例；不能凭外观推断长度、角度或关系。具体条件以题干文字及原图为准。"
+          },
+          "meta": {
+            "schema_version": "1.0",
+            "source": "reviewed_content",
+            "degraded": false,
+            "provider": null,
+            "model_id": null,
+            "prompt_version": null,
+            "question_id": "76903fe9-da47-5aad-8500-75ea36c553f5",
+            "question_version": 1,
+            "trace_id": null,
+            "request_id": "160a0a195df84a49b8e6a82c1c509587"
+          }
+        }
+      ]
+    }
+  }
+}

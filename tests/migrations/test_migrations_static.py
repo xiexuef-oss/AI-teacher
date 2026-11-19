@@ -68,6 +68,31 @@ def test_migration_files_are_numbered_and_ordered():
         "002_region_model_governance.sql",
         "003_subjective_self_check.sql",
         "004_parent_invites.sql",
+        "005_idempotency_receipts.sql",
+        "006_receipt_actor_lock_independence.sql",
+        "007_attempt_submission_order.sql",
+        "008_review_session_lock_scope.sql",
+        "009_review_completion_history.sql",
+        "010_profile_revision.sql",
+        "011_parent_authorization_revisions.sql",
+        "012_question_review_revision.sql",
+        "013_question_version_provenance.sql",
+        "014_model_invocation_intents.sql",
+        "015_model_cost_incidents.sql",
+        "016_diagnostic_plans.sql",
+        "017_learning_settings.sql",
+        "018_learning_jobs.sql",
+        "019_learning_pack_commands.sql",
+        "020_learning_pack_publications.sql",
+        "021_learning_pack_returns.sql",
+        "022_learning_pack_corrections.sql",
+        "023_learning_pack_return_details.sql",
+        "024_weekly_report_snapshots.sql",
+        "025_learning_pack_return_photos.sql",
+        "026_school_material_commands.sql",
+        "027_school_material_results.sql",
+        "028_school_material_corrections.sql",
+        "029_school_material_confirmations.sql",
     ]
 
 
@@ -141,12 +166,16 @@ def test_v13_additions_exist(schema):
     } <= set(applicability)
 
 
-def test_self_checks_are_appended_without_touching_the_earlier_migrations(schema):
+def test_self_checks_are_appended_without_touching_the_earlier_migrations():
     """迁移只追加：003 只新建一张表，001、002 的结构保持原样。"""
     earlier = load_migration_schema(
         MIGRATIONS_DIR, only=["001_init.sql", "002_region_model_governance.sql"]
     )
-    assert set(schema) - set(earlier) == V14_TABLES | V15_TABLES
+    schema = load_migration_schema(
+        MIGRATIONS_DIR,
+        only=["001_init.sql", "002_region_model_governance.sql", "003_subjective_self_check.sql"],
+    )
+    assert set(schema) - set(earlier) == V14_TABLES
     assert {name: schema[name] for name in earlier} == earlier
 
     columns = schema["attempt_self_checks"]
@@ -156,7 +185,7 @@ def test_self_checks_are_appended_without_touching_the_earlier_migrations(schema
     assert not {"score", "points", "grade"} & set(columns)
 
 
-def test_parent_invites_are_appended_and_never_store_the_code_itself(schema):
+def test_parent_invites_are_appended_and_never_store_the_code_itself():
     """迁移只追加：004 只新建 parent_invites；绑定表（001 里就有）的结构不变。邀请码明文不落库，只存哈希。"""
     earlier = load_migration_schema(
         MIGRATIONS_DIR,
@@ -164,6 +193,15 @@ def test_parent_invites_are_appended_and_never_store_the_code_itself(schema):
             "001_init.sql",
             "002_region_model_governance.sql",
             "003_subjective_self_check.sql",
+        ],
+    )
+    schema = load_migration_schema(
+        MIGRATIONS_DIR,
+        only=[
+            "001_init.sql",
+            "002_region_model_governance.sql",
+            "003_subjective_self_check.sql",
+            "004_parent_invites.sql",
         ],
     )
     assert set(schema) - set(earlier) == V15_TABLES
@@ -198,6 +236,15 @@ def test_learning_records_keep_version_snapshots(schema):
     assert {"assisted", "used_solution", "submitted_at", "answer_json"} <= set(schema["attempts"])
     assert {"revision", "strokes_json", "media_key"} <= set(schema["handwriting_drafts"])
     assert {"seq_no", "event_json"} <= set(schema["tutor_events"])
+
+
+def test_diagnostic_plans_preserve_versions_and_reuse_solve_records(schema):
+    assert {"student_id", "revision", "current_run_id"} == set(schema["diagnostic_states"])
+    assert {"student_id", "scope_json", "abandoned_at"} <= set(schema["diagnostic_runs"])
+    assert {"run_id", "question_id", "question_version", "session_id", "summary_json"} <= set(
+        schema["diagnostic_items"]
+    )
+    assert not {"answer_json", "evaluation_json", "strokes_json"} & set(schema["diagnostic_items"])
 
 
 def test_model_audit_table_has_no_raw_content_columns(schema):
@@ -262,6 +309,7 @@ def test_split_statements_ignores_semicolons_in_strings_and_comments():
 def _orm_metadata():
     import tutor_api.models  # noqa: F401
     import tutor_api.proto_models  # noqa: F401
+    import tutor_api.scan_models  # noqa: F401
     from tutor_api.db import Base
 
     return Base.metadata
@@ -300,7 +348,16 @@ def test_orm_drift_reports_missing_and_mismatched_columns(schema):
 
 def test_prototype_tables_stay_out_of_production_migrations(schema):
     proto = {name for name in _orm_metadata().tables if name.startswith("proto_")}
-    assert proto == {"proto_local_identities", "proto_idempotency_records"}
+    assert proto == {
+        "proto_local_identities",
+        "proto_idempotency_records",
+        "proto_document_import_jobs",
+        "proto_document_import_files",
+        "proto_document_import_ocr_attempts",
+        "proto_document_import_candidates",
+        "proto_document_import_batches",
+        "proto_scan_records",
+    }
     assert not proto & set(schema)
     assert not [name for name in schema if name.startswith("proto_")]
 
@@ -355,3 +412,20 @@ def test_golden_dataset_manifest_is_an_empty_template():
     rows = list(csv.reader(path.read_text(encoding="utf-8-sig").splitlines()))
     assert len(rows) == 1, "评测集登记表目前只应有表头，题目尚未收集"
     assert {"item_id", "subject", "region_code", "source_license", "reviewer"} <= set(rows[0])
+
+
+def test_provenance_migration_only_appends_nullable_version_metadata():
+    earlier_names = sorted(
+        p.name for p in MIGRATIONS_DIR.glob("*.sql") if not p.name.startswith("013_")
+    )
+    earlier = load_migration_schema(MIGRATIONS_DIR, only=earlier_names)
+    current = load_migration_schema(MIGRATIONS_DIR)
+    assert set(current) == set(earlier)
+    assert set(current["question_versions"]) - set(earlier["question_versions"]) == {
+        "provenance_json"
+    }
+    assert current["question_versions"]["provenance_json"] == "JSON"
+    for table in earlier:
+        assert {column: current[table][column] for column in earlier[table]} == earlier[table]
+    sql = (MIGRATIONS_DIR / "013_question_version_provenance.sql").read_text(encoding="utf-8")
+    assert "provenance_json JSON NULL" in sql

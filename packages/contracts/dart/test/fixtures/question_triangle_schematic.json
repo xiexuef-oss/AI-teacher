@@ -1,0 +1,131 @@
+{
+  "name": "question_triangle_schematic",
+  "method": "GET",
+  "path": "/api/v1/questions/e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+  "status": 200,
+  "schema": "Question",
+  "value": {
+    "id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+    "subject": "math",
+    "type": "proof",
+    "answer_mode": "proof",
+    "difficulty": 2,
+    "title": "用给定坐标比较三角形的三边",
+    "source": {
+      "source_type": "self_authored",
+      "source_category": "foundation",
+      "source_name": "自编工程样题",
+      "source_year": null,
+      "source_license": "internal-engineering-sample",
+      "source_url": null,
+      "is_engineering_sample": true,
+      "label": "自编工程样题 · 未经学科审校"
+    },
+    "applicability": {
+      "scope": "general",
+      "label": "全国通用基础题",
+      "recommended_regions": [],
+      "origin_region_code": null,
+      "exam_year_from": null,
+      "exam_year_to": null,
+      "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+    },
+    "knowledge": [
+      {
+        "id": "754612bb-bd06-5cf0-8bc7-c665cc078b51",
+        "code": "math.geometry.coordinate",
+        "title": "平面坐标与线段长度"
+      }
+    ],
+    "variant_of": null,
+    "provenance": null,
+    "version": 1,
+    "grade": "G10",
+    "content": {
+      "stem": "自编坐标几何工程示例。只根据已知坐标证明，不凭示意图的外观判断关系；无需图片即可作答。",
+      "options": [],
+      "blanks": [],
+      "subquestions": [],
+      "attachments": [],
+      "data_tables": [],
+      "safety": null,
+      "proof": {
+        "givens": [
+          "在同一平面直角坐标系中，A(0,0)，B(1,0)，C(0.35,0.65)。",
+          "连接AB、BC、CA，得到三角形ABC。"
+        ],
+        "claim": "证明三角形ABC的三边长度互不相等。"
+      }
+    },
+    "assists": {
+      "hint_levels": 3,
+      "has_standard_solution": true,
+      "has_fast_solution": false,
+      "visual_available": true
+    },
+    "judging_note": "证明题不自动评分：把证明一步一步写下来、每一步写上依据，提交后对照参考证明和要点自己检查一遍。证明的写法不止一种；这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+  },
+  "body": {
+    "data": {
+      "id": "e3f2531f-0bdd-56a9-ba10-3b31fb632108",
+      "subject": "math",
+      "type": "proof",
+      "answer_mode": "proof",
+      "difficulty": 2,
+      "title": "用给定坐标比较三角形的三边",
+      "source": {
+        "source_type": "self_authored",
+        "source_category": "foundation",
+        "source_name": "自编工程样题",
+        "source_year": null,
+        "source_license": "internal-engineering-sample",
+        "source_url": null,
+        "is_engineering_sample": true,
+        "label": "自编工程样题 · 未经学科审校"
+      },
+      "applicability": {
+        "scope": "general",
+        "label": "全国通用基础题",
+        "recommended_regions": [],
+        "origin_region_code": null,
+        "exam_year_from": null,
+        "exam_year_to": null,
+        "disclaimer": "通用基础题，不代表任何地区的高考命题风格。"
+      },
+      "knowledge": [
+        {
+          "id": "754612bb-bd06-5cf0-8bc7-c665cc078b51",
+          "code": "math.geometry.coordinate",
+          "title": "平面坐标与线段长度"
+        }
+      ],
+      "variant_of": null,
+      "provenance": null,
+      "version": 1,
+      "grade": "G10",
+      "content": {
+        "stem": "自编坐标几何工程示例。只根据已知坐标证明，不凭示意图的外观判断关系；无需图片即可作答。",
+        "options": [],
+        "blanks": [],
+        "subquestions": [],
+        "attachments": [],
+        "data_tables": [],
+        "safety": null,
+        "proof": {
+          "givens": [
+            "在同一平面直角坐标系中，A(0,0)，B(1,0)，C(0.35,0.65)。",
+            "连接AB、BC、CA，得到三角形ABC。"
+          ],
+          "claim": "证明三角形ABC的三边长度互不相等。"
+        }
+      },
+      "assists": {
+        "hint_levels": 3,
+        "has_standard_solution": true,
+        "has_fast_solution": false,
+        "visual_available": true
+      },
+      "judging_note": "证明题不自动评分：把证明一步一步写下来、每一步写上依据，提交后对照参考证明和要点自己检查一遍。证明的写法不止一种；这是练习用的自查，不是官方阅卷分数，也不会计入正确率。"
+    }
+  }
+}

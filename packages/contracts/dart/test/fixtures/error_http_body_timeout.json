@@ -1,0 +1,23 @@
+{
+  "name": "error_http_body_timeout",
+  "method": "PUT",
+  "path": "/api/v1/profile",
+  "status": 408,
+  "schema": "ErrorEnvelope",
+  "value": {
+    "error": {
+      "code": "request_timeout",
+      "message": "接收请求体超时，请保留本机内容后重试",
+      "details": {},
+      "request_id": "93e0133e25a24f518b3b242526baaf3e"
+    }
+  },
+  "body": {
+    "error": {
+      "code": "request_timeout",
+      "message": "接收请求体超时，请保留本机内容后重试",
+      "details": {},
+      "request_id": "93e0133e25a24f518b3b242526baaf3e"
+    }
+  }
+}

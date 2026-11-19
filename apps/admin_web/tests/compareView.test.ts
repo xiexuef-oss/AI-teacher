@@ -1,5 +1,6 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {installBrowserStorage,flushRecovery as flushPromises} from './support/browser-storage'
+import { mount,enableAutoUnmount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import * as api from '../src/api/admin'
 import { ApiError } from '../src/api/client'
@@ -7,6 +8,8 @@ import { clearSession, setSession } from '../src/session'
 import QuestionCompareView from '../src/views/QuestionCompareView.vue'
 import QuestionView from '../src/views/QuestionView.vue'
 import { AUTHOR, detail, ME, QUESTION_ID, snapshot } from './fixtures'
+
+enableAutoUnmount(afterEach)
 
 vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
@@ -65,6 +68,7 @@ function twoSnapshots() {
 }
 
 beforeEach(() => {
+  installBrowserStorage()
   vi.resetAllMocks()
   clearSession()
   setSession({ token: 'tok', userId: ME, role: 'reviewer' })
@@ -228,6 +232,7 @@ describe('进入对比的入口（题目页）', () => {
     mocked.createQuestionVersion.mockResolvedValue(TWO_VERSIONS)
     const { wrapper } = await open(`/questions/${QUESTION_ID}`)
     await wrapper.get('[data-testid="edit"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="title"]').setValue('新标题')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
@@ -239,3 +244,5 @@ describe('进入对比的入口（题目页）', () => {
     expect(link.attributes('href')).toContain('to=2')
   })
 })
+
+

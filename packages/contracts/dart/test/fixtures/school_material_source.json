@@ -1,0 +1,25 @@
+{
+  "name": "school_material_source",
+  "method": "PUT",
+  "path": "/api/v1/school-materials/uploads/5a6d8a0a-ebf7-43e8-881c-0afa90d6c35e/content",
+  "status": 200,
+  "schema": "SchoolMaterialSource",
+  "value": {
+    "media_id": "5a6d8a0a-ebf7-43e8-881c-0afa90d6c35e",
+    "mime": "image/png",
+    "size_bytes": 1435,
+    "sha256": "49f456f0f1c47e4ec88d57f9cac605096227aa142c504ff9c017c686eabfd32c",
+    "expires_at": "2026-11-10T10:00:00+00:00",
+    "page_count": 1
+  },
+  "body": {
+    "data": {
+      "media_id": "5a6d8a0a-ebf7-43e8-881c-0afa90d6c35e",
+      "mime": "image/png",
+      "size_bytes": 1435,
+      "sha256": "49f456f0f1c47e4ec88d57f9cac605096227aa142c504ff9c017c686eabfd32c",
+      "expires_at": "2026-11-10T10:00:00+00:00",
+      "page_count": 1
+    }
+  }
+}

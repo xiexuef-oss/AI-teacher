@@ -1,0 +1,92 @@
+# Local DeepSeek preparation only: external calls remain disabled.
+version: 1
+defaults:
+  timeout_ms: 8000
+  max_retries: 1
+  circuit_breaker:
+    failure_threshold: 3
+    cooldown_seconds: 60
+budgets:
+  per_request_max_cost_micros: 50000
+  student_daily_requests: 200
+  platform_daily_requests: 20000
+providers:
+  mock:
+    kind: mock
+    external: false
+    enabled: true
+    compliance_approved: true
+    environments:
+    - local
+    - dev
+  deepseek:
+    kind: openai_compatible
+    external: true
+    enabled: false
+    compliance_approved: false
+    base_url_env: DEEPSEEK_BASE_URL
+    api_key_env: DeepSeek_ANTHROPIC_AUTH_TOKEN
+    pricing:
+      input_per_1k_tokens_micros: null
+      output_per_1k_tokens_micros: null
+      image_unit_micros: null
+routes:
+  ocr_extract:
+    min_confidence: 0.85
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-ocr
+  handwriting_understand:
+    min_confidence: 0.85
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-handwriting
+  knowledge_classify:
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-classify
+  tutor_hint:
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-tutor
+  tutor_explain:
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-tutor
+  complex_reasoning:
+    timeout_ms: 30000
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-reasoning
+  solution_verify:
+    timeout_ms: 30000
+    min_confidence: 0.8
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-verify
+  visual_spec:
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-visual
+  review_plan:
+    candidates:
+    - provider: deepseek
+      model_env: DEEPSEEK_MODEL_FLASH
+    - provider: mock
+      model: mock-review

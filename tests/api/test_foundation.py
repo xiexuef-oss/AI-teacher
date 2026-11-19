@@ -81,15 +81,13 @@ def test_other_origins_get_no_cors_grant(client, origin):
     assert "access-control-allow-origin" not in preflight.headers
 
 
-def test_non_local_environment_sends_no_cors_headers(settings, clock):
+def test_non_local_environment_refuses_prototype_bootstrap(settings, clock):
     from tutor_api.main import create_app
 
     dev = settings.model_copy(update={"env": "dev", "local_identity_mock": False})
-    with TestClient(create_app(dev, clock=clock.now), client=LOOPBACK) as raw:
-        response = raw.get(f"{API_PREFIX}/health", headers={"Origin": "http://localhost:5173"})
-
-    assert response.status_code == 200
-    assert "access-control-allow-origin" not in response.headers
+    # ADR-018：生产运行依赖未接入前，不再为非local自动建原型表。
+    with pytest.raises(ValueError, match="生产存储"):
+        create_app(dev, clock=clock.now)
 
 
 # ---------------------------------------------------------------- 错误信封
@@ -124,7 +122,14 @@ def test_unexpected_errors_never_expose_stack_traces(app):
 
 def test_validation_errors_do_not_echo_input(student):
     error = student.error(
-        "PUT", "/profile", expect=422, json={"region_code": "SECRET-INPUT-99", "subjects": ["math"]}
+        "PUT",
+        "/profile",
+        expect=422,
+        json={
+            "region_code": "SECRET-INPUT-99",
+            "subjects": ["math"],
+            "expected_revision": student.data("GET", "/profile")["revision"],
+        },
     )
 
     assert error["code"] == "validation_error"
@@ -242,7 +247,6 @@ def test_loopback_restriction_does_not_apply_without_the_mock(settings, clock):
 # ---------------------------------------------------------------- planned 接口
 
 PLANNED_CALLS = [
-    ("POST", "/media/uploads"),
     ("POST", "/scans"),
     ("GET", f"/scans/{uuid.uuid4()}"),
     ("POST", f"/scans/{uuid.uuid4()}/confirm"),
