@@ -34,6 +34,7 @@ class PaperEvidence:
     independence: str
     outcome: Outcome = "unknown"
     knowledge_ids: tuple[str, ...] = ()
+    before_solution: bool | None = None
 
 
 def _printed_item(manifest: dict, record: LearningPackReturn) -> dict:
@@ -168,9 +169,12 @@ def paper_evidence(
             change.revision if change else 0,
             record.confirmed_at,
             metadata.completed_on if metadata else None,
-            metadata.independence if metadata else "unknown",
+            "assisted"
+            if change and change.before_solution is False
+            else (metadata.independence if metadata else "unknown"),
             _outcome(manifest, record, version, change.transcript if change else record.transcript),
             tuple(_printed_item(manifest, record).get("knowledge_ids", ())),
+            change.before_solution if change else None,
         )
         for record, change, metadata, manifest, version in db.execute(query)
     ]

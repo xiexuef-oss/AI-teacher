@@ -143,6 +143,7 @@ def download_student_pdf(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONR
 
 @router.get("/learning/packs/{job_id}/solution-pdf")
 def download_solution_pdf(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
+    _lock_pack_job(ctx, job_id)
     (manifest,) = _published(ctx, job_id, LearningPackPublication.manifest_json)
     revision = manifest["revision"]
     required = {(item["code"], item["question_version_id"]) for item in manifest["items"]}
@@ -156,7 +157,21 @@ def download_solution_pdf(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSON
     if not _abandoned(ctx, job_id) and (not required or not required <= confirmed):
         raise conflict("paper_returns_incomplete", "请先确认回收纸包内全部题目")
     (pdf,) = _published(ctx, job_id, LearningPackPublication.solution_pdf)
-    return _pdf_response(pdf, manifest, "solution_sha256")
+    response = _pdf_response(pdf, manifest, "solution_sha256")
+    ctx.db.add(
+        AuditLog(
+            id=new_id(),
+            actor_id=ctx.student_id,
+            action="learning_pack.solution_downloaded",
+            target_type="learning_pack",
+            target_id=str(job_id),
+            detail_json={"revision": revision},
+            request_id=ctx.request_id,
+            created_at=ctx.now(),
+        )
+    )
+    ctx.db.commit()
+    return response
 
 
 def _abandoned(ctx: Ctx, job_id: UUID, *, lock: bool = False) -> bool:
@@ -397,6 +412,23 @@ def correct_pack_return(
                 },
             )
         revision = body.expected_revision + 1
+        (manifest,) = _published(ctx, job_id, LearningPackPublication.manifest_json)
+        after_solution = (
+            ctx.db.scalar(
+                select(AuditLog.id)
+                .where(
+                    AuditLog.actor_id == ctx.student_id,
+                    AuditLog.target_type == "learning_pack",
+                    AuditLog.target_id == str(job_id),
+                    AuditLog.action.in_(
+                        ("learning_pack.solution_downloaded", "learning_pack.abandoned")
+                    ),
+                )
+                .limit(1)
+                .with_for_update()
+            )
+            is not None
+        )
         ctx.db.add(
             LearningPackCorrection(
                 job_id=str(job_id),
@@ -405,6 +437,9 @@ def correct_pack_return(
                 transcript=body.transcript,
                 actor_id=ctx.student_id,
                 corrected_at=ctx.now(),
+                before_solution=False
+                if after_solution
+                else (manifest.get("tracks_solution_access") or None),
             )
         )
         ctx.db.flush()

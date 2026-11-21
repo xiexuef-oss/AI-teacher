@@ -70,6 +70,13 @@ MUTATIONS = [
         ("tests/unit/test_learning_pack_evidence.py",),
     ),
     Mutation(
+        "V14-R06 已下载解析的校正仍推进独立复测",
+        API / "services" / "paper_review_schedule.py",
+        "item.transcript_revision != 0 and item.before_solution is not True",
+        "item.transcript_revision != 0 and item.before_solution is None",
+        ("tests/api/test_learning_pack_request.py::test_worker_publishes_both_sample_pdfs",),
+    ),
+    Mutation(
         "V14-R06 复测忽略变式优先",
         API / "services" / "learning_pack_worker.py",
         "key=lambda pair: pair[:2], default=None",

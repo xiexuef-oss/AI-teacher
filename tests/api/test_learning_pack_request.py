@@ -294,6 +294,17 @@ def test_worker_publishes_both_sample_pdfs(
     assert b64decode(downloaded["content_base64"]) == pack.solution_pdf
     assert downloaded["sha256"] == sha256(pack.solution_pdf).hexdigest()
     other.error("GET", solution, expect=404)
+    from tutor_api.models import AuditLog
+
+    with app.state.session_factory() as session:
+        entry = session.scalars(
+            select(AuditLog).where(
+                AuditLog.target_id == result["id"],
+                AuditLog.action == "learning_pack.solution_downloaded",
+            )
+        ).one()
+        assert entry.actor_id == onboarded.user_id
+        assert entry.detail_json == {"revision": 1}
     for client, status_code in ((onboarded, 200), (other, 404)):
         response = client.request("GET", solution)
         assert response.status_code == status_code
@@ -322,7 +333,7 @@ def test_worker_publishes_both_sample_pdfs(
     )
     schedule = onboarded.data("GET", "/learning/review-schedule")["items"]
     assert len(schedule) == 1
-    assert schedule[0]["due_on"] == "2026-11-12"
+    assert schedule[0]["due_on"] == "2026-11-11"
     assert schedule[0]["stage"] == 0
     assert other.data("GET", "/learning/review-schedule") == {"items": []}
     weekly = f"/parents/students/{onboarded.user_id}/weekly"
@@ -347,7 +358,7 @@ def test_worker_publishes_both_sample_pdfs(
         assert command.plan_json["reviews"] == [
             {
                 "knowledge_id": schedule[0]["knowledge_id"],
-                "original_due_on": "2026-11-12",
+                "original_due_on": "2026-11-11",
                 "suggested_on": "2026-11-16",
                 "deferred_reason": "insufficient_budget",
             }
@@ -384,6 +395,11 @@ def test_worker_publishes_both_sample_pdfs(
     assert latest["revision"] == 2
     assert latest["report"]["paper"]["awaiting_assessment"] == 2
     assert parent.data("GET", snapshot, params={"revision": 1}) == original
+    onboarded.data("PUT", returned, json={"expected_revision": 3, "transcript": "B"})
+    with app.state.session_factory() as session:
+        evidence = paper_evidence(session, onboarded.user_id, pack_id=result["id"])[0]
+        assert evidence.before_solution is False and evidence.independence == "assisted"
+    assert onboarded.data("GET", "/learning/review-schedule")["items"] == []
 
 
 def test_worker_rolls_back_staged_pdfs_and_retries_same_job(onboarded, app, clock, monkeypatch):

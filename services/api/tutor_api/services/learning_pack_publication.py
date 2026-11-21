@@ -121,6 +121,7 @@ def publish(
             solution_pdf=solutions,
             manifest_json={
                 "revision": 1,
+                "tracks_solution_access": True,
                 "items": manifest,
                 "student_sha256": sha256(student).hexdigest(),
                 "solution_sha256": sha256(solutions).hexdigest(),

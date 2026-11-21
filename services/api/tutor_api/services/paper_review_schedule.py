@@ -40,9 +40,9 @@ def rebuild(evidence: Iterable[PaperEvidence]) -> dict[str, PaperReview]:
             e.code,
         ),
     ):
-        # Until solution access is tracked, a corrected transcript cannot prove
-        # what the student answered independently before seeing the solution.
-        if item.outcome == "unknown" or item.transcript_revision != 0:
+        if item.outcome == "unknown" or (
+            item.transcript_revision != 0 and item.before_solution is not True
+        ):
             continue
         if item.outcome == "correct" and item.independence == "unknown":
             continue

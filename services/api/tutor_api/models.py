@@ -232,6 +232,7 @@ class LearningPackCorrection(Base):
     transcript: Mapped[str] = mapped_column(Text)
     actor_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
     corrected_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    before_solution: Mapped[bool | None] = mapped_column(Boolean)
 
 
 class WeeklyReportSnapshot(Base):
