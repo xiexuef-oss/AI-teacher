@@ -207,6 +207,21 @@ def test_worker_publishes_both_sample_pdfs(
     )
     candidate = onboarded.data("GET", f"{ocr}/{candidate_job['id']}")
     assert candidate == {**candidate_job, "status": "needs_review", "candidate": "第一页\n第二页"}
+    from tutor_api.models import LearningPackPhotoOcr
+
+    stopped = onboarded.data("POST", ocr, json=ocr_body, expect=202)["id"]
+    with pytest.raises(SystemExit, match="worker stopped"):
+        process_photo_ocr(
+            app.state.session_factory,
+            clock.now,
+            config,
+            store,
+            LocalOcr("第一页", SystemExit("worker stopped")),
+        )
+    assert onboarded.data("POST", f"/learning/jobs/{stopped}/cancel")["status"] == "cancelled"
+    assert not process_photo_ocr(app.state.session_factory, clock.now, config, store, LocalOcr())
+    with app.state.session_factory() as session:
+        assert session.get_one(LearningPackPhotoOcr, stopped).pages_json is None
     from sqlalchemy import select
     from test_document_durable_ocr import install as install_durable_ocr
 
@@ -385,7 +400,6 @@ def test_worker_publishes_both_sample_pdfs(
         pack = session.get_one(LearningPackPublication, fifth["id"])
         assert pack.manifest_json["items"][0]["suggested_on"] == "2026-11-16"
     clock.advance(days=7)
-    from tutor_api.models import LearningPackPhotoOcr
     from tutor_api.services.learning_pack_photo_worker import purge_expired_candidates
 
     onboarded.error("GET", f"{ocr}/{candidate_job['id']}", expect=404)

@@ -2,12 +2,12 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, case, delete, or_, select, update
+from sqlalchemy import and_, case, delete, null, or_, select, update
 from sqlalchemy.orm import Session
 
 from tutor_api.db import new_id
 from tutor_api.errors import not_found
-from tutor_api.models import LearningJob, LearningPackRenderCheckpoint, User
+from tutor_api.models import LearningJob, LearningPackPhotoOcr, LearningPackRenderCheckpoint, User
 
 MAX_ATTEMPTS = 3
 LEASE = timedelta(minutes=10)
@@ -17,6 +17,11 @@ RETRY_DELAY = timedelta(minutes=1)
 def _discard_checkpoint(db: Session, job_id: str) -> None:
     db.execute(
         delete(LearningPackRenderCheckpoint).where(LearningPackRenderCheckpoint.job_id == job_id)
+    )
+    db.execute(
+        update(LearningPackPhotoOcr)
+        .where(LearningPackPhotoOcr.job_id == job_id, LearningPackPhotoOcr.pages_json.is_not(None))
+        .values(pages_json=null())
     )
 
 

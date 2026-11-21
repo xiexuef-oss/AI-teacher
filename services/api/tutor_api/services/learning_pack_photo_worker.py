@@ -135,7 +135,6 @@ def process_photo_ocr(factory, clock, settings, store, gateway, invocation_store
             valid = current < expiry
             if finish(db, job_id, token, current, success=valid, retryable=False):
                 command = db.get_one(LearningPackPhotoOcr, job_id)
-                command.pages_json = null()
                 if valid and candidate:
                     command.candidate = candidate
     except (BlobNotFound, DocumentParseError):
