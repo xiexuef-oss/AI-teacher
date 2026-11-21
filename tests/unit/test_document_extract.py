@@ -1,6 +1,7 @@
 """本地文档提取：保序、限额、不将扫描件当作已识别。"""
 
 import io
+from zipfile import ZipFile
 
 import pytest
 from PIL import Image
@@ -45,6 +46,27 @@ def test_images_need_ocr_and_preview_is_safe_png():
     assert page["text"] == "" and page["method"] == "unavailable"
     image = Image.open(io.BytesIO(render_preview(data, "png", 1, ParseLimits())))
     assert image.format == "PNG" and image.size == (320, 80)
+
+
+def test_word_metafiles_do_not_prevent_text_extraction():
+    data = io.BytesIO(docx_document("<w:p><w:r><w:t>1. 公式题</w:t></w:r></w:p>", image=True))
+    with ZipFile(data, "a") as archive:
+        for index in range(101):
+            archive.writestr(f"word/media/formula{index}.wmf", b"vector")
+    pages = extract(data.getvalue(), "docx", ParseLimits())
+    assert pages[0]["text"] == "1. 公式题"
+    assert any("WMF" in warning for warning in pages[0]["warnings"])
+    assert pages[0]["media_refs"] == ["word/media/image1.png"]
+
+
+def test_word_drawing_textbox_does_not_hide_question_number():
+    body = (
+        "<w:p><w:r><w:pict><w:txbxContent><w:p><w:r><w:t>ABCD</w:t></w:r></w:p>"
+        "</w:txbxContent></w:pict></w:r><w:r><w:t>13. 下一题</w:t></w:r></w:p>"
+    )
+    page = extract(docx_document(body), "docx", ParseLimits())[0]
+    assert page["text"] == "13. 下一题"
+    assert any("文本框" in warning for warning in page["warnings"])
 
 
 def test_pdf_preview_renders_the_requested_page():

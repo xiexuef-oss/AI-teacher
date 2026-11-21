@@ -32,6 +32,18 @@ def test_subquestion_parentheses_do_not_split_and_unknown_order_is_warned():
     assert any("题号" in warning for warning in result[1]["warnings"])
 
 
+def test_bounded_exam_instructions_do_not_create_numbered_questions():
+    result = split_pages(
+        [page(1, "注意事项：\n1. 填写姓名\n2. 使用答题卡\n一、选择题：\n1. 第一题\n2. 第二题")]
+    )
+    assert [item["text"] for item in result] == [
+        "注意事项：\n1. 填写姓名\n2. 使用答题卡\n一、选择题：",
+        "1. 第一题",
+        "2. 第二题",
+    ]
+    assert any("作答说明" in w for w in result[0]["warnings"])
+
+
 def test_json_payload_is_kept_and_blank_image_gets_manual_candidate():
     payload = {"example": True}
     result = split_pages([page(1, "题目", _payload=payload), page(2, "")])

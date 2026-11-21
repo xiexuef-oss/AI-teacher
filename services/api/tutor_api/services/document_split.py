@@ -6,6 +6,8 @@ NUMBER = re.compile(r"^\s*(\d{1,3})\s*[.．、](?!\d)\s*\S")
 ANSWER_HEADING = re.compile(
     r"^\s*(?:参考答案|答案(?:与解析|及解析)?|参考解析|试题解析)\s*[:：]?\s*$"
 )
+INSTRUCTIONS_HEADING = re.compile(r"^\s*注意事项\s*[:：]?\s*$")
+QUESTION_SECTION = re.compile(r"^\s*[一二三四五六七八九十]+、\s*(?:选择题|填空题|解答题)\s*[:：]")
 
 
 def _answer_location(location):
@@ -66,7 +68,20 @@ def split_pages(pages):
             flush()
             results.append(fresh(page, None))
             continue
-        for block, line in enumerate(page["text"].splitlines(), start=1):
+        lines = list(enumerate(page["text"].splitlines(), start=1))
+        instruction_starts = set()
+        instruction_blocks = set()
+        start = None
+        for block, line in lines:
+            if ANSWER_HEADING.match(line):
+                start = None
+            elif INSTRUCTIONS_HEADING.match(line):
+                start = block
+            elif start is not None and QUESTION_SECTION.match(line):
+                instruction_starts.add(start)
+                instruction_blocks.update(range(start, block + 1))
+                start = None
+        for block, line in lines:
             if ANSWER_HEADING.match(line):
                 flush()
                 answer_section = True
@@ -78,7 +93,11 @@ def split_pages(pages):
                         location(page, block)
                     )
                 continue
-            match = NUMBER.match(line)
+            if block in instruction_starts:
+                flush()
+                current = fresh(page, block)
+                current["warnings"].append("作答说明片段，请人工核对，无需作为题目导入。")
+            match = NUMBER.match(line) if block not in instruction_blocks else None
             if match:
                 flush()
                 current = fresh(page, block)

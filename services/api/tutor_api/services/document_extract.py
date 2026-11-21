@@ -142,11 +142,24 @@ def _docx(data, limits):
         body = document.find(W + "body")
         if body is None:
             raise DocumentParseError("invalid_docx", "DOCX 没有正文")
+        textboxes = [
+            (parent, textbox)
+            for parent in body.iter()
+            for textbox in parent.findall(W + "txbxContent")
+        ]
+        if textboxes:
+            warnings.append("图形文本框未拼入正文，请在 Word 原件中核对文本框内容。")
+            for parent, textbox in textboxes:
+                parent.remove(textbox)
         media = [
             e.filename
             for e in archive.infolist()
             if e.filename.startswith("word/media/") and not e.is_dir()
         ]
+        raster_or_other = [ref for ref in media if not ref.lower().endswith((".wmf", ".emf"))]
+        if len(raster_or_other) != len(media):
+            warnings.append("文档含 WMF/EMF 矢量公式或图示，请在 Word 原件中核对。")
+        media = raster_or_other
         if len(media) > 100:
             raise DocumentParseError("media_limit", "文档内媒体数量超过上限")
         links = {}
