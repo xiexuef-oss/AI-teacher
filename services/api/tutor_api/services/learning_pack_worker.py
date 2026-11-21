@@ -157,6 +157,61 @@ def _review_plan(schedule, inputs, minutes, item, waiting_nodes, today, capped_n
     return reviews
 
 
+def _plan_pack(db, student_id, inputs, sample_font, now):
+    minutes = remaining_minutes(inputs["settings"]["weekly_minutes"], inputs["school_minutes"])
+    schedule = rebuild(paper_evidence(db, student_id))
+    today = (now + timedelta(hours=8)).date()
+    candidates = []
+    capped_nodes = set()
+    waiting_nodes = set()
+    waiting = False
+    if sample_font is not None and minutes >= SAMPLE_MINUTES and inputs["settings"]["weekdays"]:
+        # One engineering sample per pack; keep waiting items out of the new pack.
+        for subject, key in PAPER_SAMPLES:
+            if subject not in inputs["subjects"]:
+                continue
+            candidate = _sample_question(db, key)
+            if candidate is None:
+                continue
+            known = {node for node in candidate.knowledge_ids if node in schedule}
+            if minutes * 3 < SAMPLE_MINUTES * 5:
+                capped_nodes.update(node for node in known if schedule[node].due_on < today)
+            if known and known <= capped_nodes:
+                continue
+            due = min(
+                (
+                    schedule[node].due_on
+                    for node in known - capped_nodes
+                    if schedule[node].due_on <= today
+                ),
+                default=date.max,
+            )
+            if key == "phys-incline-accel" and due == date.max:
+                continue
+            if _awaiting_return(db, student_id, candidate.question_version_id):
+                waiting = True
+                waiting_nodes.update(candidate.knowledge_ids)
+                continue
+            repeated = any(
+                schedule[node].due_on == due
+                and schedule[node].source_version == candidate.question_version_id
+                for node in known - capped_nodes
+            )
+            candidates.append((due, repeated, candidate))
+    selected = min(candidates, key=lambda pair: pair[:2], default=None)
+    item = selected[2] if selected else None
+    deferred = waiting and item is None
+    reviews = _review_plan(schedule, inputs, minutes, item, waiting_nodes, today, capped_nodes)
+    if item is not None:
+        matched = [review for review in reviews if review["knowledge_id"] in item.knowledge_ids]
+        dates = [review["suggested_on"] for review in matched if review["deferred_reason"] is None]
+        if matched and not dates:
+            item = None
+        elif dates:
+            item = replace(item, suggested_on=min(dates))
+    return item, minutes, deferred, reviews
+
+
 def prepare_one(factory, clock, sample_font: Path | None = None) -> bool:
     now = clock()
     with factory() as db:
@@ -195,71 +250,9 @@ def prepare_one(factory, clock, sample_font: Path | None = None) -> bool:
                     db.scalar(select(User.id).where(User.id == student_id).with_for_update())
             command = db.get_one(LearningPackCommand, job_id)
             inputs = command.input_json
-            minutes = remaining_minutes(
-                inputs["settings"]["weekly_minutes"], inputs["school_minutes"]
+            item, minutes, deferred, reviews = _plan_pack(
+                db, student_id, inputs, sample_font, clock()
             )
-            schedule = rebuild(paper_evidence(db, student_id))
-            today = (clock() + timedelta(hours=8)).date()
-            candidates = []
-            capped_nodes = set()
-            waiting_nodes = set()
-            waiting = False
-            if (
-                sample_font is not None
-                and minutes >= SAMPLE_MINUTES
-                and inputs["settings"]["weekdays"]
-            ):
-                # One engineering sample per pack; keep waiting items out of the new pack.
-                for subject, key in PAPER_SAMPLES:
-                    if subject not in inputs["subjects"]:
-                        continue
-                    candidate = _sample_question(db, key)
-                    if candidate is None:
-                        continue
-                    known = {node for node in candidate.knowledge_ids if node in schedule}
-                    if minutes * 3 < SAMPLE_MINUTES * 5:
-                        capped_nodes.update(node for node in known if schedule[node].due_on < today)
-                    if known and known <= capped_nodes:
-                        continue
-                    due = min(
-                        (
-                            schedule[node].due_on
-                            for node in known - capped_nodes
-                            if schedule[node].due_on <= today
-                        ),
-                        default=date.max,
-                    )
-                    if key == "phys-incline-accel" and due == date.max:
-                        continue
-                    if _awaiting_return(db, student_id, candidate.question_version_id):
-                        waiting = True
-                        waiting_nodes.update(candidate.knowledge_ids)
-                        continue
-                    repeated = any(
-                        schedule[node].due_on == due
-                        and schedule[node].source_version == candidate.question_version_id
-                        for node in known - capped_nodes
-                    )
-                    candidates.append((due, repeated, candidate))
-            selected = min(candidates, key=lambda pair: pair[:2], default=None)
-            item = selected[2] if selected else None
-            deferred = waiting and item is None
-            reviews = _review_plan(
-                schedule, inputs, minutes, item, waiting_nodes, today, capped_nodes
-            )
-            if item is not None:
-                matched = [
-                    review for review in reviews if review["knowledge_id"] in item.knowledge_ids
-                ]
-                dates = [
-                    review["suggested_on"]
-                    for review in matched
-                    if review["deferred_reason"] is None
-                ]
-                if matched and not dates:
-                    item = None
-                elif dates:
-                    item = replace(item, suggested_on=min(dates))
             done = (
                 publish(db, job_id, token, [item], sample_font, clock)
                 if item is not None and sample_font is not None

@@ -16,6 +16,8 @@ from tutor_api.services.learning_pack_pdf import (
     render_student,
 )
 
+MAX_PDF_BYTES = 2**24 - 1
+
 
 @dataclass(frozen=True)
 class PrintedQuestion:
@@ -27,15 +29,10 @@ class PrintedQuestion:
     suggested_on: str | None = None
 
 
-def publish(
-    db: Session, job_id: str, lease: str, questions: list[PrintedQuestion], font: Path, clock
-) -> bool:
-    """Stage both PDFs and the status update in the caller's transaction."""
-    if not questions or any(not q.stem.strip() or not q.solution.strip() for q in questions):
-        raise ValueError("Every printed question needs a stem and a solution")
-    if not has_active_lease(db, job_id, lease, clock()):
-        return False
-    student_items, solution_items, manifest = [], [], []
+def _render_student_stage(
+    questions: list[PrintedQuestion], font: Path, label: str
+) -> tuple[bytes, list[dict]]:
+    student_items, manifest = [], []
     for index, question in enumerate(questions, start=1):
         code = f"{index:03d}"
         token = token_hex(16)
@@ -43,7 +40,6 @@ def publish(
         if question.suggested_on:
             stem = f"建议作答日 {question.suggested_on}\n{stem}"
         student_items.append(PaperItem(code, token, stem))
-        solution_items.append(SolutionItem(code, question.solution))
         manifest.append(
             {
                 "code": code,
@@ -54,17 +50,35 @@ def publish(
                 "suggested_on": question.suggested_on,
             }
         )
-    label = f"{job_id.split('-')[0]}  v1"
     continuation_tokens: dict[str, list[str]] = {}
     student = render_student(
         student_items, font, label=label, continuation_tokens=continuation_tokens
     )
-    if not has_active_lease(db, job_id, lease, clock()):
-        return False
     for row in manifest:
         row["continuation_tokens"] = continuation_tokens.get(row["code"], [])
+    return student, manifest
+
+
+def publish(
+    db: Session, job_id: str, lease: str, questions: list[PrintedQuestion], font: Path, clock
+) -> bool:
+    """Stage both PDFs and the status update in the caller's transaction."""
+    if not questions or any(not q.stem.strip() or not q.solution.strip() for q in questions):
+        raise ValueError("Every printed question needs a stem and a solution")
+    if not has_active_lease(db, job_id, lease, clock()):
+        return False
+    label = f"{job_id.split('-')[0]}  v1"
+    student, manifest = _render_student_stage(questions, font, label)
+    if not has_active_lease(db, job_id, lease, clock()):
+        return False
+    if len(student) > MAX_PDF_BYTES:
+        raise ValueError("Learning pack PDF is too large")
+    solution_items = [
+        SolutionItem(row["code"], question.solution)
+        for row, question in zip(manifest, questions, strict=True)
+    ]
     solutions = render_solutions(solution_items, font, label=label)
-    if max(len(student), len(solutions)) >= 2**24:
+    if len(solutions) > MAX_PDF_BYTES:
         raise ValueError("Learning pack PDF is too large")
     if not finish(db, job_id, lease, clock(), success=True):
         return False

@@ -50,6 +50,24 @@ def test_continuation_pages_have_distinct_tokens(db, student):
     assert len(set(tokens)) == len(PdfReader(BytesIO(pack.student_pdf)).pages) > 1
 
 
+def test_oversized_student_pdf_stops_before_rendering_solutions(db, student, monkeypatch):
+    from tutor_api.services import learning_pack_publication as publication
+
+    clock = FakeClock()
+    job = enqueue(db, student.user_id, "oversized", clock.now())
+    token = claim(db, job, clock.now())
+    assert token is not None
+    monkeypatch.setattr(publication, "render_student", lambda *args, **kwargs: bytes(2**24))
+
+    def unexpected_render(*args, **kwargs):
+        pytest.fail("An oversized student PDF must stop rendering")
+
+    monkeypatch.setattr(publication, "render_solutions", unexpected_render)
+    with pytest.raises(ValueError, match="PDF is too large"):
+        publish(db, job, token, [PrintedQuestion("v1", "Q", "A")], Path("unused"), clock.now)
+    assert db.get(LearningPackPublication, job) is None
+
+
 @pytest.mark.parametrize("renders_before_expiry", [0, 1, 2])
 def test_expired_lease_skips_remaining_render(db, student, monkeypatch, renders_before_expiry):
     from tutor_api.services import learning_pack_publication as publication
