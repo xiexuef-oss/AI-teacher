@@ -291,6 +291,37 @@ class TutorApiClient {
     return LearningPackItem.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 为本人纸包题目的作答照片请求候选转写
+  Future<LearningPackPhotoOcr> requestLearningPackPhotoOcr({
+    required String jobId,
+    required String code,
+    required LearningPackPhotoOcrRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/learning/packs/${Uri.encodeComponent(jobId)}/items/${Uri.encodeComponent(code)}/photo-ocr',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return LearningPackPhotoOcr.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查询本人纸笔照片 OCR 状态和候选转写
+  Future<LearningPackPhotoOcr> getLearningPackPhotoOcr({
+    required String jobId,
+    required String code,
+    required String ocrId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs/${Uri.encodeComponent(jobId)}/items/${Uri.encodeComponent(code)}/photo-ocr/${Uri.encodeComponent(ocrId)}',
+      requestId: requestId,
+    );
+    return LearningPackPhotoOcr.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 读取本人已确认的纸笔作答转写
   Future<LearningPackReturnRecord> getLearningPackReturn({
     required String jobId,

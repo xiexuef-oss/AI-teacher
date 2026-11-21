@@ -35,6 +35,8 @@ final Map<String, RoundTrip> roundTrips = {
   'LearningPackItem': (json) => LearningPackItem.fromJson(json).toJson(),
   'LearningPackReturnRecord': (json) => LearningPackReturnRecord.fromJson(json).toJson(),
   'LearningPackCorrection': (json) => LearningPackCorrection.fromJson(json).toJson(),
+  'LearningPackPhotoOcrRequest': (json) => LearningPackPhotoOcrRequest.fromJson(json).toJson(),
+  'LearningPackPhotoOcr': (json) => LearningPackPhotoOcr.fromJson(json).toJson(),
   'LearningPackReturnRequest': (json) => LearningPackReturnRequest.fromJson(json).toJson(),
   'LearningPackRequest': (json) => LearningPackRequest.fromJson(json).toJson(),
   'LearningJobStatus': (json) => LearningJobStatus.fromJson(json).toJson(),
@@ -368,6 +370,18 @@ const Map<String, dynamic> roundTripMetadata = {
   "LearningPackCorrection": {
     "nullable": [],
     "objects": {},
+    "arrays": {}
+  },
+  "LearningPackPhotoOcrRequest": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "LearningPackPhotoOcr": {
+    "nullable": [],
+    "objects": {
+      "item": "LearningPackItem"
+    },
     "arrays": {}
   },
   "LearningPackReturnRequest": {

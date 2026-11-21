@@ -1122,6 +1122,54 @@ class LearningPackCorrection {
       };
 }
 
+class LearningPackPhotoOcrRequest {
+  const LearningPackPhotoOcrRequest({
+    required this.photoIds,
+  });
+
+  final List<String> photoIds;
+
+  factory LearningPackPhotoOcrRequest.fromJson(Map<String, dynamic> json) => LearningPackPhotoOcrRequest(
+        photoIds: (json['photo_ids'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'photo_ids': photoIds,
+      };
+}
+
+class LearningPackPhotoOcr {
+  const LearningPackPhotoOcr({
+    required this.id,
+    required this.item,
+    required this.status,
+    required this.photoIds,
+    this.candidate,
+  });
+
+  final String id;
+  final LearningPackItem item;
+  final String status;
+  final List<String> photoIds;
+  final String? candidate;
+
+  factory LearningPackPhotoOcr.fromJson(Map<String, dynamic> json) => LearningPackPhotoOcr(
+        id: json['id'] as String,
+        item: LearningPackItem.fromJson(json['item'] as Map<String, dynamic>),
+        status: json['status'] as String,
+        photoIds: (json['photo_ids'] as List<dynamic>).map((e) => e as String).toList(),
+        candidate: json['candidate'] == null ? null : json['candidate'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'item': item.toJson(),
+        'status': status,
+        'photo_ids': photoIds,
+        if (candidate != null) 'candidate': candidate,
+      };
+}
+
 class LearningPackReturnRequest {
   const LearningPackReturnRequest({
     required this.transcript,

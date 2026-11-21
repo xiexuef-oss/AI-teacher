@@ -1,0 +1,33 @@
+{
+  "name": "learning_pack_photo_ocr_queued",
+  "method": "POST",
+  "path": "/api/v1/learning/packs/4b434052-96bb-4481-ae8a-b68cd52fb932/items/001/photo-ocr",
+  "status": 202,
+  "schema": "LearningPackPhotoOcr",
+  "value": {
+    "id": "16db6d08-9c5a-44a0-8b05-842a7a2a3687",
+    "item": {
+      "revision": 1,
+      "code": "001",
+      "question_version_id": "8ad90891-2d2c-5f73-a321-e9da217e4531"
+    },
+    "status": "queued",
+    "photo_ids": [
+      "e486c2ed-f808-4566-bb15-6ce06c473dc8"
+    ]
+  },
+  "body": {
+    "data": {
+      "id": "16db6d08-9c5a-44a0-8b05-842a7a2a3687",
+      "item": {
+        "revision": 1,
+        "code": "001",
+        "question_version_id": "8ad90891-2d2c-5f73-a321-e9da217e4531"
+      },
+      "status": "queued",
+      "photo_ids": [
+        "e486c2ed-f808-4566-bb15-6ce06c473dc8"
+      ]
+    }
+  }
+}

@@ -305,6 +305,71 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 f"/scans/uploads/{scan_upload['media_id']}/content",
                 json={"content_base64": base64.b64encode(scan_bytes).decode()},
             )
+            from reportlab import __file__ as reportlab_path
+
+            from tutor_api.services.learning_pack_photo_worker import process_photo_ocr
+            from tutor_api.services.learning_pack_worker import prepare_one
+
+            paper_identity = ApiClient(raw).data(
+                "POST", "/dev/local-identities", expect=201, key=False
+            )
+            paper_student = ApiClient(raw, token=paper_identity["access_token"])
+            paper_student.save_profile(
+                json={
+                    "region_code": "CN-51",
+                    "grade": "G12",
+                    "subjects": ["math"],
+                    "learning_settings": {
+                        "mode": "boarding",
+                        "weekly_minutes": 10,
+                        "weekdays": [1],
+                    },
+                }
+            )
+            paper_job = paper_student.data(
+                "POST", "/learning/packs", expect=202, json={"school_minutes": 0}
+            )
+            paper_upload = paper_student.data(
+                "POST",
+                "/scans/uploads",
+                expect=201,
+                json={
+                    "purpose": "scan",
+                    "mime": "image/png",
+                    "size_bytes": len(scan_bytes),
+                    "sha256": hashlib.sha256(scan_bytes).hexdigest(),
+                },
+            )
+            paper_student.data(
+                "PUT",
+                f"/scans/uploads/{paper_upload['media_id']}/content",
+                json={"content_base64": base64.b64encode(scan_bytes).decode()},
+            )
+            assert prepare_one(
+                app.state.session_factory, clock.now, Path(reportlab_path).parent / "fonts/Vera.ttf"
+            )
+            ocr_path = f"/learning/packs/{paper_job['id']}/items/001/photo-ocr"
+            paper_ocr = rec(
+                "learning_pack_photo_ocr_queued",
+                paper_student,
+                "POST",
+                ocr_path,
+                expect=202,
+                json={"photo_ids": [paper_upload["media_id"]]},
+            )
+            assert process_photo_ocr(
+                app.state.session_factory,
+                clock.now,
+                app.state.settings,
+                app.state.media_store,
+                None,
+            )
+            rec(
+                "learning_pack_photo_ocr_unavailable",
+                paper_student,
+                "GET",
+                f"{ocr_path}/{paper_ocr['id']}",
+            )
             scan = rec(
                 "scan_candidate",
                 student,

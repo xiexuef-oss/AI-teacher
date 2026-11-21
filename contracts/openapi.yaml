@@ -667,6 +667,49 @@ paths:
         '422': {$ref: '#/components/responses/Unprocessable'}
         '429': {$ref: '#/components/responses/HttpRateLimited'}
 
+  /learning/packs/{job_id}/items/{code}/photo-ocr:
+    post:
+      operationId: requestLearningPackPhotoOcr
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 为本人纸包题目的作答照片请求候选转写
+      description: 请求绑定印刷题目版本与照片顺序。候选转写须经学生核对后通过现有回收或校正命令提交。
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: code, in: path, required: true, schema: {type: string, pattern: '^[0-9]{3}$'}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LearningPackPhotoOcrRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/LearningPackPhotoOcrResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+  /learning/packs/{job_id}/items/{code}/photo-ocr/{ocr_id}:
+    get:
+      operationId: getLearningPackPhotoOcr
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 查询本人纸笔照片 OCR 状态和候选转写
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: code, in: path, required: true, schema: {type: string, pattern: '^[0-9]{3}$'}}
+        - {name: ocr_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {$ref: '#/components/responses/LearningPackPhotoOcrResponse'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
   /learning/packs/{job_id}/items/{code}/returns:
     get:
       operationId: getLearningPackReturn
@@ -3716,6 +3759,16 @@ components:
       schema: {type: string, enum: ['true']}
 
   responses:
+    LearningPackPhotoOcrResponse:
+      description: 识别任务和待确认候选，不写入作答或复测证据
+      headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data: {$ref: '#/components/schemas/LearningPackPhotoOcr'}
     LearningJobResponse:
       description: 学习任务公开状态
       headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
@@ -4168,6 +4221,32 @@ components:
       properties:
         expected_revision: {type: integer, minimum: 0}
         transcript: {type: string, minLength: 1, maxLength: 8000, pattern: '\S'}
+
+    LearningPackPhotoOcrRequest:
+      type: object
+      additionalProperties: false
+      required: [photo_ids]
+      properties:
+        photo_ids:
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          items: {type: string, format: uuid}
+
+    LearningPackPhotoOcr:
+      type: object
+      additionalProperties: false
+      required: [id, item, status, photo_ids]
+      properties:
+        id: {type: string, format: uuid}
+        item: {$ref: '#/components/schemas/LearningPackItem'}
+        status: {type: string, enum: [queued, running, retry_wait, needs_review, unavailable, failed, cancelled]}
+        photo_ids:
+          type: array
+          maxItems: 10
+          items: {type: string, format: uuid}
+        candidate: {type: string, minLength: 1, maxLength: 8000}
 
     LearningPackReturnRequest:
       type: object

@@ -26,6 +26,10 @@ from tutor_api.services.learning_budget import remaining_minutes
 from tutor_api.services.learning_jobs import claim, finish, has_active_lease
 from tutor_api.services.learning_pack_evidence import paper_evidence
 from tutor_api.services.learning_pack_outbox import RedisPaperQueue, deliver_one
+from tutor_api.services.learning_pack_photo_worker import (
+    process_photo_ocr,
+    purge_expired_candidates,
+)
 from tutor_api.services.learning_pack_publication import PrintedQuestion, publish
 from tutor_api.services.paper_review_schedule import rebuild
 from tutor_api.services.school_material_worker import process_one, purge_expired_results
@@ -363,6 +367,12 @@ class LearningPackWorker:
                 logger.exception("Learning pack preparation failed")
             if self._media_store is not None:
                 try:
+                    process_photo_ocr(
+                        self._factory, self._clock, self._settings, self._media_store, self._gateway
+                    )
+                except Exception:
+                    logger.exception("Paper photo OCR failed")
+                try:
                     process_one(
                         self._factory, self._clock, self._settings, self._media_store, self._gateway
                     )
@@ -372,6 +382,7 @@ class LearningPackWorker:
                 next_weekly_check = monotonic() + 60
                 try:
                     purge_expired_results(self._factory, self._clock())
+                    purge_expired_candidates(self._factory, self._clock())
                     generate_due_snapshots(self._factory, self._settings, self._clock())
                 except Exception:
                     logger.exception("Weekly snapshot generation failed")

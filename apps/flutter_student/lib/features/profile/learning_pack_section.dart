@@ -386,6 +386,85 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
     if (_photoIds.isNotEmpty) 'photo_ids': List<String>.of(_photoIds),
   };
 
+  Future<String> _recognizePhotos(TutorApiClient api) async {
+    final item = _item!;
+    final job = _job!;
+    final photos = List<String>.of(_photoIds);
+    final store = ref.read(keyValueStoreProvider);
+    final journal = '${_draftKey(item.code)}.photo-ocr';
+    final previous = await store.read(journal);
+    if (!_active) return '';
+    final saved = previous == null ? null : jsonDecode(previous) as Map;
+    final matches =
+        saved != null &&
+        saved['revision'] == item.revision &&
+        saved['question_version_id'] == item.questionVersionId &&
+        listEquals((saved['photo_ids'] as List?)?.cast<String>(), photos);
+    final id = matches ? saved['id'] as String? : null;
+    final key = matches
+        ? saved['key'] as String
+        : newIdempotencyKey('paper-ocr');
+    final entry = {
+      'photo_ids': photos,
+      'key': key,
+      'revision': item.revision,
+      'question_version_id': item.questionVersionId,
+    };
+    if (!matches) await store.write(journal, jsonEncode(entry));
+    if (!_active) return '';
+    final status = id == null
+        ? await api.requestLearningPackPhotoOcr(
+            jobId: job,
+            code: item.code,
+            body: LearningPackPhotoOcrRequest(photoIds: photos),
+            idempotencyKey: key,
+          )
+        : await api.getLearningPackPhotoOcr(
+            jobId: job,
+            code: item.code,
+            ocrId: id,
+          );
+    if (!_active) return '';
+    if (status.item.revision != item.revision ||
+        status.item.code != item.code ||
+        status.item.questionVersionId != item.questionVersionId ||
+        !listEquals(status.photoIds, photos)) {
+      throw const FormatException();
+    }
+    if (id == null) {
+      await store.write(journal, jsonEncode({...entry, 'id': status.id}));
+    }
+    if (!mounted || !_active) return '';
+    final candidate = status.candidate;
+    if (status.status == 'needs_review' && candidate != null) {
+      final apply = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('核对识别转写'),
+          content: SingleChildScrollView(child: SelectableText(candidate)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('保留现有转写'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('填入并校正'),
+            ),
+          ],
+        ),
+      );
+      if (apply != true || !_active) return '';
+      _transcript.text = candidate;
+      await _saveTranscript(candidate);
+      return '已填入候选，请对照照片校正后确认回收。';
+    }
+    return switch (status.status) {
+      'queued' || 'running' || 'retry_wait' => '正在识别，请稍后再点查看。',
+      _ => '未获得可用转写，请手动填写作答。',
+    };
+  }
+
   Future<String> _addReturnPhoto(TutorApiClient api, ImageSource source) async {
     final item = _item!;
     final job = _job!;
@@ -911,6 +990,12 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
                 ),
                 if (_photoIds.isNotEmpty) ...[
                   Text('已添加 ${_photoIds.length} 页'),
+                  OutlinedButton(
+                    onPressed: _busy || _returnKey != null
+                        ? null
+                        : () => _run(_recognizePhotos),
+                    child: const Text('识别照片文字 / 查看结果'),
+                  ),
                   for (var i = 0; i < _photoIds.length; i++) ...[
                     TextButton(
                       onPressed: _busy

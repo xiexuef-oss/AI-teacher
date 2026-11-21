@@ -359,6 +359,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/learning/packs/{job_id}/items/{code}/photo-ocr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 为本人纸包题目的作答照片请求候选转写
+         * @description 请求绑定印刷题目版本与照片顺序。候选转写须经学生核对后通过现有回收或校正命令提交。
+         */
+        post: operations["requestLearningPackPhotoOcr"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/items/{code}/photo-ocr/{ocr_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询本人纸笔照片 OCR 状态和候选转写 */
+        get: operations["getLearningPackPhotoOcr"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/learning/packs/{job_id}/items/{code}/returns": {
         parameters: {
             query?: never;
@@ -2059,6 +2096,18 @@ export interface components {
         LearningPackCorrection: {
             expected_revision: number;
             transcript: string;
+        };
+        LearningPackPhotoOcrRequest: {
+            photo_ids: string[];
+        };
+        LearningPackPhotoOcr: {
+            /** Format: uuid */
+            id: string;
+            item: components["schemas"]["LearningPackItem"];
+            /** @enum {string} */
+            status: "queued" | "running" | "retry_wait" | "needs_review" | "unavailable" | "failed" | "cancelled";
+            photo_ids: string[];
+            candidate?: string;
         };
         LearningPackReturnRequest: {
             transcript: string;
@@ -3795,6 +3844,18 @@ export interface components {
         };
     };
     responses: {
+        /** @description 识别任务和待确认候选，不写入作答或复测证据 */
+        LearningPackPhotoOcrResponse: {
+            headers: {
+                "X-Request-Id": components["headers"]["RequestId"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    data: components["schemas"]["LearningPackPhotoOcr"];
+                };
+            };
+        };
         /** @description 学习任务公开状态 */
         LearningJobResponse: {
             headers: {
@@ -4658,6 +4719,56 @@ export interface operations {
             404: components["responses"]["NotFound"];
             408: components["responses"]["RequestTimeout"];
             413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    requestLearningPackPhotoOcr: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LearningPackPhotoOcrRequest"];
+            };
+        };
+        responses: {
+            202: components["responses"]["LearningPackPhotoOcrResponse"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    getLearningPackPhotoOcr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                code: string;
+                ocr_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["LearningPackPhotoOcrResponse"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             422: components["responses"]["Unprocessable"];
             429: components["responses"]["HttpRateLimited"];
         };

@@ -103,6 +103,20 @@ class LearningPackOutbox(Base):
     delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
+class LearningPackPhotoOcr(Base):
+    __tablename__ = "learning_pack_photo_ocr"
+
+    job_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("learning_jobs.id", ondelete="CASCADE"), primary_key=True
+    )
+    pack_id: Mapped[str] = mapped_column(_ID, ForeignKey("learning_pack_publications.job_id"))
+    code: Mapped[str] = mapped_column(CHAR(3))
+    item_json: Mapped[dict] = mapped_column(JSON)
+    photo_ids_json: Mapped[list[str]] = mapped_column(JSON)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
+    candidate: Mapped[str | None] = mapped_column(Text)
+
+
 class LearningPackRenderCheckpoint(Base):
     __tablename__ = "learning_pack_render_checkpoints"
 

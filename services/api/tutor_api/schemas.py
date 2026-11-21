@@ -110,6 +110,10 @@ class LearningPackReturnRequest(_In):
     transcript: str = Field(min_length=1, max_length=8000, pattern=r"\S")
 
 
+class LearningPackPhotoOcrRequest(_In):
+    photo_ids: list[UUID] = Field(min_length=1, max_length=10)
+
+
 class LearningPackSubmission(LearningPackReturnRequest):
     completed_on: date | None = None
     independence: Literal["independent", "assisted", "unknown"] | None = None

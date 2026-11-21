@@ -280,6 +280,56 @@ void main() {
       await tester.tap(add);
       await tester.pumpAndSettle();
       expect(find.text('已添加 1 页'), findsOneWidget);
+      const ocrPath = '/learning/packs/$job/items/001/photo-ocr';
+      const ocrId = '26fb9db8-aed3-44d2-a605-56a9debe29c9';
+      final receipt = {
+        'id': ocrId,
+        'item': item,
+        'photo_ids': [photoId],
+      };
+      final ocrKeys = <String?>[];
+      harness.backend.on('POST', ocrPath, (request) {
+        ocrKeys.add(request.headers['Idempotency-Key']);
+        return ocrKeys.length == 1
+            ? errorResponse(503, 'service_unavailable')
+            : okResponse({...receipt, 'status': 'queued'}, status: 202);
+      });
+      harness.backend.on(
+        'GET',
+        '$ocrPath/$ocrId',
+        (_) => okResponse({
+          ...receipt,
+          'status': 'needs_review',
+          'candidate': '候选 A',
+        }),
+      );
+      final recognize = find.text('识别照片文字 / 查看结果');
+      await tester.ensureVisible(recognize);
+      await tester.tap(recognize);
+      await tester.pumpAndSettle();
+      expect(ocrKeys, hasLength(1));
+      await tester.ensureVisible(recognize);
+      await tester.tap(recognize);
+      await tester.pumpAndSettle();
+      expect(ocrKeys, hasLength(2));
+      expect(ocrKeys.first, isNotNull);
+      expect(ocrKeys.last, ocrKeys.first);
+      expect(find.text('正在识别，请稍后再点查看。'), findsOneWidget);
+      await tester.ensureVisible(recognize);
+      await tester.tap(recognize);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('候选 A'), findsOneWidget);
+      await tester.tap(find.text('填入并校正'));
+      await tester.pumpAndSettle();
+      expect(find.text('候选 A'), findsOneWidget);
+      expect(
+        harness.backend.requestsTo(
+          'POST',
+          '/learning/packs/$job/items/001/returns',
+        ),
+        isEmpty,
+      );
       await tester.enterText(find.widgetWithText(TextField, '纸笔作答转写'), 'B');
       final submit = find.text('确认并回收作答');
       await tester.ensureVisible(submit);

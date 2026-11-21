@@ -22,6 +22,8 @@ from support.contract import (
 )
 
 IMPLEMENTED = {
+    "requestLearningPackPhotoOcr",
+    "getLearningPackPhotoOcr",
     "getScanUploadContent",
     "resolveLearningPackPage",
     "getParentWeeklySnapshot",
@@ -133,6 +135,7 @@ IMPLEMENTED |= {"createDraftCopy", "listQuestionDrafts", "getSessionQuestion"}
 PLANNED = DOCUMENT_IMPORT_OPERATIONS - DOCUMENT_IMPORT_IMPLEMENTED
 # docs/05：提交、评分触发、草稿同步、教学下一步等非幂等动作必须带 Idempotency-Key
 MUST_REQUIRE_IDEMPOTENCY_KEY = {
+    "requestLearningPackPhotoOcr",
     "correctLearningPackReturn",
     "abandonLearningPack",
     "submitLearningPackReturn",

@@ -148,6 +148,47 @@ def test_worker_publishes_both_sample_pdfs(
 
     foreign_photo = photo(other.user_id, (320, 80))
     body["photo_ids"] = [photo(onboarded.user_id, (320, 80)), photo(onboarded.user_id, (321, 80))]
+    ocr = f"{path}/items/001/photo-ocr"
+    ocr_body = {"photo_ids": body["photo_ids"]}
+    onboarded.error("POST", ocr, json={"photo_ids": [foreign_photo]}, expect=404)
+    onboarded.error("POST", ocr, json={"photo_ids": body["photo_ids"] * 2}, expect=422)
+    other.error("POST", ocr, json=ocr_body, expect=404)
+    accepted = onboarded.data("POST", ocr, json=ocr_body, key="paper-ocr-first", expect=202)
+    assert accepted["status"] == "queued" and accepted["item"] == item
+    assert accepted["photo_ids"] == body["photo_ids"] and "candidate" not in accepted
+    assert onboarded.data("POST", ocr, json=ocr_body, key="paper-ocr-first", expect=202) == accepted
+    assert onboarded.data("GET", f"{ocr}/{accepted['id']}") == accepted
+    other.error("GET", f"{ocr}/{accepted['id']}", expect=404)
+    from tutor_api.services.learning_pack_photo_worker import process_photo_ocr
+
+    assert process_photo_ocr(app.state.session_factory, clock.now, app.state.settings, store, None)
+    unavailable = onboarded.data("GET", f"{ocr}/{accepted['id']}")
+    assert unavailable == {**accepted, "status": "unavailable"}
+    from types import SimpleNamespace
+
+    class LocalOcr:
+        external_calls_possible = False
+
+        def __init__(self):
+            self.lines = iter(("第一页", "第二页"))
+
+        def invoke(self, request):
+            return SimpleNamespace(
+                provider="isolated-test",
+                status="ok",
+                confidence=0.99,
+                review_required=False,
+                validated_output={"stem_text": next(self.lines), "expressions": []},
+            )
+
+        def provider_is_mock(self, provider):
+            return False
+
+    candidate_job = onboarded.data("POST", ocr, json=ocr_body, expect=202)
+    config = app.state.settings.model_copy(update={"import_ocr_mode": "configured"})
+    assert process_photo_ocr(app.state.session_factory, clock.now, config, store, LocalOcr())
+    candidate = onboarded.data("GET", f"{ocr}/{candidate_job['id']}")
+    assert candidate == {**candidate_job, "status": "needs_review", "candidate": "第一页\n第二页"}
     preview = f"/scans/uploads/{body['photo_ids'][0]}/content"
     assert b64decode(onboarded.data("GET", preview)["content_base64"]) == png_image((320, 80))
     other.error("GET", preview, expect=404)

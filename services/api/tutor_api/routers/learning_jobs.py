@@ -18,6 +18,7 @@ from tutor_api.models import (
     LearningPackCommand,
     LearningPackCorrection,
     LearningPackOutbox,
+    LearningPackPhotoOcr,
     LearningPackPublication,
     LearningPackReturn,
     LearningPackReturnDetails,
@@ -26,6 +27,7 @@ from tutor_api.models import (
 from tutor_api.private_route import PrivateRoute
 from tutor_api.schemas import (
     LearningPackCorrectionRequest,
+    LearningPackPhotoOcrRequest,
     LearningPackRequest,
     LearningPackSubmission,
 )
@@ -240,6 +242,72 @@ def _item_location(revision: int, item: dict) -> dict:
         "revision": revision,
         "code": item["code"],
         "question_version_id": item["question_version_id"],
+    }
+
+
+@router.post("/learning/packs/{job_id}/items/{code}/photo-ocr")
+def request_photo_ocr(
+    job_id: UUID,
+    code: Annotated[str, Path(pattern=r"^[0-9]{3}$")],
+    body: LearningPackPhotoOcrRequest,
+    ctx: Ctx = Depends(student_ctx),
+) -> JSONResponse:
+    def action(key: str) -> dict:
+        item = _pack_item(ctx, job_id, code)
+        photos = [str(photo) for photo in body.photo_ids]
+        if len(set(photos)) != len(photos):
+            raise unprocessable("photo_ids", "照片不能重复")
+        expires = min(student_image_blob(ctx, photo, uploaded=True).expires_at for photo in photos)
+        now = ctx.now()
+        if expires <= now:
+            raise not_found()
+        ocr_id = enqueue(ctx.db, ctx.student_id, key, now)
+        command = LearningPackPhotoOcr(
+            job_id=ocr_id,
+            pack_id=str(job_id),
+            code=code,
+            item_json=item,
+            photo_ids_json=photos,
+            expires_at=expires,
+        )
+        ctx.db.add(command)
+        return _photo_ocr_status(command, "queued")
+
+    return run_idempotent(ctx, body, 202, action)
+
+
+@router.get("/learning/packs/{job_id}/items/{code}/photo-ocr/{ocr_id}")
+def get_photo_ocr(
+    job_id: UUID,
+    code: Annotated[str, Path(pattern=r"^[0-9]{3}$")],
+    ocr_id: UUID,
+    ctx: Ctx = Depends(student_ctx),
+) -> JSONResponse:
+    row = ctx.db.execute(
+        select(LearningPackPhotoOcr, LearningJob.status)
+        .join(LearningJob, LearningJob.id == LearningPackPhotoOcr.job_id)
+        .where(
+            LearningPackPhotoOcr.job_id == str(ocr_id),
+            LearningPackPhotoOcr.pack_id == str(job_id),
+            LearningPackPhotoOcr.code == code,
+            LearningPackPhotoOcr.expires_at > ctx.now(),
+            LearningJob.student_id == ctx.student_id,
+        )
+    ).one_or_none()
+    if row is None:
+        raise not_found()
+    return ok(_photo_ocr_status(*row))
+
+
+def _photo_ocr_status(command: LearningPackPhotoOcr, status: str) -> dict:
+    if status == "succeeded":
+        status = "needs_review" if command.candidate else "unavailable"
+    return {
+        "id": command.job_id,
+        "item": command.item_json,
+        "status": status,
+        "photo_ids": command.photo_ids_json,
+        **({"candidate": command.candidate} if status == "needs_review" else {}),
     }
 
 
