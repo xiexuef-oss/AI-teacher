@@ -431,6 +431,51 @@ def test_expired_worker_reuses_committed_student_pdf(onboarded, app, clock, monk
         assert session.get(LearningPackRenderCheckpoint, job["id"]) is None
 
 
+def test_worker_publishes_and_returns_math_interval_sample(onboarded, app, clock):
+    import os
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-51",
+            "subjects": ["math"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 10, "weekdays": [1]},
+        }
+    )
+    job = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})["id"]
+    sessions = app.state.session_factory
+    local_font = os.environ.get("TUTOR_LEARNING_PACK_SAMPLE_FONT")
+    font = Path(local_font) if local_font else Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+    assert prepare_one(sessions, clock.now, font)
+    path = f"/learning/packs/{job}"
+    onboarded.data(
+        "POST",
+        f"{path}/items/001/returns",
+        expect=201,
+        json={"transcript": "(-∞,2)", "independence": "independent"},
+    )
+    with sessions() as session:
+        pack = session.get_one(LearningPackPublication, job)
+        student = PdfReader(BytesIO(pack.student_pdf)).pages[0].extract_text()
+        solution = PdfReader(BytesIO(pack.solution_pdf)).pages[0].extract_text()
+        assert "f(x)=-x^2+4x+1" in student
+        assert "(-∞,2]" not in student
+        assert "(-∞,2]" in solution
+        if local_font:
+            assert "单调递增区间" in student
+            assert "对称轴" in solution
+        owner = session.get_one(LearningPackCommand, job)
+        assert owner.plan_json["published"]
+        from tutor_api.models import LearningJob
+
+        assert (
+            paper_evidence(session, session.get_one(LearningJob, job).student_id)[0].outcome
+            == "correct"
+        )
+
+
 def test_worker_publishes_and_returns_a_physics_multiple_choice_sample(onboarded, app, clock, db):
     from io import BytesIO
 

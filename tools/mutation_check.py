@@ -63,6 +63,13 @@ MUTATIONS = [
         ("tests/unit/test_learning_pack_evidence.py",),
     ),
     Mutation(
+        "V14-R06 区间转写无法确认却计为错误",
+        API / "services" / "learning_pack_evidence.py",
+        '    return "incorrect" if outcome.status == "incorrect" else "unknown"',
+        '    return "incorrect"',
+        ("tests/unit/test_learning_pack_evidence.py",),
+    ),
+    Mutation(
         "V14-R06 复测忽略变式优先",
         API / "services" / "learning_pack_worker.py",
         "key=lambda pair: pair[:2], default=None",

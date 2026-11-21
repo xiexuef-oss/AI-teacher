@@ -50,7 +50,7 @@ def _printed_item(manifest: dict, record: LearningPackReturn) -> dict:
     )
 
 
-def _numeric_fill_outcome(version: QuestionVersion, text: str) -> Outcome:
+def _single_blank_outcome(version: QuestionVersion, text: str) -> Outcome:
     blanks = version.content_json.get("blanks") or []
     if len(blanks) != 1 or not text.strip():
         return "unknown"
@@ -61,7 +61,7 @@ def _numeric_fill_outcome(version: QuestionVersion, text: str) -> Outcome:
     if not isinstance(values, dict):
         return "unknown"
     expected = values.get(key)
-    if rule.get("type") != "numeric" or not isinstance(expected, str):
+    if rule.get("type") not in ("numeric", "interval") or not isinstance(expected, str):
         return "unknown"
     try:
         outcome = grading.check_blank(rule, expected, (answer.get("units") or {}).get(key), text)
@@ -77,7 +77,7 @@ def _outcome(
 ) -> Outcome:
     mode = _printed_item(manifest, record).get("answer_mode")
     if mode == "fill":
-        return _numeric_fill_outcome(version, text)
+        return _single_blank_outcome(version, text)
     if mode not in ("single_choice", "multiple_choice"):
         return "unknown"
     # Accept only explicit keys. Prose and ambiguous separators require review.

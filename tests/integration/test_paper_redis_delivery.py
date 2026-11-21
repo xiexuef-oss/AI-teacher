@@ -16,7 +16,7 @@ from test_mysql_migrations import mysql_engine  # noqa: F401
 from tutor_api.models import LearningJob, LearningPackCommand, LearningPackOutbox, User
 from tutor_api.services.learning_jobs import enqueue
 from tutor_api.services.learning_pack_outbox import RedisPaperQueue, deliver_one
-from tutor_api.services.learning_pack_worker import prepare_one
+from tutor_api.services.learning_pack_worker import LearningPackWorker, prepare_one
 
 
 def test_redis_paper_delivery_retries_and_duplicates_are_harmless(request, onboarded, app, clock):
@@ -46,6 +46,40 @@ def test_redis_paper_delivery_retries_and_duplicates_are_harmless(request, onboa
     assert not prepare_one(sessions, clock.now, queued_id=job["id"])
     assert queue.receive() is None
     assert onboarded.data("GET", f"/learning/jobs/{job['id']}")["status"] == "succeeded"
+
+
+def test_busy_redis_does_not_starve_database_recovery(request, onboarded, app, clock):
+    coordinator = request.getfixturevalue("real_coordinator")
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-51",
+            "subjects": ["chemistry"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 0, "weekdays": [1]},
+        }
+    )
+    sessions = app.state.session_factory
+    queue = RedisPaperQueue(coordinator.client, namespace=coordinator.namespace)
+    jobs = []
+    for key in ("lost-delivery", "first-delivery", "next-delivery"):
+        job = onboarded.data(
+            "POST", "/learning/packs", expect=202, key=key, json={"school_minutes": 0}
+        )
+        jobs.append(job["id"])
+        assert deliver_one(sessions, clock.now, queue.send)
+        if key == "lost-delivery":
+            assert queue.receive() == job["id"]
+        clock.advance(1)
+
+    worker = LearningPackWorker(sessions, clock.now, None, queue=queue)
+    assert worker.process_paper_once()
+    assert worker.process_paper_once()
+    with sessions() as session:
+        assert [session.get_one(LearningJob, job).status for job in jobs] == [
+            "succeeded",
+            "succeeded",
+            "queued",
+        ]
+    assert queue.receive() == jobs[-1]
 
 
 @pytest.mark.parametrize("continuous", [False, True])

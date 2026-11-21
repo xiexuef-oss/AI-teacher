@@ -68,3 +68,27 @@ def test_numeric_paper_evidence_abstains_when_locked_answer_has_legacy_shape():
         "items": [{"code": "001", "question_version_id": "version", "answer_mode": "fill"}],
     }
     assert _outcome(manifest, record, version, "5") == "unknown"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("(-∞,2]", "correct"),
+        ("(-∞,3]", "incorrect"),
+        ("x ≤ 2", "unknown"),
+    ],
+)
+def test_interval_paper_evidence_requires_a_recognized_interval(text, expected):
+    record = LearningPackReturn(code="001", revision=1, question_version_id="version")
+    version = QuestionVersion(
+        content_json={"blanks": [{"key": "b1"}]},
+        answer_json={
+            "value": {"b1": "(-inf,2]"},
+            "equivalence_rules": {"b1": {"type": "interval"}},
+        },
+    )
+    manifest = {
+        "revision": 1,
+        "items": [{"code": "001", "question_version_id": "version", "answer_mode": "fill"}],
+    }
+    assert _outcome(manifest, record, version, text) == expected

@@ -37,6 +37,7 @@ PAPER_SAMPLES = (
     ("chemistry", "chem-process-reading"),
     ("physics", "phys-force-analysis"),
     ("physics", "phys-incline-accel"),
+    ("math", "math-mono-quadratic-v1"),
 )
 
 
@@ -77,6 +78,9 @@ def _sample_question(db, key):
         ):
             stem = stem.replace(source, target)
             explanation = explanation.replace(source, target)
+    elif key == "math-mono-quadratic-v1":
+        stem = stem.replace("$", "")
+        explanation = explanation.replace(r"\infty", "∞").replace("$", "")
     return PrintedQuestion(
         version.id,
         stem,
@@ -321,6 +325,7 @@ class LearningPackWorker:
         self._media_store = media_store
         self._gateway = gateway
         self._queue = queue
+        self._scan_database_next = False
         self._stop = Event()
         self._thread = Thread(target=self._run, name="learning-pack-worker", daemon=True)
 
@@ -332,6 +337,9 @@ class LearningPackWorker:
         self._thread.join()
 
     def process_paper_once(self) -> bool:
+        if self._scan_database_next:
+            self._scan_database_next = False
+            return prepare_one(self._factory, self._clock, self._sample_font)
         queued_id = None
         if self._queue is not None:
             try:
@@ -342,6 +350,7 @@ class LearningPackWorker:
         if queued_id is not None and prepare_one(
             self._factory, self._clock, self._sample_font, queued_id=queued_id
         ):
+            self._scan_database_next = True
             return True
         return prepare_one(self._factory, self._clock, self._sample_font)
 
