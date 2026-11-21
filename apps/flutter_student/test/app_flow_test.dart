@@ -820,6 +820,8 @@ void main() {
       final transcript = find.widgetWithText(TextField, '纸笔作答转写');
       await reveal(tester, transcript);
       await tester.enterText(transcript, '选 B');
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
       await tapAndSettle(tester, find.text('确认并回收作答'));
       await tapAndSettle(tester, find.text('重试回收'));
       expect(returnKeys, hasLength(2));
