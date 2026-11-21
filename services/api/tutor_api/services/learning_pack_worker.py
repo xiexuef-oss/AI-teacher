@@ -25,6 +25,7 @@ from tutor_api.services.content_seed import ENGINEERING_SAMPLE_NAME, seed_uuid
 from tutor_api.services.learning_budget import remaining_minutes
 from tutor_api.services.learning_jobs import claim, finish, has_active_lease
 from tutor_api.services.learning_pack_evidence import paper_evidence
+from tutor_api.services.learning_pack_outbox import RedisPaperQueue, deliver_one
 from tutor_api.services.learning_pack_publication import PrintedQuestion, publish
 from tutor_api.services.paper_review_schedule import rebuild
 from tutor_api.services.school_material_worker import process_one, purge_expired_results
@@ -212,10 +213,10 @@ def _plan_pack(db, student_id, inputs, sample_font, now):
     return item, minutes, deferred, reviews
 
 
-def prepare_one(factory, clock, sample_font: Path | None = None) -> bool:
+def prepare_one(factory, clock, sample_font: Path | None = None, *, queued_id=None) -> bool:
     now = clock()
     with factory() as db:
-        job = db.execute(
+        query = (
             select(LearningJob.id, LearningJob.student_id)
             .join(LearningPackCommand, LearningPackCommand.job_id == LearningJob.id)
             .where(
@@ -229,7 +230,10 @@ def prepare_one(factory, clock, sample_font: Path | None = None) -> bool:
             )
             .order_by(LearningJob.available_at, LearningJob.id)
             .limit(1)
-        ).one_or_none()
+        )
+        if queued_id is not None:
+            query = query.where(LearningJob.id == queued_id)
+        job = db.execute(query).one_or_none()
         if job is None:
             return False
         job_id, student_id = job
@@ -308,6 +312,7 @@ class LearningPackWorker:
         sample_font: Path | None = None,
         media_store=None,
         gateway=None,
+        queue: RedisPaperQueue | None = None,
     ):
         self._factory = factory
         self._clock = clock
@@ -315,6 +320,7 @@ class LearningPackWorker:
         self._sample_font = sample_font
         self._media_store = media_store
         self._gateway = gateway
+        self._queue = queue
         self._stop = Event()
         self._thread = Thread(target=self._run, name="learning-pack-worker", daemon=True)
 
@@ -325,11 +331,25 @@ class LearningPackWorker:
         self._stop.set()
         self._thread.join()
 
+    def process_paper_once(self) -> bool:
+        queued_id = None
+        if self._queue is not None:
+            try:
+                deliver_one(self._factory, self._clock, self._queue.send)
+                queued_id = self._queue.receive()
+            except Exception:
+                logger.exception("Learning pack Redis delivery failed")
+        if queued_id is not None and prepare_one(
+            self._factory, self._clock, self._sample_font, queued_id=queued_id
+        ):
+            return True
+        return prepare_one(self._factory, self._clock, self._sample_font)
+
     def _run(self):
         next_weekly_check = 0.0
         while not self._stop.is_set():
             try:
-                prepare_one(self._factory, self._clock, self._sample_font)
+                self.process_paper_once()
             except Exception:
                 logger.exception("Learning pack preparation failed")
             if self._media_store is not None:

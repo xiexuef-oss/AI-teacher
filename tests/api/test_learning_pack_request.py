@@ -14,6 +14,11 @@ from tutor_api.services.weekly_snapshots import generate_due_snapshots
 
 
 def test_pack_request_uses_saved_budget_and_replays(onboarded, app, clock, db):
+    import pytest
+    from sqlalchemy import text
+
+    from tutor_api.services.learning_pack_outbox import deliver_one
+
     profile = onboarded.data("GET", "/profile")
     onboarded.save_profile(
         json={
@@ -29,6 +34,21 @@ def test_pack_request_uses_saved_budget_and_replays(onboarded, app, clock, db):
         onboarded.data("POST", "/learning/packs", expect=202, key="pack-request", json=body)
         == first
     )
+    with app.state.session_factory() as session:
+        assert session.execute(
+            text("SELECT job_id, delivered_at FROM learning_pack_outbox")
+        ).all() == [(first["id"], None)]
+    sessions = app.state.session_factory
+
+    def unavailable(_job_id):
+        raise OSError("queue unavailable")
+
+    with pytest.raises(OSError, match="queue unavailable"):
+        deliver_one(sessions, clock.now, unavailable)
+    sent = []
+    assert deliver_one(sessions, clock.now, sent.append)
+    assert sent == [first["id"]]
+    assert not deliver_one(sessions, clock.now, sent.append)
     assert prepare_one(
         app.state.session_factory, clock.now, Path(reportlab_path).parent / "fonts" / "Vera.ttf"
     )

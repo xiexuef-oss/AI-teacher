@@ -17,6 +17,7 @@ from tutor_api.models import (
     LearningJob,
     LearningPackCommand,
     LearningPackCorrection,
+    LearningPackOutbox,
     LearningPackPublication,
     LearningPackReturn,
     LearningPackReturnDetails,
@@ -91,7 +92,8 @@ def create_learning_pack(
         profile = get_profile(ctx.db, ctx.student_id)
         if profile.learning_settings_json is None:
             raise conflict("learning_settings_required", "请先保存学习安排")
-        job_id = enqueue(ctx.db, ctx.student_id, key, ctx.now())
+        now = ctx.now()
+        job_id = enqueue(ctx.db, ctx.student_id, key, now)
         ctx.db.add(
             LearningPackCommand(
                 job_id=job_id,
@@ -106,6 +108,8 @@ def create_learning_pack(
                 },
             )
         )
+        ctx.db.flush()
+        ctx.db.add(LearningPackOutbox(job_id=job_id, created_at=now))
         return _status(ctx, job_id)
 
     return run_idempotent(ctx, body, 202, action)

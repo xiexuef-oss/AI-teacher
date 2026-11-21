@@ -90,6 +90,19 @@ class LearningPackCommand(Base):
     plan_json: Mapped[dict | None] = mapped_column(JSON)
 
 
+class LearningPackOutbox(Base):
+    __tablename__ = "learning_pack_outbox"
+    __table_args__ = (
+        Index("ix_learning_pack_outbox_pending", "delivered_at", "created_at", "job_id"),
+    )
+
+    job_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("learning_pack_commands.job_id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    delivered_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
 class LearningPackRenderCheckpoint(Base):
     __tablename__ = "learning_pack_render_checkpoints"
 

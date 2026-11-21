@@ -58,6 +58,7 @@ from tutor_api.services.http_limits import (
     RedisHttpLimiter,
     validate_route_configuration,
 )
+from tutor_api.services.learning_pack_outbox import RedisPaperQueue
 from tutor_api.services.learning_pack_worker import LearningPackWorker
 from tutor_api.services.media_service import cleanup as cleanup_media
 from tutor_api.services.parent_invite_security import InviteRedeemLimiter, scrub_legacy_responses
@@ -85,6 +86,7 @@ def create_app(
     receipt_store: LegacyProtoReceiptStore | SqlReceiptStore | None = None,
     receipt_coordinator: RedisReceiptCoordinator | None = None,
     http_limiter: InMemoryHttpLimiter | RedisHttpLimiter | None = None,
+    paper_queue: RedisPaperQueue | None = None,
 ) -> FastAPI:
     """gateway_adapters 用来在测试里替换某个供应商的适配器；路由、预算与审计仍按配置走真实逻辑。"""
     settings = settings or Settings()
@@ -174,6 +176,7 @@ def create_app(
                     settings.learning_pack_sample_font if settings.seed_sample_content else None,
                     media_store=app.state.media_store,
                     gateway=app.state.gateway,
+                    queue=paper_queue,
                 )
                 pack_worker.start()
             yield
