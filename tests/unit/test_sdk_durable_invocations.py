@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from ai_gateway import GatewayConfig, build_gateway
+from ai_gateway.durable import invoke
 from ai_gateway.invocation_state import InvocationTransitions
 from support import REPO_ROOT
 from support.gateway_fakes import (
@@ -102,6 +103,20 @@ def test_sdk_sends_only_after_committed_attempt_and_settles_once(store):
         assert len(db.scalars(select(ModelCallAudit)).all()) == 1
         assert all(b.request_count == 1 for b in db.scalars(select(ModelBudgetUsage)))
     assert report_invocations(store)["items"][0]["context_kind"] == "sdk_request"
+
+
+def test_guarded_business_invocation_checks_context_before_budget_or_send(store):
+    sdk, adapter = gateway(store)
+    sdk.require_durable_external_calls()
+
+    def reject(_db):
+        raise ValueError("task lease is inactive")
+
+    result = invoke(sdk, request(), store, "sdk-test-stable-secret", context_guard=reject)
+    assert result.error_code == "INVOCATION_UNAVAILABLE" and not adapter.calls
+    with store.factory() as db:
+        assert not db.scalars(select(ModelBudgetUsage)).all()
+        assert not db.scalars(select(ModelCallAudit)).all()
 
 
 def test_sdk_same_key_changed_request_never_sends_again(store):

@@ -96,6 +96,7 @@ def test_migration_files_are_numbered_and_ordered():
         "030_learning_pack_render_checkpoints.sql",
         "031_learning_pack_outbox.sql",
         "032_learning_pack_photo_ocr.sql",
+        "033_learning_pack_photo_ocr_progress.sql",
     ]
 
 

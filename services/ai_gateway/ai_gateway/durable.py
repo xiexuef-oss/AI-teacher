@@ -16,7 +16,7 @@ from ai_gateway.errors import InvocationBudgetExceeded
 from ai_gateway.prompts import build_messages
 
 
-def invoke(gateway, request, store, secret):
+def invoke(gateway, request, store, secret, *, context_guard=None):
     def unavailable(code, response=None):
         if response is not None:
             return response.model_copy(
@@ -197,6 +197,7 @@ def invoke(gateway, request, store, secret):
                     platform_limit=limits.platform_daily_requests,
                     student_cost_limit=limits.student_daily_max_cost_micros,
                     platform_cost_limit=limits.platform_daily_max_cost_micros,
+                    context_guard=context_guard,
                     recover_after=gateway._now() + timedelta(seconds=plan.timeout_s),
                     sdk_context={
                         "routing_digest": routing_digest(),
@@ -214,7 +215,7 @@ def invoke(gateway, request, store, secret):
                 return unavailable("INVOCATION_UNAVAILABLE", last)
             # Process exit leaves this separately committed attempt unknown.
             try:
-                response = gateway.invoke_single_attempt(plan, legacy_only=True)
+                response = gateway.invoke_single_attempt(plan, legacy_only=context_guard is None)
             except Exception:
                 return unavailable("INVOCATION_UNCERTAIN", last)
             calls += response.provider_calls

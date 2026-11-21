@@ -177,6 +177,7 @@ def create_app(
                     media_store=app.state.media_store,
                     gateway=app.state.gateway,
                     queue=paper_queue,
+                    invocation_store=app.state.invocation_store,
                 )
                 pack_worker.start()
             yield

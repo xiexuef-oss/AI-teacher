@@ -115,6 +115,7 @@ class LearningPackPhotoOcr(Base):
     photo_ids_json: Mapped[list[str]] = mapped_column(JSON)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime, index=True)
     candidate: Mapped[str | None] = mapped_column(Text)
+    pages_json: Mapped[dict[str, str] | None] = mapped_column(JSON)
 
 
 class LearningPackRenderCheckpoint(Base):

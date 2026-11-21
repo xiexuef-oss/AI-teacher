@@ -459,10 +459,13 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
       await _saveTranscript(candidate);
       return '已填入候选，请对照照片校正后确认回收。';
     }
-    return switch (status.status) {
-      'queued' || 'running' || 'retry_wait' => '正在识别，请稍后再点查看。',
-      _ => '未获得可用转写，请手动填写作答。',
-    };
+    if (const {'queued', 'running', 'retry_wait'}.contains(status.status)) {
+      return '正在识别，请稍后再点查看。';
+    }
+    if (const {'unavailable', 'failed', 'cancelled'}.contains(status.status)) {
+      await store.delete(journal);
+    }
+    return '未获得可用转写，可重试识别或手动填写作答。';
   }
 
   Future<String> _addReturnPhoto(TutorApiClient api, ImageSource source) async {

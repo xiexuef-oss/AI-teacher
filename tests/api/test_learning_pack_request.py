@@ -169,16 +169,19 @@ def test_worker_publishes_both_sample_pdfs(
     class LocalOcr:
         external_calls_possible = False
 
-        def __init__(self):
-            self.lines = iter(("第一页", "第二页"))
+        def __init__(self, *lines):
+            self.lines = iter(lines)
 
         def invoke(self, request):
+            text = next(self.lines)
+            if isinstance(text, BaseException):
+                raise text
             return SimpleNamespace(
                 provider="isolated-test",
                 status="ok",
                 confidence=0.99,
                 review_required=False,
-                validated_output={"stem_text": next(self.lines), "expressions": []},
+                validated_output={"stem_text": text, "expressions": []},
             )
 
         def provider_is_mock(self, provider):
@@ -186,9 +189,56 @@ def test_worker_publishes_both_sample_pdfs(
 
     candidate_job = onboarded.data("POST", ocr, json=ocr_body, expect=202)
     config = app.state.settings.model_copy(update={"import_ocr_mode": "configured"})
-    assert process_photo_ocr(app.state.session_factory, clock.now, config, store, LocalOcr())
+    import pytest
+
+    from tutor_api.services.learning_jobs import LEASE
+
+    with pytest.raises(SystemExit, match="worker stopped"):
+        process_photo_ocr(
+            app.state.session_factory,
+            clock.now,
+            config,
+            store,
+            LocalOcr("第一页", SystemExit("worker stopped")),
+        )
+    clock.advance(LEASE.total_seconds())
+    assert process_photo_ocr(
+        app.state.session_factory, clock.now, config, store, LocalOcr("第二页")
+    )
     candidate = onboarded.data("GET", f"{ocr}/{candidate_job['id']}")
     assert candidate == {**candidate_job, "status": "needs_review", "candidate": "第一页\n第二页"}
+    from sqlalchemy import select
+    from test_document_durable_ocr import install as install_durable_ocr
+
+    from tutor_api.models import ModelBudgetUsage, ModelCallAudit
+    from tutor_api.services.invocation_store import intents
+
+    durable_store, external_gateway, adapter = install_durable_ocr(app, clock)
+    external_gateway.require_durable_external_calls()
+    durable_job = onboarded.data("POST", ocr, json=ocr_body, expect=202)
+    external_settings = app.state.settings.model_copy(update={"allow_external_model_calls": True})
+    assert process_photo_ocr(
+        app.state.session_factory,
+        clock.now,
+        external_settings,
+        store,
+        external_gateway,
+        durable_store,
+    )
+    durable_candidate = onboarded.data("GET", f"{ocr}/{durable_job['id']}")
+    assert durable_candidate["status"] == "needs_review"
+    assert durable_candidate["candidate"].splitlines() == ["1. 自编OCR恢复题"] * 2
+    assert len(adapter.calls) == 2
+    with app.state.session_factory() as session:
+        assert list(session.scalars(select(intents.c.state))) == ["settled_metadata"] * 2
+        audits = session.scalars(
+            select(ModelCallAudit).where(ModelCallAudit.task_type == "ocr_extract")
+        )
+        assert [audit.provider_calls for audit in audits] == [1, 1]
+        assert [bucket.request_count for bucket in session.scalars(select(ModelBudgetUsage))] == [
+            2,
+            2,
+        ]
     preview = f"/scans/uploads/{body['photo_ids'][0]}/content"
     assert b64decode(onboarded.data("GET", preview)["content_base64"]) == png_image((320, 80))
     other.error("GET", preview, expect=404)
@@ -313,6 +363,13 @@ def test_worker_publishes_both_sample_pdfs(
         pack = session.get_one(LearningPackPublication, fifth["id"])
         assert pack.manifest_json["items"][0]["suggested_on"] == "2026-11-16"
     clock.advance(days=7)
+    from tutor_api.models import LearningPackPhotoOcr
+    from tutor_api.services.learning_pack_photo_worker import purge_expired_candidates
+
+    onboarded.error("GET", f"{ocr}/{candidate_job['id']}", expect=404)
+    purge_expired_candidates(app.state.session_factory, clock.now())
+    with app.state.session_factory() as session:
+        assert session.get_one(LearningPackPhotoOcr, candidate_job["id"]).candidate is None
     onboarded.error("GET", preview, expect=404)
     assert generate_due_snapshots(app.state.session_factory, app.state.settings, clock.now()) == 1
     snapshot = f"/parents/students/{onboarded.user_id}/weekly-snapshots/2026-11-09"

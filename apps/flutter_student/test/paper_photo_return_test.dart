@@ -288,6 +288,7 @@ void main() {
         'photo_ids': [photoId],
       };
       final ocrKeys = <String?>[];
+      var reads = 0;
       harness.backend.on('POST', ocrPath, (request) {
         ocrKeys.add(request.headers['Idempotency-Key']);
         return ocrKeys.length == 1
@@ -297,11 +298,11 @@ void main() {
       harness.backend.on(
         'GET',
         '$ocrPath/$ocrId',
-        (_) => okResponse({
-          ...receipt,
-          'status': 'needs_review',
-          'candidate': '候选 A',
-        }),
+        (_) => okResponse(
+          ++reads == 1
+              ? {...receipt, 'status': 'unavailable'}
+              : {...receipt, 'status': 'needs_review', 'candidate': '候选 A'},
+        ),
       );
       final recognize = find.text('识别照片文字 / 查看结果');
       await tester.ensureVisible(recognize);
@@ -315,6 +316,15 @@ void main() {
       expect(ocrKeys.first, isNotNull);
       expect(ocrKeys.last, ocrKeys.first);
       expect(find.text('正在识别，请稍后再点查看。'), findsOneWidget);
+      await tester.ensureVisible(recognize);
+      await tester.tap(recognize);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('未获得可用转写'), findsOneWidget);
+      await tester.ensureVisible(recognize);
+      await tester.tap(recognize);
+      await tester.pumpAndSettle();
+      expect(ocrKeys, hasLength(3));
+      expect(ocrKeys.last, isNot(ocrKeys.first));
       await tester.ensureVisible(recognize);
       await tester.tap(recognize);
       await tester.pump();

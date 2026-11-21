@@ -321,6 +321,7 @@ class LearningPackWorker:
         media_store=None,
         gateway=None,
         queue: RedisPaperQueue | None = None,
+        invocation_store=None,
     ):
         self._factory = factory
         self._clock = clock
@@ -329,6 +330,7 @@ class LearningPackWorker:
         self._media_store = media_store
         self._gateway = gateway
         self._queue = queue
+        self._invocation_store = invocation_store
         self._scan_database_next = False
         self._stop = Event()
         self._thread = Thread(target=self._run, name="learning-pack-worker", daemon=True)
@@ -368,7 +370,12 @@ class LearningPackWorker:
             if self._media_store is not None:
                 try:
                     process_photo_ocr(
-                        self._factory, self._clock, self._settings, self._media_store, self._gateway
+                        self._factory,
+                        self._clock,
+                        self._settings,
+                        self._media_store,
+                        self._gateway,
+                        self._invocation_store,
                     )
                 except Exception:
                     logger.exception("Paper photo OCR failed")
