@@ -308,6 +308,31 @@ def test_worker_rolls_back_staged_pdfs_and_retries_same_job(onboarded, app, cloc
     onboarded.error("GET", f"{path}/solution-pdf", expect=409)
 
 
+def test_worker_recovers_paper_pack_after_claimant_exits(onboarded, app, clock):
+    from tutor_api.services.learning_jobs import LEASE, claim
+
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-51",
+            "subjects": ["chemistry"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 10, "weekdays": [1]},
+        }
+    )
+    job = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})
+    sessions = app.state.session_factory
+    with sessions.begin() as session:
+        assert claim(session, job["id"], clock.now()) is not None
+
+    font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+    assert not prepare_one(sessions, clock.now, font)
+    assert onboarded.data("GET", "/learning/packs") == {"ids": []}
+
+    clock.advance(LEASE.total_seconds())
+    assert prepare_one(sessions, clock.now, font)
+    assert onboarded.data("GET", "/learning/packs") == {"ids": [job["id"]]}
+    assert not prepare_one(sessions, clock.now, font)
+
+
 def test_worker_publishes_and_returns_a_physics_multiple_choice_sample(onboarded, app, clock, db):
     from io import BytesIO
 

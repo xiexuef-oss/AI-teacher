@@ -157,7 +157,10 @@ def test_real_connection_lock_blocks_concurrent_runner(mysql_engine, tmp_path):
     assert apply_migrations(mysql_engine, [path]) == [path.name]
 
 
-def test_real_concurrent_workers_publish_only_one_unreturned_pack(mysql_engine, monkeypatch):
+@pytest.mark.parametrize("recover_expired_claim", [False, True])
+def test_real_concurrent_workers_publish_only_one_unreturned_pack(
+    mysql_engine, monkeypatch, recover_expired_claim
+):
     from concurrent.futures import ThreadPoolExecutor
     from datetime import UTC, datetime
     from threading import Event
@@ -168,7 +171,7 @@ def test_real_concurrent_workers_publish_only_one_unreturned_pack(mysql_engine, 
     from tutor_api.models import LearningPackCommand, LearningPackPublication, User
     from tutor_api.services import learning_pack_worker as worker
     from tutor_api.services.content_seed import seed_if_empty
-    from tutor_api.services.learning_jobs import enqueue
+    from tutor_api.services.learning_jobs import LEASE, enqueue
 
     apply_migrations(mysql_engine, sorted(Path("migrations").glob("*.sql")))
     sessions = sessionmaker(mysql_engine)
@@ -190,6 +193,11 @@ def test_real_concurrent_workers_publish_only_one_unreturned_pack(mysql_engine, 
                     },
                 )
             )
+
+    if recover_expired_claim:
+        with sessions.begin() as session:
+            assert worker.claim(session, jobs[0], now) is not None
+        now += LEASE
 
     publishing = Event()
     second_claimed = Event()

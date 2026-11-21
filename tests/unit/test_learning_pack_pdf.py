@@ -26,6 +26,12 @@ def test_two_pdfs_have_separate_content_and_a4_pages(font):
     assert "AB123" in student.pages[0].extract_text()
     assert "Answer: four" not in student.pages[0].extract_text()
     assert "Answer: four" in solutions.pages[0].extract_text()
+    assert "Answer: four" not in str(student.metadata)
+    assert student.xmp_metadata is None
+    assert not student.attachments
+    assert "/AF" not in student.root_object
+    assert "/OCProperties" not in student.root_object
+    assert all(not page.images and not page.annotations for page in student.pages)
     assert float(student.pages[0].mediabox.width) == pytest.approx(595.276, abs=0.001)
 
 
