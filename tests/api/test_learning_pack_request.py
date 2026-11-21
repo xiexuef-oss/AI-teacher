@@ -200,6 +200,11 @@ def test_worker_publishes_both_sample_pdfs(
     assert b64decode(downloaded["content_base64"]) == pack.solution_pdf
     assert downloaded["sha256"] == sha256(pack.solution_pdf).hexdigest()
     other.error("GET", solution, expect=404)
+    for client, status_code in ((onboarded, 200), (other, 404)):
+        response = client.request("GET", solution)
+        assert response.status_code == status_code
+        assert response.headers["Cache-Control"] == "no-store"
+        assert response.headers["Pragma"] == "no-cache"
 
     second = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 5})
     assert prepare_one(

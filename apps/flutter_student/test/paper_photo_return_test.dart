@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -31,6 +32,57 @@ class _PhotoPicker extends ImagePicker {
 }
 
 void main() {
+  testWidgets('discard a scan that completes after the paper owner changes', (
+    tester,
+  ) async {
+    final harness = AppHarness();
+    const owner = 'student-paper-first';
+    const nextOwner = 'student-paper-next';
+    const job = '03fb9db8-aed3-44d2-a605-56a9debe29c9';
+    const pagePath = '/learning/packs/$job/page';
+    final scan = Completer<String?>();
+    harness.signInAs(role: 'student', userId: owner);
+    harness.store.data['learning-pack.latest.$owner'] = jsonEncode({
+      'job': job,
+    });
+    harness.backend.on(
+      'GET',
+      '/learning/jobs/$job',
+      (_) => okResponse({
+        'id': job,
+        'status': 'succeeded',
+        'attempts': 1,
+        'pack_result': 'published',
+      }),
+    );
+    Widget section(String student) => ProviderScope(
+      key: ValueKey(student),
+      overrides: [
+        ...harness.overrides,
+        userIdProvider.overrideWithValue(student),
+        paperLiveScannerProvider.overrideWithValue((_) => scan.future),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: LearningPackSection(ownerId: student),
+          ),
+        ),
+      ),
+    );
+    useSize(tester, const Size(920, 840));
+    await tester.pumpWidget(section(owner));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('相机扫码'));
+    await tester.pump();
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    await tester.pumpWidget(section(nextOwner));
+    scan.complete('490a26ed8f244ada918ff56da8ce890a');
+    await tester.pumpAndSettle();
+    expect(harness.backend.requestsTo('GET', pagePath), isEmpty);
+    expect(find.text('相机扫码'), findsNothing);
+  }, variant: const TargetPlatformVariant({TargetPlatform.android}));
+
   testWidgets('cancels a running paper pack with a stable retry key', (
     tester,
   ) async {
