@@ -148,10 +148,23 @@ def upgrade_local_draft_schema(engine: Engine) -> None:
             _upgrade_question_review_revision(conn)
             _ensure_review_session_index(conn)
             _upgrade_review_history(conn)
+            _upgrade_paper_ocr_and_corrections(conn)
             conn.commit()
         except BaseException:
             conn.rollback()
             raise
+
+
+def _upgrade_paper_ocr_and_corrections(conn: Connection) -> None:
+    inspector = inspect(conn)
+    for table, column, definition in (
+        ("learning_pack_corrections", "before_solution", "BOOLEAN NULL"),
+        ("learning_pack_photo_ocr", "pages_json", "JSON NULL"),
+    ):
+        if inspector.has_table(table) and column not in {
+            field["name"] for field in inspector.get_columns(table)
+        }:
+            conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def _upgrade_parent_revisions(conn: Connection) -> None:

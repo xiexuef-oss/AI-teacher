@@ -215,6 +215,17 @@ def test_worker_publishes_both_sample_pdfs(
 
     durable_store, external_gateway, adapter = install_durable_ocr(app, clock)
     external_gateway.require_durable_external_calls()
+    blocked_job = onboarded.data("POST", ocr, json=ocr_body, expect=202)
+    assert process_photo_ocr(
+        app.state.session_factory,
+        clock.now,
+        app.state.settings,
+        store,
+        external_gateway,
+        durable_store,
+    )
+    assert onboarded.data("GET", f"{ocr}/{blocked_job['id']}")["status"] == "unavailable"
+    assert not adapter.calls
     durable_job = onboarded.data("POST", ocr, json=ocr_body, expect=202)
     external_settings = app.state.settings.model_copy(update={"allow_external_model_calls": True})
     assert process_photo_ocr(
