@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
-from threading import Barrier
+from threading import Barrier, Event
 
 import pytest
 
@@ -62,3 +62,47 @@ def test_identical_concurrent_weekly_writes_share_revision(app, student, setting
     with ThreadPoolExecutor(max_workers=2) as pool:
         writes = [pool.submit(write) for _ in range(2)]
         assert [write.result(timeout=15) for write in writes] == [1, 1]
+
+
+def test_weekly_generation_catches_up_after_monday_window(app, onboarded, parent, settings):
+    authorize(onboarded, parent)
+    factory = app.state.session_factory
+    tuesday = datetime(2026, 11, 17, 4, tzinfo=UTC)
+    assert generate_due_snapshots(factory, settings, tuesday) == 1
+    assert generate_due_snapshots(factory, settings, tuesday) == 0
+    report = parent.data(
+        "GET", f"/parents/students/{onboarded.user_id}/weekly-snapshots/2026-11-09"
+    )
+    assert report["revision"] == 1
+
+
+def test_learning_worker_generates_due_report_without_an_api_request(
+    app, onboarded, parent, settings, monkeypatch
+):
+    from tutor_api.services import learning_pack_worker
+
+    authorize(onboarded, parent)
+    completed = Event()
+    generated = []
+
+    def generate(factory, worker_settings, now):
+        generated.append(generate_due_snapshots(factory, worker_settings, now))
+        completed.set()
+
+    monkeypatch.setattr(learning_pack_worker, "generate_due_snapshots", generate)
+    worker = learning_pack_worker.LearningPackWorker(
+        app.state.session_factory,
+        lambda: datetime(2026, 11, 17, 4, tzinfo=UTC),
+        settings,
+    )
+    worker.start()
+    try:
+        assert completed.wait(timeout=5)
+        assert generated == [1]
+    finally:
+        worker.close()
+
+    report = parent.data(
+        "GET", f"/parents/students/{onboarded.user_id}/weekly-snapshots/2026-11-09"
+    )
+    assert report["revision"] == 1

@@ -8,6 +8,10 @@ ANSWER_HEADING = re.compile(
 )
 
 
+def _answer_location(location):
+    return f"文件 {location.get('file_id', '当前文件')} 页/片段 {location['page']} 行 {location['block']}"
+
+
 def split_pages(pages):
     results, current, last_number = [], None, None
     answer_section = False
@@ -109,10 +113,13 @@ def split_pages(pages):
                 item["warnings"].append("题面存在重复题号，无法确定答案配对，请人工核对。")
             elif len(matches) == 1 and not uncertain_order:
                 item["warnings"].append(
-                    f"题号 {number[1]} 的答案配对建议：查看文件 {matches[0].get('file_id', '当前文件')} 页/片段 {matches[0]['page']} 行 {matches[0]['block']}，须人工确认，尚未填入答案。"
+                    f"题号 {number[1]} 的答案配对建议：查看{_answer_location(matches[0])}，须人工确认，尚未填入答案。"
                 )
             elif len(matches) > 1:
-                item["warnings"].append("答案区存在重复题号，无法确定配对，请人工核对。")
+                refs = "；".join(_answer_location(match) for match in matches[:3])
+                item["warnings"].append(
+                    f"答案区存在重复题号，共 {len(matches)} 处，无法确定配对。请从以下位置人工核对：{refs}。"
+                )
         if len(item["text"]) > 4000:
             item["warnings"].append("超长题已分成片段，请人工拆分为合规题目；不要直接逐片段导入。")
         for start in range(0, max(1, len(item["text"])), 4000):

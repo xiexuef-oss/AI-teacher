@@ -232,6 +232,7 @@ def test_worker_publishes_both_sample_pdfs(
         "POST", "/me/parent-invites", expect=201, json={"expected_parent_invite_revision": 0}
     )
     parent.data("POST", "/parents/links", expect=201, json={"code": invite["code"]})
+    parent.error("GET", solution, expect=403)
     paper = parent.data("GET", weekly)["paper"]
     assert paper["confirmed"] == 2
     assert paper["independent"]["denominator"] == 1

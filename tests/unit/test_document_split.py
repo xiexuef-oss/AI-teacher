@@ -82,6 +82,20 @@ def test_duplicate_question_numbers_suppress_even_unique_answer_suggestion():
     assert all(not any("配对建议：" in w for w in c["warnings"]) for c in result)
 
 
+def test_duplicate_answer_numbers_show_locations_without_guessing():
+    result = split_pages(
+        [
+            page(1, "1. 题干", _file_id="question"),
+            page(2, "1. secret-one", _file_id="answer", _answer_file=True),
+            page(4, "续文\n1. secret-two", _file_id="answer", _answer_file=True),
+        ]
+    )
+    assert len(result) == 1 and result[0]["text"] == "1. 题干"
+    warning = next(w for w in result[0]["warnings"] if "答案区存在重复题号" in w)
+    assert "answer 页/片段 2 行 1" in warning and "answer 页/片段 4 行 2" in warning
+    assert "secret" not in warning and result[0]["payload"] is None
+
+
 def test_unknown_file_order_does_not_merge_or_pair():
     result = split_pages(
         [

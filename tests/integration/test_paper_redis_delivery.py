@@ -1,7 +1,7 @@
 import os
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import monotonic, sleep
 from urllib.parse import quote
@@ -13,7 +13,14 @@ from sqlalchemy.orm import sessionmaker
 from test_durable_receipts import real_coordinator  # noqa: F401
 from test_mysql_migrations import mysql_engine  # noqa: F401
 
-from tutor_api.models import LearningJob, LearningPackCommand, LearningPackOutbox, User
+from tutor_api.models import (
+    LearningJob,
+    LearningPackCommand,
+    LearningPackOutbox,
+    ParentStudentLink,
+    User,
+    WeeklyReportSnapshot,
+)
 from tutor_api.services.learning_jobs import enqueue
 from tutor_api.services.learning_pack_outbox import RedisPaperQueue, deliver_one
 from tutor_api.services.learning_pack_worker import LearningPackWorker, prepare_one
@@ -134,6 +141,30 @@ def test_mysql_recovers_paper_job_after_redis_message_is_lost(request, continuou
         "TUTOR_LEARNING_PACK_REDIS_URL": redis_url,
     }
     if continuous:
+        # Avoid the pre-07:00 window when the suite happens to run early Monday in Shanghai.
+        current = datetime.now(UTC)
+        offset = 480
+        local = current + timedelta(minutes=offset)
+        if local.weekday() == 0 and local.hour < 7:
+            offset = -720
+            local = current + timedelta(minutes=offset)
+        env["TUTOR_REPORT_UTC_OFFSET_MINUTES"] = str(offset)
+        week = local.date() - timedelta(days=local.weekday() + 7)
+        parent_id = str(uuid4())
+        with sessions.begin() as session:
+            owner = session.get_one(LearningJob, job).student_id
+            consent = min(now, current)
+            session.add(User(id=parent_id, role="parent", created_at=consent, updated_at=consent))
+            session.flush()
+            session.add(
+                ParentStudentLink(
+                    id=str(uuid4()),
+                    parent_id=parent_id,
+                    student_id=owner,
+                    consent_at=consent,
+                    created_at=consent,
+                )
+            )
         with subprocess.Popen(
             command, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         ) as worker:
@@ -154,6 +185,7 @@ def test_mysql_recovers_paper_job_after_redis_message_is_lost(request, continuou
                 wait_for_success(later_job)
                 with sessions() as session:
                     assert session.get_one(LearningPackOutbox, later_job).delivered_at is not None
+                    assert session.get_one(WeeklyReportSnapshot, (owner, week, 1)).revision == 1
             finally:
                 worker.terminate()
                 worker.wait(timeout=10)
