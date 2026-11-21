@@ -99,10 +99,17 @@ def has_active_lease(
 
 
 def finish(
-    db: Session, job_id: str, token: str, now: datetime, *, success: bool, retryable: bool = True
+    db: Session,
+    job_id: str,
+    token: str,
+    now: datetime,
+    *,
+    success: bool,
+    retryable: bool = True,
+    needs_review: bool = False,
 ) -> bool:
     if success:
-        status = "succeeded"
+        status = "needs_review" if needs_review else "succeeded"
     elif retryable:
         status = case((LearningJob.attempts >= MAX_ATTEMPTS, "failed"), else_="retry_wait")
     else:

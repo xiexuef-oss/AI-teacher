@@ -87,9 +87,29 @@ def test_unregistered_mismatched_or_unidentified_results_cannot_pass(tmp_path, c
 def test_cli_defaults_and_failures(tmp_path):
     manifest, results = files(tmp_path, [("one", "m"), ("two", "m")])
     command = [sys.executable, "tools/check_evaluation_coverage.py", str(manifest), str(results)]
-    for options, expected in [([], 1), (["--minimum", "2"], 0)]:
+    for options, expected in [
+        ([], 1),
+        (["--minimum", "2"], 0),
+        (["--minimum", "2", "--require-group", "ocr_extract", "fixture", "m"], 0),
+        (["--minimum", "2", "--require-group", "ocr_extract", "fixture", "absent"], 1),
+    ]:
         result = subprocess.run(command + options, capture_output=True, text=True, check=False)
         assert result.returncode == expected
         assert json.loads(result.stdout)["ready"] is (expected == 0)
     results.write_text('{"private":"malformed"}', encoding="utf-8")
     assert not check_coverage(manifest, results, minimum=2)["ready"]
+
+
+def test_expected_but_absent_model_counts_as_missing(tmp_path):
+    manifest, results = files(tmp_path, [("one", "m"), ("two", "m")])
+    report = check_coverage(
+        manifest,
+        results,
+        minimum=2,
+        required_groups=[("ocr_extract", "fixture", "absent")],
+    )
+    assert not report["ready"]
+    assert [(group["model"], group["missing_items"]) for group in report["groups"]] == [
+        ("absent", 2),
+        ("m", 0),
+    ]

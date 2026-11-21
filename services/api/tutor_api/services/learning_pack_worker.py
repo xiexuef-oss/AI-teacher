@@ -32,6 +32,7 @@ from tutor_api.services.learning_pack_photo_worker import (
 )
 from tutor_api.services.learning_pack_publication import PrintedQuestion, publish
 from tutor_api.services.paper_review_schedule import rebuild
+from tutor_api.services.question_service import is_engineering_sample
 from tutor_api.services.school_material_worker import process_one, purge_expired_results
 from tutor_api.services.weekly_snapshots import generate_due_snapshots
 
@@ -42,7 +43,9 @@ PAPER_SAMPLES = (
     ("physics", "phys-force-analysis"),
     ("physics", "phys-incline-accel"),
     ("math", "math-mono-quadratic-v1"),
+    ("math", "math-mono-quadratic"),
 )
+DUE_ONLY_SAMPLES = {"phys-incline-accel", "math-mono-quadratic"}
 
 
 def _sample_question(db, key):
@@ -51,6 +54,7 @@ def _sample_question(db, key):
         question.status != "published"
         or question.version != 1
         or question.source_name != ENGINEERING_SAMPLE_NAME
+        or not is_engineering_sample(question)
     ):
         return None
     version = db.get(QuestionVersion, seed_uuid("question_version", f"{key}:1"))
@@ -82,14 +86,15 @@ def _sample_question(db, key):
         ):
             stem = stem.replace(source, target)
             explanation = explanation.replace(source, target)
-    elif key == "math-mono-quadratic-v1":
-        stem = stem.replace("$", "")
+    elif key in {"math-mono-quadratic", "math-mono-quadratic-v1"}:
+        stem = stem.replace(r"\infty", "∞").replace("$", "")
         explanation = explanation.replace(r"\infty", "∞").replace("$", "")
     return PrintedQuestion(
         version.id,
         stem,
         explanation,
         answer_mode=question.answer_mode,
+        incline_sketch=key in {"phys-force-analysis", "phys-incline-accel"},
         knowledge_ids=tuple(
             db.scalars(
                 select(QuestionKnowledge.knowledge_id)
@@ -100,7 +105,7 @@ def _sample_question(db, key):
     )
 
 
-def _awaiting_return(db, student_id: str, version_id: str) -> bool:
+def _awaiting_returns(db, student_id: str) -> tuple[set[str], set[str]]:
     abandoned = (
         select(AuditLog.id)
         .where(
@@ -111,22 +116,33 @@ def _awaiting_return(db, student_id: str, version_id: str) -> bool:
         )
         .exists()
     )
+    owner_filter = and_(LearningJob.student_id == student_id, ~abandoned)
+    receipts = set(
+        db.execute(
+            select(
+                LearningPackReturn.job_id,
+                LearningPackReturn.code,
+                LearningPackReturn.revision,
+                LearningPackReturn.question_version_id,
+            )
+            .join(LearningJob, LearningJob.id == LearningPackReturn.job_id)
+            .where(owner_filter)
+        )
+    )
     packs = db.execute(
         select(LearningPackPublication.job_id, LearningPackPublication.manifest_json)
         .join(LearningJob, LearningJob.id == LearningPackPublication.job_id)
-        .where(LearningJob.student_id == student_id, ~abandoned)
+        .where(owner_filter)
     )
+    versions = set()
+    nodes = set()
     for pack_id, manifest in packs:
         for item in manifest["items"]:
-            if item["question_version_id"] == version_id:
-                receipt = db.get(LearningPackReturn, (pack_id, item["code"]))
-                if (
-                    receipt is None
-                    or receipt.revision != manifest["revision"]
-                    or receipt.question_version_id != version_id
-                ):
-                    return True
-    return False
+            version_id = item["question_version_id"]
+            if (pack_id, item["code"], manifest["revision"], version_id) not in receipts:
+                versions.add(version_id)
+                nodes.update(item.get("knowledge_ids", ()))
+    return versions, nodes
 
 
 def _review_plan(schedule, inputs, minutes, item, waiting_nodes, today, capped_nodes):
@@ -175,7 +191,7 @@ def _plan_pack(db, student_id, inputs, sample_font, now):
     waiting_nodes = set()
     waiting = False
     if sample_font is not None and minutes >= SAMPLE_MINUTES and inputs["settings"]["weekdays"]:
-        # One engineering sample per pack; keep waiting items out of the new pack.
+        waiting_versions, printed_nodes = _awaiting_returns(db, student_id)
         for subject, key in PAPER_SAMPLES:
             if subject not in inputs["subjects"]:
                 continue
@@ -195,9 +211,11 @@ def _plan_pack(db, student_id, inputs, sample_font, now):
                 ),
                 default=date.max,
             )
-            if key == "phys-incline-accel" and due == date.max:
+            if key in DUE_ONLY_SAMPLES and due == date.max:
                 continue
-            if _awaiting_return(db, student_id, candidate.question_version_id):
+            if candidate.question_version_id in waiting_versions or (
+                due != date.max and not printed_nodes.isdisjoint(candidate.knowledge_ids)
+            ):
                 waiting = True
                 waiting_nodes.update(candidate.knowledge_ids)
                 continue
@@ -221,7 +239,9 @@ def _plan_pack(db, student_id, inputs, sample_font, now):
     return item, minutes, deferred, reviews
 
 
-def prepare_one(factory, clock, sample_font: Path | None = None, *, queued_id=None) -> bool:
+def prepare_one(
+    factory, clock, sample_font: Path | None = None, *, queued_id=None, pdf_store=None
+) -> bool:
     now = clock()
     with factory() as db:
         query = (
@@ -288,9 +308,22 @@ def prepare_one(factory, clock, sample_font: Path | None = None, *, queued_id=No
             while True:
                 item, minutes, deferred, reviews = plan
                 done = (
-                    publish(db, job_id, token, [item], sample_font, clock, save_checkpoint)
+                    publish(
+                        db, job_id, token, [item], sample_font, clock, save_checkpoint, pdf_store
+                    )
                     if item is not None and sample_font is not None
-                    else finish(db, job_id, token, clock(), success=True)
+                    else finish(
+                        db,
+                        job_id,
+                        token,
+                        clock(),
+                        success=True,
+                        needs_review=(
+                            not deferred
+                            and minutes >= SAMPLE_MINUTES
+                            and bool(inputs["settings"]["weekdays"])
+                        ),
+                    )
                 )
                 if done or item == plan[0]:
                     break
@@ -322,6 +355,7 @@ class LearningPackWorker:
         gateway=None,
         queue: RedisPaperQueue | None = None,
         invocation_store=None,
+        pdf_store=None,
     ):
         self._factory = factory
         self._clock = clock
@@ -331,6 +365,7 @@ class LearningPackWorker:
         self._gateway = gateway
         self._queue = queue
         self._invocation_store = invocation_store
+        self._pdf_store = pdf_store
         self._scan_database_next = False
         self._stop = Event()
         self._thread = Thread(target=self._run, name="learning-pack-worker", daemon=True)
@@ -345,7 +380,9 @@ class LearningPackWorker:
     def process_paper_once(self) -> bool:
         if self._scan_database_next:
             self._scan_database_next = False
-            return prepare_one(self._factory, self._clock, self._sample_font)
+            return prepare_one(
+                self._factory, self._clock, self._sample_font, pdf_store=self._pdf_store
+            )
         queued_id = None
         if self._queue is not None:
             try:
@@ -354,11 +391,15 @@ class LearningPackWorker:
             except Exception:
                 logger.exception("Learning pack Redis delivery failed")
         if queued_id is not None and prepare_one(
-            self._factory, self._clock, self._sample_font, queued_id=queued_id
+            self._factory,
+            self._clock,
+            self._sample_font,
+            queued_id=queued_id,
+            pdf_store=self._pdf_store,
         ):
             self._scan_database_next = True
             return True
-        return prepare_one(self._factory, self._clock, self._sample_font)
+        return prepare_one(self._factory, self._clock, self._sample_font, pdf_store=self._pdf_store)
 
     def _run(self):
         next_weekly_check = 0.0
@@ -387,10 +428,20 @@ class LearningPackWorker:
                     logger.exception("School material extraction failed")
             if monotonic() >= next_weekly_check:
                 next_weekly_check = monotonic() + 60
+                if self._media_store is not None:
+                    try:
+                        self._media_store.cleanup(now=self._clock())
+                    except Exception:
+                        logger.exception("Expired private media cleanup failed")
                 try:
                     purge_expired_results(self._factory, self._clock())
                     purge_expired_candidates(self._factory, self._clock())
                     generate_due_snapshots(self._factory, self._settings, self._clock())
                 except Exception:
                     logger.exception("Weekly snapshot generation failed")
+                if self._pdf_store is not None:
+                    try:
+                        self._pdf_store.purge_unreferenced(self._factory, self._clock())
+                    except Exception:
+                        logger.exception("Unreferenced paper PDF cleanup failed")
             self._stop.wait(1)

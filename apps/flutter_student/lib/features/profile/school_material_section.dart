@@ -312,6 +312,7 @@ class _SchoolMaterialSectionState extends ConsumerState<SchoolMaterialSection> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text('对照原件转写题面和学生作答。教师红笔批注请留在原图中，看不清的符号或缺失分数请留空。'),
                 if (base != cloudRevision) ...[
                   const Text('云端版本已更新。请核对后选择。'),
                   SelectableText(page.text),

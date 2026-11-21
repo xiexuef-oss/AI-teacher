@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     import_worker_enabled: bool = False
     learning_pack_worker_enabled: bool = False
     learning_pack_sample_font: Path | None = None
+    learning_pack_pdf_s3_config: Path | None = None
+    learning_pack_media_s3_config: Path | None = None
     import_ocr_mode: Literal["disabled", "mock", "configured"] = "disabled"
     import_doc_converter: Path | None = None
     import_parse_timeout_seconds: int = Field(default=30, ge=1, le=120)

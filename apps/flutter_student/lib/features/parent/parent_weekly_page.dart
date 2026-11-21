@@ -333,7 +333,12 @@ class _Report extends ConsumerWidget {
                   minSamples: report.minSamples,
                 ),
               ],
-              if (report.paper case final paper?) ...[
+              if ((report.paper?.confirmed ?? 0) == 0)
+                const Padding(
+                  padding: EdgeInsets.only(top: kGap),
+                  child: Text('本周没有回收纸包，纸笔学习资料不足。'),
+                ),
+              if (report.paper case final paper? when paper.confirmed > 0) ...[
                 const SizedBox(height: kPad),
                 Callout(
                   tone: Tone.neutral,

@@ -307,6 +307,7 @@ def export(directory: Path = OUTPUT_DIR) -> int:
             )
             from reportlab import __file__ as reportlab_path
 
+            from tutor_api.models import LearningPackPublication
             from tutor_api.services.learning_pack_photo_worker import process_photo_ocr
             from tutor_api.services.learning_pack_worker import prepare_one
 
@@ -348,6 +349,16 @@ def export(directory: Path = OUTPUT_DIR) -> int:
             assert prepare_one(
                 app.state.session_factory, clock.now, Path(reportlab_path).parent / "fonts/Vera.ttf"
             )
+            with app.state.session_factory() as session:
+                pack = session.get_one(LearningPackPublication, paper_job["id"])
+                page_token = pack.manifest_json["items"][0]["page_token"]
+            rec(
+                "learning_pack_page_location",
+                paper_student,
+                "GET",
+                "/learning/packs/page",
+                params={"token": page_token},
+            )
             ocr_path = f"/learning/packs/{paper_job['id']}/items/001/photo-ocr"
             paper_ocr = rec(
                 "learning_pack_photo_ocr_queued",
@@ -369,6 +380,46 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 paper_student,
                 "GET",
                 f"{ocr_path}/{paper_ocr['id']}",
+            )
+            review_job = paper_student.data(
+                "POST", "/learning/packs", expect=202, json={"school_minutes": 0}
+            )
+            assert prepare_one(app.state.session_factory, clock.now)
+            rec(
+                "learning_pack_needs_review",
+                paper_student,
+                "GET",
+                f"/learning/jobs/{review_job['id']}",
+            )
+            rec("learning_pack_shortages", reviewer, "GET", "/admin/learning-pack-shortages")
+            paper_student.save_profile(
+                json={
+                    "region_code": "CN-51",
+                    "grade": "G12",
+                    "subjects": ["math"],
+                    "learning_settings": {
+                        "mode": "boarding",
+                        "weekly_minutes": 10,
+                        "weekdays": [],
+                    },
+                }
+            )
+            unscheduled = paper_student.data(
+                "POST", "/learning/packs", expect=202, json={"school_minutes": 0}
+            )
+            assert prepare_one(app.state.session_factory, clock.now)
+            rec(
+                "learning_pack_no_learning_day",
+                paper_student,
+                "GET",
+                f"/learning/jobs/{unscheduled['id']}",
+            )
+            rec(
+                "learning_pack_retry",
+                paper_student,
+                "POST",
+                f"/learning/packs/{review_job['id']}/retry",
+                expect=202,
             )
             scan = rec(
                 "scan_candidate",

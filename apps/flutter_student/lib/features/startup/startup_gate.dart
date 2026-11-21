@@ -49,10 +49,15 @@ class _StartupGateState extends ConsumerState<StartupGate> {
 
     final profile = ref.watch(profileProvider);
     if (profile.hasError) {
+      final error = profile.error!;
+      final expired = error is ApiException && error.statusCode == 401;
       return Scaffold(
         body: ErrorView(
-          error: profile.error!,
-          onRetry: () => ref.invalidate(profileProvider),
+          error: error,
+          retryLabel: expired ? '重新登录' : '重试',
+          onRetry: expired
+              ? () => ref.read(authProvider.notifier).relogin()
+              : () => ref.invalidate(profileProvider),
         ),
       );
     }

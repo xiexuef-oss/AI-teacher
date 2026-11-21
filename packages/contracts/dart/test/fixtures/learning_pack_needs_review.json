@@ -1,0 +1,21 @@
+{
+  "name": "learning_pack_needs_review",
+  "method": "GET",
+  "path": "/api/v1/learning/jobs/64bd708d-5b24-43cf-ac24-ff1b017096c7",
+  "status": 200,
+  "schema": "LearningJobStatus",
+  "value": {
+    "id": "64bd708d-5b24-43cf-ac24-ff1b017096c7",
+    "status": "needs_review",
+    "attempts": 1,
+    "pack_result": "no_printable_item"
+  },
+  "body": {
+    "data": {
+      "id": "64bd708d-5b24-43cf-ac24-ff1b017096c7",
+      "status": "needs_review",
+      "attempts": 1,
+      "pack_result": "no_printable_item"
+    }
+  }
+}

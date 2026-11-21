@@ -19,6 +19,8 @@ import 'support/fake_backend.dart';
 class _PhotoPicker extends ImagePicker {
   _PhotoPicker(this.bytes);
   final Uint8List bytes;
+  int selectionSize = 1;
+  bool includeCorruptPhoto = false;
 
   @override
   Future<XFile?> pickImage({
@@ -29,59 +31,107 @@ class _PhotoPicker extends ImagePicker {
     CameraDevice preferredCameraDevice = CameraDevice.rear,
     bool requestFullMetadata = true,
   }) async => XFile.fromData(bytes, name: 'paper.png', mimeType: 'image/png');
+
+  @override
+  Future<List<XFile>> pickMultiImage({
+    double? maxWidth,
+    double? maxHeight,
+    int? imageQuality,
+    int? limit,
+    bool requestFullMetadata = true,
+  }) async => [
+    if (includeCorruptPhoto)
+      XFile.fromData(Uint8List(16), name: 'corrupt.png', mimeType: 'image/png'),
+    for (var i = 0; i < selectionSize; i++)
+      XFile.fromData(bytes, name: 'paper-$i.png', mimeType: 'image/png'),
+  ];
 }
 
 void main() {
-  testWidgets('discard a scan that completes after the paper owner changes', (
+  testWidgets('paper field label stays above the input at large text size', (
     tester,
   ) async {
     final harness = AppHarness();
-    const owner = 'student-paper-first';
-    const nextOwner = 'student-paper-next';
-    const job = '03fb9db8-aed3-44d2-a605-56a9debe29c9';
-    const pagePath = '/learning/packs/$job/page';
-    final scan = Completer<String?>();
+    const owner = 'student-paper-layout';
     harness.signInAs(role: 'student', userId: owner);
-    harness.store.data['learning-pack.latest.$owner'] = jsonEncode({
-      'job': job,
-    });
-    harness.backend.on(
-      'GET',
-      '/learning/jobs/$job',
-      (_) => okResponse({
-        'id': job,
-        'status': 'succeeded',
-        'attempts': 1,
-        'pack_result': 'published',
-      }),
-    );
-    Widget section(String student) => ProviderScope(
-      key: ValueKey(student),
-      overrides: [
-        ...harness.overrides,
-        userIdProvider.overrideWithValue(student),
-        paperLiveScannerProvider.overrideWithValue((_) => scan.future),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: LearningPackSection(ownerId: student),
+    useSize(tester, const Size(320, 600));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: harness.overrides,
+        child: const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: Scaffold(
+              body: SingleChildScrollView(
+                child: LearningPackSection(ownerId: owner),
+              ),
+            ),
           ),
         ),
       ),
     );
-    useSize(tester, const Size(920, 840));
-    await tester.pumpWidget(section(owner));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('相机扫码'));
     await tester.pump();
-    expect(find.byType(LinearProgressIndicator), findsOneWidget);
-    await tester.pumpWidget(section(nextOwner));
-    scan.complete('490a26ed8f244ada918ff56da8ce890a');
-    await tester.pumpAndSettle();
-    expect(harness.backend.requestsTo('GET', pagePath), isEmpty);
-    expect(find.text('相机扫码'), findsNothing);
-  }, variant: const TargetPlatformVariant({TargetPlatform.android}));
+    expect(
+      tester.getBottomLeft(find.text('同类学校作业占用分钟')).dy,
+      lessThan(tester.getTopLeft(find.byType(TextField)).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets(
+    'discard a scan that completes after the paper owner changes',
+    (tester) async {
+      final harness = AppHarness();
+      const owner = 'student-paper-first';
+      const nextOwner = 'student-paper-next';
+      const job = '03fb9db8-aed3-44d2-a605-56a9debe29c9';
+      const pagePath = '/learning/packs/page';
+      final scan = Completer<String?>();
+      harness.signInAs(role: 'student', userId: owner);
+      harness.store.data['learning-pack.latest.$owner'] = jsonEncode({
+        'job': job,
+      });
+      harness.backend.on(
+        'GET',
+        '/learning/jobs/$job',
+        (_) => okResponse({
+          'id': job,
+          'status': 'succeeded',
+          'attempts': 1,
+          'pack_result': 'published',
+        }),
+      );
+      Widget section(String student) => ProviderScope(
+        key: ValueKey(student),
+        overrides: [
+          ...harness.overrides,
+          userIdProvider.overrideWithValue(student),
+          paperLiveScannerProvider.overrideWithValue((_) => scan.future),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: LearningPackSection(ownerId: student),
+            ),
+          ),
+        ),
+      );
+      useSize(tester, const Size(920, 840));
+      await tester.pumpWidget(section(owner));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('相机扫码'));
+      await tester.pump();
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
+      await tester.pumpWidget(section(nextOwner));
+      scan.complete('490a26ed8f244ada918ff56da8ce890a');
+      await tester.pumpAndSettle();
+      expect(harness.backend.requestsTo('GET', pagePath), isEmpty);
+      expect(find.textContaining('已定位'), findsNothing);
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.android,
+      TargetPlatform.iOS,
+    }),
+  );
 
   testWidgets('cancels a running paper pack with a stable retry key', (
     tester,
@@ -125,6 +175,10 @@ void main() {
     final cancel = find.text('取消生成');
     final download = find.widgetWithText(OutlinedButton, '下载学生版 PDF');
     expect(tester.widget<OutlinedButton>(download).onPressed, isNull);
+    for (final text in ['定位印刷题目', '手动选题']) {
+      final action = find.widgetWithText(OutlinedButton, text);
+      expect(tester.widget<OutlinedButton>(action).onPressed, isNull);
+    }
     for (var attempt = 0; attempt < 2; attempt++) {
       if (attempt == 1) {
         await tester.pumpWidget(const SizedBox.shrink());
@@ -174,7 +228,20 @@ void main() {
         }),
       );
       var rejectPage = true;
+      var scannedRevision = 1;
+      final picker = _PhotoPicker(photo);
+      var scannedJob = job;
+      List<String>? batchJobs;
+      harness.backend.on(
+        'GET',
+        '/learning/packs/page',
+        (_) => okResponse({
+          'job_id': batchJobs?.removeAt(0) ?? scannedJob,
+          'item': item,
+        }),
+      );
       var qrVisible = false;
+      var batchReads = 0;
       harness.backend.on(
         'GET',
         '/learning/packs/$job/items',
@@ -187,10 +254,19 @@ void main() {
           request.uri.queryParameters['token'],
           '490a26ed8f244ada918ff56da8ce890a',
         );
-        return rejectPage ? errorResponse(404, 'not_found') : okResponse(item);
+        final revision = scannedRevision;
+        if (picker.selectionSize > 1) scannedRevision = 1;
+        return rejectPage
+            ? errorResponse(404, 'not_found')
+            : okResponse({...item, 'revision': revision});
       });
+      var failedUploadsRemaining = 0;
       harness.backend.on('POST', '/scans/uploads', (request) {
         expect(harness.backend.bodyOf(request)?['sha256'], hash);
+        if (failedUploadsRemaining > 0) {
+          failedUploadsRemaining--;
+          return errorResponse(503, 'service_unavailable');
+        }
         return okResponse({
           'media_id': photoId,
           'upload_url': '/scans/uploads/$photoId/content',
@@ -221,29 +297,30 @@ void main() {
         return okResponse(item, status: 201);
       });
       useSize(tester, const Size(360, 1400));
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            ...harness.overrides,
-            userIdProvider.overrideWithValue(owner),
-            paperLiveScannerProvider.overrideWithValue(
-              (_) async => '490a26ed8f244ada918ff56da8ce890a',
-            ),
-            scanImagePickerProvider.overrideWithValue(_PhotoPicker(photo)),
-            paperQrReaderProvider.overrideWithValue(
-              (_) async =>
-                  qrVisible ? ['490a26ed8f244ada918ff56da8ce890a'] : [],
-            ),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: SingleChildScrollView(
-                child: LearningPackSection(ownerId: owner),
-              ),
+      Widget section(String student) => ProviderScope(
+        key: ValueKey(student),
+        overrides: [
+          ...harness.overrides,
+          userIdProvider.overrideWithValue(student),
+          paperLiveScannerProvider.overrideWithValue(
+            (_) async => '490a26ed8f244ada918ff56da8ce890a',
+          ),
+          scanImagePickerProvider.overrideWithValue(picker),
+          paperQrReaderProvider.overrideWithValue(
+            (_) async => qrVisible && (batchJobs == null || ++batchReads != 3)
+                ? ['490a26ed8f244ada918ff56da8ce890a']
+                : [],
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: LearningPackSection(ownerId: student),
             ),
           ),
         ),
       );
+      await tester.pumpWidget(section(owner));
       await tester.pumpAndSettle();
       final refresh = find.text('刷新状态');
       final download = find.widgetWithText(OutlinedButton, '下载学生版 PDF');
@@ -274,12 +351,32 @@ void main() {
       expect(find.textContaining('不属于当前纸包'), findsOneWidget);
       expect(harness.backend.requestsTo('POST', '/scans/uploads'), isEmpty);
       rejectPage = false;
+      scannedRevision = 2;
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('对应另一道题'), findsOneWidget);
+      expect(harness.backend.requestsTo('POST', '/scans/uploads'), isEmpty);
+      scannedRevision = 1;
+      published = false;
+      await tester.tap(refresh);
+      await tester.pumpAndSettle();
+      expect(tester.widget<OutlinedButton>(download).onPressed, isNull);
       await tester.tap(find.text('相机扫码'));
       await tester.pumpAndSettle();
       expect(find.textContaining('已定位第 1 版纸包的 001 号题'), findsOneWidget);
+      expect(tester.widget<OutlinedButton>(download).onPressed, isNotNull);
+      picker.selectionSize = 2;
+      picker.includeCorruptPhoto = true;
+      scannedRevision = 2;
       await tester.tap(add);
       await tester.pumpAndSettle();
       expect(find.text('已添加 1 页'), findsOneWidget);
+      expect(find.textContaining('照片 2：照片二维码对应另一道题'), findsOneWidget);
+      expect(find.textContaining('照片 1：请选择完整的静态'), findsOneWidget);
+      expect(
+        harness.backend.requestsTo('POST', '/scans/uploads'),
+        hasLength(1),
+      );
       const ocrPath = '/learning/packs/$job/items/001/photo-ocr';
       const ocrId = '26fb9db8-aed3-44d2-a605-56a9debe29c9';
       final receipt = {
@@ -340,12 +437,194 @@ void main() {
         ),
         isEmpty,
       );
-      await tester.enterText(find.widgetWithText(TextField, '纸笔作答转写'), 'B');
+      await tester.enterText(
+        find.descendant(
+          of: find.byKey(ValueKey('纸笔作答转写')),
+          matching: find.byType(TextField),
+        ),
+        'B',
+      );
       final submit = find.text('确认并回收作答');
       await tester.ensureVisible(submit);
       await tester.tap(submit);
       await tester.pumpAndSettle();
       expect(find.text('纸笔作答已回收。'), findsOneWidget);
+      scannedJob = '75d722ab-7d3b-4c65-986e-902edfe66fce';
+      harness.backend.on(
+        'GET',
+        '/learning/packs/$scannedJob/items/001/returns',
+        (_) => errorResponse(404, 'not_found'),
+      );
+      final scan = find.text('从照片读码');
+      await tester.ensureVisible(scan);
+      await tester.tap(scan);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('已定位第 1 版纸包的 001 号题'), findsOneWidget);
+      expect(
+        harness.backend.requestsTo(
+          'GET',
+          '/learning/packs/$scannedJob/items/001/returns',
+        ),
+        hasLength(1),
+      );
+      picker.includeCorruptPhoto = false;
+      picker.selectionSize = 3;
+      batchJobs = [job, scannedJob];
+      harness.backend.on(
+        'GET',
+        '/learning/packs/$scannedJob/page',
+        (_) => okResponse(item),
+      );
+      final batch = find.text('批量归集照片');
+      await tester.ensureVisible(batch);
+      await tester.tap(batch);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('照片 3 无码，请确认归属'), findsOneWidget);
+      await tester.tap(find.text('纸包 75d722ab · 第 1 版 · 001 号题'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('核对作答页归属'), findsOneWidget);
+      expect(
+        find.textContaining('纸包 75d722ab · 第 1 版 · 001 号题 · 2 页'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('03fb9db8'), findsWidgets);
+      expect(find.textContaining('75d722ab'), findsWidgets);
+      expect(
+        harness.backend.requestsTo('POST', '/scans/uploads'),
+        hasLength(1),
+      );
+      failedUploadsRemaining = 2;
+      await tester.tap(find.text('加入草稿'));
+      await tester.pumpAndSettle();
+      expect(
+        harness.backend.requestsTo('POST', '/scans/uploads'),
+        hasLength(3),
+      );
+      expect(find.textContaining('照片 2 已保存在本机'), findsOneWidget);
+      expect(
+        await harness.store.keys(
+          'learning-pack.latest.$owner.$scannedJob.001.pending.',
+        ),
+        hasLength(1),
+      );
+      final retry = find.text('重试上传本机照片');
+      Future<void> reopenAs(String student) async {
+        harness.signInAs(
+          role: 'student',
+          userId: student,
+          token: 'paper-test-$student',
+        );
+        await tester.pumpWidget(section(student));
+        await tester.pumpAndSettle();
+        final scan = find.text('从照片读码');
+        await tester.ensureVisible(scan);
+        await tester.tap(scan);
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(retry);
+        await tester.tap(retry);
+        await tester.pumpAndSettle();
+      }
+
+      batchJobs = null;
+      picker.selectionSize = 1;
+      await reopenAs('student-paper-other');
+      expect(find.text('没有待上传照片。'), findsOneWidget);
+      expect(
+        harness.backend.requestsTo('POST', '/scans/uploads'),
+        hasLength(3),
+      );
+      await reopenAs(owner);
+      expect(find.text('已添加 1 页'), findsOneWidget);
+      expect(
+        harness.backend.requestsTo('POST', '/scans/uploads'),
+        hasLength(4),
+      );
+      expect(
+        await harness.store.keys(
+          'learning-pack.latest.$owner.$scannedJob.001.pending.',
+        ),
+        isEmpty,
+      );
+      final pendingKey =
+          'learning-pack.latest.$owner.$scannedJob.001.pending.1.$job.$hash';
+      harness.store.data[pendingKey] = jsonEncode({
+        'bytes': base64Encode(photo),
+        'mime': 'image/png',
+      });
+      final remove = find.text('移除待上传照片');
+      await tester.ensureVisible(remove);
+      await tester.tap(remove);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('移除哪张待上传照片？'), findsOneWidget);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(harness.store.data, contains(pendingKey));
+      await tester.tap(remove);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('移除本机照片 1'));
+      await tester.pumpAndSettle();
+      expect(harness.store.data, isNot(contains(pendingKey)));
+      expect(find.text('已添加 1 页'), findsOneWidget);
+      var reserveAttempts = 0;
+      harness.backend.on('POST', '/scans/uploads', (_) {
+        reserveAttempts++;
+        if (reserveAttempts == 1) return errorResponse(422, 'unprocessable');
+        return okResponse({
+          'media_id': photoId,
+          'upload_url': '/scans/uploads/$photoId/content',
+          'upload_method': 'PUT',
+          'expires_at': '2026-11-18T00:00:00Z',
+          'max_bytes': 100000,
+        }, status: 201);
+      });
+      picker.selectionSize = 2;
+      await tester.ensureVisible(add);
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+      expect(reserveAttempts, 2);
+      expect(find.textContaining('照片 2：这张照片已添加。'), findsOneWidget);
+      final savedBatch = 'learning-pack.latest.$owner.unlocated-photos';
+      expect(harness.store.data, contains(savedBatch));
+      await tester.ensureVisible(batch);
+      await tester.tap(batch);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('移除这批照片'));
+      await tester.pumpAndSettle();
+      expect(harness.store.data, isNot(contains(savedBatch)));
+      harness.backend.on('GET', '/learning/packs/page', (_) {
+        expect(
+          harness.store.data[savedBatch],
+          jsonEncode([base64Encode(photo)]),
+        );
+        return errorResponse(503, 'service_unavailable');
+      });
+      picker.selectionSize = 1;
+      await tester.ensureVisible(batch);
+      await tester.tap(batch);
+      await tester.pumpAndSettle();
+      expect(harness.store.data[savedBatch], jsonEncode([base64Encode(photo)]));
+      expect(find.textContaining('联网后可继续批量归集'), findsOneWidget);
+      harness.backend.on(
+        'GET',
+        '/learning/packs/page',
+        (_) => okResponse({'job_id': scannedJob, 'item': item}),
+      );
+      picker.selectionSize = 0;
+      await tester.tap(batch);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('继续归集'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('核对作答页归属'), findsOneWidget);
+      await tester.tap(find.text('加入草稿'));
+      await tester.pumpAndSettle();
+      expect(harness.store.data, isNot(contains(savedBatch)));
       expect(tester.takeException(), isNull);
       await teardownTree(tester);
     },

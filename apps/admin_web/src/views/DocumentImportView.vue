@@ -199,11 +199,15 @@ async function writeCandidateDraft(snapshot:CandidateEditors,guard:()=>boolean,a
  const current=()=>guard()&&r===recovery.value&&r.current()&&(!adopt||detail.value===source&&detail.value?.job.revision===adoptedRevision)
  if(!current())throw Error('候选上下文已变化')
  const value=draftBody(snapshot),result=adopt||(old&&old.value.phase!=='candidates')?await r.store.adoptDraft(value,adopt?adoptedRevision:base,generation,current):await r.saveDraft(value,base,generation,current)
+ if(!('conflict'in result)&&r===recovery.value&&r.current()&&detail.value?.job.id===source?.job.id){
+  draftGeneration=result.generation
+  editBaseRevision=adopt?adoptedRevision:base
+ }
  if(!current())throw Error('保存后候选来源或输入已变化，未应用旧选择。')
  await r.refresh();if(!current())throw Error('读取后候选来源或输入已变化，未应用旧选择。')
  syncRecovery()
  if('conflict'in result){branchConflict.value=true;if(rejectConflict)throw Error('双方草稿已保存为独立分支，请明确比较；当前输入未覆盖主草稿。');return}
- branchConflict.value=false;draftGeneration=result.generation;editBaseRevision=adopt?adoptedRevision:base;syncRecovery()
+ branchConflict.value=false;syncRecovery()
 }
 watch(editors,()=>{
  if(draftHydrating||!detail.value)return

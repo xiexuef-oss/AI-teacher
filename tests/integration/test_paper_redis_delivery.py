@@ -1,7 +1,9 @@
+import json
 import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
 from time import monotonic, sleep
 from urllib.parse import quote
@@ -13,17 +15,156 @@ from sqlalchemy.orm import sessionmaker
 from test_durable_receipts import real_coordinator  # noqa: F401
 from test_mysql_migrations import mysql_engine  # noqa: F401
 
+from support.documents import text_pdf
+from tutor_api.learning_pack_pdf_store import local_pdf_store
 from tutor_api.models import (
     LearningJob,
     LearningPackCommand,
     LearningPackOutbox,
+    LearningPackPublication,
     ParentStudentLink,
+    SchoolMaterialCommand,
+    SchoolMaterialResult,
     User,
     WeeklyReportSnapshot,
 )
+from tutor_api.s3_blob_store import S3BlobStore
+from tutor_api.services.content_seed import seed_if_empty
 from tutor_api.services.learning_jobs import enqueue
 from tutor_api.services.learning_pack_outbox import RedisPaperQueue, deliver_one
 from tutor_api.services.learning_pack_worker import LearningPackWorker, prepare_one
+
+
+def test_independent_worker_publishes_s3_pair_and_extracts_private_material(request, tmp_path):
+    from reportlab import __file__ as reportlab_path
+
+    s3_config = os.environ.get("TUTOR_S3_BLOB_TEST_CONFIG")
+    if not s3_config:
+        pytest.skip("Explicit isolated S3 test configuration required")
+    config = json.loads(Path(s3_config).read_text(encoding="utf-8-sig"))
+    assert config.get("test_only") is True
+    config["prefix"] = f"tutor-tests/paper-worker/{uuid4().hex}/"
+    config_path = tmp_path / "paper-store.json"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    media_path = tmp_path / "material-store.json"
+    media_prefix = config["prefix"] + "material/"
+    media_path.write_text(json.dumps({**config, "prefix": media_prefix}), encoding="utf-8")
+    engine = request.getfixturevalue("mysql_engine")
+    coordinator = request.getfixturevalue("real_coordinator")
+    apply_migrations(engine, sorted(Path("migrations").glob("*.sql")))
+    sessions = sessionmaker(engine)
+    now = datetime.now(UTC).replace(microsecond=0)
+    owner = str(uuid4())
+    with sessions.begin() as session:
+        seed_if_empty(session, now)
+        session.add(User(id=owner, role="student", created_at=now, updated_at=now))
+        session.flush()
+        job_id = enqueue(session, owner, "paper-s3", now)
+        session.add(
+            LearningPackCommand(
+                job_id=job_id,
+                input_json={
+                    "settings": {"weekly_minutes": 10, "weekdays": [1]},
+                    "subjects": ["chemistry"],
+                    "school_minutes": 0,
+                },
+            )
+        )
+        session.flush()
+        session.add(LearningPackOutbox(job_id=job_id, created_at=now))
+    redis = coordinator.client.connection_pool.connection_kwargs
+    redis_url = (
+        f"redis://:{quote(redis['password'], safe='')}@127.0.0.1:{redis['port']}/{redis['db']}"
+    )
+    store = local_pdf_store(config_path)
+    try:
+        media = S3BlobStore(
+            store.client, bucket=store.bucket, prefix=media_prefix, max_bytes=10485760
+        )
+        material = text_pdf("Private practice document", "Continuation page")
+        expiry = now + timedelta(minutes=10)
+        source = media.reserve(
+            owner=owner,
+            purpose="school_material",
+            sha256=sha256(material).hexdigest(),
+            size_bytes=len(material),
+            mime="application/pdf",
+            expires_at=expiry,
+            now=now,
+        )
+        media.put(source.id, owner=owner, data=material, now=now)
+        with sessions.begin() as session:
+            material_job = enqueue(session, owner, "material-s3", now)
+            session.add(SchoolMaterialCommand(job_id=material_job, media_id=source.id))
+        with subprocess.Popen(
+            [
+                sys.executable,
+                "tools/run_learning_pack_worker.py",
+                "--namespace",
+                coordinator.namespace,
+            ],
+            env={
+                **os.environ,
+                "TUTOR_ENV": "dev",
+                "TUTOR_PSEUDONYM_SECRET": uuid4().hex,
+                "TUTOR_DATABASE_URL": engine.url.render_as_string(hide_password=False),
+                "TUTOR_LEARNING_PACK_REDIS_URL": redis_url,
+                "TUTOR_LEARNING_PACK_PDF_S3_CONFIG": str(config_path),
+                "TUTOR_LEARNING_PACK_MEDIA_S3_CONFIG": str(media_path),
+                "TUTOR_IMPORT_OCR_MODE": "disabled",
+                "TUTOR_LEARNING_PACK_SAMPLE_FONT": str(
+                    Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+                ),
+            },
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ) as worker:
+            try:
+                deadline = monotonic() + 25
+                while monotonic() < deadline:
+                    assert worker.poll() is None
+                    with sessions() as session:
+                        statuses = [
+                            session.get_one(LearningJob, item).status
+                            for item in (job_id, material_job)
+                        ]
+                    if statuses == ["succeeded", "succeeded"]:
+                        break
+                    assert "failed" not in statuses
+                    sleep(0.1)
+                else:
+                    pytest.fail(f"Independent worker did not complete both jobs: {statuses}")
+            finally:
+                worker.terminate()
+                worker.wait(timeout=10)
+        with sessions() as session:
+            assert session.get_one(LearningJob, job_id).status == "succeeded"
+            assert session.get_one(LearningPackOutbox, job_id).delivered_at is not None
+            publication = session.get_one(LearningPackPublication, job_id)
+            assert publication.student_pdf == publication.solution_pdf == b""
+            manifest = publication.manifest_json
+            extracted = session.get_one(SchoolMaterialResult, material_job)
+            assert extracted.expires_at == expiry
+            assert [page["text"] for page in extracted.pages_json] == [
+                "Private practice document",
+                "Continuation page",
+            ]
+        assert set(manifest["pdf_objects"]) == {"student", "solution"}
+        for variant, key in manifest["pdf_objects"].items():
+            body = store.read(key)
+            assert body.startswith(b"%PDF")
+            assert sha256(body).hexdigest() == manifest[f"{variant}_sha256"]
+        assert (
+            RedisPaperQueue(coordinator.client, namespace=coordinator.namespace).receive() is None
+        )
+    finally:
+        config_path.unlink(missing_ok=True)
+        media_path.unlink(missing_ok=True)
+        page = store.client.list_objects_v2(Bucket=store.bucket, Prefix=store.prefix)
+        for item in page.get("Contents", []):
+            assert item["Key"].startswith(store.prefix)
+            store.client.delete_object(Bucket=store.bucket, Key=item["Key"], IfMatch=item["ETag"])
+        store.client.close()
 
 
 def test_redis_paper_delivery_retries_and_duplicates_are_harmless(request, onboarded, app, clock):

@@ -9,6 +9,23 @@ def test_empty_template_is_not_a_release_ready_dataset():
     assert any("300" in error for error in report["errors"])
 
 
+def test_malformed_manifest_reports_rows_without_crashing(tmp_path):
+    with open("evaluation/golden_dataset_manifest.csv", encoding="utf-8-sig") as source:
+        fields = next(csv.reader(source))
+    path = tmp_path / "manifest.csv"
+    row = dict.fromkeys(fields, "")
+    row.update(item_id="invalid-year", exam_year="²")
+    with path.open("w", encoding="utf-8", newline="") as output:
+        writer = csv.writer(output)
+        writer.writerow(fields)
+        writer.writerow(["short"])
+        writer.writerow([row[field] for field in fields])
+    report = validate_manifest(path, minimum=1)
+    assert not report["ready"]
+    assert "第2行：CSV列数错误" in report["errors"]
+    assert "第3行：exam_year 无效" in report["errors"]
+
+
 def test_missing_authorization_and_duplicate_ids_are_rejected(tmp_path):
     with open("evaluation/golden_dataset_manifest.csv", encoding="utf-8-sig") as source:
         fields = next(csv.reader(source))

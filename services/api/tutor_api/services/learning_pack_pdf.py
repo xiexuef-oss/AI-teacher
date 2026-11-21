@@ -10,7 +10,8 @@ from xml.sax.saxutils import escape
 from pypdf import PdfReader, PdfWriter
 from reportlab.graphics.barcode.qr import QrCodeWidget
 from reportlab.graphics.renderPDF import draw
-from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.shapes import Drawing, Polygon
+from reportlab.lib.colors import black, white
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
@@ -19,6 +20,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 MARGIN = 15 * mm
+QR_SIZE = 20 * mm
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,7 @@ class PaperItem:
     code: str
     page_token: str
     stem: str
+    incline_sketch: bool = False
 
 
 @dataclass(frozen=True)
@@ -34,8 +37,18 @@ class SolutionItem:
     solution: str
 
 
+def _incline_sketch() -> Drawing:
+    diagram = Drawing(150, 78)
+    diagram.hAlign = "LEFT"
+    diagram.add(Polygon([12, 7, 132, 7, 132, 67], fillColor=white, strokeColor=black))
+    diagram.add(
+        Polygon([68, 35, 92, 47, 84, 63, 60, 51], fillColor=white, strokeColor=black)
+    )
+    return diagram
+
+
 def _render(
-    rows: list[tuple[str, str, str | None]],
+    rows: list[tuple[str, str, str | None, bool]],
     font: Path,
     title: str,
     continuation_tokens: dict[str, list[str]] | None = None,
@@ -47,7 +60,7 @@ def _render(
         pdfmetrics.registerFont(TTFont(name, str(font)))
     style = ParagraphStyle("paper", fontName=name, fontSize=11, leading=17, wordWrap="CJK")
     output = PdfWriter()
-    for code, content, token in rows:
+    for code, content, token, incline_sketch in rows:
         page = BytesIO()
 
         def header(canvas, document, code=code, token=token):
@@ -59,12 +72,19 @@ def _render(
                     page_token = token_hex(16)
                     if continuation_tokens is not None:
                         continuation_tokens.setdefault(code, []).append(page_token)
-                size = 20 * mm
-                qr = Drawing(size, size)
-                qr.add(QrCodeWidget(page_token, barWidth=size, barHeight=size))
-                draw(qr, canvas, A4[0] - MARGIN - size, MARGIN)
+                qr = Drawing(QR_SIZE, QR_SIZE)
+                qr.add(QrCodeWidget(page_token, barWidth=QR_SIZE, barHeight=QR_SIZE))
+                draw(qr, canvas, A4[0] - MARGIN - QR_SIZE, MARGIN)
 
         story = [Paragraph(escape(line), style) for line in content.splitlines() if line.strip()]
+        if token:
+            story[0:0] = [
+                Paragraph("在校直接在纸上作答，无需扫码或联网。返家后再回收。", style),
+                Paragraph("作答日期（可留空）：________________", style),
+                Spacer(1, 3 * mm),
+            ]
+        if incline_sketch:
+            story.append(_incline_sketch())
         if token:
             story.append(Spacer(1, 35 * mm))
         document = SimpleDocTemplate(
@@ -91,7 +111,7 @@ def render_student(
     continuation_tokens: dict[str, list[str]] | None = None,
 ) -> bytes:
     return _render(
-        [(item.code, item.stem, item.page_token) for item in items],
+        [(item.code, item.stem, item.page_token, item.incline_sketch) for item in items],
         font,
         f"学生版 {label}".strip(),
         continuation_tokens,
@@ -100,5 +120,5 @@ def render_student(
 
 def render_solutions(items: list[SolutionItem], font: Path, *, label: str = "") -> bytes:
     return _render(
-        [(item.code, item.solution, None) for item in items], font, f"解析版 {label}".strip()
+        [(item.code, item.solution, None, False) for item in items], font, f"解析版 {label}".strip()
     )

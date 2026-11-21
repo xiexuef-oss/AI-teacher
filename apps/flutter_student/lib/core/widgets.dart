@@ -28,10 +28,16 @@ class LoadingView extends StatelessWidget {
 }
 
 class ErrorView extends StatelessWidget {
-  const ErrorView({super.key, required this.error, this.onRetry});
+  const ErrorView({
+    super.key,
+    required this.error,
+    this.onRetry,
+    this.retryLabel = '重试',
+  });
 
   final Object error;
   final VoidCallback? onRetry;
+  final String retryLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +68,7 @@ class ErrorView extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('重试'),
+                  label: Text(retryLabel),
                 ),
               ],
             ],

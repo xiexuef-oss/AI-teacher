@@ -31,6 +31,22 @@ def test_scanned_pdf_is_marked_for_ocr_without_fake_text():
     assert result[0]["warnings"]
 
 
+def test_pdf_compressed_stream_obeys_configured_unpack_limit():
+    data = text_pdf("Self authored worksheet\n" * 60, compressed=True)
+    with pytest.raises(DocumentParseError) as rejected:
+        extract(data, "pdf", ParseLimits(max_unpacked_bytes=1024))
+    assert rejected.value.code == "unpacked_limit"
+    assert "Self authored worksheet" in extract(data, "pdf", ParseLimits())[0]["text"]
+
+
+def test_pdf_preview_respects_pixel_limit_after_rounding():
+    preview = render_preview(
+        text_pdf("Self authored worksheet"), "pdf", 1, ParseLimits(max_preview_pixels=1024)
+    )
+    with Image.open(io.BytesIO(preview)) as image:
+        assert image.width * image.height <= 1024
+
+
 def test_docx_keeps_paragraph_table_order_and_media_references():
     body = "<w:p><w:r><w:t>1. 自编题</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>数据甲</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>12</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>2. 下一题</w:t></w:r></w:p>"
     result = extract(docx_document(body, image=True), "docx", ParseLimits())

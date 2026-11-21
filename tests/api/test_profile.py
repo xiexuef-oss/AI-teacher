@@ -166,11 +166,26 @@ def test_curriculum_must_be_a_listed_option(student):
     )
 
 
-def test_region_does_not_imply_a_curriculum(student):
+def test_region_does_not_imply_a_curriculum(anon, student):
     """docs/09：不得凭省份自动指定教材版本。"""
     for region in ("CN-51", "CN-50"):
         saved = student.save_profile(json={**SICHUAN_G12, "region_code": region})
         assert saved["curriculum_version"] is None
+        assert "curriculum_unknown" in _codes(saved)
+
+    options = anon.data("GET", "/meta/launch-config", auth=False)["curriculum_versions"]
+    for option in (options[0], options[-1]):
+        for region in ("CN-51", "CN-50"):
+            selected = student.save_profile(
+                json={
+                    **SICHUAN_G12,
+                    "region_code": region,
+                    "curriculum_version": option["code"],
+                }
+            )
+            assert selected["region_code"] == region
+            assert selected["curriculum_version"] == option["code"]
+            assert "curriculum_unknown" not in _codes(selected)
 
 
 # ---------------------------------------------------------------- 考试年份

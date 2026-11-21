@@ -1,5 +1,6 @@
 from base64 import b64encode
 from datetime import datetime, timedelta
+from hashlib import sha256
 from typing import Annotated
 from uuid import UUID
 
@@ -7,8 +8,9 @@ from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 
+from tutor_api.blob_store import BlobNotFound, BlobStorageUnavailable
 from tutor_api.db import new_id
-from tutor_api.deps import Ctx, ok, student_ctx
+from tutor_api.deps import Ctx, ok, reviewer_ctx, student_ctx
 from tutor_api.errors import conflict, not_found, unprocessable
 from tutor_api.idempotency import run_idempotent
 from tutor_api.models import (
@@ -42,6 +44,20 @@ from tutor_api.services.weekly_snapshots import refresh_confirmed_week
 router = APIRouter(route_class=PrivateRoute)
 
 
+@router.get("/admin/learning-pack-shortages")
+def list_learning_pack_shortages(ctx: Ctx = Depends(reviewer_ctx)) -> JSONResponse:
+    counts = {"math": 0, "physics": 0, "chemistry": 0}
+    inputs = ctx.db.scalars(
+        select(LearningPackCommand.input_json)
+        .join(LearningJob, LearningJob.id == LearningPackCommand.job_id)
+        .where(LearningJob.status == "needs_review")
+    )
+    for snapshot in inputs:
+        for subject in counts.keys() & set(snapshot.get("subjects", ())):
+            counts[subject] += 1
+    return ok(counts)
+
+
 @router.get("/learning/review-schedule")
 def get_paper_review_schedule(ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
     schedule = rebuild(paper_evidence(ctx.db, ctx.student_id))
@@ -69,6 +85,39 @@ def get_paper_review_schedule(ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
             ]
         }
     )
+
+
+@router.post("/learning/packs/{job_id}/retry")
+def retry_learning_pack(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
+    def action(_key: str) -> dict:
+        job = str(job_id)
+        if _status(ctx, job)["status"] != "needs_review":
+            raise conflict("learning_pack_not_pending_review", "只有待人工处理的纸包可以重新排队")
+        command = ctx.db.get(LearningPackCommand, job)
+        if command is None:
+            raise not_found()
+        now = ctx.now()
+        result = ctx.db.execute(
+            update(LearningJob)
+            .where(
+                LearningJob.id == job,
+                LearningJob.student_id == ctx.student_id,
+                LearningJob.status == "needs_review",
+            )
+            .values(status="queued", attempts=0, available_at=now)
+        )
+        if result.rowcount != 1:
+            raise conflict("learning_pack_not_pending_review", "纸包已经重新排队")
+        command.plan_json = None
+        outbox = ctx.db.get(LearningPackOutbox, job)
+        if outbox is None:
+            ctx.db.add(LearningPackOutbox(job_id=job, created_at=now))
+        else:
+            outbox.created_at = now
+            outbox.delivered_at = None
+        return {"id": job, "status": "queued", "attempts": 0}
+
+    return run_idempotent(ctx, None, 202, action)
 
 
 @router.get("/learning/packs")
@@ -138,7 +187,7 @@ def download_student_pdf(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONR
     pdf, manifest = _published(
         ctx, job_id, LearningPackPublication.student_pdf, LearningPackPublication.manifest_json
     )
-    return _pdf_response(pdf, manifest, "student_sha256")
+    return _pdf_response(ctx, pdf, manifest, "student")
 
 
 @router.get("/learning/packs/{job_id}/solution-pdf")
@@ -157,7 +206,7 @@ def download_solution_pdf(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSON
     if not _abandoned(ctx, job_id) and (not required or not required <= confirmed):
         raise conflict("paper_returns_incomplete", "请先确认回收纸包内全部题目")
     (pdf,) = _published(ctx, job_id, LearningPackPublication.solution_pdf)
-    response = _pdf_response(pdf, manifest, "solution_sha256")
+    response = _pdf_response(ctx, pdf, manifest, "solution")
     ctx.db.add(
         AuditLog(
             id=new_id(),
@@ -221,11 +270,22 @@ def abandon_pack(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
     return run_idempotent(ctx, None, 200, action)
 
 
-def _pdf_response(pdf: bytes, manifest: dict, digest_key: str) -> JSONResponse:
+def _pdf_response(ctx: Ctx, pdf: bytes, manifest: dict, variant: str) -> JSONResponse:
+    digest = manifest[f"{variant}_sha256"]
+    if "pdf_objects" in manifest:
+        store = getattr(ctx.request.app.state, "learning_pack_pdf_store", None)
+        if store is None:
+            raise BlobStorageUnavailable("Paper PDF storage is unavailable")
+        try:
+            pdf = store.read(manifest["pdf_objects"][variant])
+        except BlobNotFound as exc:
+            raise BlobStorageUnavailable("Published paper PDF is missing") from exc
+        if sha256(pdf).hexdigest() != digest:
+            raise BlobStorageUnavailable("Published paper PDF checksum mismatch")
     return ok(
         {
             "revision": manifest["revision"],
-            "sha256": manifest[digest_key],
+            "sha256": digest,
             "content_base64": b64encode(pdf).decode("ascii"),
         }
     )
@@ -326,6 +386,29 @@ def _photo_ocr_status(command: LearningPackPhotoOcr, status: str) -> dict:
     }
 
 
+def _page_location(manifest: dict, token: str) -> dict | None:
+    for item in manifest["items"]:
+        if item["page_token"] == token or token in item.get("continuation_tokens", ()):
+            return _item_location(manifest["revision"], item)
+    return None
+
+
+@router.get("/learning/packs/page")
+def locate_pack_page(
+    token: Annotated[str, Query(pattern=r"^[0-9a-f]{32}$")],
+    ctx: Ctx = Depends(student_ctx),
+) -> JSONResponse:
+    packs = ctx.db.execute(
+        select(LearningPackPublication.job_id, LearningPackPublication.manifest_json)
+        .join(LearningJob, LearningJob.id == LearningPackPublication.job_id)
+        .where(LearningJob.student_id == ctx.student_id, LearningJob.status == "succeeded")
+    )
+    for job_id, manifest in packs:
+        if item := _page_location(manifest, token):
+            return ok({"job_id": job_id, "item": item})
+    raise not_found()
+
+
 @router.get("/learning/packs/{job_id}/page")
 def resolve_pack_page(
     job_id: UUID,
@@ -333,9 +416,8 @@ def resolve_pack_page(
     ctx: Ctx = Depends(student_ctx),
 ) -> JSONResponse:
     (manifest,) = _published(ctx, job_id, LearningPackPublication.manifest_json)
-    for item in manifest["items"]:
-        if item["page_token"] == token or token in item.get("continuation_tokens", ()):
-            return ok(_item_location(manifest["revision"], item))
+    if item := _page_location(manifest, token):
+        return ok(item)
     raise not_found()
 
 
@@ -530,13 +612,12 @@ def _status(ctx: Ctx, job_id: str) -> dict:
     if row is None:
         raise not_found()
     result = dict(row)
-    if row["status"] != "succeeded":
+    if row["status"] not in {"succeeded", "needs_review"}:
         return result
-    plan = ctx.db.scalar(
-        select(LearningPackCommand.plan_json).where(LearningPackCommand.job_id == job_id)
-    )
-    if plan is None:
+    command = ctx.db.get(LearningPackCommand, job_id)
+    if command is None or command.plan_json is None:
         return result
+    plan = command.plan_json
     published = ctx.db.scalar(
         select(LearningPackPublication.job_id).where(LearningPackPublication.job_id == job_id)
     )
@@ -546,6 +627,8 @@ def _status(ctx: Ctx, job_id: str) -> dict:
         result["pack_result"] = "awaiting_return"
     elif plan["remaining_minutes"] < SAMPLE_MINUTES:
         result["pack_result"] = "insufficient_budget"
+    elif command.input_json.get("settings", {}).get("weekdays") == []:
+        result["pack_result"] = "no_learning_day"
     else:
         result["pack_result"] = "no_printable_item"
     reviews = plan.get("reviews")

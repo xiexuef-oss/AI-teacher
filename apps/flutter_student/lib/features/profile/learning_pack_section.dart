@@ -13,6 +13,8 @@ import '../../core/errors.dart';
 import '../../core/file_export.dart';
 import '../../core/idempotency.dart';
 import '../../core/local_serial.dart';
+import '../../core/paper_photo_storage_stub.dart'
+    if (dart.library.js_interop) '../../core/paper_photo_storage_web.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
 import '../scan/scan_page.dart' show scanImagePickerProvider;
@@ -21,6 +23,10 @@ import 'paper_qr.dart';
 import 'paper_live_scanner.dart';
 
 final paperQrReaderProvider = Provider((ref) => readPaperQrs);
+final _paperPhotoStorageProvider = Provider(
+  (ref) => paperPhotoStorage(ref.watch(keyValueStoreProvider)),
+);
+const _savedPhotoMessage = '已保存在本机，联网后可重试上传。';
 
 class LearningPackSection extends ConsumerStatefulWidget {
   const LearningPackSection({required this.ownerId, super.key});
@@ -146,10 +152,12 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
       'queued' => '排队中',
       'running' => '正在处理',
       'retry_wait' => '等待重试',
+      'needs_review' => '暂时没有符合条件的可打印题目，任务待人工处理。',
       'succeeded' => switch (job.packResult) {
         'published' => '学习包已生成，可以下载学生版。',
         'awaiting_return' => '同题已有纸包等待回收，本次未生成新包。',
         'insufficient_budget' => '剩余学习时间不足，本次未生成纸包。',
+        'no_learning_day' => '未设置可用学习日，请在学习安排里选择日期后重新生成。',
         'no_printable_item' => '暂时没有适合打印的题目。',
         _ => '处理结束。',
       },
@@ -188,6 +196,27 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
       if (error.code != 'learning_job_finished' || !_active) rethrow;
       return _refresh(api);
     }
+  }
+
+  Future<String> _retryReviewedPack(TutorApiClient api) async {
+    final id = _job!;
+    final store = ref.read(keyValueStoreProvider);
+    final storageKey = '$_storageKey.retry.$id';
+    final key = await LocalSerial.run(store, storageKey, () async {
+      final previous = await store.read(storageKey);
+      if (previous != null) return previous;
+      final created = newIdempotencyKey('paper-review-retry');
+      await store.write(storageKey, created);
+      return created;
+    });
+    if (!_active) return '';
+    final result = await api.retryLearningPack(jobId: id, idempotencyKey: key);
+    if (result.id != id || result.status != 'queued') {
+      throw const FormatException();
+    }
+    await LocalSerial.run(store, storageKey, () => store.delete(storageKey));
+    if (_active) _jobStatus = result;
+    return '已重新排队，稍后可刷新任务状态。';
   }
 
   Future<String> _showReviewSchedule(TutorApiClient api) async {
@@ -288,16 +317,309 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
   }
 
   Future<String> _liveQr(TutorApiClient api) async {
-    final job = _job!;
     final token = await ref.read(paperLiveScannerProvider)(context);
     if (!_active || token == null) return '';
-    return _openItem(
-      await api.resolveLearningPackPage(jobId: job, token: token),
+    return _openLocatedPage(api, token);
+  }
+
+  Future<String> _openLocatedPage(TutorApiClient api, String token) async {
+    final location = await api.locateLearningPackPage(token: token);
+    return _selectLocatedPage(location);
+  }
+
+  Future<String> _selectLocatedPage(LearningPackPageLocation location) async {
+    if (!_active) return '';
+    final job = location.jobId;
+    final history = [..._history.where((id) => id != job), job];
+    await ref
+        .read(keyValueStoreProvider)
+        .write(
+          _storageKey,
+          jsonEncode({
+            'history': history,
+            if (_pendingKey != null) 'key': _pendingKey,
+            if (_pendingMinutes != null) 'minutes': _pendingMinutes,
+          }),
+        );
+    if (!_active) return '';
+    _history = history;
+    _job = job;
+    if (_jobStatus?.id == job && _jobStatus?.packResult != 'published') {
+      _jobStatus = null;
+    }
+    _item = null;
+    _code.clear();
+    return _openItem(location.item);
+  }
+
+  Future<String> _collectPaperPhotos(TutorApiClient api) async {
+    final store = ref.read(_paperPhotoStorageProvider);
+    final key = '$_storageKey.unlocated-photos';
+    final saved = await store.read(key);
+    if (!mounted || !_active) return '';
+    if (saved != null) {
+      final resume = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('恢复本机保存的照片？'),
+          content: const Text('继续归集，或移除这批未归集照片后重新选择。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('移除这批照片'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('继续归集'),
+            ),
+          ],
+        ),
+      );
+      if (!_active || resume == null) return '';
+      if (!resume) {
+        await store.delete(key);
+        return '已移除这批未归集照片。';
+      }
+    }
+    final copies = saved == null
+        ? <String>[]
+        : (jsonDecode(saved) as List).cast<String>();
+    var ignored = 0;
+    if (saved == null) {
+      final selection = await ref
+          .read(scanImagePickerProvider)
+          .pickMultiImage(limit: 10, requestFullMetadata: false);
+      if (!_active || selection.isEmpty) return '';
+      for (final photo in selection.take(10)) {
+        if (await photo.length() <= 5 * 1024 * 1024) {
+          final bytes = await photo.readAsBytes();
+          if (!_active) return '';
+          try {
+            inspectScanImage(bytes);
+            copies.add(base64Encode(bytes));
+            continue;
+          } on FormatException {
+            // Keep valid pages when a selection contains an unreadable image.
+          }
+        }
+        ignored++;
+      }
+      if (!_active) return '';
+      if (copies.isEmpty) return '没有可保存的照片。';
+      await store.write(key, jsonEncode(copies));
+    }
+    final note = ignored == 0 ? '' : '已跳过 $ignored 张损坏或超限的照片。\n';
+    try {
+      return note + await _groupPaperPhotos(api, copies, key);
+    } on ApiException catch (error) {
+      if (!error.isNetwork &&
+          error.statusCode < 500 &&
+          error.statusCode != 429) {
+        rethrow;
+      }
+      if (!_active) return '';
+      return '$note照片已保存在本机，联网后可继续批量归集。';
+    }
+  }
+
+  Future<String> _groupPaperPhotos(
+    TutorApiClient api,
+    List<String> photos,
+    String savedKey,
+  ) async {
+    final groups =
+        <
+          (String, int, String, String),
+          (LearningPackPageLocation, List<(int, Uint8List)>)
+        >{};
+    final skipped = <int>[];
+    final unmarked = <(int, Uint8List)>[];
+    void addPage(
+      LearningPackPageLocation location,
+      int index,
+      Uint8List photo,
+    ) {
+      final item = location.item;
+      groups
+          .putIfAbsent((
+            location.jobId,
+            item.revision,
+            item.code,
+            item.questionVersionId,
+          ), () => (location, []))
+          .$2
+          .add((index, photo));
+    }
+
+    for (final (index, encoded) in photos.take(10).indexed) {
+      if (!_active) return '';
+      final photo = base64Decode(encoded);
+      final (location, noQr) = await _locatePaperPhoto(api, photo);
+      if (location == null) {
+        if (noQr) {
+          unmarked.add((index, photo));
+        } else {
+          skipped.add(index + 1);
+        }
+        continue;
+      }
+      addPage(location, index, photo);
+    }
+    final manuallyAssigned = <int>{};
+    for (final (index, photo) in unmarked) {
+      if (!mounted || !_active) return '';
+      if (groups.isEmpty) {
+        skipped.add(index + 1);
+        continue;
+      }
+      final location = await showDialog<LearningPackPageLocation>(
+        context: context,
+        builder: (context) => SimpleDialog(
+          title: Text('照片 ${index + 1} 无码，请确认归属'),
+          children: [
+            Image.memory(
+              photo,
+              height: 160,
+              cacheWidth: 480,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Text('无法预览照片'),
+            ),
+            for (final (location, _) in groups.values)
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, location),
+                child: Text(
+                  '纸包 ${location.jobId.split('-').first} · 第 ${location.item.revision} 版 · ${location.item.code} 号题',
+                ),
+              ),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('跳过此页'),
+            ),
+          ],
+        ),
+      );
+      if (location == null) {
+        skipped.add(index + 1);
+      } else {
+        manuallyAssigned.add(index);
+        addPage(location, index, photo);
+      }
+    }
+    if (!mounted || !_active || photos.isEmpty) return '';
+    final skippedMessage = skipped.isEmpty
+        ? ''
+        : '照片 ${skipped.join('、')} 无法定位，请打开对应题目后手动添加。';
+    if (groups.isEmpty) return skippedMessage;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('核对作答页归属'),
+        content: SingleChildScrollView(
+          child: Text(
+            [
+              for (final (location, pages) in groups.values)
+                '纸包 ${location.jobId.split('-').first} · 第 ${location.item.revision} 版 · '
+                    '${location.item.code} 号题 · ${pages.length} 页',
+              if (skippedMessage.isNotEmpty) skippedMessage,
+            ].join('\n'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('加入草稿'),
+          ),
+        ],
+      ),
     );
+    if (confirmed != true || !_active) return '';
+    final messages = [if (skippedMessage.isNotEmpty) skippedMessage];
+    final staged = <int>{};
+    for (final (location, pages) in groups.values) {
+      await _selectLocatedPage(location);
+      if (!_active) return '';
+      final label =
+          '纸包 ${location.jobId.split('-').first} · ${location.item.code} 号题';
+      if (_returned || _returnKey != null) {
+        messages.add('$label 已回收或有待重试操作。');
+        continue;
+      }
+      pages.sort((a, b) => a.$1.compareTo(b.$1));
+      for (final (index, photo) in pages) {
+        if (!_active) return '';
+        if (_photoIds.length >= 10) {
+          messages.add('$label 最多添加 10 页。');
+          break;
+        }
+        try {
+          final message = await _attachReturnPhoto(
+            api,
+            location.item,
+            photo,
+            confirmedUnmarked: manuallyAssigned.contains(index),
+            onStaged: () => staged.add(index),
+          );
+          if (message == _savedPhotoMessage) {
+            messages.add('照片 ${index + 1} $message');
+          } else if (message.isNotEmpty) {
+            messages.add('$label：$message');
+          }
+        } on ApiException catch (error) {
+          if (isAuthError(error)) rethrow;
+          messages.add('照片 ${index + 1} 未添加：${describeError(error)}');
+        }
+      }
+    }
+    if (_active) {
+      final store = ref.read(_paperPhotoStorageProvider);
+      final remaining = <String>[];
+      for (final (index, photo) in photos.take(10).indexed) {
+        if (!staged.contains(index)) {
+          remaining.add(photo);
+        }
+      }
+      if (!_active) return '';
+      if (remaining.isEmpty) {
+        await store.delete(savedKey);
+      } else {
+        await store.write(savedKey, jsonEncode(remaining));
+        messages.add('仍有 ${remaining.length} 页保存在本机，尚未归集。');
+      }
+    }
+    return messages.join('\n');
+  }
+
+  Future<(LearningPackPageLocation?, bool)> _locatePaperPhoto(
+    TutorApiClient api,
+    Uint8List bytes,
+  ) async {
+    if (bytes.length > 5 * 1024 * 1024 || !_active) {
+      return (null, false);
+    }
+    try {
+      inspectScanImage(bytes);
+    } on FormatException {
+      return (null, false);
+    }
+    final tokens = await ref.read(paperQrReaderProvider)(bytes);
+    if (!_active || tokens.length != 1) return (null, tokens.isEmpty);
+    try {
+      return (await api.locateLearningPackPage(token: tokens.single), false);
+    } on ApiException catch (error) {
+      if (!isNotFoundError(error)) rethrow;
+      return (null, false);
+    }
   }
 
   Future<String> _scanQr(TutorApiClient api, ImageSource source) async {
-    final job = _job!;
     final photo = await ref
         .read(scanImagePickerProvider)
         .pickImage(source: source, requestFullMetadata: false);
@@ -308,9 +630,7 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
     if (!_active) return '';
     if (tokens.isEmpty) return '未读到纸包二维码。请靠近重拍、输入短码或手动选题。';
     if (tokens.length != 1) return '照片中有多个纸包二维码，请只拍当前作答页。';
-    return _openItem(
-      await api.resolveLearningPackPage(jobId: job, token: tokens.single),
-    );
+    return _openLocatedPage(api, tokens.single);
   }
 
   Future<String> _openItem(LearningPackItem item) async {
@@ -379,6 +699,9 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
   }
 
   String _draftKey(String code) => '$_storageKey.$_job.$code';
+
+  String _pendingPhotoPrefix(LearningPackItem item) =>
+      '${_draftKey(item.code)}.pending.${item.revision}.${item.questionVersionId}.';
 
   Map<String, Object> get _returnDetails => {
     'completed_on': ?_completedOn,
@@ -470,36 +793,54 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
 
   Future<String> _addReturnPhoto(TutorApiClient api, ImageSource source) async {
     final item = _item!;
-    final job = _job!;
-    if (_photoIds.length >= 10) return '每道题最多添加 10 张照片。';
-    final photo = await ref
-        .read(scanImagePickerProvider)
-        .pickImage(source: source, requestFullMetadata: false);
-    if (photo == null || !_active) return '';
-    if (await photo.length() > 5 * 1024 * 1024) return '每张照片最大 5 MiB。';
-    final bytes = await photo.readAsBytes();
+    final remaining = 10 - _photoIds.length;
+    if (remaining <= 0) return '每道题最多添加 10 张照片。';
+    final picker = ref.read(scanImagePickerProvider);
+    final photos = source == ImageSource.gallery
+        ? await picker.pickMultiImage(
+            limit: remaining,
+            requestFullMetadata: false,
+          )
+        : [?await picker.pickImage(source: source, requestFullMetadata: false)];
+    final messages = <String>[];
+    for (final (index, photo) in photos.take(remaining).indexed) {
+      if (!_active) return '';
+      try {
+        final message = await photo.length() > 5 * 1024 * 1024
+            ? '每张照片最大 5 MiB。'
+            : await _attachReturnPhoto(api, item, await photo.readAsBytes());
+        if (message.isNotEmpty) {
+          messages.add(
+            photos.length == 1 ? message : '照片 ${index + 1}：$message',
+          );
+        }
+      } on ApiException catch (error) {
+        if (photos.length <= 1 || isAuthError(error)) rethrow;
+        messages.add('照片 ${index + 1}：${describeError(error)}');
+      }
+    }
+    return messages.join('\n');
+  }
+
+  Future<String> _attachReturnPhoto(
+    TutorApiClient api,
+    LearningPackItem item,
+    Uint8List bytes, {
+    bool confirmedUnmarked = false,
+    VoidCallback? onStaged,
+  }) async {
+    if (bytes.length > 5 * 1024 * 1024) return '每张照片最大 5 MiB。';
     if (!_active) return '';
-    final info = inspectScanImage(bytes);
+    final ScanImageInfo info;
+    try {
+      info = inspectScanImage(bytes);
+    } on FormatException catch (error) {
+      return error.message;
+    }
     final tokens = await ref.read(paperQrReaderProvider)(bytes);
     if (!mounted || !_active) return '';
     if (tokens.length > 1) return '照片中有多个纸包二维码，请只拍当前作答页。';
-    if (tokens.isNotEmpty) {
-      final LearningPackItem located;
-      try {
-        located = await api.resolveLearningPackPage(
-          jobId: job,
-          token: tokens.single,
-        );
-      } on ApiException catch (error) {
-        if (!isNotFoundError(error)) rethrow;
-        return '照片二维码不属于当前纸包，未添加这页。';
-      }
-      if (located.code != item.code ||
-          located.revision != item.revision ||
-          located.questionVersionId != item.questionVersionId) {
-        return '照片二维码对应另一道题，未添加这页。';
-      }
-    } else {
+    if (tokens.isEmpty && !confirmedUnmarked) {
       if (!mounted || !_active) return '';
       final confirmed = await showDialog<bool>(
         context: context,
@@ -522,7 +863,151 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
     }
     if (!_active) return '';
     final digest = sha256.convert(bytes).toString();
+    final pendingKey = '${_pendingPhotoPrefix(item)}$digest';
+    final store = ref.read(_paperPhotoStorageProvider);
+    final existing = await store.keys(_pendingPhotoPrefix(item));
+    if (!_active) return '';
+    if (!existing.contains(pendingKey) &&
+        existing.length + _photoIds.length >= 10) {
+      return '每道题最多添加 10 张照片。';
+    }
+    final token = tokens.singleOrNull;
+    await store.write(
+      pendingKey,
+      jsonEncode({
+        'bytes': base64Encode(bytes),
+        'mime': info.mime,
+        'token': token,
+      }),
+    );
+    onStaged?.call();
+    return _uploadPendingPhoto(
+      api,
+      item,
+      pendingKey,
+      digest,
+      bytes,
+      info.mime,
+      token,
+    );
+  }
+
+  Future<String> _retryPendingPhotos(TutorApiClient api) async {
+    final item = _item!;
+    final store = ref.read(_paperPhotoStorageProvider);
+    final prefix = _pendingPhotoPrefix(item);
+    final keys = await store.keys(prefix);
+    if (keys.isEmpty) return '没有待上传照片。';
+    final messages = <String>[];
+    for (final key in keys) {
+      if (!_active) return '';
+      final raw = await store.read(key);
+      if (!_active || raw == null) continue;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      final bytes = base64Decode(data['bytes'] as String);
+      final digest = key.substring(prefix.length);
+      if (sha256.convert(bytes).toString() != digest) {
+        throw const FormatException();
+      }
+      try {
+        final message = await _uploadPendingPhoto(
+          api,
+          item,
+          key,
+          digest,
+          bytes,
+          data['mime'] as String,
+          data['token'] as String?,
+        );
+        if (message.isNotEmpty) messages.add(message);
+      } on ApiException catch (error) {
+        if (isAuthError(error)) rethrow;
+        messages.add(describeError(error));
+      }
+    }
+    return messages.join('\n');
+  }
+
+  Future<String> _removePendingPhoto() async {
+    final item = _item!;
+    final store = ref.read(_paperPhotoStorageProvider);
+    final keys = await store.keys(_pendingPhotoPrefix(item));
+    if (!_active) return '';
+    if (keys.isEmpty) return '没有待上传照片。';
+    final photos = <(String, Uint8List)>[];
+    for (final key in keys) {
+      final raw = await store.read(key);
+      if (!_active) return '';
+      if (raw == null) continue;
+      final photo = jsonDecode(raw) as Map<String, dynamic>;
+      photos.add((key, base64Decode(photo['bytes'] as String)));
+    }
+    if (!mounted || !_active) return '';
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('移除哪张待上传照片？'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final (index, (key, bytes)) in photos.indexed) ...[
+                Image.memory(bytes, height: 120, fit: BoxFit.contain),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, key),
+                  child: Text('移除本机照片 ${index + 1}'),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+    if (!_active || selected == null) return '';
+    await store.delete(selected);
+    return '已移除这张待上传照片。';
+  }
+
+  Future<String> _uploadPendingPhoto(
+    TutorApiClient api,
+    LearningPackItem item,
+    String pendingKey,
+    String digest,
+    Uint8List bytes,
+    String mime,
+    String? token,
+  ) async {
+    if (!_active) return '';
     final store = ref.read(keyValueStoreProvider);
+    final photoStore = ref.read(_paperPhotoStorageProvider);
+    if (token != null) {
+      final LearningPackItem located;
+      try {
+        located = await api.resolveLearningPackPage(jobId: _job!, token: token);
+      } on ApiException catch (error) {
+        if (error.isNetwork ||
+            error.statusCode >= 500 ||
+            error.statusCode == 429) {
+          return _savedPhotoMessage;
+        }
+        if (!isNotFoundError(error)) rethrow;
+        await photoStore.delete(pendingKey);
+        return '照片二维码不属于当前纸包，未添加这页。';
+      }
+      if (!_active) return '';
+      if (located.code != item.code ||
+          located.revision != item.revision ||
+          located.questionVersionId != item.questionVersionId) {
+        await photoStore.delete(pendingKey);
+        return '照片二维码对应另一道题，未添加这页。';
+      }
+    }
     final draftKey = _draftKey(item.code);
     final uploadKey = '$draftKey.upload.$digest';
     final key = await LocalSerial.run(store, uploadKey, () async {
@@ -533,18 +1018,21 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
       return created;
     });
     if (!_active) return '';
-    final upload = await api.createScanUpload(
-      body: MediaUploadRequest(
-        purpose: 'scan',
-        mime: info.mime,
-        sizeBytes: bytes.length,
-        sha256: digest,
-      ),
-      idempotencyKey: '$key-reserve',
-    );
-    if (!_active) return '';
-    if (_photoIds.contains(upload.mediaId)) return '这张照片已添加。';
     try {
+      final upload = await api.createScanUpload(
+        body: MediaUploadRequest(
+          purpose: 'scan',
+          mime: mime,
+          sizeBytes: bytes.length,
+          sha256: digest,
+        ),
+        idempotencyKey: '$key-reserve',
+      );
+      if (!_active) return '';
+      if (_photoIds.contains(upload.mediaId)) {
+        await photoStore.delete(pendingKey);
+        return '这张照片已添加。';
+      }
       final stored = await api.uploadScanContent(
         mediaId: upload.mediaId,
         body: MediaBlobUpload(contentBase64: base64Encode(bytes)),
@@ -553,25 +1041,33 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
       if (stored.mediaId != upload.mediaId || stored.sha256 != digest) {
         throw const FormatException();
       }
+      if (!_active) return '';
+      final photos = [..._photoIds, upload.mediaId];
+      final draft = {
+        'text': _transcript.text,
+        ..._returnDetails,
+        'photo_ids': photos,
+      };
+      await LocalSerial.run(
+        store,
+        draftKey,
+        () => store.write(draftKey, jsonEncode(draft)),
+      );
+      await photoStore.delete(pendingKey);
+      if (_active) _photoIds = photos;
+      return '已添加第 ${photos.length} 页，请核对顺序后回收。';
     } on ApiException catch (error) {
-      if (!isNotFoundError(error)) rethrow;
-      await LocalSerial.run(store, uploadKey, () => store.delete(uploadKey));
-      return '照片上传已过期，请重新选择原图。';
+      if (isNotFoundError(error)) {
+        await LocalSerial.run(store, uploadKey, () => store.delete(uploadKey));
+        return _savedPhotoMessage;
+      }
+      if (error.isNetwork ||
+          error.statusCode >= 500 ||
+          error.statusCode == 429) {
+        return _savedPhotoMessage;
+      }
+      rethrow;
     }
-    if (!_active) return '';
-    final photos = [..._photoIds, upload.mediaId];
-    final draft = {
-      'text': _transcript.text,
-      ..._returnDetails,
-      'photo_ids': photos,
-    };
-    await LocalSerial.run(
-      store,
-      draftKey,
-      () => store.write(draftKey, jsonEncode(draft)),
-    );
-    if (_active) _photoIds = photos;
-    return '已添加第 ${photos.length} 页，请核对顺序后回收。';
   }
 
   Future<String> _editPhotoOrder(int index, int? destination) async {
@@ -766,6 +1262,13 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
     final job = _job!;
     final key = _draftKey(item.code);
     final requestKey = _returnKey ?? newIdempotencyKey('paper-return');
+    if ((await ref
+            .read(_paperPhotoStorageProvider)
+            .keys(_pendingPhotoPrefix(item)))
+        .isNotEmpty) {
+      return '请先上传本机保存的照片，再确认回收。';
+    }
+    if (!_active) return '';
     final details = _returnDetails;
     final body = LearningPackReturnRequest(
       transcript: text,
@@ -836,14 +1339,13 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 12,
       children: [
-        TextField(
-          controller: _minutes,
-          enabled: !_busy && _pendingKey == null,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          decoration: const InputDecoration(
-            labelText: '同类学校作业占用分钟',
-            floatingLabelBehavior: FloatingLabelBehavior.always,
+        _PaperField(
+          label: '同类学校作业占用分钟',
+          child: TextField(
+            controller: _minutes,
+            enabled: !_busy && _pendingKey == null,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           ),
         ),
         Wrap(
@@ -858,6 +1360,25 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
               onPressed: _busy ? null : () => _run(_syncHistory),
               child: const Text('同步纸包历史'),
             ),
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _run((api) => _scanQr(api, ImageSource.gallery)),
+              child: const Text('从照片读码'),
+            ),
+            OutlinedButton(
+              onPressed: _busy ? null : () => _run(_collectPaperPhotos),
+              child: const Text('批量归集照片'),
+            ),
+            if (!kIsWeb &&
+                const {
+                  TargetPlatform.android,
+                  TargetPlatform.iOS,
+                }.contains(defaultTargetPlatform))
+              OutlinedButton(
+                onPressed: _busy ? null : () => _run(_liveQr),
+                child: const Text('相机扫码'),
+              ),
             OutlinedButton(
               onPressed: _busy ? null : () => _run(_showReviewSchedule),
               child: const Text('查看纸笔复测建议'),
@@ -878,6 +1399,12 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
                 OutlinedButton(
                   onPressed: _busy ? null : () => _run(_cancel),
                   child: const Text('取消生成'),
+                ),
+              if (_jobStatus?.id == _job &&
+                  _jobStatus?.status == 'needs_review')
+                OutlinedButton(
+                  onPressed: _busy ? null : () => _run(_retryReviewedPack),
+                  child: const Text('重新生成此纸包'),
                 ),
               OutlinedButton(
                 onPressed: _busy || !_canOpenPack
@@ -900,69 +1427,54 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
         ),
         if (_job != null) ...[
           if (_history.length > 1)
-            DropdownButtonFormField<String>(
-              key: ValueKey('paper-pack.$_job'),
-              initialValue: _job,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: '选择纸包任务',
-                floatingLabelBehavior: FloatingLabelBehavior.always,
+            _PaperField(
+              label: '选择纸包任务',
+              child: DropdownButtonFormField<String>(
+                key: ValueKey('paper-pack.$_job'),
+                initialValue: _job,
+                isExpanded: true,
+                items: [
+                  for (var i = _history.length - 1; i >= 0; i--)
+                    DropdownMenuItem(
+                      value: _history[i],
+                      child: Text('纸包 ${_history[i].split('-').first}'),
+                    ),
+                ],
+                onChanged: _busy
+                    ? null
+                    : (id) => setState(() {
+                        _job = id;
+                        _code.clear();
+                        _item = null;
+                        _message = null;
+                      }),
               ),
-              items: [
-                for (var i = _history.length - 1; i >= 0; i--)
-                  DropdownMenuItem(
-                    value: _history[i],
-                    child: Text('纸包 ${_history[i].split('-').first}'),
-                  ),
+            ),
+          _PaperField(
+            label: '本包题目短码',
+            child: TextField(
+              controller: _code,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(3),
               ],
-              onChanged: _busy
-                  ? null
-                  : (id) => setState(() {
-                      _job = id;
-                      _code.clear();
-                      _item = null;
-                      _message = null;
-                    }),
+              enabled: !_busy && _canOpenPack,
             ),
-          TextField(
-            controller: _code,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(3),
-            ],
-            decoration: const InputDecoration(
-              labelText: '本包题目短码',
-              floatingLabelBehavior: FloatingLabelBehavior.always,
-            ),
-            enabled: !_busy,
           ),
           Wrap(
             spacing: 8,
             runSpacing: 4,
             children: [
               OutlinedButton(
-                onPressed: _busy ? null : () => _run(_resolve),
+                onPressed: _busy || !_canOpenPack ? null : () => _run(_resolve),
                 child: const Text('定位印刷题目'),
               ),
               OutlinedButton(
-                onPressed: _busy ? null : () => _run(_pickItem),
-                child: const Text('手动选题'),
-              ),
-              if (!kIsWeb &&
-                  const {
-                    TargetPlatform.android,
-                    TargetPlatform.iOS,
-                  }.contains(defaultTargetPlatform))
-                OutlinedButton(
-                  onPressed: _busy ? null : () => _run(_liveQr),
-                  child: const Text('相机扫码'),
-                ),
-              OutlinedButton(
-                onPressed: _busy
+                onPressed: _busy || !_canOpenPack
                     ? null
-                    : () => _run((api) => _scanQr(api, ImageSource.gallery)),
-                child: const Text('从照片读码'),
+                    : () => _run(_pickItem),
+                child: const Text('手动选题'),
               ),
             ],
           ),
@@ -990,6 +1502,18 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
                           (api) => _addReturnPhoto(api, ImageSource.gallery),
                         ),
                   child: const Text('选图添加作答页'),
+                ),
+                OutlinedButton(
+                  onPressed: _busy || _returnKey != null
+                      ? null
+                      : () => _run(_retryPendingPhotos),
+                  child: const Text('重试上传本机照片'),
+                ),
+                TextButton(
+                  onPressed: _busy || _returnKey != null
+                      ? null
+                      : () => _run((_) => _removePendingPhoto()),
+                  child: const Text('移除待上传照片'),
                 ),
                 if (_photoIds.isNotEmpty) ...[
                   Text('已添加 ${_photoIds.length} 页'),
@@ -1054,39 +1578,40 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
                   ),
               ],
             ),
-            DropdownButtonFormField<String>(
-              key: ValueKey('paper-independence.${item.code}.$_independence'),
-              initialValue: _independence ?? 'unknown',
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: '作答情况（自报）',
-                floatingLabelBehavior: FloatingLabelBehavior.always,
+            _PaperField(
+              label: '作答情况（自报）',
+              child: DropdownButtonFormField<String>(
+                key: ValueKey('paper-independence.${item.code}.$_independence'),
+                initialValue: _independence ?? 'unknown',
+                isExpanded: true,
+                items: [
+                  for (final entry in _independenceLabels.entries)
+                    DropdownMenuItem(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    ),
+                ],
+                onChanged: _busy || _returnKey != null
+                    ? null
+                    : (choice) {
+                        setState(() => _independence = choice);
+                        _saveTranscript(_transcript.text);
+                      },
               ),
-              items: [
-                for (final entry in _independenceLabels.entries)
-                  DropdownMenuItem(value: entry.key, child: Text(entry.value)),
-              ],
-              onChanged: _busy || _returnKey != null
-                  ? null
-                  : (choice) {
-                      setState(() => _independence = choice);
-                      _saveTranscript(_transcript.text);
-                    },
             ),
           ],
-          TextField(
-            controller: _transcript,
-            enabled:
-                !_busy &&
-                (!_returned || _correctionBase != null) &&
-                _returnKey == null,
-            maxLength: 8000,
-            minLines: 2,
-            maxLines: 5,
-            onChanged: _saveTranscript,
-            decoration: const InputDecoration(
-              labelText: '纸笔作答转写',
-              floatingLabelBehavior: FloatingLabelBehavior.always,
+          _PaperField(
+            label: '纸笔作答转写',
+            child: TextField(
+              controller: _transcript,
+              enabled:
+                  !_busy &&
+                  (!_returned || _correctionBase != null) &&
+                  _returnKey == null,
+              maxLength: 8000,
+              minLines: 2,
+              maxLines: 5,
+              onChanged: _saveTranscript,
             ),
           ),
           if (_returned) ...[
@@ -1113,5 +1638,22 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
         if (_message case final message?) Text(message),
       ],
     ),
+  );
+}
+
+class _PaperField extends StatelessWidget {
+  const _PaperField({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    spacing: 6,
+    children: [
+      ExcludeSemantics(child: Text(label)),
+      Semantics(key: ValueKey(label), label: label, child: child),
+    ],
   );
 }

@@ -14,10 +14,12 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import aliased
 
 from tutor_api.blob_store import BlobNotFound
+from tutor_api.db import new_id
 from tutor_api.deps import Ctx, ok, student_ctx
 from tutor_api.errors import ApiError, conflict, not_found, unprocessable
 from tutor_api.idempotency import run_idempotent
 from tutor_api.models import (
+    AuditLog,
     LearningJob,
     SchoolMaterialCommand,
     SchoolMaterialConfirmation,
@@ -272,6 +274,18 @@ def correct_page(
                 page_number=page_number,
                 revision=revision + 1,
                 text=body.text,
+                created_at=ctx.now(),
+            )
+        )
+        ctx.db.add(
+            AuditLog(
+                id=new_id(),
+                actor_id=ctx.actor_id,
+                action="school_material.page_corrected",
+                target_type="school_material",
+                target_id=str(job_id),
+                detail_json={"page_number": page_number, "revision": revision + 1},
+                request_id=ctx.request_id,
                 created_at=ctx.now(),
             )
         )

@@ -8,7 +8,7 @@ from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, NumberObject
 
 
-def text_pdf(*pages: str, encrypted: bool = False) -> bytes:
+def text_pdf(*pages: str, encrypted: bool = False, compressed: bool = False) -> bytes:
     writer = PdfWriter()
     for text in pages:
         page = writer.add_blank_page(width=612, height=792)
@@ -31,7 +31,9 @@ def text_pdf(*pages: str, encrypted: bool = False) -> bytes:
             lines.append(f"({line}) Tj")
         lines.append("ET")
         stream.set_data("\n".join(lines).encode("latin-1"))
-        page[NameObject("/Contents")] = writer._add_object(stream)
+        page[NameObject("/Contents")] = writer._add_object(
+            stream.flate_encode() if compressed else stream
+        )
     if encrypted:
         writer.encrypt("fixture-only-password")
     out = io.BytesIO()

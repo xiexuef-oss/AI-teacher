@@ -18,9 +18,21 @@ def font():
     return Path(reportlab_path).parent / "fonts" / "Vera.ttf"
 
 
-def test_two_pdfs_have_separate_content_and_a4_pages(font):
+def test_two_pdfs_have_separate_content_and_a4_pages(font, monkeypatch):
+    from tutor_api.services import learning_pack_pdf as renderer
+
+    original = renderer.Paragraph
+    rendered_lines = []
+
+    def record(text, style):
+        rendered_lines.append(text)
+        return original(text, style)
+
+    monkeypatch.setattr(renderer, "Paragraph", record)
     question = PaperItem(code="AB123", page_token="opaque-page", stem="Compute 2 + 2.")
     student = PdfReader(BytesIO(render_student([question], font)))
+    assert any("作答日期" in line for line in rendered_lines)
+    assert any("无需扫码或联网" in line for line in rendered_lines)
     solutions = PdfReader(BytesIO(render_solutions([SolutionItem("AB123", "Answer: four")], font)))
     assert "Compute 2 + 2." in student.pages[0].extract_text()
     assert "AB123" in student.pages[0].extract_text()
@@ -41,3 +53,15 @@ def test_long_question_flows_without_truncation(font):
     assert len(student.pages) > 1
     assert "End of question." in "".join(page.extract_text() for page in student.pages)
     assert all("AB123" in page.extract_text() for page in student.pages)
+
+
+def test_incline_sketch_is_vector_and_does_not_add_solution_text(font):
+    plain = PaperItem("001", "opaque-page", "A block rests on a slope.")
+    illustrated = PaperItem("001", "opaque-page", plain.stem, incline_sketch=True)
+    base = PdfReader(BytesIO(render_student([plain], font))).pages[0]
+    diagram = PdfReader(BytesIO(render_student([illustrated], font))).pages[0]
+    assert diagram.extract_text() == base.extract_text()
+    assert not diagram.images and not diagram.annotations
+    base_lines = sum(operator == b"l" for _, operator in base.get_contents().operations)
+    diagram_lines = sum(operator == b"l" for _, operator in diagram.get_contents().operations)
+    assert diagram_lines > base_lines

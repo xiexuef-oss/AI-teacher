@@ -5,7 +5,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from threading import Barrier
+from threading import Barrier, Event
 from uuid import uuid4
 
 import pytest
@@ -37,6 +37,86 @@ def storage():
         client.close()
 
 
+def test_real_service_paper_pdf_objects_are_private_and_immutable(storage):
+    from hashlib import sha256
+
+    from tutor_api.learning_pack_pdf_store import S3LearningPackPdfStore
+
+    client, bucket, prefix, _ = storage
+    store = S3LearningPackPdfStore(client, bucket=bucket, prefix=prefix + "paper/")
+    data = b"%PDF-1.4 private paper bytes"
+    key = f"{uuid4()}/student-{sha256(data).hexdigest()}.pdf"
+    with pytest.raises(BlobNotFound):
+        store.read(key)
+    store.write(key, data)
+    store.write(key, data)
+    with pytest.raises(ValueError):
+        store.write(key, b"%PDF-1.4 different paper bytes")
+    assert store.read(key) == data
+    grants = client.get_object_acl(Bucket=bucket, Key=prefix + "paper/" + key)["Grants"]
+    assert all(grant["Grantee"]["Type"] != "Group" for grant in grants)
+
+
+def test_real_service_paper_pack_recovers_after_second_write_fails(storage, app, onboarded, clock):
+    from reportlab import __file__ as reportlab_path
+
+    from tutor_api.blob_store import BlobStorageUnavailable
+    from tutor_api.learning_pack_pdf_store import S3LearningPackPdfStore
+    from tutor_api.services.learning_jobs import RETRY_DELAY
+    from tutor_api.services.learning_pack_worker import prepare_one
+
+    client, bucket, prefix, _ = storage
+    store = S3LearningPackPdfStore(client, bucket=bucket, prefix=prefix + "paper/")
+    app.state.learning_pack_pdf_store = store
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-51",
+            "subjects": ["chemistry"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 10, "weekdays": [1]},
+        }
+    )
+    job = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})
+    path = f"/learning/packs/{job['id']}"
+    sessions = app.state.session_factory
+    font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+
+    def fail_solution(params, **kwargs):
+        if "/solution-" in params["Key"]:
+            raise ConnectionError("test interruption")
+
+    event = "before-parameter-build.s3.PutObject"
+    client.meta.events.register(event, fail_solution)
+    try:
+        with pytest.raises(BlobStorageUnavailable, match="write failed"):
+            prepare_one(sessions, clock.now, font, pdf_store=store)
+    finally:
+        client.meta.events.unregister(event, fail_solution)
+    keys = client.list_objects_v2(Bucket=bucket, Prefix=store.prefix)["Contents"]
+    assert len(keys) == 1
+    assert store.purge_unreferenced(sessions, datetime.now(UTC) + timedelta(days=2)) == 0
+    onboarded.error("GET", f"{path}/student-pdf", expect=404)
+    onboarded.error("GET", f"{path}/solution-pdf", expect=404)
+
+    clock.advance(RETRY_DELAY.total_seconds())
+    assert prepare_one(sessions, clock.now, font, pdf_store=store)
+    assert onboarded.data("GET", f"{path}/student-pdf")["revision"] == 1
+    onboarded.error("GET", f"{path}/solution-pdf", expect=409)
+    keys = client.list_objects_v2(Bucket=bucket, Prefix=store.prefix)["Contents"]
+    assert len(keys) == 2
+
+    from hashlib import sha256
+
+    extra = b"%PDF-1.4 unreferenced rendition"
+    stale_key = f"{job['id']}/student-{sha256(extra).hexdigest()}.pdf"
+    store.write(stale_key, extra)
+    now = datetime.now(UTC)
+    assert store.purge_unreferenced(sessions, now) == 0
+    assert store.purge_unreferenced(sessions, now + timedelta(days=2)) == 1
+    with pytest.raises(BlobNotFound):
+        store.read(stale_key)
+    assert onboarded.data("GET", f"{path}/student-pdf")["revision"] == 1
+
+
 def test_real_service_owner_confirmation_restart_instance_and_expiry(storage):
     client, bucket, prefix, first = storage
     now = datetime.now(UTC)
@@ -61,6 +141,41 @@ def test_real_service_owner_confirmation_restart_instance_and_expiry(storage):
     assert second.cleanup(now=now + timedelta(minutes=1)) == 1
     with pytest.raises(BlobNotFound):
         first.read(blob.id, owner="self-authored-owner", now=now)
+
+
+def test_real_service_worker_physically_removes_expired_school_material(storage, app, settings):
+    from tutor_api.services.learning_pack_worker import LearningPackWorker
+
+    client, bucket, prefix, store = storage
+    now = datetime.now(UTC)
+    data = b"self-authored school material"
+    expired, active = [
+        store.stage(
+            owner="student",
+            purpose="school_material",
+            data=data,
+            expires_at=now + timedelta(minutes=lifetime),
+            now=now,
+        )
+        for lifetime in (1, 3)
+    ]
+    deleted = Event()
+    client.meta.events.register("after-call.s3.DeleteObject", lambda **_: deleted.set())
+    sweep_at = now + timedelta(minutes=2)
+    worker = LearningPackWorker(
+        app.state.session_factory, lambda: sweep_at, settings, media_store=store
+    )
+    worker.start()
+    try:
+        assert deleted.wait(timeout=10)
+    finally:
+        worker.close()
+    keys = {
+        item["Key"] for item in client.list_objects_v2(Bucket=bucket, Prefix=prefix)["Contents"]
+    }
+    assert prefix + expired.id + ".json" not in keys
+    assert keys == {prefix + active.id + ".json"}
+    assert store.read(active.id, owner="student", now=sweep_at, temporary=True) == data
 
 
 def test_real_service_owned_listing_spans_pages_is_read_only_and_has_independent_cursor(storage):

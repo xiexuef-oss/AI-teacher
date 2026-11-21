@@ -6,6 +6,7 @@ import type {
   AdminQuestionPage,
   AdminVersionSnapshot,
   Health,
+  LearningPackShortages,
   LocalIdentity,
   LocalRole,
   QuestionReviewState,
@@ -18,6 +19,9 @@ export const importQuestion = (token: string, body: AdminQuestionImport, idempot
   request<AdminQuestionDetail>('POST', '/admin/question-imports', { token, body, idempotencyKey })
 
 export const getHealth = () => request<Health>('GET', '/health')
+
+export const listLearningPackShortages = (token: string) =>
+  request<LearningPackShortages>('GET', '/admin/learning-pack-shortages', { token })
 
 /** 仅本地身份 Mock 开启时可用（回环地址）。真实登录方式冻结前，审核后台只能这样进。 */
 export const createLocalIdentity = (role: LocalRole) =>

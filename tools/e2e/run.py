@@ -28,7 +28,11 @@ from e2e.checks import Checks, say  # noqa: E402
 from e2e.flowbase import Context  # noqa: E402
 from e2e.flows import FLOWS  # noqa: E402
 
-OUT_ROOT = servers.REPO_ROOT / "var" / "e2e"
+OUT_ROOT = (
+    servers.REPO_ROOT
+    / "var"
+    / ("e2e" if servers.API_PORT == servers.DEFAULT_API_PORT else f"e2e-{servers.API_PORT}")
+)
 ENVIRONMENT = 2
 
 

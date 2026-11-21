@@ -1,0 +1,19 @@
+{
+  "name": "learning_pack_retry",
+  "method": "POST",
+  "path": "/api/v1/learning/packs/9e14f157-8309-4e8e-8f85-0c4e3b2b59a6/retry",
+  "status": 202,
+  "schema": "LearningJobStatus",
+  "value": {
+    "id": "9e14f157-8309-4e8e-8f85-0c4e3b2b59a6",
+    "status": "queued",
+    "attempts": 0
+  },
+  "body": {
+    "data": {
+      "id": "9e14f157-8309-4e8e-8f85-0c4e3b2b59a6",
+      "status": "queued",
+      "attempts": 0
+    }
+  }
+}

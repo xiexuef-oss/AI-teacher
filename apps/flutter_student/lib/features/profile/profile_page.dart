@@ -598,6 +598,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
               title: '学习安排',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 16,
                 children: [
                   DropdownButtonFormField<String>(
                     key: ValueKey('profile.learningMode.$_mode'),

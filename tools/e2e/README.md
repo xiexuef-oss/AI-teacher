@@ -28,8 +28,10 @@ uv run --group e2e python tools/e2e/run.py --no-build            # 不检查、�
 全部流程现在二十三条，耗时随流程和构建变化。退出码：0 全部通过，1 有检查没通过，
 2 环境问题（缺依赖、端口被占、构建失败）。
 
-**端口是固定的**：后端 8000（Web 版里写死了这个地址）、学生端静态服务 8081、审核后台 5174。
-开始前这几个端口得是空的，本机的开发服务要先停掉；否则会直接报"端口被占用"。
+后端默认用 8000，可用 `TUTOR_E2E_API_PORT` 指定空闲端口。PowerShell 中可先运行
+`$env:TUTOR_E2E_API_PORT = '18080'`，再运行联调命令。学生端和审核后台会使用同一个后端地址，
+独立 Web 构建及日志分别写入 `apps/flutter_student/build/web-e2e-18080` 和 `var/e2e-18080`。
+学生端静态服务仍用 8081，审核后台仍用 5174，运行前相应端口需空闲。
 
 **Web 版过期会自动重新构建**：`apps/flutter_student/build/web` 比 `lib/`、`assets/`、`web/`、
 `pubspec.*`、契约包 `lib/` 里任何文件旧，就先 `flutter build web --release`。过期的构建会让联调测到旧代码、

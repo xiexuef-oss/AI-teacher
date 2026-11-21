@@ -10,7 +10,7 @@ from summarize_evaluation import read_results
 from validate_evaluation_manifest import validate_manifest
 
 
-def check_coverage(manifest, results, *, minimum=300):
+def check_coverage(manifest, results, *, minimum=300, required_groups=()):
     failure = {"ready": False, "groups": []}
     try:
         registration = validate_manifest(manifest, minimum=minimum)
@@ -23,7 +23,7 @@ def check_coverage(manifest, results, *, minimum=300):
             expected = {
                 row["item_id"].strip(): row["answer_mode"].strip() for row in csv.DictReader(source)
             }
-        groups = defaultdict(set)
+        groups = defaultdict(set, {tuple(group): set() for group in required_groups})
         for row in rows:
             if row.provider is None or row.model is None:
                 return {**failure, "code": "unidentified_model"}
@@ -56,10 +56,20 @@ def main():
     parser.add_argument("manifest", type=Path)
     parser.add_argument("results", type=Path)
     parser.add_argument("--minimum", type=int, default=300)
+    parser.add_argument(
+        "--require-group",
+        nargs=3,
+        action="append",
+        default=[],
+        metavar=("TASK", "PROVIDER", "MODEL"),
+        help="Require coverage for this combination, even if no results exist; repeatable.",
+    )
     args = parser.parse_args()
     if args.minimum < 1:
         parser.error("minimum must be positive")
-    report = check_coverage(args.manifest, args.results, minimum=args.minimum)
+    report = check_coverage(
+        args.manifest, args.results, minimum=args.minimum, required_groups=args.require_group
+    )
     print(json.dumps(report, ensure_ascii=True, allow_nan=False))
     return 0 if report["ready"] else 1
 

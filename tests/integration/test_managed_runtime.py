@@ -401,6 +401,44 @@ def test_managed_real_startup_role_owner_and_durable_invite_replay(dependencies,
         assert records and all(record.state == "complete" for record in records)
 
 
+def test_managed_students_enqueue_packs_with_private_material_upload_disabled(dependencies):
+    from hashlib import sha256
+
+    from support.documents import text_pdf
+    from tutor_api.models import LearningPackOutbox
+
+    _, factory, tokens, _, _, _, _ = dependencies
+    with TestClient(build(dependencies), client=LOOPBACK) as raw:
+        student = ApiClient(raw, "student", tokens["student"])
+        other = ApiClient(raw, "other", tokens["other"])
+        parent = ApiClient(raw, "parent", tokens["parent"])
+        student.save_profile(
+            json={
+                "region_code": "CN-51",
+                "subjects": ["math"],
+                "learning_settings": {"mode": "boarding", "weekly_minutes": 0, "weekdays": [1]},
+            }
+        )
+        pack = student.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})
+        data = text_pdf("Private managed practice material")
+        student.error(
+            "POST",
+            "/school-materials/uploads",
+            expect=501,
+            json={
+                "mime": "application/pdf",
+                "size_bytes": len(data),
+                "sha256": sha256(data).hexdigest(),
+            },
+        )
+        path = f"/learning/jobs/{pack['id']}"
+        assert student.data("GET", path)["status"] == "queued"
+        other.error("GET", path, expect=404)
+        parent.error("GET", path, expect=403)
+    with factory() as db:
+        assert db.get_one(LearningPackOutbox, pack["id"]).delivered_at is None
+
+
 def test_managed_startup_is_read_only_and_ping_does_not_charge(dependencies, monkeypatch):
     from sqlalchemy import Engine, event
 

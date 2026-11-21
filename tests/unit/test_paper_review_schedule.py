@@ -40,6 +40,28 @@ def test_assisted_resets_and_unknown_does_not_move_the_schedule():
     assert schedule.estimated_anchor
 
 
+def test_independent_returns_progress_through_all_intervals_then_incorrect_resets():
+    completed = [
+        evidence("001", date(2026, 11, 1), "correct"),
+        evidence("002", date(2026, 11, 4), "correct"),
+        evidence("003", date(2026, 11, 11), "correct"),
+        evidence("004", date(2026, 11, 25), "correct"),
+        evidence("005", date(2026, 12, 25), "correct"),
+        evidence("006", date(2027, 1, 24), "incorrect"),
+    ]
+    expected = [
+        (0, date(2026, 11, 4)),
+        (1, date(2026, 11, 11)),
+        (2, date(2026, 11, 25)),
+        (3, date(2026, 12, 25)),
+        (3, date(2027, 1, 24)),
+        (0, date(2027, 1, 27)),
+    ]
+    for count, result in enumerate(expected, start=1):
+        review = rebuild(completed[:count])["node"]
+        assert (review.stage, review.due_on) == result
+
+
 def test_paper_plan_only_marks_waiting_knowledge_points():
     from datetime import date
 

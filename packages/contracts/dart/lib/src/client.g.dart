@@ -264,6 +264,30 @@ class TutorApiClient {
     return LearningPackItems.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 汇总待人工处理的纸包题源缺口
+  Future<LearningPackShortages> listLearningPackShortages({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/learning-pack-shortages',
+      requestId: requestId,
+    );
+    return LearningPackShortages.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 在本人已发布纸包中定位二维码
+  Future<LearningPackPageLocation> locateLearningPackPage({
+    String? token,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/learning/packs/page',
+      query: {'token': token},
+      requestId: requestId,
+    );
+    return LearningPackPageLocation.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 用二维码定位本人纸包中的印刷题目
   Future<LearningPackItem> resolveLearningPackPage({
     required String jobId,
@@ -400,6 +424,20 @@ class TutorApiClient {
   }) async {
     final data = await _core.send(
       'POST', '/learning/jobs/${Uri.encodeComponent(jobId)}/cancel',
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return LearningJobStatus.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 重新排队本人待人工处理的纸包
+  Future<LearningJobStatus> retryLearningPack({
+    required String jobId,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/learning/packs/${Uri.encodeComponent(jobId)}/retry',
       idempotencyKey: idempotencyKey,
       requestId: requestId,
     );

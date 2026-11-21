@@ -3,38 +3,62 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:zxing2/qrcode.dart';
 
+import '../scan/scan_image.dart';
+
 Future<List<String>> readPaperQrs(Uint8List bytes) async {
+  if (kIsWeb) {
+    // Web's encoded ImageDescriptor does not expose intrinsic dimensions.
+    final ScanImageInfo info;
+    try {
+      info = inspectScanImage(bytes);
+    } on FormatException {
+      return [];
+    }
+    final portrait = info.height > info.width;
+    return _readCodec(
+      await ui.instantiateImageCodec(
+        bytes,
+        targetWidth: !portrait && info.width > 2200 ? 2200 : null,
+        targetHeight: portrait && info.height > 2200 ? 2200 : null,
+      ),
+    );
+  }
   final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
   try {
     final descriptor = await ui.ImageDescriptor.encoded(buffer);
     try {
       if (descriptor.width * descriptor.height > 24000000) return [];
       final portrait = descriptor.height > descriptor.width;
-      final codec = await descriptor.instantiateCodec(
-        targetWidth: !portrait && descriptor.width > 2200 ? 2200 : null,
-        targetHeight: portrait && descriptor.height > 2200 ? 2200 : null,
+      return await _readCodec(
+        await descriptor.instantiateCodec(
+          targetWidth: !portrait && descriptor.width > 2200 ? 2200 : null,
+          targetHeight: portrait && descriptor.height > 2200 ? 2200 : null,
+        ),
       );
-      try {
-        final image = (await codec.getNextFrame()).image;
-        try {
-          final rgba = await image.toByteData();
-          if (rgba == null) return [];
-          return await compute(_decode, (
-            image.width,
-            image.height,
-            rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes),
-          ));
-        } finally {
-          image.dispose();
-        }
-      } finally {
-        codec.dispose();
-      }
     } finally {
       descriptor.dispose();
     }
   } finally {
     buffer.dispose();
+  }
+}
+
+Future<List<String>> _readCodec(ui.Codec codec) async {
+  try {
+    final image = (await codec.getNextFrame()).image;
+    try {
+      final rgba = await image.toByteData();
+      if (rgba == null) return [];
+      return await compute(_decode, (
+        image.width,
+        image.height,
+        rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes),
+      ));
+    } finally {
+      image.dispose();
+    }
+  } finally {
+    codec.dispose();
   }
 }
 

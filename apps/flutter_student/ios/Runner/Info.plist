@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>选择题目图片，用于临时拍题手工确认。</string>
+	<string>选择题目图片或纸笔作答页，用于核对和提交。</string>
 	<key>NSCameraUsageDescription</key>
-	<string>由你点击拍照后拍摄题目，用于临时拍题手工确认。</string>
+	<string>打开拍照或相机扫码时使用相机，用于拍题、添加纸笔作答页或识别纸包二维码。</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -32,25 +32,13 @@
 	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>选择题目图片，用于临时拍题手工确认。</string>
-	<key>NSCameraUsageDescription</key>
-	<string>由你点击拍照后拍摄题目，用于临时拍题手工确认。</string>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 		<key>UISceneConfigurations</key>
 		<dict>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>选择题目图片，用于临时拍题手工确认。</string>
-	<key>NSCameraUsageDescription</key>
-	<string>由你点击拍照后拍摄题目，用于临时拍题手工确认。</string>
 			<key>UIWindowSceneSessionRoleApplication</key>
 			<array>
 				<dict>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>选择题目图片，用于临时拍题手工确认。</string>
-	<key>NSCameraUsageDescription</key>
-	<string>由你点击拍照后拍摄题目，用于临时拍题手工确认。</string>
 					<key>UISceneClassName</key>
 					<string>UIWindowScene</string>
 					<key>UISceneConfigurationName</key>

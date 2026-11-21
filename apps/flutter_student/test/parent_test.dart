@@ -305,6 +305,33 @@ void main() {
 
       expect(key('parent.weekly.empty'), findsOneWidget);
       expect(find.textContaining('这一周还没有学习记录'), findsOneWidget);
+      expect(find.text('本周没有回收纸包，纸笔学习资料不足。'), findsOneWidget);
+      await teardownTree(tester);
+    });
+
+    testWidgets('这周有数字练习但零纸笔回收时，纸笔部分显示资料不足', (tester) async {
+      h.backend.weeklyTweak = (weekly) {
+        final emptyRate = {
+          'numerator': 0,
+          'denominator': 0,
+          'rate': null,
+          'insufficient_data': true,
+        };
+        weekly['paper'] = {
+          'confirmed': 0,
+          'awaiting_assessment': 0,
+          'late_returns': 0,
+          'unknown_completion_date': 0,
+          'independent': emptyRate,
+          'assisted': emptyRate,
+        };
+        return weekly;
+      };
+      await openWeekly(tester);
+
+      expect(key('parent.weekly.empty'), findsNothing);
+      expect(find.text('本周没有回收纸包，纸笔学习资料不足。'), findsOneWidget);
+      expect(find.textContaining('纸笔作答已回收 0 份'), findsNothing);
       await teardownTree(tester);
     });
 

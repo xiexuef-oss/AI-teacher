@@ -87,6 +87,7 @@ def create_app(
     receipt_coordinator: RedisReceiptCoordinator | None = None,
     http_limiter: InMemoryHttpLimiter | RedisHttpLimiter | None = None,
     paper_queue: RedisPaperQueue | None = None,
+    learning_pack_pdf_store=None,
 ) -> FastAPI:
     """gateway_adapters 用来在测试里替换某个供应商的适配器；路由、预算与审计仍按配置走真实逻辑。"""
     settings = settings or Settings()
@@ -116,6 +117,11 @@ def create_app(
     clock = clock or (lambda: datetime.now(UTC))
     engine = make_engine(settings.database_url, settings=settings)
     session_factory = create_session_factory(engine)
+
+    if learning_pack_pdf_store is None and settings.learning_pack_pdf_s3_config is not None:
+        from tutor_api.learning_pack_pdf_store import local_pdf_store
+
+        learning_pack_pdf_store = local_pdf_store(settings.learning_pack_pdf_s3_config)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -178,6 +184,7 @@ def create_app(
                     gateway=app.state.gateway,
                     queue=paper_queue,
                     invocation_store=app.state.invocation_store,
+                    pdf_store=learning_pack_pdf_store,
                 )
                 pack_worker.start()
             yield
@@ -212,6 +219,7 @@ def create_app(
     app.state.settings = settings
     app.state.clock = clock
     app.state.session_factory = session_factory
+    app.state.learning_pack_pdf_store = learning_pack_pdf_store
     app.state.media_store = (
         media_store
         if media_store is not None

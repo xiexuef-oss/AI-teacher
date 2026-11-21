@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { listQuestions } from '../api/admin'
+import { listLearningPackShortages, listQuestions } from '../api/admin'
 import { ApiError } from '../api/client'
 import { handleUnauthorized } from '../api/guard'
-import type { AdminQuestionSummary, AdminStatusCounts, QuestionStatus, Subject } from '../api/types'
+import type { AdminQuestionSummary, AdminStatusCounts, LearningPackShortages, QuestionStatus, Subject } from '../api/types'
 import StatusBadge from '../components/StatusBadge.vue'
 import { STATUS_LABEL } from '../decisions'
 import { formatTime, MODE_LABEL, shortId, SUBJECT_LABEL } from '../labels'
-import { useSession } from '../session'
+import { captureSessionBinding, isCurrentSessionBinding, useSession } from '../session'
 
 type Tab = QuestionStatus | 'all'
 const TABS: Tab[] = ['draft', 'reviewed', 'published', 'withdrawn', 'all']
@@ -23,6 +23,27 @@ const cursor = ref<string | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const selected = ref<string[]>([])
+const shortages = ref<LearningPackShortages | null>(null)
+const shortageMessage = ref('')
+watch(() => session.session, () => {
+  shortages.value = null
+  shortageMessage.value = ''
+})
+
+async function loadShortages(): Promise<void> {
+  const binding = captureSessionBinding()
+  if (!binding) return
+  shortageMessage.value = '正在查询'
+  try {
+    const result = await listLearningPackShortages(binding.token)
+    if (!isCurrentSessionBinding(binding)) return
+    shortages.value = result
+    shortageMessage.value = ''
+  } catch (failure) {
+    if (!isCurrentSessionBinding(binding) || handleUnauthorized(failure, binding)) return
+    shortageMessage.value = '纸包题源缺口加载失败，请重试。'
+  }
+}
 function toggle(id: string) { selected.value = selected.value.includes(id) ? selected.value.filter(value => value !== id) : selected.value.length < 50 ? [...selected.value,id] : selected.value }
 
 const tabLabel = (value: Tab): string => (value === 'all' ? '全部' : STATUS_LABEL[value])
@@ -77,6 +98,15 @@ function open(id: string): void {
         </select>
       </label>
     </header>
+
+    <section class="card">
+      <h2>纸包题源缺口</h2>
+      <button type="button" @click="loadShortages">查询待处理数量</button>
+      <p v-if="shortageMessage" role="status">{{ shortageMessage }}</p>
+      <p v-if="shortages">
+        数学 {{ shortages.math }} · 物理 {{ shortages.physics }} · 化学 {{ shortages.chemistry }}
+      </p>
+    </section>
 
     <RouterLink v-if="selected.length" :to="{name:'batch-review',query:{ids:selected.join(',')}}">逐题确认批量审核（{{selected.length}}/50）</RouterLink>
     <nav class="tabs" role="tablist" aria-label="状态">

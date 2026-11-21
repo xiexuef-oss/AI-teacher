@@ -57,7 +57,7 @@ def validate_manifest(path, *, minimum=300):
                 "errors": ["登记表列名或顺序与模板不一致"],
             }
         rows = list(reader)
-    identifiers = Counter(row.get("item_id", "").strip() for row in rows)
+    identifiers = Counter((row.get("item_id") or "").strip() for row in rows)
     for index, row in enumerate(rows, start=2):
         problems = []
         if None in row or any(value is None for value in row.values()):
@@ -85,7 +85,13 @@ def validate_manifest(path, *, minimum=300):
         if row["answer_mode"] in {"written", "experiment", "proof"} and not row["rubric_ref"]:
             problems.append("主观题缺少 rubric_ref 自查/人工评测依据")
         for field in ("exam_year", "source_year"):
-            if row[field] and (not row[field].isdigit() or not 1900 <= int(row[field]) <= 2100):
+            year = row[field]
+            if year and (
+                len(year) != 4
+                or not year.isascii()
+                or not year.isdecimal()
+                or not 1900 <= int(year) <= 2100
+            ):
                 problems.append(f"{field} 无效")
         try:
             reviewed = datetime.fromisoformat(row["reviewed_at"].replace("Z", "+00:00"))

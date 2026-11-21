@@ -17,6 +17,7 @@ from support.flows import CORRECT, INK, WRITTEN, WRONG, begin, parts, solve, sub
 from support.parents import FIVE, authorize, do_week, links_of, new_identity, revoke, weekly, z
 from support.seeds import qid
 from tutor_api.services.weekly_service import trend_of
+from tutor_api.services.weekly_snapshots import generate_due_snapshots
 
 WEEK = "2026-11-09"
 WEEK_END = "2026-11-15"
@@ -375,12 +376,18 @@ def test_the_week_start_is_not_checked_before_authorization(onboarded, parent):
     assert error["code"] == "not_found"
 
 
-def test_a_revoked_parent_loses_every_week_at_once(linked, clock):
+def test_a_revoked_parent_loses_every_week_at_once(linked, clock, app, settings):
     student, parent = linked
     solve(student, "math-mono-quadratic")
     clock.advance(days=7)
     (entry,) = links_of(student)["links"]
     assert weekly(parent, student.user_id, week_start=WEEK)["attempts_count"] == 1
+    assert generate_due_snapshots(app.state.session_factory, settings, clock.now()) == 1
+    snapshot_path = f"/parents/students/{student.user_id}/weekly-snapshots/{WEEK}"
+    snapshot = parent.request("GET", snapshot_path)
+    assert snapshot.status_code == 200
+    assert snapshot.headers["Cache-Control"] == "no-store"
+    assert snapshot.json()["data"]["report"]["attempts_count"] == 1
 
     revoke(student, entry["id"])
 
@@ -388,6 +395,10 @@ def test_a_revoked_parent_loses_every_week_at_once(linked, clock):
         parent.error(
             "GET", f"/parents/students/{student.user_id}/weekly", expect=404, params=params or None
         )
+    for params in (None, {"revision": 1}):
+        response = parent.request("GET", snapshot_path, params=params)
+        assert response.status_code == 404
+        assert response.headers["Cache-Control"] == "no-store"
 
 
 def test_new_work_shows_up_without_the_parent_doing_anything(linked):
@@ -419,7 +430,7 @@ def test_a_week_is_aggregated_per_student(linked, new_student, clock):
     assert weekly(parent, student.user_id)["attempts_count"] == 2
 
 
-def test_the_week_boundary_is_exclusive_at_the_next_monday(linked, clock):
+def test_the_week_boundary_is_exclusive_at_the_next_monday(linked, clock, app, settings):
     student, parent = linked
     clock.advance(days=5, hours=7, minutes=59, seconds=59)  # 周日 23:59:59（北京时间）
     solve(student, "math-mono-quadratic")
@@ -428,3 +439,17 @@ def test_the_week_boundary_is_exclusive_at_the_next_monday(linked, clock):
 
     assert weekly(parent, student.user_id, week_start=WEEK)["attempts_count"] == 1
     assert weekly(parent, student.user_id, week_start="2026-11-16")["attempts_count"] == 1
+
+    clock.advance(hours=7)
+    assert generate_due_snapshots(app.state.session_factory, settings, clock.now()) == 1
+    path = f"/parents/students/{student.user_id}/weekly-snapshots"
+    first = parent.data("GET", f"{path}/{WEEK}")["report"]
+    assert first["attempts_count"] == 1
+    assert first["independent"] == stat(1, 1)
+    assert first["assisted"] == stat(0, 0)
+
+    clock.advance(days=7)
+    assert generate_due_snapshots(app.state.session_factory, settings, clock.now()) == 1
+    second = parent.data("GET", f"{path}/2026-11-16")["report"]
+    assert second["attempts_count"] == 1
+    assert second["previous_week"]["attempts_count"] == 1

@@ -1074,6 +1074,50 @@ class LearningPackItem {
       };
 }
 
+class LearningPackShortages {
+  const LearningPackShortages({
+    required this.math,
+    required this.physics,
+    required this.chemistry,
+  });
+
+  final int math;
+  final int physics;
+  final int chemistry;
+
+  factory LearningPackShortages.fromJson(Map<String, dynamic> json) => LearningPackShortages(
+        math: (json['math'] as num).toInt(),
+        physics: (json['physics'] as num).toInt(),
+        chemistry: (json['chemistry'] as num).toInt(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'math': math,
+        'physics': physics,
+        'chemistry': chemistry,
+      };
+}
+
+class LearningPackPageLocation {
+  const LearningPackPageLocation({
+    required this.jobId,
+    required this.item,
+  });
+
+  final String jobId;
+  final LearningPackItem item;
+
+  factory LearningPackPageLocation.fromJson(Map<String, dynamic> json) => LearningPackPageLocation(
+        jobId: json['job_id'] as String,
+        item: LearningPackItem.fromJson(json['item'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'job_id': jobId,
+        'item': item.toJson(),
+      };
+}
+
 class LearningPackReturnRecord {
   const LearningPackReturnRecord({
     this.transcriptRevision,

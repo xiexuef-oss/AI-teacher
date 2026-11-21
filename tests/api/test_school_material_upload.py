@@ -1,5 +1,8 @@
 from base64 import b64decode, b64encode
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+from threading import Barrier, Event
 
 import pytest
 
@@ -139,7 +142,12 @@ def test_worker_lists_private_pdf_text_and_marks_blank_pages(
             from types import SimpleNamespace
 
             calls.append(request)
-            return SimpleNamespace(provider="mock", confidence=None)
+            return SimpleNamespace(
+                provider="mock",
+                confidence=0.36,
+                validated_output={"stem_text": "2. x = -3\n教师红笔：扣 2 分"},
+                review_required=True,
+            )
 
     settings.import_ocr_mode = ocr_mode
     assert process_one(app.state.session_factory, clock.now, settings, media_store, MockGateway())
@@ -160,6 +168,10 @@ def test_worker_lists_private_pdf_text_and_marks_blank_pages(
     ]
     candidates = f"{root}/{job['id']}/candidates"
     new_student().error("GET", candidates, expect=404)
+    before_correction = student.data("GET", candidates)
+    assert [item["text"] for item in before_correction["items"]] == ["First page", ""]
+    assert before_correction["items"][1]["locations"] == [{"page": 2, "block": None}]
+    assert "confirmed_items" not in before_correction
     edit = f"{path}/2/correction"
     body = {"expected_revision": 0, "text": "Student transcription"}
     new_student().error("PUT", edit, json=body, expect=404)
@@ -214,6 +226,85 @@ def test_worker_lists_private_pdf_text_and_marks_blank_pages(
     with app.state.session_factory() as session:
         assert session.get(SchoolMaterialResult, job["id"]) is None
         assert session.get(SchoolMaterialCorrection, (job["id"], 2, 1)) is None
+
+
+def test_twenty_page_material_keeps_continuation_page_in_confirmation(
+    student, app, settings, clock, media_store
+):
+    from sqlalchemy import select
+
+    from tutor_api.models import AuditLog
+    from tutor_api.services.school_material_worker import process_one
+
+    texts = [f"{n}. Original engineering question" for n in range(1, 20)]
+    texts.append("Continuation: explain the last result.")
+    data = text_pdf(*texts)
+    root = "/school-materials"
+    source = student.data(
+        "POST",
+        f"{root}/uploads",
+        expect=201,
+        json={
+            "mime": "application/pdf",
+            "size_bytes": len(data),
+            "sha256": sha256(data).hexdigest(),
+        },
+    )["media_id"]
+    student.data(
+        "PUT",
+        f"{root}/uploads/{source}/content",
+        json={"content_base64": b64encode(data).decode("ascii")},
+    )
+    job = student.data("POST", root, expect=202, json={"media_id": source})["id"]
+    assert process_one(app.state.session_factory, clock.now, settings, media_store, None)
+    pages = f"{root}/{job}/pages"
+    extracted = student.data("GET", pages)["pages"]
+    assert [page["page_number"] for page in extracted] == list(range(1, 21))
+    assert [page["text"] for page in extracted] == texts
+    assert not any(page["needs_ocr"] for page in extracted)
+    assert student.request("GET", f"{pages}/20/preview").status_code == 200
+    student.error("GET", f"{pages}/21/preview", expect=404)
+    barrier = Barrier(2)
+
+    def correct(text):
+        barrier.wait(timeout=5)
+        response = student.request(
+            "PUT",
+            f"{pages}/20/correction",
+            json={"expected_revision": 0, "text": text},
+        )
+        return response.status_code, text
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        corrections = list(pool.map(correct, ["First amended page", "Second amended page"]))
+    assert sorted(status for status, _ in corrections) == [200, 409]
+    winner = next(text for status, text in corrections if status == 200)
+    assert student.data("GET", pages)["pages"][-1] == {
+        "page_number": 20,
+        "text": winner,
+        "needs_ocr": False,
+        "revision": 1,
+    }
+    with app.state.session_factory() as session:
+        events = session.scalars(
+            select(AuditLog).where(
+                AuditLog.target_id == job, AuditLog.action == "school_material.page_corrected"
+            )
+        ).all()
+    assert len(events) == 1
+    assert events[0].actor_id == student.user_id
+    assert events[0].detail_json == {"page_number": 20, "revision": 1}
+    candidate_path = f"{root}/{job}/candidates"
+    candidates = student.data("GET", candidate_path)
+    assert "confirmed_items" not in candidates
+    merged = {"text": "\n".join([texts[-2], winner]), "pages": [19, 20]}
+    confirmation = student.data(
+        "PUT",
+        f"{root}/{job}/confirmation",
+        json={"source_revision": candidates["source_revision"], "items": [merged]},
+    )
+    assert confirmation["item_count"] == 1
+    assert student.data("GET", candidate_path)["confirmed_items"] == [merged]
 
 
 def test_school_material_resumes_after_worker_lease_expires(
@@ -319,3 +410,43 @@ def test_expired_school_source_does_not_retry(student, app, settings, clock, med
     clock.advance(settings.media_temporary_ttl_seconds)
     assert process_one(app.state.session_factory, clock.now, settings, media_store)
     assert student.data("GET", f"/learning/jobs/{job}")["status"] == "failed"
+
+
+def test_standalone_worker_removes_expired_private_originals(app, settings, tmp_path):
+    from tutor_api.services.learning_pack_worker import LearningPackWorker
+
+    cleaned = Event()
+
+    class ObservedStore(FilesystemBlobStore):
+        def cleanup(self, *, now):
+            removed = super().cleanup(now=now)
+            cleaned.set()
+            return removed
+
+    now = datetime(2026, 11, 21, tzinfo=UTC)
+    data = b"private original"
+    store = ObservedStore(tmp_path / "media", max_bytes=1024)
+    for lifetime in (1, 3):
+        blob = store.reserve(
+            owner="student",
+            purpose="school_material",
+            mime="application/pdf",
+            size_bytes=len(data),
+            sha256=sha256(data).hexdigest(),
+            expires_at=now + timedelta(minutes=lifetime),
+            now=now,
+        )
+        store.put(blob.id, owner="student", data=data, now=now)
+    assert len(list(store.root.glob("*.bin"))) == 2
+    sweep_at = now + timedelta(minutes=2)
+    worker = LearningPackWorker(
+        app.state.session_factory, lambda: sweep_at, settings, media_store=store
+    )
+    worker.start()
+    try:
+        assert cleaned.wait(timeout=5)
+    finally:
+        worker.close()
+    assert list(store.root.glob("*.bin")) == [store.root / f"{blob.id}.bin"]
+    assert list(store.root.glob("*.json")) == [store.root / f"{blob.id}.json"]
+    assert store.read(blob.id, owner="student", now=sweep_at, temporary=True) == data

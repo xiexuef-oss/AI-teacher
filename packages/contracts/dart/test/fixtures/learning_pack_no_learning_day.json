@@ -1,0 +1,21 @@
+{
+  "name": "learning_pack_no_learning_day",
+  "method": "GET",
+  "path": "/api/v1/learning/jobs/51273b14-8685-4faf-ac28-3801c2faf07a",
+  "status": 200,
+  "schema": "LearningJobStatus",
+  "value": {
+    "id": "51273b14-8685-4faf-ac28-3801c2faf07a",
+    "status": "succeeded",
+    "attempts": 1,
+    "pack_result": "no_learning_day"
+  },
+  "body": {
+    "data": {
+      "id": "51273b14-8685-4faf-ac28-3801c2faf07a",
+      "status": "succeeded",
+      "attempts": 1,
+      "pack_result": "no_learning_day"
+    }
+  }
+}

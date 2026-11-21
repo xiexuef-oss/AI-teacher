@@ -55,6 +55,21 @@ void main() {
   late AppHarness h;
   setUp(() => h = AppHarness());
 
+  testWidgets('启动资料请求返回 401 后可主动重新登录', (tester) async {
+    h.signInAs(role: 'student', token: 'expired-test-token');
+    h.backend.profileFixture = 'profile_empty';
+    h.backend.failNextOn(r'/profile$', 401, 'unauthenticated');
+    await launch(tester, h);
+
+    expect(h.store.data['auth.token'], 'expired-test-token');
+    final relogin = find.text('重新登录');
+    expect(relogin, findsOneWidget);
+    await tapAndSettle(tester, relogin);
+
+    expect(key('onboarding.page'), findsOneWidget);
+    expect(h.store.data['auth.token'], isNot('expired-test-token'));
+  });
+
   group('首次使用：三步引导', () {
     testWidgets('没有资料 → 进入引导；每一步都要满足条件才能往下', (tester) async {
       h.backend.profileFixture = 'profile_empty';
@@ -733,6 +748,12 @@ void main() {
       await tester.pumpAndSettle();
       final minutes = find.widgetWithText(TextField, '每周可用分钟');
       await reveal(tester, minutes);
+      expect(
+        tester.getTopLeft(find.text('每周可用分钟')).dy,
+        greaterThan(
+          tester.getBottomLeft(key('profile.learningMode.boarding')).dy,
+        ),
+      );
       await tester.enterText(minutes, '0');
       await tester.pumpAndSettle();
       await tapAndSettle(tester, key('profile.save'));
@@ -779,7 +800,10 @@ void main() {
       await tapAndSettle(tester, find.text('纸包 28f02454').last);
       await tester.tap(find.text('纸包 03fb9db8').last);
       await tester.pumpAndSettle();
-      final shortCode = find.widgetWithText(TextField, '本包题目短码');
+      final shortCode = find.descendant(
+        of: find.byKey(ValueKey('本包题目短码')),
+        matching: find.byType(TextField),
+      );
       final owner = h.store.data['auth.userId'];
       expect(owner, isNotNull);
       const photoOne = '75d722ab-7d3b-4c65-986e-902edfe66fce';
@@ -798,15 +822,12 @@ void main() {
       await tapAndSettle(tester, find.byTooltip('调整第 2 页'));
       await tapAndSettle(tester, find.text('前移一页'));
       final returnKeys = <String?>[];
+      final returnBodies = <Map<String, dynamic>>[];
       h.backend.on('POST', '/learning/packs/$jobId/items/001/returns', (
         request,
       ) {
         returnKeys.add(request.headers['Idempotency-Key']);
-        final body = jsonDecode(request.body!) as Map;
-        expect(body['transcript'], '选 B');
-        expect(body['independence'], 'independent');
-        expect(body['photo_ids'], [photoTwo, photoOne]);
-        expect(body.containsKey('completed_on'), isFalse);
+        returnBodies.add(jsonDecode(request.body!) as Map<String, dynamic>);
         return returnKeys.length == 1
             ? errorResponse(500, 'internal_error')
             : okResponse({
@@ -817,7 +838,10 @@ void main() {
       });
       await tapAndSettle(tester, find.text('不确定').last);
       await tapAndSettle(tester, find.text('独立完成').last);
-      final transcript = find.widgetWithText(TextField, '纸笔作答转写');
+      final transcript = find.descendant(
+        of: find.byKey(ValueKey('纸笔作答转写')),
+        matching: find.byType(TextField),
+      );
       await reveal(tester, transcript);
       await tester.enterText(transcript, '选 B');
       FocusManager.instance.primaryFocus?.unfocus();
@@ -827,7 +851,19 @@ void main() {
       expect(returnKeys, hasLength(2));
       expect(returnKeys.first, isNotNull);
       expect(returnKeys.last, returnKeys.first);
-      expect(find.text('纸笔作答已回收。'), findsOneWidget);
+      for (final body in returnBodies) {
+        expect(body['transcript'], '选 B');
+        expect(body['independence'], 'independent');
+        expect(body['photo_ids'], [photoTwo, photoOne]);
+        expect(body.containsKey('completed_on'), isFalse);
+      }
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('已回收'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('已回收'), findsOneWidget);
       h.backend.on(
         'GET',
         '/learning/packs/$jobId/items',
@@ -837,6 +873,9 @@ void main() {
           ],
         }),
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('手动选题'));
+      await tester.pumpAndSettle();
       await tapAndSettle(tester, find.text('手动选题'));
       await tapAndSettle(tester, find.text('001 号题 · 第 1 版'));
       expect(find.text('已回收'), findsOneWidget);

@@ -325,6 +325,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/learning-pack-shortages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 汇总待人工处理的纸包题源缺口 */
+        get: operations["listLearningPackShortages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 在本人已发布纸包中定位二维码 */
+        get: operations["locateLearningPackPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/learning/packs/{job_id}/page": {
         parameters: {
             query?: never;
@@ -460,6 +494,23 @@ export interface paths {
         put?: never;
         /** 取消本人尚未结束的学习任务 */
         post: operations["cancelLearningJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/learning/packs/{job_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 重新排队本人待人工处理的纸包 */
+        post: operations["retryLearningPack"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2086,6 +2137,16 @@ export interface components {
             /** Format: uuid */
             question_version_id: string;
         };
+        LearningPackShortages: {
+            math: number;
+            physics: number;
+            chemistry: number;
+        };
+        LearningPackPageLocation: {
+            /** Format: uuid */
+            job_id: string;
+            item: components["schemas"]["LearningPackItem"];
+        };
         LearningPackReturnRecord: {
             transcript_revision?: number;
             item: components["schemas"]["LearningPackItem"];
@@ -2125,10 +2186,10 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            status: "queued" | "running" | "retry_wait" | "succeeded" | "failed" | "cancelled";
+            status: "queued" | "running" | "retry_wait" | "succeeded" | "needs_review" | "failed" | "cancelled";
             attempts: number;
             /** @enum {string} */
-            pack_result?: "published" | "awaiting_return" | "insufficient_budget" | "no_printable_item";
+            pack_result?: "published" | "awaiting_return" | "insufficient_budget" | "no_learning_day" | "no_printable_item";
             reviews?: components["schemas"]["PaperReviewPlanItem"][];
         };
         PaperReviewPlanItem: {
@@ -4563,6 +4624,7 @@ export interface operations {
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
             429: components["responses"]["HttpRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     abandonLearningPack: {
@@ -4622,6 +4684,7 @@ export interface operations {
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
             429: components["responses"]["HttpRateLimited"];
+            503: components["responses"]["ServiceUnavailable"];
         };
     };
     listLearningPackItems: {
@@ -4644,6 +4707,66 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["LearningPackItems"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    listLearningPackShortages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 按学科统计待处理纸包 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackShortages"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            408: components["responses"]["RequestTimeout"];
+            413: components["responses"]["PayloadTooLarge"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    locateLearningPackPage: {
+        parameters: {
+            query: {
+                token: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 纸包及固定题目版本 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["LearningPackPageLocation"];
                     };
                 };
             };
@@ -4954,6 +5077,32 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["LearningJobResponse"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            408: components["responses"]["RequestTimeout"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+            429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    retryLearningPack: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: components["responses"]["LearningJobResponse"];
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

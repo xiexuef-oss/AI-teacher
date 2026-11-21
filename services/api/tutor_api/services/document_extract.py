@@ -14,8 +14,8 @@ from defusedxml import ElementTree as SafeXML
 from defusedxml.common import DefusedXmlException
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import ValidationError
-from pypdf import PdfReader
-from pypdf.errors import PdfReadError
+from pypdf import PdfReader, apply_configuration, get_configuration
+from pypdf.errors import LimitReachedError, PdfReadError
 
 from tutor_api.schemas import AdminQuestionImportIn
 
@@ -73,16 +73,21 @@ def _pdf_reader(data, limits):
 
 
 def _pdf(data, limits):
-    reader = _pdf_reader(data, limits)
     pages = []
+    default_limit = get_configuration().zlib_maximum_output_length
+    unpack_limit = min(limits.max_unpacked_bytes, default_limit or limits.max_unpacked_bytes)
     try:
-        for number, page in enumerate(reader.pages, 1):
-            text = (page.extract_text() or "").strip()
-            warnings = ["PDF 的阅读顺序、公式、图表和上下标必须对照原文人工核对。"]
-            if not text:
-                warnings.append("未提取到文字，可能为空白页或扫描页；需要 OCR 或人工录入。")
-            pages.append(_page(number, text, "pdf_text" if text else "unavailable", warnings))
-            _check_text(pages, limits)
+        with apply_configuration(zlib_maximum_output_length=unpack_limit):
+            reader = _pdf_reader(data, limits)
+            for number, page in enumerate(reader.pages, 1):
+                text = (page.extract_text() or "").strip()
+                warnings = ["PDF 的阅读顺序、公式、图表和上下标必须对照原文人工核对。"]
+                if not text:
+                    warnings.append("未提取到文字，可能为空白页或扫描页；需要 OCR 或人工录入。")
+                pages.append(_page(number, text, "pdf_text" if text else "unavailable", warnings))
+                _check_text(pages, limits)
+    except LimitReachedError as error:
+        raise DocumentParseError("unpacked_limit", "PDF 超过解析资源上限，请拆分后上传") from error
     except DocumentParseError:
         raise
     except Exception as error:
@@ -335,6 +340,11 @@ def render_preview(
             surface = document[page - 1]
             width, height = surface.get_size()
             scale = min(1.5, math.sqrt(limits.max_preview_pixels / (width * height)))
+            if math.ceil(width * scale) * math.ceil(height * scale) > limits.max_preview_pixels:
+                # PDFium rounds each raster dimension up. Fit integer dimensions first.
+                raster_width = min(limits.max_preview_pixels, max(1, int(width * scale)))
+                raster_height = min(limits.max_preview_pixels, max(1, int(height * scale)))
+                scale = math.nextafter(min(raster_width / width, raster_height / height), 0)
             bitmap = surface.render(scale=scale, may_draw_forms=False)
             out = io.BytesIO()
             bitmap.to_pil().convert("RGB").save(out, format="PNG")

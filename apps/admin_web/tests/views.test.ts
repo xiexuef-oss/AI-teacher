@@ -28,11 +28,27 @@ vi.mock('../src/api/admin', () => ({
   getHealth: vi.fn(),
   createLocalIdentity: vi.fn(),
   listQuestions: vi.fn(),
+  listLearningPackShortages: vi.fn(),
   getQuestion: vi.fn(),
   reviewQuestion: vi.fn(),
 }))
 
 const mocked = vi.mocked(api)
+
+it('审核队列查询纸包题源缺口并在切换身份后清除统计', async () => {
+  mocked.listQuestions.mockResolvedValue(page([]))
+  mocked.listLearningPackShortages.mockResolvedValue({ math: 2, physics: 0, chemistry: 1 })
+  const { wrapper } = await mountAt('/')
+  const query = wrapper.findAll('button').find(button => button.text() === '查询待处理数量')
+  expect(query).toBeDefined()
+  await query!.trigger('click')
+  await flushPromises()
+  expect(mocked.listLearningPackShortages).toHaveBeenCalledWith('tok')
+  expect(wrapper.text()).toContain('数学 2 · 物理 0 · 化学 1')
+  setSession({ token: 'another', userId: AUTHOR, role: 'reviewer' })
+  await flushPromises()
+  expect(wrapper.text()).not.toContain('数学 2 · 物理 0 · 化学 1')
+})
 
 function makeRouter() {
   return createRouter({

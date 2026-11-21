@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import struct
 import subprocess
 import sys
 from dataclasses import asdict
@@ -8,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from support.documents import docx_document, text_pdf
+from support.documents import docx_document, png_image, text_pdf
 from tutor_api.services.document_extract import ParseLimits
 from tutor_api.services.document_sandbox import linux_parser_command, systemd_scope_command
 
@@ -53,6 +54,33 @@ def test_real_documents_parse_without_network(sandbox, kind, data, expected):
     )
     assert result.returncode == 0, result.stderr.decode(errors="replace")
     assert expected in json.loads(result.stdout)["pages"][0]["text"]
+
+
+@pytest.mark.parametrize("kind,data", [("pdf", text_pdf("School material")), ("png", png_image())])
+def test_real_sandbox_renders_school_material_preview_and_rejects_other_pages(sandbox, kind, data):
+    _, prefix, command = sandbox
+    request = {
+        "operation": "preview",
+        "kind": kind,
+        "content": base64.b64encode(data).decode(),
+        "limits": asdict(ParseLimits(max_preview_pixels=1024)),
+    }
+    for page in (1, 2):
+        result = subprocess.run(
+            prefix + command,
+            input=json.dumps({**request, "page": page}).encode(),
+            capture_output=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, result.stderr.decode(errors="replace")
+        payload = json.loads(result.stdout)
+        if page == 1:
+            image = base64.b64decode(payload["png"])
+            assert image.startswith(b"\x89PNG\r\n\x1a\n")
+            width, height = struct.unpack(">II", image[16:24])
+            assert 0 < width * height <= 1024
+        else:
+            assert payload["error"]["code"] == "preview_not_found"
 
 
 @pytest.mark.parametrize("doc_conversion", [False, True])
@@ -147,6 +175,9 @@ print('terminated')
 def test_configured_backend_enforces_isolation_and_missing_tool_fails_closed(sandbox, cgroup):
     config, prefix, _ = sandbox
     data = base64.b64encode(text_pdf("Self authored configured parser")).decode()
+    compressed = base64.b64encode(
+        text_pdf("Self authored worksheet\n" * 60, compressed=True)
+    ).decode()
     package_parent = str(Path(config["package"]).parent).replace(chr(92), "/")
     script = f"""
 import sys,base64
@@ -159,12 +190,21 @@ settings=Settings(import_isolation_mode='linux_bwrap',import_linux_bwrap=Path({c
 settings.import_linux_cgroup={cgroup!r}
 result=parse_isolated(base64.b64decode({data!r}),'pdf',settings)
 assert 'Self authored configured parser' in result['pages'][0]['text']
-settings.import_linux_bwrap=Path('/unavailable-isolation-tool')
+preview=parse_isolated(base64.b64decode({data!r}),'pdf',settings,page=1)
+assert base64.b64decode(preview['png']).startswith(bytes.fromhex('89504e470d0a1a0a'))
+settings.import_max_unpacked_bytes=1024
 try:
-    parse_isolated(base64.b64decode({data!r}),'pdf',settings)
-    raise AssertionError('must not fall back')
-except DocumentParseError:
-    pass
+    parse_isolated(base64.b64decode({compressed!r}),'pdf',settings)
+    raise AssertionError('PDF stream must respect the unpack limit')
+except DocumentParseError as error:
+    assert error.code == 'unpacked_limit'
+settings.import_linux_bwrap=Path('/unavailable-isolation-tool')
+for page in (None, 1):
+    try:
+        parse_isolated(base64.b64decode({data!r}),'pdf',settings,page=page)
+        raise AssertionError('must not fall back')
+    except DocumentParseError:
+        pass
 print('configured and failed closed')
 """
     result = subprocess.run(

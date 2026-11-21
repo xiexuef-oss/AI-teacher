@@ -8,6 +8,8 @@ from secrets import token_hex
 
 from sqlalchemy.orm import Session
 
+from tutor_api.blob_store import BlobStorageUnavailable
+from tutor_api.learning_pack_pdf_store import MAX_PDF_BYTES
 from tutor_api.models import (
     LearningPackPublication,
     LearningPackRenderCheckpoint,
@@ -20,8 +22,6 @@ from tutor_api.services.learning_pack_pdf import (
     render_student,
 )
 
-MAX_PDF_BYTES = 2**24 - 1
-
 
 @dataclass(frozen=True)
 class PrintedQuestion:
@@ -31,6 +31,7 @@ class PrintedQuestion:
     answer_mode: str | None = None
     knowledge_ids: tuple[str, ...] = ()
     suggested_on: str | None = None
+    incline_sketch: bool = False
 
 
 def _render_student_stage(
@@ -43,7 +44,7 @@ def _render_student_stage(
         stem = question.stem
         if question.suggested_on:
             stem = f"建议作答日 {question.suggested_on}\n{stem}"
-        student_items.append(PaperItem(code, token, stem))
+        student_items.append(PaperItem(code, token, stem, question.incline_sketch))
         manifest.append(
             {
                 "code": code,
@@ -71,6 +72,7 @@ def publish(
     font: Path,
     clock,
     save_checkpoint=None,
+    pdf_store=None,
 ) -> bool:
     """Stage both PDFs and the status update in the caller's transaction."""
     if not questions or any(not q.stem.strip() or not q.solution.strip() for q in questions):
@@ -112,6 +114,16 @@ def publish(
     solutions = render_solutions(solution_items, font, label=label)
     if len(solutions) > MAX_PDF_BYTES:
         raise ValueError("Learning pack PDF is too large")
+    digests = {"student": sha256(student).hexdigest(), "solution": sha256(solutions).hexdigest()}
+    objects = {}
+    if pdf_store is not None:
+        for variant, data in (("student", student), ("solution", solutions)):
+            key = f"{job_id}/{variant}-{digests[variant]}.pdf"
+            pdf_store.write(key, data)
+            if sha256(pdf_store.read(key)).hexdigest() != digests[variant]:
+                raise BlobStorageUnavailable("Staged paper PDF checksum mismatch")
+            objects[variant] = key
+        student = solutions = b""
     if not finish(db, job_id, lease, clock(), success=True):
         return False
     db.add(
@@ -123,8 +135,9 @@ def publish(
                 "revision": 1,
                 "tracks_solution_access": True,
                 "items": manifest,
-                "student_sha256": sha256(student).hexdigest(),
-                "solution_sha256": sha256(solutions).hexdigest(),
+                "student_sha256": digests["student"],
+                "solution_sha256": digests["solution"],
+                **({"pdf_objects": objects} if objects else {}),
             },
         )
     )

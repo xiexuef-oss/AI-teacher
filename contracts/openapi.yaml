@@ -535,6 +535,8 @@ paths:
         '422': {$ref: '#/components/responses/Unprocessable'}
         '429': {$ref: '#/components/responses/HttpRateLimited'}
 
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
   /learning/packs/{job_id}/abandon:
     post:
       operationId: abandonLearningPack
@@ -584,6 +586,8 @@ paths:
         '422': {$ref: '#/components/responses/Unprocessable'}
         '429': {$ref: '#/components/responses/HttpRateLimited'}
 
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
   /learning/packs/{job_id}/items:
     get:
       operationId: listLearningPackItems
@@ -603,6 +607,56 @@ paths:
                 required: [data]
                 properties:
                   data: {$ref: '#/components/schemas/LearningPackItems'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /admin/learning-pack-shortages:
+    get:
+      operationId: listLearningPackShortages
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 汇总待人工处理的纸包题源缺口
+      responses:
+        '200':
+          description: 按学科统计待处理纸包
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackShortages'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/page:
+    get:
+      operationId: locateLearningPackPage
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 在本人已发布纸包中定位二维码
+      parameters:
+        - {name: token, in: query, required: true, schema: {type: string, pattern: '^[0-9a-f]{32}$'}}
+      responses:
+        '200':
+          description: 纸包及固定题目版本
+          headers: {X-Request-Id: {$ref: '#/components/headers/RequestId'}}
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/LearningPackPageLocation'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
@@ -858,6 +912,27 @@ paths:
         - {$ref: '#/components/parameters/IdempotencyKey'}
       responses:
         '200': {$ref: '#/components/responses/LearningJobResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '408': {$ref: '#/components/responses/RequestTimeout'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
+        '429': {$ref: '#/components/responses/HttpRateLimited'}
+
+  /learning/packs/{job_id}/retry:
+    post:
+      operationId: retryLearningPack
+      x-implementation-status: implemented
+      tags: [tasks]
+      summary: 重新排队本人待人工处理的纸包
+      parameters:
+        - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      responses:
+        '202': {$ref: '#/components/responses/LearningJobResponse'}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -4204,6 +4279,23 @@ components:
         code: {type: string, pattern: '^[0-9]{3}$'}
         question_version_id: {type: string, format: uuid}
 
+    LearningPackShortages:
+      type: object
+      additionalProperties: false
+      required: [math, physics, chemistry]
+      properties:
+        math: {type: integer, minimum: 0}
+        physics: {type: integer, minimum: 0}
+        chemistry: {type: integer, minimum: 0}
+
+    LearningPackPageLocation:
+      type: object
+      additionalProperties: false
+      required: [job_id, item]
+      properties:
+        job_id: {type: string, format: uuid}
+        item: {$ref: '#/components/schemas/LearningPackItem'}
+
     LearningPackReturnRecord:
       type: object
       additionalProperties: false
@@ -4276,9 +4368,9 @@ components:
       required: [id, status, attempts]
       properties:
         id: {type: string, format: uuid}
-        status: {type: string, enum: [queued, running, retry_wait, succeeded, failed, cancelled]}
+        status: {type: string, enum: [queued, running, retry_wait, succeeded, needs_review, failed, cancelled]}
         attempts: {type: integer, minimum: 0, maximum: 3}
-        pack_result: {type: string, enum: [published, awaiting_return, insufficient_budget, no_printable_item]}
+        pack_result: {type: string, enum: [published, awaiting_return, insufficient_budget, no_learning_day, no_printable_item]}
         reviews:
           type: array
           items: {$ref: '#/components/schemas/PaperReviewPlanItem'}

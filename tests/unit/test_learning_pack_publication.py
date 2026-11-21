@@ -37,10 +37,11 @@ def test_publication_commits_pair_and_respects_cancel(db, student):
     assert db.get(LearningPackPublication, job) is None
 
 
-def test_continuation_pages_have_distinct_tokens(db, student):
+def test_continuation_pages_have_distinct_tokens(db, student, new_student):
     now = datetime(2026, 11, 18, tzinfo=UTC)
     font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
-    item = PrintedQuestion("version-1", "Continue reading. " * 1200, "Answer: four")
+    version = "03fb9db8-aed3-44d2-a605-56a9debe29c9"
+    item = PrintedQuestion(version, "Continue reading. " * 1200, "Answer: four")
     job = enqueue(db, student.user_id, "multi-page", now)
     lease = claim(db, job, now)
     assert lease is not None and publish(db, job, lease, [item], font, lambda: now)
@@ -48,6 +49,15 @@ def test_continuation_pages_have_distinct_tokens(db, student):
     manifest_item = pack.manifest_json["items"][0]
     tokens = [manifest_item["page_token"], *manifest_item["continuation_tokens"]]
     assert len(set(tokens)) == len(PdfReader(BytesIO(pack.student_pdf)).pages) > 1
+    db.commit()
+    other = new_student()
+    for token in tokens:
+        query = {"token": token}
+        assert student.data("GET", "/learning/packs/page", params=query) == {
+            "job_id": job,
+            "item": {"revision": 1, "code": "001", "question_version_id": version},
+        }
+        other.error("GET", "/learning/packs/page", params=query, expect=404)
 
 
 def test_oversized_student_pdf_stops_before_rendering_solutions(db, student, monkeypatch):

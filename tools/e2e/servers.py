@@ -1,8 +1,7 @@
 """联调要起的服务（后端、Web 版的静态服务器、审核后台的开发服务器），以及"Web 版是不是过期了"。
 
-端口是固定的：Flutter Web 版里把后端地址写死成了 127.0.0.1:8000（`lib/config.dart`），
-后端本地环境又只放行 localhost 来源的跨域请求，审核后台的开发服务器固定在 5174。
-所以联调开始前这三个端口都得是空的——本机的开发服务器要先停掉。
+后端默认使用 8000，可通过 TUTOR_E2E_API_PORT 与本机开发服务并行运行。
+Flutter Web 静态服务和审核后台仍分别使用 8081 和 5174。
 """
 
 from __future__ import annotations
@@ -24,7 +23,8 @@ from typing import IO
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-API_PORT = 8000
+DEFAULT_API_PORT = 8000
+API_PORT = int(os.environ.get("TUTOR_E2E_API_PORT", DEFAULT_API_PORT))
 FLUTTER_PORT = 8081
 ADMIN_PORT = 5174
 API_URL = f"http://127.0.0.1:{API_PORT}/api/v1"
@@ -32,7 +32,9 @@ FLUTTER_URL = f"http://127.0.0.1:{FLUTTER_PORT}/"
 ADMIN_URL = f"http://127.0.0.1:{ADMIN_PORT}/"
 
 FLUTTER_APP = REPO_ROOT / "apps" / "flutter_student"
-FLUTTER_WEB = FLUTTER_APP / "build" / "web"
+FLUTTER_WEB = (
+    FLUTTER_APP / "build" / ("web" if API_PORT == DEFAULT_API_PORT else f"web-e2e-{API_PORT}")
+)
 ADMIN_APP = REPO_ROOT / "apps" / "admin_web"
 CONTRACTS_DART = REPO_ROOT / "packages" / "contracts" / "dart"
 
@@ -181,6 +183,8 @@ def start_api(
         "PYTHONIOENCODING": "utf-8",
     }
     command = [sys.executable, "-X", "utf8", str(REPO_ROOT / "tools" / "run_dev_api.py")]
+    if API_PORT != DEFAULT_API_PORT:
+        command.extend(["--port", str(API_PORT)])
     if review_minutes is not None:
         if not review_minutes or any(
             type(value) is not int or value < 1 for value in review_minutes
@@ -214,7 +218,7 @@ def start_admin_dev(log_dir: Path) -> Service:
         "审核后台",
         [node, str(vite)],
         cwd=ADMIN_APP,
-        env={**os.environ},
+        env={**os.environ, "VITE_API_BASE": API_URL},
         log_path=log_dir / "admin_dev.log",
     )
     try:
@@ -266,9 +270,18 @@ def find_flutter(explicit: str | None = None) -> str | None:
 def build_flutter_web(flutter: str, log_path: Path) -> None:
     """构建 Web 发布版（联调测的是发布版，和学生实际拿到的一致）。约 2~3 分钟。"""
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    command = [flutter, "build", "web", "--release"]
+    if API_PORT != DEFAULT_API_PORT:
+        command.extend(
+            [
+                "--output",
+                str(FLUTTER_WEB),
+                f"--dart-define=TUTOR_API_BASE={API_URL.removesuffix('/api/v1')}",
+            ]
+        )
     with log_path.open("wb") as log:
         done = subprocess.run(
-            [flutter, "build", "web", "--release"],
+            command,
             cwd=FLUTTER_APP,
             stdout=log,
             stderr=subprocess.STDOUT,

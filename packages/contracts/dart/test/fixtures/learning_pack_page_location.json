@@ -1,0 +1,25 @@
+{
+  "name": "learning_pack_page_location",
+  "method": "GET",
+  "path": "/api/v1/learning/packs/page",
+  "status": 200,
+  "schema": "LearningPackPageLocation",
+  "value": {
+    "job_id": "b1c2bbb1-bff7-464b-a99a-fb23b705a929",
+    "item": {
+      "revision": 1,
+      "code": "001",
+      "question_version_id": "8ad90891-2d2c-5f73-a321-e9da217e4531"
+    }
+  },
+  "body": {
+    "data": {
+      "job_id": "b1c2bbb1-bff7-464b-a99a-fb23b705a929",
+      "item": {
+        "revision": 1,
+        "code": "001",
+        "question_version_id": "8ad90891-2d2c-5f73-a321-e9da217e4531"
+      }
+    }
+  }
+}
