@@ -1,3 +1,5 @@
+import pytest
+
 from tutor_api.services.document_split import split_pages
 
 
@@ -32,12 +34,13 @@ def test_subquestion_parentheses_do_not_split_and_unknown_order_is_warned():
     assert any("题号" in warning for warning in result[1]["warnings"])
 
 
-def test_bounded_exam_instructions_do_not_create_numbered_questions():
+@pytest.mark.parametrize("heading", ["选择题", "单项选择题", "多项选择题", "非选择题"])
+def test_bounded_exam_instructions_do_not_create_numbered_questions(heading):
     result = split_pages(
-        [page(1, "注意事项：\n1. 填写姓名\n2. 使用答题卡\n一、选择题：\n1. 第一题\n2. 第二题")]
+        [page(1, f"注意事项：\n1. 填写姓名\n2. 使用答题卡\n一、{heading}：\n1. 第一题\n2. 第二题")]
     )
     assert [item["text"] for item in result] == [
-        "注意事项：\n1. 填写姓名\n2. 使用答题卡\n一、选择题：",
+        f"注意事项：\n1. 填写姓名\n2. 使用答题卡\n一、{heading}：",
         "1. 第一题",
         "2. 第二题",
     ]

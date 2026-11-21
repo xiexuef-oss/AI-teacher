@@ -4,18 +4,26 @@ import argparse
 import csv
 import json
 from collections import defaultdict
+from hashlib import file_digest
 from pathlib import Path
 
 from summarize_evaluation import read_results
 from validate_evaluation_manifest import validate_manifest
 
 
+def _sha256(path):
+    with Path(path).open("rb") as source:
+        return file_digest(source, "sha256").hexdigest()
+
+
 def check_coverage(manifest, results, *, minimum=300, required_groups=()):
     failure = {"ready": False, "groups": []}
     try:
+        manifest_sha256 = _sha256(manifest)
         registration = validate_manifest(manifest, minimum=minimum)
         if not registration["ready"]:
             return {**failure, "code": "incomplete_registration"}
+        results_sha256 = _sha256(results)
         rows, errors = read_results(results)
         if errors:
             return {**failure, "code": "invalid_results"}
@@ -30,6 +38,8 @@ def check_coverage(manifest, results, *, minimum=300, required_groups=()):
             if expected.get(row.item_id) != row.answer_mode:
                 return {**failure, "code": "unregistered_or_mismatched_item"}
             groups[(row.task_type, row.provider, row.model)].add(row.item_id)
+        if _sha256(manifest) != manifest_sha256 or _sha256(results) != results_sha256:
+            return {**failure, "code": "metadata_changed_during_check"}
     except (OSError, ValueError, csv.Error, RecursionError):
         return {**failure, "code": "unreadable_or_invalid_metadata"}
     coverage = [
@@ -46,6 +56,8 @@ def check_coverage(manifest, results, *, minimum=300, required_groups=()):
         "ready": bool(coverage) and all(group["missing_items"] == 0 for group in coverage),
         "registered_items": len(expected),
         "minimum": minimum,
+        "manifest_sha256": manifest_sha256,
+        "results_sha256": results_sha256,
         "groups": coverage,
         "disclaimer": "Metadata coverage only; does not verify licenses, quality or release approval.",
     }

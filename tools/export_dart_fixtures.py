@@ -280,8 +280,31 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 f"/school-materials/{school_job['id']}/confirmation",
                 json={
                     "source_revision": school_candidates["source_revision"],
-                    "items": [{"text": "自编确认样例", "pages": [1]}],
+                    "items": [
+                        {
+                            "text": "自编确认样例",
+                            "pages": [1],
+                            "teacher_marks": "检查符号",
+                            "teacher_score": 2.5,
+                            "regions": [
+                                {
+                                    "page": 1,
+                                    "kind": "teacher_mark",
+                                    "left": 0.5,
+                                    "top": 0.75,
+                                    "right": 1,
+                                    "bottom": 1,
+                                }
+                            ],
+                        }
+                    ],
                 },
+            )
+            rec(
+                "school_material_teacher_marks",
+                student,
+                "GET",
+                f"/school-materials/{school_job['id']}/candidates",
             )
             app.state.settings.scan_mock_enabled = True
             scan_bytes = png_image()

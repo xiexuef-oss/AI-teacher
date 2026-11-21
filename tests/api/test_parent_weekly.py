@@ -381,7 +381,11 @@ def test_a_revoked_parent_loses_every_week_at_once(linked, clock, app, settings)
     solve(student, "math-mono-quadratic")
     clock.advance(days=7)
     (entry,) = links_of(student)["links"]
-    assert weekly(parent, student.user_id, week_start=WEEK)["attempts_count"] == 1
+    weekly_path = f"/parents/students/{student.user_id}/weekly"
+    response = parent.request("GET", weekly_path, params={"week_start": WEEK})
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.json()["data"]["attempts_count"] == 1
     assert generate_due_snapshots(app.state.session_factory, settings, clock.now()) == 1
     snapshot_path = f"/parents/students/{student.user_id}/weekly-snapshots/{WEEK}"
     snapshot = parent.request("GET", snapshot_path)
@@ -392,9 +396,9 @@ def test_a_revoked_parent_loses_every_week_at_once(linked, clock, app, settings)
     revoke(student, entry["id"])
 
     for params in ({}, {"week_start": WEEK}):
-        parent.error(
-            "GET", f"/parents/students/{student.user_id}/weekly", expect=404, params=params or None
-        )
+        response = parent.request("GET", weekly_path, params=params or None)
+        assert response.status_code == 404
+        assert response.headers["Cache-Control"] == "no-store"
     for params in (None, {"revision": 1}):
         response = parent.request("GET", snapshot_path, params=params)
         assert response.status_code == 404

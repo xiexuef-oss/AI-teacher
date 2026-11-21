@@ -232,6 +232,15 @@ def test_low_confidence_output_requires_review(make_gateway):
     assert response.review_required is True
 
 
+def test_ocr_cannot_return_a_teacher_score_or_marks(make_gateway):
+    h = _ocr_gateway(
+        make_gateway,
+        ProviderResult(output={**OCR_OK, "teacher_marks": "Check", "teacher_score": 3}),
+    )
+    response = h.gateway.invoke(make_request(TaskType.OCR_EXTRACT))
+    assert response.validated_output is None
+
+
 def test_confident_output_does_not_require_review(make_gateway):
     h = _ocr_gateway(make_gateway, ProviderResult(output=OCR_OK, confidence=0.97))
 

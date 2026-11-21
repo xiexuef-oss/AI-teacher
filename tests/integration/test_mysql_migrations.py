@@ -217,6 +217,7 @@ def test_real_concurrent_workers_publish_only_one_unreturned_pack(
 
     monkeypatch.setattr(worker, "publish", publish)
     monkeypatch.setattr(worker, "claim", claim)
+    monkeypatch.setattr(worker, "PAPER_SAMPLES", (("chemistry", "chem-process-reading"),))
     font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
     with ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(worker.prepare_one, sessions, lambda: now, font)
@@ -271,12 +272,15 @@ def test_mysql_cancel_committed_during_render_blocks_publication(mysql_engine, m
 
 
 def test_mysql_worker_recovers_committed_render_checkpoint(mysql_engine, monkeypatch):
+    import subprocess
+    import sys
     from datetime import UTC, datetime
 
     from reportlab import __file__ as reportlab_path
     from sqlalchemy.orm import sessionmaker
 
     from tutor_api.models import (
+        LearningJob,
         LearningPackCommand,
         LearningPackPublication,
         LearningPackRenderCheckpoint,
@@ -311,18 +315,67 @@ def test_mysql_worker_recovers_committed_render_checkpoint(mysql_engine, monkeyp
         raise SystemExit("worker stopped")
 
     font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
-    with monkeypatch.context() as patch:
-        patch.setattr(publication, "render_solutions", interrupt)
-        with pytest.raises(SystemExit, match="worker stopped"):
-            prepare_one(sessions, lambda: now, font)
+    worker_code = """
+import os
+from datetime import datetime
+from pathlib import Path
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from tutor_api.services import learning_pack_publication
+from tutor_api.services.learning_pack_worker import prepare_one
+
+recovering = os.environ['TUTOR_TEST_WORKER_RECOVERING'] == '1'
+if recovering:
+    learning_pack_publication.render_student = lambda *args, **kwargs: os._exit(85)
+else:
+    learning_pack_publication.render_solutions = lambda *args, **kwargs: os._exit(83)
+engine = create_engine(os.environ['TUTOR_TEST_WORKER_DATABASE'], hide_parameters=True)
+completed = prepare_one(
+    sessionmaker(engine),
+    lambda: datetime.fromisoformat(os.environ['TUTOR_TEST_WORKER_TIME']),
+    Path(os.environ['TUTOR_TEST_WORKER_FONT']),
+)
+os._exit(84 if completed else 86)
+"""
+
+    def crash_worker(*, recovering):
+        clock = now + LEASE if recovering else now
+        return subprocess.run(
+            [sys.executable, "-c", worker_code],
+            env={
+                **os.environ,
+                "PYTHONPATH": os.pathsep.join(
+                    str(Path(path).resolve()) for path in ("services/api", "services/ai_gateway")
+                ),
+                "TUTOR_TEST_WORKER_DATABASE": mysql_engine.url.render_as_string(
+                    hide_password=False
+                ),
+                "TUTOR_TEST_WORKER_TIME": clock.isoformat(),
+                "TUTOR_TEST_WORKER_FONT": str(font),
+                "TUTOR_TEST_WORKER_RECOVERING": "1" if recovering else "0",
+            },
+            capture_output=True,
+            timeout=30,
+        ).returncode
+
+    assert crash_worker(recovering=False) == 83
     with sessions() as session:
         checkpoint = session.get_one(LearningPackRenderCheckpoint, job)
         expected = checkpoint.student_pdf, checkpoint.manifest_json
         assert session.get(LearningPackPublication, job) is None
 
+    assert crash_worker(recovering=True) == 84
+    with sessions() as session:
+        pack = session.get_one(LearningPackPublication, job)
+        published = (pack.student_pdf, pack.solution_pdf, pack.manifest_json)
+        attempts = session.get_one(LearningJob, job).attempts
+
     monkeypatch.setattr(publication, "render_student", interrupt)
-    assert prepare_one(sessions, lambda: now + LEASE, font)
+    assert not prepare_one(sessions, lambda: now + LEASE, font, queued_id=job)
     with sessions() as session:
         pack = session.get_one(LearningPackPublication, job)
         assert (pack.student_pdf, pack.manifest_json["items"]) == expected
+        assert (pack.student_pdf, pack.solution_pdf, pack.manifest_json) == published
+        assert session.get_one(LearningJob, job).attempts == attempts
         assert session.get(LearningPackRenderCheckpoint, job) is None

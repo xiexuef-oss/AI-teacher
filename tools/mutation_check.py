@@ -81,7 +81,11 @@ MUTATIONS = [
         API / "services" / "learning_pack_worker.py",
         "key=lambda pair: pair[:2], default=None",
         "key=lambda pair: pair[0], default=None",
-        ("tests/api/test_learning_pack_request.py::test_due_physics_review_takes_priority_over_fresh_chemistry",),
+        (
+            "tests/api/test_learning_pack_request.py::test_due_physics_review_takes_priority_over_fresh_chemistry",
+            "tests/api/test_learning_pack_request.py::test_paper_math_inequality_review_switches_from_numeric_fill_to_choice",
+            "tests/api/test_learning_pack_request.py::test_paper_chemistry_stoichiometry_cross_variant",
+        ),
     ),
     Mutation(
         "CircleSpec A点绘图范围可绕过",

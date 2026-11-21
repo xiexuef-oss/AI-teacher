@@ -7,11 +7,22 @@ import pytest
 from reportlab import __file__ as reportlab_path
 
 from support.documents import png_image
+from support.parents import authorize, links_of, revoke
 from tutor_api.blob_store import FilesystemBlobStore
 from tutor_api.models import LearningPackCommand, LearningPackPublication, LearningPackReturnPhotos
 from tutor_api.services.learning_pack_evidence import paper_evidence
 from tutor_api.services.learning_pack_worker import prepare_one
 from tutor_api.services.weekly_snapshots import generate_due_snapshots
+
+
+@pytest.fixture
+def only_original_chemistry_sample(db):
+    from tutor_api.models import Question
+    from tutor_api.services.content_seed import seed_uuid
+
+    for key in ("chem-conservation-co2", "chem-conservation-h2"):
+        db.get_one(Question, seed_uuid("question", key)).status = "archived"
+    db.commit()
 
 
 def test_pack_request_uses_saved_budget_and_replays(onboarded, app, clock, db):
@@ -125,7 +136,16 @@ def test_learning_mode_changes_preserve_the_published_pack(onboarded, app, clock
     ],
 )
 def test_no_printable_item_does_not_publish_an_ineligible_question(
-    onboarded, app, clock, db, reviewer, parent, new_student, field, invalid
+    onboarded,
+    app,
+    clock,
+    db,
+    reviewer,
+    parent,
+    new_student,
+    field,
+    invalid,
+    only_original_chemistry_sample,
 ):
     from tutor_api.models import Question
     from tutor_api.services.content_seed import seed_uuid
@@ -233,7 +253,7 @@ def test_boarding_pack_returns_after_five_days_without_device_activity(onboarded
 
 
 def test_worker_publishes_both_sample_pdfs(
-    onboarded, app, clock, db, new_student, parent, tmp_path
+    onboarded, app, clock, db, new_student, parent, tmp_path, only_original_chemistry_sample
 ):
     onboarded.save_profile(
         json={
@@ -829,7 +849,7 @@ def test_expired_worker_reuses_committed_student_pdf(onboarded, app, clock, monk
         assert session.get(LearningPackRenderCheckpoint, job["id"]) is None
 
 
-def test_worker_publishes_and_returns_math_interval_sample(onboarded, app, clock):
+def test_worker_publishes_and_returns_math_interval_sample(onboarded, app, clock, parent):
     import os
     from io import BytesIO
 
@@ -856,6 +876,7 @@ def test_worker_publishes_and_returns_math_interval_sample(onboarded, app, clock
     )
     with sessions() as session:
         pack = session.get_one(LearningPackPublication, job)
+        initial_knowledge = set(pack.manifest_json["items"][0]["knowledge_ids"])
         student = PdfReader(BytesIO(pack.student_pdf)).pages[0].extract_text()
         solution = PdfReader(BytesIO(pack.solution_pdf)).pages[0].extract_text()
         assert "f(x)=-x^2+4x+1" in student
@@ -899,7 +920,9 @@ def test_worker_publishes_and_returns_math_interval_sample(onboarded, app, clock
         "id"
     ]
     assert prepare_one(sessions, clock.now, font)
-    assert onboarded.data("GET", f"/learning/jobs/{duplicate}")["pack_result"] == "awaiting_return"
+    with sessions() as session:
+        fallback = session.get_one(LearningPackPublication, duplicate).manifest_json["items"][0]
+        assert set(fallback["knowledge_ids"]).isdisjoint(item["knowledge_ids"])
     assert archived_item == onboarded.data(
         "POST",
         f"{review_path}/items/001/returns",
@@ -909,6 +932,89 @@ def test_worker_publishes_and_returns_math_interval_sample(onboarded, app, clock
     with sessions() as session:
         evidence = paper_evidence(session, onboarded.user_id, pack_id=review)
         assert evidence[0].outcome == "correct"
+
+    schedule = onboarded.data("GET", "/learning/review-schedule")["items"]
+    shared_knowledge = initial_knowledge.intersection(item["knowledge_ids"])
+    assert shared_knowledge
+    assert {entry["knowledge_id"] for entry in schedule if entry["stage"] == 1} == shared_knowledge
+    weekly = f"/parents/students/{onboarded.user_id}/weekly"
+    parent.error("GET", weekly, expect=404)
+    authorize(onboarded, parent)
+    (link,) = links_of(onboarded)["links"]
+    paper = parent.data("GET", weekly)["paper"]
+    assert paper["confirmed"] == 2
+    assert paper["independent"]["denominator"] == 2
+    assert paper["independent"]["numerator"] == 2
+    assert set(paper) == {
+        "confirmed",
+        "awaiting_assessment",
+        "late_returns",
+        "unknown_completion_date",
+        "independent",
+        "assisted",
+    }
+    revoke(onboarded, link["id"])
+    parent.error("GET", weekly, expect=404)
+
+
+def test_paper_math_inequality_review_switches_from_numeric_fill_to_choice(onboarded, app, clock):
+    import os
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    from tutor_api.models import Question
+    from tutor_api.services.content_seed import seed_uuid
+
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-50",
+            "subjects": ["math"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 10, "weekdays": [1]},
+        }
+    )
+    sessions = app.state.session_factory
+    with sessions.begin() as session:
+        session.get_one(
+            Question, seed_uuid("question", "math-mono-quadratic-v1")
+        ).status = "archived"
+    local_font = os.environ.get("TUTOR_LEARNING_PACK_SAMPLE_FONT")
+    font = Path(local_font) if local_font else Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+
+    for index, (mode, stem, transcript) in enumerate(
+        (("fill", "x+y=8", "16"), ("single_choice", "25 m^2", "C"))
+    ):
+        job = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})[
+            "id"
+        ]
+        assert prepare_one(sessions, clock.now, font)
+        with sessions() as session:
+            pack = session.get_one(LearningPackPublication, job)
+            item = pack.manifest_json["items"][0]
+            assert item["answer_mode"] == mode
+            assert bool(item["suggested_on"]) == bool(index)
+            text = PdfReader(BytesIO(pack.student_pdf)).pages[0].extract_text()
+            assert stem in text
+            solution = PdfReader(BytesIO(pack.solution_pdf)).pages[0].extract_text()
+            assert "\\" not in text + solution
+            assert ("((x+y)/2)^2" if index else "sqrt(xy)") in solution
+            if local_font:
+                assert "最大值" in text
+        onboarded.data(
+            "POST",
+            f"/learning/packs/{job}/items/001/returns",
+            expect=201,
+            json={"transcript": transcript, "independence": "independent"},
+        )
+        with sessions() as session:
+            (evidence,) = paper_evidence(session, onboarded.user_id, pack_id=job)
+            assert evidence.outcome == "correct"
+            assert evidence.question_version_id == item["question_version_id"]
+        if index == 0:
+            clock.advance(days=3)
+
+    (review,) = onboarded.data("GET", "/learning/review-schedule")["items"]
+    assert review["stage"] == 1
 
 
 def test_worker_publishes_and_returns_a_physics_multiple_choice_sample(onboarded, app, clock, db):
@@ -951,7 +1057,7 @@ def test_worker_publishes_and_returns_a_physics_multiple_choice_sample(onboarded
 
 
 def test_worker_uses_another_subject_when_first_sample_is_awaiting_return(
-    onboarded, app, clock, db
+    onboarded, app, clock, db, only_original_chemistry_sample
 ):
     onboarded.save_profile(
         json={
@@ -976,6 +1082,64 @@ def test_worker_uses_another_subject_when_first_sample_is_awaiting_return(
     assert len({item.manifest_json["items"][0]["question_version_id"] for item in packs[:2]}) == 2
     assert packs[2] is None
     assert onboarded.data("GET", f"/learning/jobs/{jobs[2]}")["pack_result"] == "awaiting_return"
+
+
+def test_paper_chemistry_stoichiometry_cross_variant(onboarded, app, clock):
+    import os
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-51",
+            "subjects": ["chemistry"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 10, "weekdays": [1]},
+        }
+    )
+    sessions = app.state.session_factory
+    local_font = os.environ.get("TUTOR_LEARNING_PACK_SAMPLE_FONT")
+    font = Path(local_font) if local_font else Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+    outstanding = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})[
+        "id"
+    ]
+    assert prepare_one(sessions, clock.now, font)
+
+    for mode, transcript, formula in (("fill", "4.4 g", "CaCO3"), ("single_choice", "B", "ZnSO4")):
+        job = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})[
+            "id"
+        ]
+        assert prepare_one(sessions, clock.now, font)
+        with sessions() as session:
+            pack = session.get_one(LearningPackPublication, job)
+            (item,) = pack.manifest_json["items"]
+            assert item["answer_mode"] == mode
+            student_pdf = PdfReader(BytesIO(pack.student_pdf)).pages[0].extract_text()
+            solution_pdf = PdfReader(BytesIO(pack.solution_pdf)).pages[0].extract_text()
+            assert formula in solution_pdf and formula not in student_pdf
+            assert "\\" not in student_pdf + solution_pdf
+            if local_font:
+                assert "化学方程式" in solution_pdf and "↑" in solution_pdf
+            if mode == "fill":
+                assert "____" in student_pdf
+            else:
+                assert item["suggested_on"]
+        onboarded.data(
+            "POST",
+            f"/learning/packs/{job}/items/001/returns",
+            expect=201,
+            json={"transcript": transcript, "independence": "independent"},
+        )
+        with sessions() as session:
+            (evidence,) = paper_evidence(session, onboarded.user_id, pack_id=job)
+            assert evidence.outcome == "correct"
+            assert evidence.question_version_id == item["question_version_id"]
+        if mode == "fill":
+            clock.advance(days=3)
+
+    (review,) = onboarded.data("GET", "/learning/review-schedule")["items"]
+    assert review["stage"] == 1
+    assert outstanding in onboarded.data("GET", "/learning/packs")["ids"]
 
 
 def test_due_physics_review_takes_priority_over_fresh_chemistry(onboarded, app, clock, db, parent):

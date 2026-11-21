@@ -56,6 +56,29 @@ def test_real_documents_parse_without_network(sandbox, kind, data, expected):
     assert expected in json.loads(result.stdout)["pages"][0]["text"]
 
 
+def test_real_sandbox_word_answer_text_preserves_archive_limits(sandbox):
+    _, prefix, command = sandbox
+    data = docx_document("<w:p><w:r><w:t>1. Answer location</w:t></w:r></w:p>", image=True)
+    for limit in (ParseLimits(), ParseLimits(max_unpacked_bytes=100)):
+        request = {
+            "operation": "extract",
+            "kind": "docx_answer_text",
+            "content": base64.b64encode(data).decode(),
+            "limits": asdict(limit),
+        }
+        result = subprocess.run(
+            prefix + command, input=json.dumps(request).encode(), capture_output=True, timeout=30
+        )
+        assert result.returncode == 0, result.stderr.decode(errors="replace")
+        payload = json.loads(result.stdout)
+        if limit.max_unpacked_bytes == 100:
+            assert payload["error"]["code"] == "unpacked_limit"
+        else:
+            (page,) = payload["pages"]
+            assert page["text"] == "1. Answer location"
+            assert page["media_refs"] == []
+
+
 @pytest.mark.parametrize("kind,data", [("pdf", text_pdf("School material")), ("png", png_image())])
 def test_real_sandbox_renders_school_material_preview_and_rejects_other_pages(sandbox, kind, data):
     _, prefix, command = sandbox

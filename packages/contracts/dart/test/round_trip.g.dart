@@ -134,6 +134,7 @@ final Map<String, RoundTrip> roundTrips = {
   'MediaReviewDeclaration': (json) => MediaReviewDeclaration.fromJson(json).toJson(),
   'SchoolMaterialConfirmationRequest': (json) => SchoolMaterialConfirmationRequest.fromJson(json).toJson(),
   'SchoolMaterialConfirmedItem': (json) => SchoolMaterialConfirmedItem.fromJson(json).toJson(),
+  'SchoolMaterialRegion': (json) => SchoolMaterialRegion.fromJson(json).toJson(),
   'SchoolMaterialConfirmationReceipt': (json) => SchoolMaterialConfirmationReceipt.fromJson(json).toJson(),
   'SchoolMaterialCandidates': (json) => SchoolMaterialCandidates.fromJson(json).toJson(),
   'SchoolMaterialCandidate': (json) => SchoolMaterialCandidate.fromJson(json).toJson(),
@@ -1059,6 +1060,13 @@ const Map<String, dynamic> roundTripMetadata = {
     }
   },
   "SchoolMaterialConfirmedItem": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {
+      "regions": "SchoolMaterialRegion"
+    }
+  },
+  "SchoolMaterialRegion": {
     "nullable": [],
     "objects": {},
     "arrays": {}

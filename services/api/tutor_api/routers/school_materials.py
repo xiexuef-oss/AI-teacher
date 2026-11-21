@@ -8,7 +8,6 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path
-from PIL import Image
 from pydantic import Field
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import aliased
@@ -36,6 +35,7 @@ from tutor_api.services.learning_jobs import enqueue
 
 router = APIRouter(route_class=PrivateRoute)
 PURPOSE = "school_material"
+MATERIAL_KINDS = {"application/pdf": "pdf", "image/jpeg": "jpeg", "image/png": "png"}
 
 
 class SchoolMaterialUploadIn(_In):
@@ -147,7 +147,7 @@ def preview_page(job_id: UUID, page_number: int = Path(ge=1), ctx: Ctx = Depends
         data = store.read(blob.id, owner=ctx.actor_id, now=now, temporary=True)
     except BlobNotFound:
         raise not_found() from None
-    kind = {"application/pdf": "pdf", "image/jpeg": "jpeg", "image/png": "png"}[blob.mime]
+    kind = MATERIAL_KINDS[blob.mime]
     try:
         preview = parse_isolated(data, kind, ctx.settings, page=page_number)["png"]
     except DocumentParseError as error:
@@ -190,9 +190,27 @@ def _source_revision(revisions: dict[int, int]) -> str:
     return sha256(dumps(sorted(revisions.items())).encode()).hexdigest()
 
 
+PageCoordinate = Annotated[float, Field(strict=True, ge=0, le=1)]
+
+
+class SchoolMaterialRegionIn(_In):
+    page: int = Field(strict=True, ge=1)
+    kind: Literal["stem", "answer", "teacher_mark"]
+    left: PageCoordinate
+    top: PageCoordinate
+    right: PageCoordinate
+    bottom: PageCoordinate
+
+
 class SchoolMaterialConfirmedItemIn(_In):
     text: str = Field(min_length=1, max_length=4000, pattern=r"\S")
     pages: list[Annotated[int, Field(strict=True, ge=1)]] = Field(min_length=1, max_length=200)
+    teacher_marks: str | None = Field(default=None, min_length=1, max_length=4000, pattern=r"\S")
+    teacher_score: float | None = Field(
+        default=None, strict=True, ge=0, le=99999.99, multiple_of=0.01
+    )
+    max_score: float | None = Field(default=None, strict=True, gt=0, le=99999.99, multiple_of=0.01)
+    regions: list[SchoolMaterialRegionIn] | None = Field(default=None, min_length=1, max_length=20)
 
 
 class SchoolMaterialConfirmationIn(_In):
@@ -222,7 +240,22 @@ def confirm_candidates(
             for item in body.items
         ):
             raise unprocessable("items", "分题数量或关联页码无效")
-        items = [item.model_dump() for item in body.items]
+        if any(
+            item.teacher_score is not None
+            and item.max_score is not None
+            and item.teacher_score > item.max_score
+            for item in body.items
+        ):
+            raise unprocessable("items", "教师评分不能超过原件满分")
+        if any(
+            region.page not in item.pages
+            or region.left >= region.right
+            or region.top >= region.bottom
+            for item in body.items
+            for region in item.regions or ()
+        ):
+            raise unprocessable("items", "框选区域必须位于关联页且有面积")
+        items = [item.model_dump(exclude_none=True) for item in body.items]
         previous = ctx.db.get(
             SchoolMaterialConfirmation, (str(job_id), current), with_for_update=True
         )
@@ -239,7 +272,7 @@ def confirm_candidates(
             raise conflict("school_material_already_confirmed", "该页面版本的分题已确认")
         return {"source_revision": current, "item_count": len(items)}
 
-    return run_idempotent(ctx, body, 200, action)
+    return run_idempotent(ctx, body.model_dump(exclude_none=True), 200, action)
 
 
 class SchoolMaterialCorrectionIn(_In):
@@ -339,24 +372,24 @@ def upload(media_id: UUID, body: MediaBlobIn, ctx: Ctx = Depends(student_ctx)):
             data = b64decode(body.content_base64, validate=True)
             if len(data) != blob.size_bytes or sha256(data).hexdigest() != blob.sha256:
                 raise ValueError("size or digest mismatch")
-            if blob.mime == "application/pdf":
-                if not data.startswith(b"%PDF-"):
-                    raise ValueError("invalid PDF header")
-                page_count = len(parse_isolated(data, "pdf", ctx.settings)["pages"])
-                if page_count < 1:
-                    raise ValueError("empty PDF")
-            else:
-                media_service.validate_static_image(
-                    data, blob.mime, ctx.settings.media_max_bytes, ctx.settings.media_max_pixels
+            kind = MATERIAL_KINDS[blob.mime]
+            if kind == "pdf" and not data.startswith(b"%PDF-"):
+                raise ValueError("invalid PDF header")
+            settings = ctx.settings
+            if kind != "pdf" and settings.media_max_pixels < settings.import_max_image_pixels:
+                settings = settings.model_copy(
+                    update={"import_max_image_pixels": settings.media_max_pixels}
                 )
-                page_count = 1
+            page_count = len(parse_isolated(data, kind, settings)["pages"])
+            if page_count < 1:
+                raise ValueError("empty school material")
         except DocumentParseError as error:
             if error.code == "page_limit":
                 raise ApiError(413, "payload_too_large", "学校材料页数超过上限") from None
             if error.code == "isolation_unavailable":
                 raise ApiError(503, "service_unavailable", "学校材料校验暂不可用") from None
             raise unprocessable("content_base64", error.message) from None
-        except (ValueError, OSError, Image.DecompressionBombError):
+        except (ValueError, OSError):
             raise unprocessable("content_base64", "学校材料格式、大小或摘要不匹配") from None
         try:
             store.put(source, owner=ctx.actor_id, data=data, now=ctx.now())

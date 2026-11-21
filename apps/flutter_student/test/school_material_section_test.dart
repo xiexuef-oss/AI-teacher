@@ -6,13 +6,75 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tutor_contracts/tutor_contracts.dart';
 import 'package:tutor_student/core/providers.dart';
+import 'package:tutor_student/features/profile/school_material_candidate_editor.dart';
 import 'package:tutor_student/features/profile/school_material_section.dart';
 
 import 'support/app_harness.dart';
 import 'support/fake_backend.dart';
 
 void main() {
+  for (final size in [phone, tabletPortrait, tabletLandscape]) {
+    testWidgets('teacher fields fit at 1.5x on $size', (tester) async {
+      useSize(tester, size);
+      final harness = AppHarness();
+      const owner = 'school-layout-owner';
+      harness.signInAs(role: 'student', userId: owner);
+      await tester.pumpWidget(
+        harness.page(
+          ProviderScope(
+            overrides: [userIdProvider.overrideWithValue(owner)],
+            child: Scaffold(
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: SchoolMaterialCandidateEditor(
+                  owner: owner,
+                  job: 'layout-job',
+                  revision: 'a' * 64,
+                  candidates: const [
+                    SchoolMaterialCandidate(
+                      text: '请核对题面和原件中的作答区域。',
+                      locations: [
+                        SchoolMaterialCandidateLocation(page: 20, block: 1),
+                      ],
+                      warnings: [],
+                    ),
+                  ],
+                  onConfirmed: () {},
+                  onSelectRegion: (_, _) async => null,
+                ),
+              ),
+            ),
+          ),
+          textScale: 1.5,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('教师批注与原件分数'));
+      await tester.pumpAndSettle();
+      final marks = find.widgetWithText(TextField, '教师批注');
+      final score = find.widgetWithText(TextField, '教师评分');
+      final maximum = find.widgetWithText(TextField, '原件满分');
+      for (final field in [marks, score, maximum]) {
+        await tester.ensureVisible(field);
+        expect(field.hitTestable(), findsOneWidget);
+        final bounds = tester.getRect(field);
+        expect(bounds.left, greaterThanOrEqualTo(0));
+        expect(bounds.right, lessThanOrEqualTo(size.width));
+      }
+      expect(
+        tester.getRect(marks).bottom,
+        lessThanOrEqualTo(tester.getRect(score).top),
+      );
+      expect(
+        tester.getRect(score).bottom,
+        lessThanOrEqualTo(tester.getRect(maximum).top),
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('failed task lets the same PDF start a fresh upload', (
     tester,
   ) async {
@@ -338,17 +400,93 @@ void main() {
     await tester.tap(merge);
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextField, '题目 2'), findsNothing);
+    harness.backend.on(
+      'GET',
+      '$root/$job/pages/2/preview',
+      (_) =>
+          okResponse(harness.backend.fixtures.value('school_material_preview')),
+    );
+    final regionButton = find.text('框选原件区域');
+    await tester.ensureVisible(regionButton);
+    await tester.tap(regionButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('第 2 页').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('教师批注').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    final canvas = find.byKey(const ValueKey('schoolMaterial.regionCanvas'));
+    final rect = tester.getRect(canvas);
+    await tester.dragFrom(
+      rect.topLeft + Offset(rect.width * .2, rect.height * .2),
+      Offset(rect.width * .4, rect.height * .4),
+    );
+    await tester.pump();
+    await tester.tap(find.text('保留区域'));
+    await tester.pumpAndSettle();
+    expect(find.text('第 2 页 教师批注'), findsOneWidget);
+    final teacher = find.text('教师批注与原件分数');
+    await tester.ensureVisible(teacher);
+    await tester.tap(teacher);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, '教师批注'), '核对负号');
+    await tester.enterText(find.widgetWithText(TextField, '教师评分'), '2.5');
+    await tester.enterText(find.widgetWithText(TextField, '原件满分'), '2');
+    await tester.pumpAndSettle();
+    expect(find.text('教师评分不能超过原件满分'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, '原件满分'), '');
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    await mount();
+    await tester.tap(find.byKey(const ValueKey('schoolMaterial.refresh')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('查看分题候选'));
+    await tester.pumpAndSettle();
+    expect(find.text('核对负号'), findsOneWidget);
+    expect(find.text('第 2 页 教师批注'), findsOneWidget);
     final confirm = find.text('确认分题');
     await tester.ensureVisible(confirm);
     await tester.tap(confirm);
     await tester.pumpAndSettle();
+    final saved = confirmedItems!.single as Map<String, dynamic>;
+    final region = (saved['regions'] as List).single as Map<String, dynamic>;
+    expect(region['page'], 2);
+    expect(region['kind'], 'teacher_mark');
+    expect(region['left'], closeTo(.2, .02));
+    expect(region['top'], closeTo(.2, .02));
+    expect(region['right'], closeTo(.6, .02));
+    expect(region['bottom'], closeTo(.6, .02));
     expect(confirmedItems, [
       {
         'text': 'local\ntext',
         'pages': [2],
+        'teacher_marks': '核对负号',
+        'teacher_score': 2.5,
+        'regions': [region],
       },
     ]);
     expect(find.text('已确认分题'), findsOneWidget);
+    expect(find.text('核对负号'), findsOneWidget);
+    expect(find.text('教师评分 2.5'), findsOneWidget);
+    final readback = find.text('查看第 2 页框选');
+    await tester.ensureVisible(readback);
+    await tester.tap(readback);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('原件第 2 页'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.bySemanticsLabel('教师批注'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('关闭'));
+    await tester.pumpAndSettle();
     expect(
       harness.store.data.values.any((value) => value.contains('local text')),
       isFalse,

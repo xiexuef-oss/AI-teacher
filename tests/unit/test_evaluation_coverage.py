@@ -2,7 +2,9 @@ import csv
 import json
 import subprocess
 import sys
+from hashlib import sha256
 
+import check_evaluation_coverage as coverage_tool
 import pytest
 from check_evaluation_coverage import check_coverage
 from validate_evaluation_manifest import FIELDS
@@ -67,6 +69,35 @@ def test_distinct_items_not_requests_and_models_are_separate(tmp_path):
         assert [g["missing_items"] for g in report["groups"]] == missing
         assert "private" not in json.dumps(report)
     assert not check_coverage(manifest, results)["ready"]  # Default remains 300.
+
+
+def test_coverage_records_input_digests_without_disclosing_metadata(tmp_path):
+    manifest, results = files(tmp_path, [("one", "m"), ("two", "m")])
+    report = check_coverage(manifest, results, minimum=2)
+    assert report["manifest_sha256"] == sha256(manifest.read_bytes()).hexdigest()
+    assert report["results_sha256"] == sha256(results.read_bytes()).hexdigest()
+    assert "private" not in json.dumps(report)
+    with results.open("a", encoding="utf-8") as output:
+        output.write("\n")
+    updated = check_coverage(manifest, results, minimum=2)
+    assert updated["ready"] and updated["manifest_sha256"] == report["manifest_sha256"]
+    assert updated["results_sha256"] != report["results_sha256"]
+
+
+def test_coverage_rejects_results_updated_during_validation(tmp_path, monkeypatch):
+    manifest, results = files(tmp_path, [("one", "m"), ("two", "m")])
+    read_results = coverage_tool.read_results
+
+    def read_then_append(path):
+        rows = read_results(path)
+        with path.open("a", encoding="utf-8") as output:
+            output.write("\n")
+        return rows
+
+    monkeypatch.setattr(coverage_tool, "read_results", read_then_append)
+    report = check_coverage(manifest, results, minimum=2)
+    assert not report["ready"]
+    assert report["code"] == "metadata_changed_during_check"
 
 
 @pytest.mark.parametrize(

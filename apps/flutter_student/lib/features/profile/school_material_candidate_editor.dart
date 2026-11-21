@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tutor_contracts/tutor_contracts.dart';
 
@@ -8,6 +9,7 @@ import '../../core/errors.dart';
 import '../../core/idempotency.dart';
 import '../../core/local_serial.dart';
 import '../../core/providers.dart';
+import 'school_material_region_preview.dart';
 
 class SchoolMaterialCandidateEditor extends ConsumerStatefulWidget {
   const SchoolMaterialCandidateEditor({
@@ -15,6 +17,7 @@ class SchoolMaterialCandidateEditor extends ConsumerStatefulWidget {
     required this.job,
     required this.revision,
     required this.candidates,
+    required this.onSelectRegion,
     required this.onConfirmed,
     super.key,
   });
@@ -23,6 +26,8 @@ class SchoolMaterialCandidateEditor extends ConsumerStatefulWidget {
   final String job;
   final String revision;
   final List<SchoolMaterialCandidate> candidates;
+  final Future<SchoolMaterialRegion?> Function(int, List<SchoolMaterialRegion>)
+  onSelectRegion;
   final VoidCallback onConfirmed;
 
   @override
@@ -33,13 +38,52 @@ class SchoolMaterialCandidateEditor extends ConsumerStatefulWidget {
 class _QuestionDraft {
   _QuestionDraft(SchoolMaterialConfirmedItem item)
     : text = TextEditingController(text: item.text),
+      teacherMarks = TextEditingController(text: item.teacherMarks),
+      teacherScore = TextEditingController(text: item.teacherScore?.toString()),
+      maxScore = TextEditingController(text: item.maxScore?.toString()),
+      regions = [...?item.regions],
       pages = item.pages;
 
   final TextEditingController text;
+  final TextEditingController teacherMarks;
+  final TextEditingController teacherScore;
+  final TextEditingController maxScore;
   final List<int> pages;
+  final List<SchoolMaterialRegion> regions;
 
-  SchoolMaterialConfirmedItem get item =>
-      SchoolMaterialConfirmedItem(text: text.text, pages: pages);
+  bool get hasTeacherDetails =>
+      teacherMarks.text.trim().isNotEmpty ||
+      teacherScore.text.isNotEmpty ||
+      maxScore.text.isNotEmpty;
+
+  bool get hasAnnotations => hasTeacherDetails || regions.isNotEmpty;
+
+  String? get scoreProblem {
+    final score = double.tryParse(teacherScore.text);
+    final maximum = double.tryParse(maxScore.text);
+    if (maximum == null) return null;
+    if (maximum <= 0) return '原件满分必须大于零';
+    if (score != null && score > maximum) return '教师评分不能超过原件满分';
+    return null;
+  }
+
+  SchoolMaterialConfirmedItem get item => SchoolMaterialConfirmedItem(
+    text: text.text,
+    pages: pages,
+    teacherMarks: teacherMarks.text.trim().isEmpty
+        ? null
+        : teacherMarks.text.trim(),
+    teacherScore: double.tryParse(teacherScore.text),
+    maxScore: double.tryParse(maxScore.text),
+    regions: regions.isEmpty ? null : regions,
+  );
+
+  void dispose() {
+    text.dispose();
+    teacherMarks.dispose();
+    teacherScore.dispose();
+    maxScore.dispose();
+  }
 }
 
 class _SchoolMaterialCandidateEditorState
@@ -177,7 +221,8 @@ class _SchoolMaterialCandidateEditorState
         (draft) =>
             draft.pages.isNotEmpty &&
             draft.text.text.trim().isNotEmpty &&
-            draft.text.text.runes.length <= 4000,
+            draft.text.text.runes.length <= 4000 &&
+            draft.scoreProblem == null,
       );
 
   Future<void> _confirm() async {
@@ -215,12 +260,47 @@ class _SchoolMaterialCandidateEditorState
     }
   }
 
+  Future<void> _addRegion(_QuestionDraft draft, int page) async {
+    if (!_active || _busy || draft.regions.length >= 20) return;
+    setState(() => _busy = true);
+    SchoolMaterialRegion? region;
+    try {
+      region = await widget.onSelectRegion(page, draft.regions);
+    } catch (error) {
+      if (_active) setState(() => _error = describeError(error));
+    } finally {
+      if (_active) setState(() => _busy = false);
+    }
+    if (region case final selected?) _change(() => draft.regions.add(selected));
+  }
+
   @override
   void dispose() {
     for (final draft in [..._drafts, ..._retired]) {
-      draft.text.dispose();
+      draft.dispose();
     }
     super.dispose();
+  }
+
+  Widget _scoreField(
+    TextEditingController controller,
+    String label, {
+    String? error,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: !_busy,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        TextInputFormatter.withFunction((oldValue, newValue) {
+          return RegExp(r'^(?:\d{1,5}(?:\.\d{0,2})?)?$').hasMatch(newValue.text)
+              ? newValue
+              : oldValue;
+        }),
+      ],
+      onChanged: (_) => _change(() {}),
+      decoration: InputDecoration(labelText: label, errorText: error),
+    );
   }
 
   @override
@@ -243,19 +323,71 @@ class _SchoolMaterialCandidateEditorState
                 helperText: '页码 ${draft.pages.join('、')}',
               ),
             ),
+            PopupMenuButton<int>(
+              enabled:
+                  !_busy && draft.pages.isNotEmpty && draft.regions.length < 20,
+              onSelected: (page) => _addRegion(draft, page),
+              itemBuilder: (_) => [
+                for (final page in draft.pages)
+                  PopupMenuItem(value: page, child: Text('第 $page 页')),
+              ],
+              child: const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('框选原件区域'),
+              ),
+            ),
+            if (draft.regions.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final region in draft.regions)
+                    InputChip(
+                      label: Text(
+                        '第 ${region.page} 页 ${schoolMaterialRegionLabels[region.kind]}',
+                      ),
+                      onDeleted: _busy
+                          ? null
+                          : () => _change(() => draft.regions.remove(region)),
+                    ),
+                ],
+              ),
             Wrap(
               children: [
                 TextButton(
-                  onPressed: _busy || _drafts.length >= 200
+                  onPressed:
+                      _busy || _drafts.length >= 200 || draft.hasAnnotations
                       ? null
                       : () => _split(index),
                   child: const Text('从光标处拆题'),
                 ),
                 if (index + 1 < _drafts.length)
                   TextButton(
-                    onPressed: _busy ? null : () => _merge(index),
+                    onPressed:
+                        _busy ||
+                            draft.hasAnnotations ||
+                            _drafts[index + 1].hasAnnotations
+                        ? null
+                        : () => _merge(index),
                     child: const Text('与下一题合并'),
                   ),
+              ],
+            ),
+            ExpansionTile(
+              title: const Text('教师批注与原件分数'),
+              initiallyExpanded: draft.hasTeacherDetails,
+              children: [
+                const Text('拆题或合并后再记录教师批注。原件没有分数时可留空。'),
+                TextField(
+                  controller: draft.teacherMarks,
+                  enabled: !_busy,
+                  maxLength: 4000,
+                  minLines: 1,
+                  maxLines: 4,
+                  onChanged: (_) => _change(() {}),
+                  decoration: const InputDecoration(labelText: '教师批注'),
+                ),
+                _scoreField(draft.teacherScore, '教师评分'),
+                _scoreField(draft.maxScore, '原件满分', error: draft.scoreProblem),
               ],
             ),
           ],

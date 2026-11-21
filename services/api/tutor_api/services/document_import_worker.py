@@ -20,6 +20,7 @@ from tutor_api.services.document_split import split_pages
 
 logger = logging.getLogger(__name__)
 _HEARTBEAT_MAX_INTERVAL = 1.0
+_ANSWER_FILENAME = re.compile(r"答案|解析|(?:^|[_. -])answers?(?:[_. -]|$)", re.I)
 
 
 @contextmanager
@@ -115,9 +116,7 @@ def _reconcile_files(db, job, files, settings):
                 **page,
                 "_file_id": file.id,
                 "_order_uncertain": uncertain,
-                "_answer_file": bool(
-                    re.search(r"答案|解析|(?:^|[_. -])answers?(?:[_. -]|$)", file.filename, re.I)
-                ),
+                "_answer_file": bool(_ANSWER_FILENAME.search(file.filename)),
             }
             if file.kind == "json":
                 original = originals.get((file.id, page["number"], None))
@@ -204,11 +203,19 @@ def process_next(
             file = db.get(DocumentImportFile, file_id)
             file.status = "processing"
             data, kind = file.content, file.kind
+            is_answer_docx = kind == "docx" and bool(_ANSWER_FILENAME.search(file.filename))
             job.lease_until = clock() + timedelta(seconds=settings.import_worker_lease_seconds)
             db.commit()
         with _keep_lease(factory, settings, clock, job_id, lease, stopping):
+            text_only = False
             try:
-                pages = parser(data, kind, settings)["pages"]
+                try:
+                    pages = parser(data, kind, settings)["pages"]
+                except DocumentParseError as error:
+                    if not is_answer_docx or error.code != "media_limit":
+                        raise
+                    pages = parser(data, "docx_answer_text", settings)["pages"]
+                    text_only = True
 
                 def checkpoint():
                     if stopping.is_set():
@@ -245,7 +252,7 @@ def process_next(
                     data,
                     kind,
                     settings,
-                    gateway,
+                    None if text_only else gateway,
                     parser,
                     job_id,
                     checkpoint,
@@ -266,7 +273,7 @@ def process_next(
                 file = db.get(DocumentImportFile, file_id)
                 candidates = job_candidates(db, job_id)
                 # 单文件结果和候选题在同一事务提交，恢复时不会重复创建。
-                pieces = split_pages(pages)
+                pieces = [] if text_only else split_pages(pages)
                 if len(candidates) + len(pieces) > settings.import_max_candidates:
                     problem = "candidate_limit: 候选题数量超过上限，请拆分任务"
                 if problem:

@@ -1246,7 +1246,7 @@ export interface paths {
         get?: never;
         /**
          * 上传本人学校材料原件
-         * @description 对原件验证格式、大小、摘要及页数或像素。跨账号、过期或其他用途的凭据统一返回 404。上传不创建题库题目，也不产生学习证据。
+         * @description 对原件验证大小和摘要，在隔离解析进程中核对 PDF 页数或静态图片的格式和像素。隔离不可用时返回 503。跨账号、过期或其他用途的凭据统一返回 404。上传不创建题库题目，也不产生学习证据。
          */
         put: operations["uploadSchoolMaterialContent"];
         post?: never;
@@ -3139,6 +3139,23 @@ export interface components {
         SchoolMaterialConfirmedItem: {
             text: string;
             pages: number[];
+            /** @description 学生对照原件手工记录的教师批注，与题面和作答文字分开保存。 */
+            teacher_marks?: string;
+            /** @description 原件可辨认的教师评分，缺失时省略，不用于自动判题。 */
+            teacher_score?: number;
+            /** @description 原件注明的满分，缺失时省略，不从教师评分推断。 */
+            max_score?: number;
+            regions?: components["schemas"]["SchoolMaterialRegion"][];
+        };
+        /** @description 相对于该页校正预览的框选坐标，左上为 (0, 0)，右下为 (1, 1)。页码必须属于该题，框选矩形必须有面积。 */
+        SchoolMaterialRegion: {
+            page: number;
+            /** @enum {string} */
+            kind: "stem" | "answer" | "teacher_mark";
+            left: number;
+            top: number;
+            right: number;
+            bottom: number;
         };
         SchoolMaterialConfirmationReceipt: {
             source_revision: string;

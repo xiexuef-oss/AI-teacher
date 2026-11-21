@@ -4405,19 +4405,72 @@ class SchoolMaterialConfirmedItem {
   const SchoolMaterialConfirmedItem({
     required this.text,
     required this.pages,
+    this.teacherMarks,
+    this.teacherScore,
+    this.maxScore,
+    this.regions,
   });
 
   final String text;
   final List<int> pages;
+  final String? teacherMarks;
+  final double? teacherScore;
+  final double? maxScore;
+  final List<SchoolMaterialRegion>? regions;
 
   factory SchoolMaterialConfirmedItem.fromJson(Map<String, dynamic> json) => SchoolMaterialConfirmedItem(
         text: json['text'] as String,
         pages: (json['pages'] as List<dynamic>).map((e) => (e as num).toInt()).toList(),
+        teacherMarks: json['teacher_marks'] == null ? null : json['teacher_marks'] as String,
+        teacherScore: json['teacher_score'] == null ? null : (json['teacher_score'] as num).toDouble(),
+        maxScore: json['max_score'] == null ? null : (json['max_score'] as num).toDouble(),
+        regions: json['regions'] == null ? null : (json['regions'] as List<dynamic>).map((e) => SchoolMaterialRegion.fromJson(e as Map<String, dynamic>)).toList(),
       );
 
   Map<String, dynamic> toJson() => {
         'text': text,
         'pages': pages,
+        if (teacherMarks != null) 'teacher_marks': teacherMarks,
+        if (teacherScore != null) 'teacher_score': teacherScore,
+        if (maxScore != null) 'max_score': maxScore,
+        if (regions != null) 'regions': regions?.map((e) => e.toJson()).toList(),
+      };
+}
+
+/// 相对于该页校正预览的框选坐标，左上为 (0, 0)，右下为 (1, 1)。页码必须属于该题，框选矩形必须有面积。
+class SchoolMaterialRegion {
+  const SchoolMaterialRegion({
+    required this.page,
+    required this.kind,
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+  });
+
+  final int page;
+  final String kind;
+  final double left;
+  final double top;
+  final double right;
+  final double bottom;
+
+  factory SchoolMaterialRegion.fromJson(Map<String, dynamic> json) => SchoolMaterialRegion(
+        page: (json['page'] as num).toInt(),
+        kind: json['kind'] as String,
+        left: (json['left'] as num).toDouble(),
+        top: (json['top'] as num).toDouble(),
+        right: (json['right'] as num).toDouble(),
+        bottom: (json['bottom'] as num).toDouble(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'page': page,
+        'kind': kind,
+        'left': left,
+        'top': top,
+        'right': right,
+        'bottom': bottom,
       };
 }
 

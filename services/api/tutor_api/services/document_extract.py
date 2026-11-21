@@ -140,7 +140,7 @@ def _paragraph(node):
     return "".join(parts).strip()
 
 
-def _docx(data, limits):
+def _docx(data, limits, *, text_only=False):
     warnings = ["DOCX 序号表示提取片段，不是 Word 物理页码；公式、图示及版式必须人工核对。"]
     with _open_docx(data, limits) as archive:
         document = _xml(archive.read("word/document.xml"))
@@ -165,6 +165,10 @@ def _docx(data, limits):
         if len(raster_or_other) != len(media):
             warnings.append("文档含 WMF/EMF 矢量公式或图示，请在 Word 原件中核对。")
         media = raster_or_other
+        if text_only:
+            if media:
+                warnings.append("解析卷仅提取文字位置，图像和公式请下载原件核对。")
+            media = []
         if len(media) > 100:
             raise DocumentParseError("media_limit", "文档内媒体数量超过上限")
         links = {}
@@ -238,13 +242,17 @@ def _docx(data, limits):
         return pages
 
 
-def _validate_image(data, limits):
+def _validate_image(data, limits, *, kind=None):
     try:
         with Image.open(io.BytesIO(data)) as image:
             if image.width * image.height > limits.max_image_pixels:
                 raise DocumentParseError("image_limit", "图片像素超过上限，请缩小后上传")
             if image.format not in {"PNG", "JPEG"}:
                 raise DocumentParseError("invalid_image", "只接收 PNG/JPEG 图片")
+            if kind is not None and (
+                image.format != kind.upper() or getattr(image, "n_frames", 1) != 1
+            ):
+                raise DocumentParseError("invalid_image", "图片格式不符或包含多帧")
             image.verify()
     except DocumentParseError:
         raise
@@ -255,10 +263,10 @@ def _validate_image(data, limits):
 def extract(data: bytes, kind: str, limits: ParseLimits) -> list[dict]:
     if kind == "pdf":
         return _pdf(data, limits)
-    if kind == "docx":
-        return _docx(data, limits)
+    if kind in {"docx", "docx_answer_text"}:
+        return _docx(data, limits, text_only=kind == "docx_answer_text")
     if kind in {"png", "jpeg"}:
-        _validate_image(data, limits)
+        _validate_image(data, limits, kind=kind)
         return [_page(1, "", "unavailable", ["图片文字尚未识别，需要 OCR 或人工录入。"])]
     if kind == "doc":
         raise DocumentParseError(

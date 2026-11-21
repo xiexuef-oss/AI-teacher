@@ -2306,7 +2306,7 @@ paths:
       operationId: uploadSchoolMaterialContent
       tags: [learning]
       summary: 上传本人学校材料原件
-      description: 对原件验证格式、大小、摘要及页数或像素。跨账号、过期或其他用途的凭据统一返回 404。上传不创建题库题目，也不产生学习证据。
+      description: 对原件验证大小和摘要，在隔离解析进程中核对 PDF 页数或静态图片的格式和像素。隔离不可用时返回 503。跨账号、过期或其他用途的凭据统一返回 404。上传不创建题库题目，也不产生学习证据。
       x-implementation-status: implemented
       parameters:
         - $ref: '#/components/parameters/RequestId'
@@ -5780,6 +5780,40 @@ components:
           maxItems: 200
           uniqueItems: true
           items: {type: integer, minimum: 1}
+        teacher_marks:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: 学生对照原件手工记录的教师批注，与题面和作答文字分开保存。
+        teacher_score:
+          type: number
+          minimum: 0
+          maximum: 99999.99
+          multipleOf: 0.01
+          description: 原件可辨认的教师评分，缺失时省略，不用于自动判题。
+        max_score:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 99999.99
+          multipleOf: 0.01
+          description: 原件注明的满分，缺失时省略，不从教师评分推断。
+        regions:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: {$ref: '#/components/schemas/SchoolMaterialRegion'}
+    SchoolMaterialRegion:
+      type: object
+      additionalProperties: false
+      required: [page, kind, left, top, right, bottom]
+      description: 相对于该页校正预览的框选坐标，左上为 (0, 0)，右下为 (1, 1)。页码必须属于该题，框选矩形必须有面积。
+      properties:
+        page: {type: integer, minimum: 1}
+        kind: {type: string, enum: [stem, answer, teacher_mark]}
+        left: {type: number, minimum: 0, maximum: 1}
+        top: {type: number, minimum: 0, maximum: 1}
+        right: {type: number, minimum: 0, maximum: 1}
+        bottom: {type: number, minimum: 0, maximum: 1}
     SchoolMaterialConfirmationReceipt:
       type: object
       additionalProperties: false

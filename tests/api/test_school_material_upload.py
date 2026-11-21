@@ -33,6 +33,13 @@ def test_school_material_upload_is_private_and_idempotent(
     other.error("PUT", upload, json=body, expect=404)
     student.error("PUT", f"/scans/uploads/{source['media_id']}/content", json=body, expect=404)
     student.error("PUT", upload, json={"content_base64": "aW52YWxpZA=="}, expect=422)
+    settings.import_isolation_mode = "linux_bwrap"
+    student.error("PUT", upload, json=body, expect=503)
+    settings.import_isolation_mode = "process"
+    pixel_limit = settings.media_max_pixels
+    settings.media_max_pixels = 1024
+    student.error("PUT", upload, json=body, expect=422)
+    settings.media_max_pixels = pixel_limit
     receipt = student.data("PUT", upload, json=body, key="upload-school")
     assert receipt == {
         **meta,
@@ -203,13 +210,37 @@ def test_worker_lists_private_pdf_text_and_marks_blank_pages(
     ]
     assert items[2]["locations"] == [{"page": 2, "block": 2}]
     confirm = f"{root}/{job['id']}/confirmation"
+    teacher_region = {
+        "page": 1,
+        "kind": "teacher_mark",
+        "left": 0.5,
+        "top": 0.75,
+        "right": 1,
+        "bottom": 1,
+    }
     payload = {
         "source_revision": suggestion["source_revision"],
-        "items": [{"text": "Merged question", "pages": [1, 2]}],
+        "items": [
+            {
+                "text": "Merged question",
+                "pages": [1, 2],
+                "teacher_marks": "Check the sign",
+                "teacher_score": 2.5,
+                "regions": [teacher_region],
+            },
+            {"text": "Another question", "pages": [2], "teacher_marks": "No score visible"},
+        ],
     }
     new_student().error("PUT", confirm, json=payload, expect=404)
+    excessive = {**payload["items"][0], "max_score": 2}
+    student.error("PUT", confirm, json={**payload, "items": [excessive]}, expect=422)
+    for invalid in ({"page": 3}, {"top": 1}, {"right": 1.01}):
+        item = {**payload["items"][0], "regions": [{**teacher_region, **invalid}]}
+        student.error("PUT", confirm, json={**payload, "items": [item]}, expect=422)
+    other_page = {**payload["items"][1], "regions": [teacher_region]}
+    student.error("PUT", confirm, json={**payload, "items": [other_page]}, expect=422)
     receipt = student.data("PUT", confirm, json=payload, key="confirm-material")
-    assert receipt == {"source_revision": payload["source_revision"], "item_count": 1}
+    assert receipt == {"source_revision": payload["source_revision"], "item_count": 2}
     assert student.data("PUT", confirm, json=payload, key="confirm-material") == receipt
     assert student.data("GET", candidates)["confirmed_items"] == payload["items"]
     student.data("PUT", edit, json={"expected_revision": 3, "text": "Updated text"})
@@ -231,9 +262,13 @@ def test_worker_lists_private_pdf_text_and_marks_blank_pages(
 def test_twenty_page_material_keeps_continuation_page_in_confirmation(
     student, app, settings, clock, media_store
 ):
+    from json import dumps
+
     from sqlalchemy import select
 
+    from tutor_api.db import new_id
     from tutor_api.models import AuditLog
+    from tutor_api.proto_models import IdempotencyRecord
     from tutor_api.services.school_material_worker import process_one
 
     texts = [f"{n}. Original engineering question" for n in range(1, 20)]
@@ -298,13 +333,42 @@ def test_twenty_page_material_keeps_continuation_page_in_confirmation(
     candidates = student.data("GET", candidate_path)
     assert "confirmed_items" not in candidates
     merged = {"text": "\n".join([texts[-2], winner]), "pages": [19, 20]}
+    confirmation_path = f"{root}/{job}/confirmation"
+    payload = {"source_revision": candidates["source_revision"], "items": [merged]}
     confirmation = student.data(
         "PUT",
-        f"{root}/{job}/confirmation",
-        json={"source_revision": candidates["source_revision"], "items": [merged]},
+        confirmation_path,
+        json=payload,
     )
     assert confirmation["item_count"] == 1
     assert student.data("GET", candidate_path)["confirmed_items"] == [merged]
+    legacy_key = "legacy-confirmation-replay"
+    legacy_body = dumps(
+        {"m": "PUT", "p": f"/api/v1{confirmation_path}", "b": payload},
+        ensure_ascii=False,
+        sort_keys=True,
+    ).encode()
+    with app.state.session_factory.begin() as session:
+        session.add(
+            IdempotencyRecord(
+                id=new_id(),
+                user_id=student.user_id,
+                idempotency_key=legacy_key,
+                fingerprint=sha256(legacy_body).hexdigest(),
+                status_code=200,
+                response_json={"data": confirmation},
+                created_at=clock.now(),
+            )
+        )
+    replay = student.request("PUT", confirmation_path, key=legacy_key, json=payload)
+    assert replay.status_code == 200
+    assert replay.headers["Idempotency-Replayed"] == "true"
+    assert replay.json()["data"] == confirmation
+    changed = {**payload, "items": [{**merged, "teacher_score": 0}]}
+    assert (
+        student.error("PUT", confirmation_path, key=legacy_key, json=changed, expect=409)["code"]
+        == "idempotency_key_conflict"
+    )
 
 
 def test_school_material_resumes_after_worker_lease_expires(

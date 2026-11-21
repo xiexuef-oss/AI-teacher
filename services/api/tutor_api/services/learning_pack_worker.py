@@ -1,6 +1,7 @@
 """Local learning-pack preparation worker using the database as its queue."""
 
 import logging
+import re
 from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
@@ -44,8 +45,17 @@ PAPER_SAMPLES = (
     ("physics", "phys-incline-accel"),
     ("math", "math-mono-quadratic-v1"),
     ("math", "math-mono-quadratic"),
+    ("math", "math-ineq-product-v1"),
+    ("math", "math-ineq-rect"),
+    ("chemistry", "chem-conservation-co2"),
+    ("chemistry", "chem-conservation-h2"),
 )
-DUE_ONLY_SAMPLES = {"phys-incline-accel", "math-mono-quadratic"}
+DUE_ONLY_SAMPLES = {
+    "phys-incline-accel",
+    "math-mono-quadratic",
+    "math-ineq-rect",
+    "chem-conservation-h2",
+}
 
 
 def _sample_question(db, key):
@@ -89,6 +99,33 @@ def _sample_question(db, key):
     elif key in {"math-mono-quadratic", "math-mono-quadratic-v1"}:
         stem = stem.replace(r"\infty", "∞").replace("$", "")
         explanation = explanation.replace(r"\infty", "∞").replace("$", "")
+    elif key in {"math-ineq-product-v1", "math-ineq-rect"}:
+        for source, target in (
+            (r"\ \text{m}^2", " m^2"),
+            (r"\ \text{m}", " m"),
+            (r"\sqrt{xy}", "sqrt(xy)"),
+            (r"\dfrac{x+y}{2}", "(x+y)/2"),
+            (r"\left(", "("),
+            (r"\right)", ")"),
+            (r"\le", "≤"),
+            ("$", ""),
+        ):
+            stem = stem.replace(source, target)
+            explanation = explanation.replace(source, target)
+    elif key in {"chem-conservation-co2", "chem-conservation-h2"}:
+
+        def chemistry_text(text):
+            text = re.sub(r"\\text\{([^{}]+)\}", r"\1", text)
+            text = re.sub(r"\\dfrac\{([^{}]+)\}\{([^{}]+)\}", r"(\1)/(\2)", text)
+            text = re.sub(r"_(?=\d)", "", text)
+            return (
+                text.replace(r"\times", " × ")
+                .replace(r"\uparrow", "↑")
+                .replace(r"\ ", " ")
+                .replace("$", "")
+            )
+
+        stem, explanation = chemistry_text(stem), chemistry_text(explanation)
     return PrintedQuestion(
         version.id,
         stem,

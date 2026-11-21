@@ -7,7 +7,9 @@ ANSWER_HEADING = re.compile(
     r"^\s*(?:参考答案|答案(?:与解析|及解析)?|参考解析|试题解析)\s*[:：]?\s*$"
 )
 INSTRUCTIONS_HEADING = re.compile(r"^\s*注意事项\s*[:：]?\s*$")
-QUESTION_SECTION = re.compile(r"^\s*[一二三四五六七八九十]+、\s*(?:选择题|填空题|解答题)\s*[:：]")
+QUESTION_SECTION = re.compile(
+    r"^\s*[一二三四五六七八九十]+、\s*(?:(?:单项|多项|非)?选择题|填空题|解答题)\s*[:：]"
+)
 
 
 def _answer_location(location):

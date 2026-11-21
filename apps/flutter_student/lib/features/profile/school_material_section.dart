@@ -12,6 +12,7 @@ import '../../core/local_serial.dart';
 import '../../core/providers.dart';
 import '../../core/widgets.dart';
 import 'school_material_candidate_editor.dart';
+import 'school_material_region_preview.dart';
 
 final schoolMaterialPickerProvider = Provider<Future<XFile?> Function()>(
   (_) =>
@@ -242,33 +243,49 @@ class _SchoolMaterialSectionState extends ConsumerState<SchoolMaterialSection> {
   }
 
   Future<void> _preview(TutorApiClient api, int page) async {
+    await _openPreview(api, page);
+  }
+
+  Future<SchoolMaterialRegion?> _openPreview(
+    TutorApiClient api,
+    int page, {
+    List<SchoolMaterialRegion> regions = const [],
+    bool selectRegion = false,
+  }) async {
+    final job = _job!;
+    final owner = widget.ownerId;
     final result = await api.getSchoolMaterialPagePreview(
-      jobId: _job!,
+      jobId: job,
       pageNumber: '$page',
     );
-    if (!mounted || !_active) return;
+    if (!mounted || !_active || _job != job) return null;
     if (result.mime != 'image/png') {
       throw const FormatException('原件预览格式无效。');
     }
     final image = MemoryImage(base64Decode(result.contentBase64));
     try {
-      await showDialog<void>(
+      return await showDialog<SchoolMaterialRegion>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Text('原件第 $page 页'),
-          content: SizedBox(
-            width: 560,
-            height: 420,
-            child: InteractiveViewer(
-              child: Image(image: image, fit: BoxFit.contain),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('关闭'),
-            ),
-          ],
+        builder: (context) => Consumer(
+          builder: (context, ref, _) {
+            if (ref.watch(userIdProvider) != owner) {
+              return AlertDialog(
+                content: const Text('当前账号无法查看此原件。'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('关闭'),
+                  ),
+                ],
+              );
+            }
+            return SchoolMaterialRegionPreview(
+              page: page,
+              image: image,
+              regions: regions,
+              selectRegion: selectRegion,
+            );
+          },
         ),
       );
     } finally {
@@ -474,7 +491,27 @@ class _SchoolMaterialSectionState extends ConsumerState<SchoolMaterialSection> {
             ),
           if (result.confirmedItems case final confirmed?) ...[
             const Text('已确认分题'),
-            for (final item in confirmed) SelectableText(item.text),
+            for (final item in confirmed) ...[
+              SelectableText(item.text),
+              if (item.teacherMarks case final marks?) ...[
+                const Text('教师批注'),
+                SelectableText(marks),
+              ],
+              if (item.teacherScore case final score?) Text('教师评分 $score'),
+              if (item.maxScore case final score?) Text('原件满分 $score'),
+              for (final page in {
+                for (final region in item.regions ?? <SchoolMaterialRegion>[])
+                  region.page,
+              })
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => _run((api) async {
+                          await _openPreview(api, page, regions: item.regions!);
+                        }),
+                  child: Text('查看第 $page 页框选'),
+                ),
+            ],
           ] else if (result.sourceRevision case final revision?)
             if (result.items.isNotEmpty)
               SchoolMaterialCandidateEditor(
@@ -483,6 +520,12 @@ class _SchoolMaterialSectionState extends ConsumerState<SchoolMaterialSection> {
                 job: _job!,
                 revision: revision,
                 candidates: result.items,
+                onSelectRegion: (page, regions) => _openPreview(
+                  ref.read(apiClientProvider),
+                  page,
+                  regions: regions,
+                  selectRegion: true,
+                ),
                 onConfirmed: () => _run(_loadCandidates),
               ),
         ],

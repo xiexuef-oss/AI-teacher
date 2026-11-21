@@ -64,6 +64,14 @@ def test_images_need_ocr_and_preview_is_safe_png():
     assert image.format == "PNG" and image.size == (320, 80)
 
 
+def test_jpeg_extraction_checks_the_declared_format():
+    data = io.BytesIO()
+    Image.new("RGB", (16, 16)).save(data, format="JPEG")
+    assert extract(data.getvalue(), "jpeg", ParseLimits())[0]["method"] == "unavailable"
+    with pytest.raises(DocumentParseError):
+        extract(data.getvalue(), "png", ParseLimits())
+
+
 def test_word_metafiles_do_not_prevent_text_extraction():
     data = io.BytesIO(docx_document("<w:p><w:r><w:t>1. 公式题</w:t></w:r></w:p>", image=True))
     with ZipFile(data, "a") as archive:

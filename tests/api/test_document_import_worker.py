@@ -291,6 +291,39 @@ def test_upload_audit_order_and_cross_file_merge_with_answer_positions(reviewer,
     assert item["payload"] is None and not item["confirmed"]
 
 
+@pytest.mark.parametrize("filename", ["answers.docx", "questions.docx"])
+def test_oversized_docx_media_in_answer_file_still_offers_text_locations(
+    reviewer, app, clock, filename
+):
+    from io import BytesIO
+    from zipfile import ZipFile
+
+    from support.documents import docx_document
+
+    answer = BytesIO(docx_document("<w:p><w:r><w:t>1. private answer</w:t></w:r></w:p>"))
+    with ZipFile(answer, "a") as archive:
+        for index in range(101):
+            archive.writestr(f"word/media/example-{index}.png", b"unread fixture")
+    job_id = queued(
+        reviewer, [("stem.pdf", text_pdf("1. Question")), (filename, answer.getvalue())]
+    )
+    assert process_next(app.state.session_factory, app.state.settings, clock.now)
+    detail = reviewer.data("GET", f"{PATH}/{job_id}")
+    (item,) = detail["candidates"]
+    assert item["text"] == "1. Question" and item["payload"] is None
+    answer_file = next(f for f in detail["files"] if f["filename"] == filename)
+    if filename == "questions.docx":
+        assert detail["job"]["status"] == "partial_failure"
+        assert answer_file["status"] == "failed"
+        assert any(problem.startswith("media_limit:") for problem in answer_file["problems"])
+        return
+    assert detail["job"]["status"] == "needs_review"
+    assert answer_file["status"] == "ready"
+    assert any(
+        answer_file["id"] in warning and "人工确认" in warning for warning in item["warnings"]
+    )
+
+
 def test_missing_upload_audit_does_not_assume_uuid_file_order(reviewer, app, clock):
     from sqlalchemy import delete
 

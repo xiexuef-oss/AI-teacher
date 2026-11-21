@@ -4,6 +4,7 @@ import argparse
 import base64
 import io
 import os
+import re
 import time
 import unicodedata
 from pathlib import Path
@@ -33,6 +34,11 @@ CASES = (
         ),
         0,
     ),
+    (
+        "zh_red_no_score",
+        ("15. 将 x = −3 代入函数。", "作答  y = −5", "检查负号"),
+        -4,
+    ),
 )
 
 CJK_FONT = (
@@ -40,14 +46,21 @@ CJK_FONT = (
 )
 
 
-def image_part(lines, angle, *, columns=False, chinese=False):
+def image_part(lines, angle, *, columns=False, chinese=False, red_last=False, region=None):
     image = Image.new("RGB", (740, 180), "white")
     draw = ImageDraw.Draw(image)
     size = 18 if len(lines) > 3 else 30
     font = ImageFont.truetype(str(CJK_FONT), size) if chinese else ImageFont.load_default(size=size)
     for index, line in enumerate(lines):
         point = (24 + index * 355, 25) if columns else (24, 16 + index * (size + 6))
-        draw.text(point, line, fill="black", font=font)
+        color = "firebrick" if red_last and index == len(lines) - 1 else "black"
+        draw.text(point, line, fill=color, font=font)
+    if region is not None:
+        boundary = 16 + (len(lines) - 1) * (size + 6)
+        top, bottom = (0, boundary) if region == "student" else (boundary, image.height)
+        crop = image.crop((0, top, image.width, bottom))
+        image = Image.new("RGB", image.size, "white")
+        image.paste(crop, (0, 0))
     buffer = io.BytesIO()
     image.rotate(angle, resample=Image.Resampling.BICUBIC, fillcolor="white").save(
         buffer, format="PNG"
@@ -65,7 +78,15 @@ def normalized(text):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--case", choices=[case[0] for case in CASES], action="append")
-    selected = parser.parse_args().case
+    parser.add_argument(
+        "--separate-red-ink",
+        action="store_true",
+        help="Transcribe two preselected regions of the authored red-ink fixture separately.",
+    )
+    args = parser.parse_args()
+    selected = args.case
+    if args.separate_red_ink and selected != ["zh_red_no_score"]:
+        parser.error("--separate-red-ink requires --case zh_red_no_score")
     cases = [case for case in CASES if not selected or case[0] in selected]
     load_environment()
     secret = read_key()
@@ -75,8 +96,13 @@ def main():
     if endpoint.rstrip("/") != "https://api.deepseek.com":
         raise SystemExit("Use the designated DeepSeek endpoint")
     adapter = OpenAICompatAdapter(base_url=endpoint, api_key=secret)
+    tasks = [
+        (name, lines, angle, region)
+        for name, lines, angle in cases
+        for region in (("student", "teacher") if args.separate_red_ink else (None,))
+    ]
     matched = 0
-    for name, lines, angle in cases:
+    for name, lines, angle, region in tasks:
         request_id = uuid4().hex
         request = GatewayRequest(
             request_id=request_id,
@@ -91,7 +117,12 @@ def main():
                     "Keep original punctuation and formulas. Return JSON. Do not solve.",
                 ),
                 image_part(
-                    lines, angle, columns=name == "two_columns", chinese=name.startswith("zh_")
+                    lines,
+                    angle,
+                    columns=name == "two_columns",
+                    chinese=name.startswith("zh_"),
+                    red_last=name == "zh_red_no_score",
+                    region=region,
                 ),
             ],
         )
@@ -104,14 +135,33 @@ def main():
             print(f"{name} error={error.kind}")
             continue
         actual = result.output.get("stem_text")
+        if region is not None:
+            expected = "\n".join(lines[:-1] if region == "student" else lines[-1:])
+            match = isinstance(actual, str) and normalized(actual).replace("−", "-") == normalized(
+                expected
+            ).replace("−", "-")
+            matched += match
+            print(
+                f"{name} region={region} match={match} input_tokens={result.input_tokens} output_tokens={result.output_tokens}"
+            )
+            continue
         match = isinstance(actual, str) and normalized(actual) == normalized("\n".join(lines))
         matched += match
         print(
             f"{name} exact={match} input_tokens={result.input_tokens} "
             f"output_tokens={result.output_tokens} elapsed_ms={round((time.monotonic() - start) * 1000)}"
         )
-    print(f"exact_matches={matched}/{len(cases)}")
-    return 0 if matched == len(cases) else 1
+        if name == "zh_red_no_score" and isinstance(actual, str):
+            transcript = normalized(actual)
+            signs = set(re.findall(r"-[35]", transcript.replace("−", "-")))
+            negatives_preserved = {"-3", "-5"} <= signs
+            print(
+                f"{name} annotation_present={normalized(lines[-1]) in transcript} "
+                f"negative_values_preserved={negatives_preserved}"
+            )
+    metric = "region_matches" if args.separate_red_ink else "exact_matches"
+    print(f"{metric}={matched}/{len(tasks)}")
+    return 0 if matched == len(tasks) else 1
 
 
 if __name__ == "__main__":
