@@ -154,6 +154,9 @@ def test_worker_publishes_both_sample_pdfs(
     onboarded.error("GET", returned, expect=404)
     other.error("POST", returned, json=body, expect=404)
     onboarded.error("POST", returned, json={"transcript": " "}, expect=422)
+    onboarded.error("POST", returned, json={"photo_ids": body["photo_ids"]}, expect=422)
+    with app.state.session_factory() as session:
+        assert paper_evidence(session, onboarded.user_id, pack_id=result["id"]) == []
     onboarded.error(
         "POST", returned, json={**body, "photo_ids": [item["question_version_id"]]}, expect=404
     )
