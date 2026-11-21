@@ -90,6 +90,17 @@ class LearningPackCommand(Base):
     plan_json: Mapped[dict | None] = mapped_column(JSON)
 
 
+class LearningPackRenderCheckpoint(Base):
+    __tablename__ = "learning_pack_render_checkpoints"
+
+    job_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("learning_pack_commands.job_id", ondelete="CASCADE"), primary_key=True
+    )
+    input_sha256: Mapped[str] = mapped_column(CHAR(64))
+    student_pdf: Mapped[bytes] = mapped_column(LargeBinary().with_variant(MEDIUMBLOB(), "mysql"))
+    manifest_json: Mapped[list[dict]] = mapped_column(JSON)
+
+
 class SchoolMaterialCommand(Base):
     __tablename__ = "school_material_commands"
 

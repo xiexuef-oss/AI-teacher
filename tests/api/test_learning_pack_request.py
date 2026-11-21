@@ -333,6 +333,84 @@ def test_worker_recovers_paper_pack_after_claimant_exits(onboarded, app, clock):
     assert not prepare_one(sessions, clock.now, font)
 
 
+def test_solution_render_retry_reuses_student_pdf(onboarded, app, clock, monkeypatch):
+    import pytest
+
+    from tutor_api.models import LearningPackRenderCheckpoint
+    from tutor_api.services import learning_pack_publication as publication
+    from tutor_api.services.learning_jobs import RETRY_DELAY
+
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-51",
+            "subjects": ["chemistry"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 10, "weekdays": [1]},
+        }
+    )
+    job = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})
+    sessions = app.state.session_factory
+    font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+
+    def fail(*args, **kwargs):
+        raise OSError("render interrupted")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(publication, "render_solutions", fail)
+        with pytest.raises(OSError, match="render interrupted"):
+            prepare_one(sessions, clock.now, font)
+    with sessions() as session:
+        checkpoint = session.get_one(LearningPackRenderCheckpoint, job["id"])
+        expected = checkpoint.student_pdf, checkpoint.manifest_json
+        assert session.get(LearningPackPublication, job["id"]) is None
+
+    monkeypatch.setattr(publication, "render_student", fail)
+    clock.advance(RETRY_DELAY.total_seconds())
+    assert prepare_one(sessions, clock.now, font)
+    with sessions() as session:
+        pack = session.get_one(LearningPackPublication, job["id"])
+        assert (pack.student_pdf, pack.manifest_json["items"]) == expected
+        assert session.get(LearningPackRenderCheckpoint, job["id"]) is None
+
+
+def test_expired_worker_reuses_committed_student_pdf(onboarded, app, clock, monkeypatch):
+    import pytest
+
+    from tutor_api.models import LearningPackRenderCheckpoint
+    from tutor_api.services import learning_pack_publication as publication
+    from tutor_api.services.learning_jobs import LEASE
+
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-51",
+            "subjects": ["chemistry"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 10, "weekdays": [1]},
+        }
+    )
+    job = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})
+    sessions = app.state.session_factory
+    font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+
+    def fail(*args, **kwargs):
+        raise SystemExit("render interrupted")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(publication, "render_solutions", fail)
+        with pytest.raises(SystemExit, match="render interrupted"):
+            prepare_one(sessions, clock.now, font)
+    with sessions() as session:
+        checkpoint = session.get_one(LearningPackRenderCheckpoint, job["id"])
+        expected = checkpoint.student_pdf, checkpoint.manifest_json
+        assert session.get(LearningPackPublication, job["id"]) is None
+
+    monkeypatch.setattr(publication, "render_student", fail)
+    clock.advance(LEASE.total_seconds())
+    assert prepare_one(sessions, clock.now, font)
+    with sessions() as session:
+        pack = session.get_one(LearningPackPublication, job["id"])
+        assert (pack.student_pdf, pack.manifest_json["items"]) == expected
+        assert session.get(LearningPackRenderCheckpoint, job["id"]) is None
+
+
 def test_worker_publishes_and_returns_a_physics_multiple_choice_sample(onboarded, app, clock, db):
     from io import BytesIO
 

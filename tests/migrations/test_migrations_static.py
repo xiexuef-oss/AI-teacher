@@ -93,6 +93,7 @@ def test_migration_files_are_numbered_and_ordered():
         "027_school_material_results.sql",
         "028_school_material_corrections.sql",
         "029_school_material_confirmations.sql",
+        "030_learning_pack_render_checkpoints.sql",
     ]
 
 

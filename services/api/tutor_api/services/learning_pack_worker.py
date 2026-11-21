@@ -23,7 +23,7 @@ from tutor_api.models import (
 )
 from tutor_api.services.content_seed import ENGINEERING_SAMPLE_NAME, seed_uuid
 from tutor_api.services.learning_budget import remaining_minutes
-from tutor_api.services.learning_jobs import claim, finish
+from tutor_api.services.learning_jobs import claim, finish, has_active_lease
 from tutor_api.services.learning_pack_evidence import paper_evidence
 from tutor_api.services.learning_pack_publication import PrintedQuestion, publish
 from tutor_api.services.paper_review_schedule import rebuild
@@ -240,24 +240,49 @@ def prepare_one(factory, clock, sample_font: Path | None = None) -> bool:
 
     try:
         with factory() as db:
-            if sample_font is not None:
-                # Serialize planning and publication for the same student.
-                if db.get_bind().dialect.name == "sqlite":
-                    db.execute(
-                        update(User).where(User.id == student_id).values(updated_at=User.updated_at)
-                    )
-                else:
-                    db.scalar(select(User.id).where(User.id == student_id).with_for_update())
+
+            def lock_student():
+                if sample_font is not None:
+                    # Serialize planning and publication for the same student.
+                    if db.get_bind().dialect.name == "sqlite":
+                        db.execute(
+                            update(User)
+                            .where(User.id == student_id)
+                            .values(updated_at=User.updated_at)
+                        )
+                    else:
+                        db.scalar(select(User.id).where(User.id == student_id).with_for_update())
+
+            lock_student()
             command = db.get_one(LearningPackCommand, job_id)
             inputs = command.input_json
-            item, minutes, deferred, reviews = _plan_pack(
-                db, student_id, inputs, sample_font, clock()
-            )
-            done = (
-                publish(db, job_id, token, [item], sample_font, clock)
-                if item is not None and sample_font is not None
-                else finish(db, job_id, token, clock(), success=True)
-            )
+            plan_at = clock()
+            plan = _plan_pack(db, student_id, inputs, sample_font, plan_at)
+
+            def save_checkpoint(checkpoint):
+                nonlocal plan
+                if not has_active_lease(db, job_id, token, clock(), lock=True):
+                    return False
+                db.merge(checkpoint)
+                db.commit()
+                lock_student()
+                if not has_active_lease(db, job_id, token, clock()):
+                    return False
+                refreshed = _plan_pack(db, student_id, inputs, sample_font, plan_at)
+                same_item = refreshed[0] == plan[0]
+                plan = refreshed
+                return same_item
+
+            while True:
+                item, minutes, deferred, reviews = plan
+                done = (
+                    publish(db, job_id, token, [item], sample_font, clock, save_checkpoint)
+                    if item is not None and sample_font is not None
+                    else finish(db, job_id, token, clock(), success=True)
+                )
+                if done or item == plan[0]:
+                    break
+            item, minutes, deferred, reviews = plan
             if done:
                 command.plan_json = {
                     "remaining_minutes": minutes,

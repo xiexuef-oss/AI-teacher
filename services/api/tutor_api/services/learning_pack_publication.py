@@ -1,13 +1,17 @@
 """Render and store a whole pack under the worker's current lease."""
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
 from hashlib import sha256
 from pathlib import Path
 from secrets import token_hex
 
 from sqlalchemy.orm import Session
 
-from tutor_api.models import LearningPackPublication
+from tutor_api.models import (
+    LearningPackPublication,
+    LearningPackRenderCheckpoint,
+)
 from tutor_api.services.learning_jobs import finish, has_active_lease
 from tutor_api.services.learning_pack_pdf import (
     PaperItem,
@@ -60,7 +64,13 @@ def _render_student_stage(
 
 
 def publish(
-    db: Session, job_id: str, lease: str, questions: list[PrintedQuestion], font: Path, clock
+    db: Session,
+    job_id: str,
+    lease: str,
+    questions: list[PrintedQuestion],
+    font: Path,
+    clock,
+    save_checkpoint=None,
 ) -> bool:
     """Stage both PDFs and the status update in the caller's transaction."""
     if not questions or any(not q.stem.strip() or not q.solution.strip() for q in questions):
@@ -68,7 +78,19 @@ def publish(
     if not has_active_lease(db, job_id, lease, clock()):
         return False
     label = f"{job_id.split('-')[0]}  v1"
-    student, manifest = _render_student_stage(questions, font, label)
+    input_hash = (
+        sha256(
+            json.dumps([asdict(question) for question in questions], sort_keys=True).encode()
+            + sha256(font.read_bytes()).digest()
+        ).hexdigest()
+        if save_checkpoint is not None
+        else None
+    )
+    checkpoint = db.get(LearningPackRenderCheckpoint, job_id) if input_hash else None
+    if checkpoint is not None and checkpoint.input_sha256 == input_hash:
+        student, manifest = checkpoint.student_pdf, checkpoint.manifest_json
+    else:
+        student, manifest = _render_student_stage(questions, font, label)
     if not has_active_lease(db, job_id, lease, clock()):
         return False
     if len(student) > MAX_PDF_BYTES:
@@ -77,6 +99,16 @@ def publish(
         SolutionItem(row["code"], question.solution)
         for row, question in zip(manifest, questions, strict=True)
     ]
+    if (
+        input_hash
+        and (checkpoint is None or checkpoint.input_sha256 != input_hash)
+        and not save_checkpoint(
+            LearningPackRenderCheckpoint(
+                job_id=job_id, input_sha256=input_hash, student_pdf=student, manifest_json=manifest
+            )
+        )
+    ):
+        return False
     solutions = render_solutions(solution_items, font, label=label)
     if len(solutions) > MAX_PDF_BYTES:
         raise ValueError("Learning pack PDF is too large")

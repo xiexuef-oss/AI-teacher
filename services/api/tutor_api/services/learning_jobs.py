@@ -2,16 +2,22 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, case, or_, select, update
+from sqlalchemy import and_, case, delete, or_, select, update
 from sqlalchemy.orm import Session
 
 from tutor_api.db import new_id
 from tutor_api.errors import not_found
-from tutor_api.models import LearningJob, User
+from tutor_api.models import LearningJob, LearningPackRenderCheckpoint, User
 
 MAX_ATTEMPTS = 3
 LEASE = timedelta(minutes=10)
 RETRY_DELAY = timedelta(minutes=1)
+
+
+def _discard_checkpoint(db: Session, job_id: str) -> None:
+    db.execute(
+        delete(LearningPackRenderCheckpoint).where(LearningPackRenderCheckpoint.job_id == job_id)
+    )
 
 
 def enqueue(db: Session, student_id: str, command_key: str, now: datetime) -> str:
@@ -43,11 +49,13 @@ def enqueue(db: Session, student_id: str, command_key: str, now: datetime) -> st
 def claim(db: Session, job_id: str, now: datetime) -> str | None:
     expired = and_(LearningJob.status == "running", LearningJob.lease_until <= now)
     row = update(LearningJob).where(LearningJob.id == job_id)
-    db.execute(
+    failed = db.execute(
         row.where(expired, LearningJob.attempts >= MAX_ATTEMPTS).values(
             status="failed", lease_token=None, lease_until=None
         )
     )
+    if failed.rowcount == 1:
+        _discard_checkpoint(db, job_id)
     token = new_id()
     result = db.execute(
         row.where(
@@ -78,8 +86,11 @@ def _active_lease(job_id: str, token: str, now: datetime):
     )
 
 
-def has_active_lease(db: Session, job_id: str, token: str, now: datetime) -> bool:
-    return db.scalar(select(LearningJob.id).where(_active_lease(job_id, token, now))) is not None
+def has_active_lease(
+    db: Session, job_id: str, token: str, now: datetime, *, lock: bool = False
+) -> bool:
+    query = select(LearningJob.id).where(_active_lease(job_id, token, now))
+    return db.scalar(query.with_for_update() if lock else query) is not None
 
 
 def finish(
@@ -96,6 +107,11 @@ def finish(
         .where(_active_lease(job_id, token, now))
         .values(status=status, available_at=now + RETRY_DELAY, lease_token=None, lease_until=None)
     )
+    if (
+        result.rowcount == 1
+        and db.scalar(select(LearningJob.status).where(LearningJob.id == job_id)) != "retry_wait"
+    ):
+        _discard_checkpoint(db, job_id)
     return result.rowcount == 1
 
 
@@ -109,4 +125,6 @@ def cancel(db: Session, student_id: str, job_id: str) -> bool:
         )
         .values(status="cancelled", lease_token=None, lease_until=None)
     )
+    if result.rowcount == 1:
+        _discard_checkpoint(db, job_id)
     return result.rowcount == 1

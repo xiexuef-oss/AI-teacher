@@ -268,3 +268,61 @@ def test_mysql_cancel_committed_during_render_blocks_publication(mysql_engine, m
     with sessions() as session:
         assert session.get_one(LearningJob, job).status == "cancelled"
         assert session.get(LearningPackPublication, job) is None
+
+
+def test_mysql_worker_recovers_committed_render_checkpoint(mysql_engine, monkeypatch):
+    from datetime import UTC, datetime
+
+    from reportlab import __file__ as reportlab_path
+    from sqlalchemy.orm import sessionmaker
+
+    from tutor_api.models import (
+        LearningPackCommand,
+        LearningPackPublication,
+        LearningPackRenderCheckpoint,
+        User,
+    )
+    from tutor_api.services import learning_pack_publication as publication
+    from tutor_api.services.content_seed import seed_if_empty
+    from tutor_api.services.learning_jobs import LEASE, enqueue
+    from tutor_api.services.learning_pack_worker import prepare_one
+
+    apply_migrations(mysql_engine, sorted(Path("migrations").glob("*.sql")))
+    sessions = sessionmaker(mysql_engine)
+    now = datetime(2026, 11, 18, tzinfo=UTC)
+    owner = str(uuid4())
+    with sessions.begin() as session:
+        seed_if_empty(session, now)
+        session.add(User(id=owner, role="student", created_at=now, updated_at=now))
+        session.flush()
+        job = enqueue(session, owner, "resume-render", now)
+        session.add(
+            LearningPackCommand(
+                job_id=job,
+                input_json={
+                    "settings": {"weekly_minutes": 10, "weekdays": [1]},
+                    "subjects": ["chemistry"],
+                    "school_minutes": 0,
+                },
+            )
+        )
+
+    def interrupt(*args, **kwargs):
+        raise SystemExit("worker stopped")
+
+    font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+    with monkeypatch.context() as patch:
+        patch.setattr(publication, "render_solutions", interrupt)
+        with pytest.raises(SystemExit, match="worker stopped"):
+            prepare_one(sessions, lambda: now, font)
+    with sessions() as session:
+        checkpoint = session.get_one(LearningPackRenderCheckpoint, job)
+        expected = checkpoint.student_pdf, checkpoint.manifest_json
+        assert session.get(LearningPackPublication, job) is None
+
+    monkeypatch.setattr(publication, "render_student", interrupt)
+    assert prepare_one(sessions, lambda: now + LEASE, font)
+    with sessions() as session:
+        pack = session.get_one(LearningPackPublication, job)
+        assert (pack.student_pdf, pack.manifest_json["items"]) == expected
+        assert session.get(LearningPackRenderCheckpoint, job) is None
