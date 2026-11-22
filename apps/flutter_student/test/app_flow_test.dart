@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tutor_student/core/data.dart';
@@ -787,6 +789,86 @@ void main() {
       expect(keys, hasLength(2));
       expect(keys.first, isNotNull);
       expect(keys.last, keys.first);
+      var packResult = 'insufficient_budget';
+      h.backend.on(
+        'GET',
+        '/learning/jobs/$jobId',
+        (_) => okResponse({
+          'id': jobId,
+          'status': 'succeeded',
+          'attempts': 1,
+          'pack_result': packResult,
+          'reviews': [
+            {
+              'knowledge_id': jobId,
+              'title': '区间复测',
+              'original_due_on': '2026-11-22',
+              'deferred_reason': packResult,
+            },
+          ],
+        }),
+      );
+      await tapAndSettle(tester, find.text('刷新状态'));
+      expect(find.textContaining('剩余学习时间不足'), findsOneWidget);
+      expect(find.textContaining('原定 2026-11-22'), findsOneWidget);
+      packResult = 'awaiting_return';
+      await tapAndSettle(tester, find.text('刷新状态'));
+      expect(find.textContaining('相关题目已有纸包等待回收'), findsOneWidget);
+      expect(find.textContaining('原定 2026-11-22'), findsOneWidget);
+      expect(find.textContaining('等待旧包回收'), findsOneWidget);
+      packResult = 'published';
+      await tapAndSettle(tester, find.text('刷新状态'));
+      h.backend.on('GET', '/learning/packs/$jobId/student-pdf', (request) {
+        expect(request.uri.queryParameters['for_print'], 'true');
+        return okResponse({
+          'revision': 1,
+          'content_base64': 'JVBERg==',
+          'sha256': '0' * 64,
+        });
+      });
+      await tapAndSettle(tester, find.text('打印学生版'));
+      expect(find.textContaining('PDF 校验失败'), findsOneWidget);
+      final bytes = utf8.encode('%PDF test');
+      final messenger = tester.binding.defaultBinaryMessenger;
+      const printingChannel = MethodChannel('net.nfet.printing');
+      const codec = StandardMethodCodec();
+      var handedOff = false;
+      messenger.setMockMethodCallHandler(printingChannel, (call) async {
+        expect(call.method, 'printPdf');
+        await messenger.handlePlatformMessage(
+          printingChannel.name,
+          codec.encodeMethodCall(MethodCall('onLayout', call.arguments)),
+          (reply) {
+            expect(codec.decodeEnvelope(reply!), bytes);
+            handedOff = true;
+          },
+        );
+        await messenger.handlePlatformMessage(
+          printingChannel.name,
+          codec.encodeMethodCall(
+            MethodCall('onCompleted', {
+              'job': (call.arguments as Map)['job'],
+              'completed': true,
+            }),
+          ),
+          null,
+        );
+        return 1;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(printingChannel, null),
+      );
+      h.backend.on('GET', '/learning/packs/$jobId/student-pdf', (request) {
+        expect(request.uri.queryParameters['for_print'], 'true');
+        return okResponse({
+          'revision': 1,
+          'content_base64': base64Encode(bytes),
+          'sha256': sha256.convert(bytes).toString(),
+        });
+      });
+      await tapAndSettle(tester, find.text('打印学生版'));
+      expect(handedOff, isTrue);
+      expect(find.textContaining('已提交打印'), findsOneWidget);
       h.backend.on(
         'POST',
         '/learning/packs',

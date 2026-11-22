@@ -20,6 +20,11 @@ const options = ref<S['DocImportOptions']>()
 const jobs = ref<S['DocImportJobSummary'][]>([])
 const detailOwner=ref<string|null>(null)
 const detail = ref<S['DocImportJobDetail']>()
+function formatLocation(location: S['DocImportLocation']) {
+  const filename = detail.value?.files.find(file => file.id === location.file_id)?.filename
+  const page = `${filename ?? location.file_id} / ${location.page}`
+  return location.block == null ? page : `${page} / 第 ${location.block} 行`
+}
 const busy = ref(false), error = ref(''), notice = ref(''), preview = ref('')
 const title = ref(''), sourceName = ref(''), license = ref('')
 const subject = ref<S['Subject']>('math'), mode = ref<S['AnswerMode']>('single_choice')
@@ -318,7 +323,8 @@ onUnmounted(() => { documentMounted=false; if (timer) clearInterval(timer) })
           <label>标题 <input v-model="item.title" @input="syncCandidateText(index)" /></label>
           <label>提取文字 <textarea v-model="item.text" rows="6" @input="syncCandidateText(index)" /></label>
           <button @click="skeleton(index)">按任务默认值生成可编辑题目骨架</button><p>骨架须补齐答案、选项、教学和解析；不会自动确认。可展开可视化表单编辑答案、提示与解析；原始 JSON 仍可编辑。</p>
-          <p>原始位置：{{ item.locations.map(l => `${l.file_id} / ${l.page}`).join('；') }}</p><p>{{ item.warnings.join('；') }}</p>
+          <p>原始位置：{{ item.locations.map(formatLocation).join('；') }}</p>
+          <p>{{ item.warnings.join('；') }}</p>
           <section v-if="candidateBody(index)" data-testid="candidate-metadata" aria-label="逐题学科题型与来源">
             <h4>逐题学科、题型与来源</h4>
             <label>学科 <select data-testid="candidate-subject" :value="candidateBody(index)?.subject" @change="metadata(index, 'subject', $event)"><option value="math">数学</option><option value="physics">物理</option><option value="chemistry">化学</option></select></label>

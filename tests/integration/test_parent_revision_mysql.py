@@ -21,7 +21,8 @@ NOW = datetime(2026, 11, 10, tzinfo=UTC)
 
 
 def initialize(engine):
-    baseline = [p for p in sorted(Path("migrations").glob("*.sql")) if p.name < "011_"]
+    migrations = sorted(Path("migrations").glob("*.sql"))
+    baseline = [p for p in migrations if p.name < "011_"]
     candidate = Path("migrations/011_parent_authorization_revisions.sql")
     if not candidate.exists():
         candidate = Path("var/draft303c-candidate/011_parent_authorization_revisions.sql")
@@ -49,6 +50,10 @@ def initialize(engine):
         )
     assert apply_migrations(engine, [*baseline, candidate]) == [candidate.name]
     assert apply_migrations(engine, [*baseline, candidate]) == []
+    # Business calls below use the current ORM, including columns added after 011.
+    apply_migrations(
+        engine, [*baseline, candidate, *(p for p in migrations if p.name > candidate.name)]
+    )
     return owner, parent, link, sessionmaker(engine, expire_on_commit=False)
 
 

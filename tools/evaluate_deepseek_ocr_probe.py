@@ -60,7 +60,7 @@ def image_part(lines, angle, *, columns=False, chinese=False, red_last=False, re
         top, bottom = (0, boundary) if region == "student" else (boundary, image.height)
         crop = image.crop((0, top, image.width, bottom))
         image = Image.new("RGB", image.size, "white")
-        image.paste(crop, (0, 0))
+        image.paste(crop, (0, top))
     buffer = io.BytesIO()
     image.rotate(angle, resample=Image.Resampling.BICUBIC, fillcolor="white").save(
         buffer, format="PNG"

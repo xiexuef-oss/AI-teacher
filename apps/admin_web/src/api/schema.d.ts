@@ -4613,7 +4613,10 @@ export interface operations {
     };
     downloadLearningPackStudentPdf: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description 为本次打印生成副本，在每页二维码下方标注请求时的北京时间。保留原页码、二维码和题目版本。 */
+                for_print?: boolean;
+            };
             header?: never;
             path: {
                 job_id: string;

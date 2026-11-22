@@ -35,6 +35,7 @@ from tutor_api.schemas import (
 )
 from tutor_api.services.learning_jobs import cancel, enqueue
 from tutor_api.services.learning_pack_evidence import paper_evidence
+from tutor_api.services.learning_pack_pdf import stamp_print_time
 from tutor_api.services.learning_pack_worker import SAMPLE_MINUTES
 from tutor_api.services.paper_review_schedule import rebuild
 from tutor_api.services.profile_service import get_profile
@@ -183,11 +184,15 @@ def _published(ctx: Ctx, job_id: UUID, *columns):
 
 
 @router.get("/learning/packs/{job_id}/student-pdf")
-def download_student_pdf(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
+def download_student_pdf(
+    job_id: UUID,
+    ctx: Ctx = Depends(student_ctx),
+    for_print: bool = False,
+) -> JSONResponse:
     pdf, manifest = _published(
         ctx, job_id, LearningPackPublication.student_pdf, LearningPackPublication.manifest_json
     )
-    return _pdf_response(ctx, pdf, manifest, "student")
+    return _pdf_response(ctx, pdf, manifest, "student", for_print=for_print)
 
 
 @router.get("/learning/packs/{job_id}/solution-pdf")
@@ -270,7 +275,9 @@ def abandon_pack(job_id: UUID, ctx: Ctx = Depends(student_ctx)) -> JSONResponse:
     return run_idempotent(ctx, None, 200, action)
 
 
-def _pdf_response(ctx: Ctx, pdf: bytes, manifest: dict, variant: str) -> JSONResponse:
+def _pdf_response(
+    ctx: Ctx, pdf: bytes, manifest: dict, variant: str, *, for_print: bool = False
+) -> JSONResponse:
     digest = manifest[f"{variant}_sha256"]
     if "pdf_objects" in manifest:
         store = getattr(ctx.request.app.state, "learning_pack_pdf_store", None)
@@ -282,6 +289,9 @@ def _pdf_response(ctx: Ctx, pdf: bytes, manifest: dict, variant: str) -> JSONRes
             raise BlobStorageUnavailable("Published paper PDF is missing") from exc
         if sha256(pdf).hexdigest() != digest:
             raise BlobStorageUnavailable("Published paper PDF checksum mismatch")
+    if for_print:
+        pdf = stamp_print_time(pdf, ctx.now())
+        digest = sha256(pdf).hexdigest()
     return ok(
         {
             "revision": manifest["revision"],

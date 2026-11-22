@@ -82,6 +82,12 @@ def _pdf(data, limits):
             for number, page in enumerate(reader.pages, 1):
                 text = (page.extract_text() or "").strip()
                 warnings = ["PDF 的阅读顺序、公式、图表和上下标必须对照原文人工核对。"]
+                try:
+                    text.encode("utf-8")
+                except UnicodeEncodeError:
+                    text = text.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "replace")
+                    if "\ufffd" in text:
+                        warnings.append("PDF 提取到无法解码的字符，请对照原件核对文字和公式。")
                 if not text:
                     warnings.append("未提取到文字，可能为空白页或扫描页；需要 OCR 或人工录入。")
                 pages.append(_page(number, text, "pdf_text" if text else "unavailable", warnings))

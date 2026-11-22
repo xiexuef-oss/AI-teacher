@@ -71,6 +71,9 @@ def test_complete_registration_is_valid_but_does_not_verify_license_contents(tmp
     report = validate_manifest(path, minimum=1)
     assert report["ready"] and report["valid_items"] == 1
     assert report["subjects"] == {"math": 1}
+    assert report["regions"] == {"": 1}
+    assert report["answer_modes"] == {"fill": 1}
+    assert report["modalities"] == {"text": 1}
     row.update(answer_mode="proof")
     with path.open("w", encoding="utf-8", newline="") as output:
         writer = csv.DictWriter(output, fieldnames=fields)

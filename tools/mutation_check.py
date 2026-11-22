@@ -49,17 +49,40 @@ class Mutation:
 
 MUTATIONS = [
     Mutation(
+        "V14-R03 学校材料预览过期仍返回内容",
+        API / "routers" / "school_materials.py",
+        '    if min(result.expires_at, blob.expires_at) <= ctx.now():\n        raise not_found()\n',
+        "",
+        ("tests/api/test_school_material_upload.py::test_worker_lists_private_pdf_text_and_marks_blank_pages",),
+    ),
+    Mutation(
         "V14-R06 待回收错误标记无关知识点",
         API / "services" / "learning_pack_worker.py",
         "if node in waiting_nodes and (item is None or node not in item.knowledge_ids)",
         "if waiting_nodes",
-        ("tests/unit/test_paper_review_schedule.py::test_paper_plan_only_marks_waiting_knowledge_points",),
+        (
+            "tests/unit/test_paper_review_schedule.py::test_paper_plan_only_marks_waiting_knowledge_points",
+        ),
     ),
     Mutation(
         "V14-R06 数值旧答案结构误计正确",
         API / "services" / "learning_pack_evidence.py",
-        '    if not isinstance(values, dict):\n        return "unknown"',
-        '    if not isinstance(values, dict):\n        return "correct"',
+        '    if not isinstance(rules, dict) or not isinstance(values, dict):\n        return "unknown"',
+        '    if not isinstance(rules, dict) or not isinstance(values, dict):\n        return "correct"',
+        ("tests/unit/test_learning_pack_evidence.py",),
+    ),
+    Mutation(
+        "V14-R06 数值旧规则结构校验遗漏",
+        API / "services" / "learning_pack_evidence.py",
+        '        not isinstance(rule, dict)\n        or rule.get("type")',
+        '        rule.get("type")',
+        ("tests/unit/test_learning_pack_evidence.py",),
+    ),
+    Mutation(
+        "V14-R06 数值旧单位结构校验遗漏",
+        API / "services" / "learning_pack_evidence.py",
+        '    if units is not None and not isinstance(units, dict):\n        return "unknown"\n',
+        "",
         ("tests/unit/test_learning_pack_evidence.py",),
     ),
     Mutation(

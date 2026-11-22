@@ -46,14 +46,21 @@ REQUIRED = [
 
 
 def validate_manifest(path, *, minimum=300):
-    errors, valid, counts = [], 0, Counter()
+    errors, valid = [], 0
+    dimensions = {
+        "subjects": "subject",
+        "regions": "region_code",
+        "answer_modes": "answer_mode",
+        "modalities": "modality",
+    }
+    counts = {name: Counter() for name in dimensions}
     with Path(path).open(encoding="utf-8-sig", newline="") as source:
         reader = csv.DictReader(source)
         if reader.fieldnames != FIELDS:
             return {
                 "ready": False,
                 "valid_items": 0,
-                "subjects": {},
+                **{name: {} for name in dimensions},
                 "errors": ["登记表列名或顺序与模板不一致"],
             }
         rows = list(reader)
@@ -103,10 +110,16 @@ def validate_manifest(path, *, minimum=300):
             errors.extend(f"第{index}行：{problem}" for problem in problems)
         else:
             valid += 1
-            counts[row["subject"]] += 1
+            for name, field in dimensions.items():
+                counts[name][row[field]] += 1
     if valid < minimum:
         errors.append(f"有效登记 {valid} 道，未达到要求的 {minimum} 道")
-    return {"ready": not errors, "valid_items": valid, "subjects": dict(counts), "errors": errors}
+    return {
+        "ready": not errors,
+        "valid_items": valid,
+        **{name: dict(counter) for name, counter in counts.items()},
+        "errors": errors,
+    }
 
 
 def main():

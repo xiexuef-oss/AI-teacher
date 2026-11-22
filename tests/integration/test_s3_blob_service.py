@@ -99,10 +99,16 @@ def test_real_service_paper_pack_recovers_after_second_write_fails(storage, app,
 
     clock.advance(RETRY_DELAY.total_seconds())
     assert prepare_one(sessions, clock.now, font, pdf_store=store)
-    assert onboarded.data("GET", f"{path}/student-pdf")["revision"] == 1
+    original = onboarded.data("GET", f"{path}/student-pdf")
+    assert original["revision"] == 1
     onboarded.error("GET", f"{path}/solution-pdf", expect=409)
     keys = client.list_objects_v2(Bucket=bucket, Prefix=store.prefix)["Contents"]
     assert len(keys) == 2
+    printed = onboarded.data("GET", f"{path}/student-pdf", params={"for_print": "true"})
+    assert printed["revision"] == original["revision"]
+    assert printed["sha256"] != original["sha256"]
+    assert onboarded.data("GET", f"{path}/student-pdf") == original
+    assert client.list_objects_v2(Bucket=bucket, Prefix=store.prefix)["Contents"] == keys
 
     from hashlib import sha256
 

@@ -203,7 +203,7 @@ def process_next(
             file = db.get(DocumentImportFile, file_id)
             file.status = "processing"
             data, kind = file.content, file.kind
-            is_answer_docx = kind == "docx" and bool(_ANSWER_FILENAME.search(file.filename))
+            is_answer_file = kind != "json" and bool(_ANSWER_FILENAME.search(file.filename))
             job.lease_until = clock() + timedelta(seconds=settings.import_worker_lease_seconds)
             db.commit()
         with _keep_lease(factory, settings, clock, job_id, lease, stopping):
@@ -212,7 +212,7 @@ def process_next(
                 try:
                     pages = parser(data, kind, settings)["pages"]
                 except DocumentParseError as error:
-                    if not is_answer_docx or error.code != "media_limit":
+                    if kind != "docx" or not is_answer_file or error.code != "media_limit":
                         raise
                     pages = parser(data, "docx_answer_text", settings)["pages"]
                     text_only = True
@@ -273,7 +273,7 @@ def process_next(
                 file = db.get(DocumentImportFile, file_id)
                 candidates = job_candidates(db, job_id)
                 # 单文件结果和候选题在同一事务提交，恢复时不会重复创建。
-                pieces = [] if text_only else split_pages(pages)
+                pieces = [] if is_answer_file else split_pages(pages)
                 if len(candidates) + len(pieces) > settings.import_max_candidates:
                     problem = "candidate_limit: 候选题数量超过上限，请拆分任务"
                 if problem:

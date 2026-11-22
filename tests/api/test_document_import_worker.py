@@ -324,6 +324,50 @@ def test_oversized_docx_media_in_answer_file_still_offers_text_locations(
     )
 
 
+def test_answer_file_does_not_consume_question_candidate_limit(reviewer, app, clock):
+    app.state.settings.import_max_candidates = 1
+    job_id = queued(
+        reviewer,
+        [("stem.pdf", text_pdf("1. Question")), ("answers.pdf", text_pdf("1. Answer"))],
+    )
+    assert process_next(app.state.session_factory, app.state.settings, clock.now)
+    detail = reviewer.data("GET", f"{PATH}/{job_id}")
+    assert detail["job"]["status"] == "needs_review"
+    assert all(file["status"] == "ready" for file in detail["files"])
+    (item,) = detail["candidates"]
+    assert item["text"] == "1. Question" and item["payload"] is None
+    assert any("答案配对建议" in warning for warning in item["warnings"])
+
+
+def test_answer_checkpoint_remains_source_only_across_worker_restart(reviewer, app, clock):
+    from tutor_api.services.document_parser_process import parse_isolated
+
+    answer = text_pdf("1. Standalone answer")
+    stem = text_pdf("1. Question")
+    job_id = queued(reviewer, [("answers.pdf", answer), ("stem.pdf", stem)])
+    factory, settings = app.state.session_factory, app.state.settings
+
+    def stop_after_answer(data, kind, settings):
+        if data == stem:
+            raise SystemExit("worker interrupted")
+        return parse_isolated(data, kind, settings)
+
+    with pytest.raises(SystemExit, match="worker interrupted"):
+        process_next(factory, settings, clock.now, parser=stop_after_answer)
+    interrupted = reviewer.data("GET", f"{PATH}/{job_id}")
+    assert interrupted["job"]["status"] == "processing"
+    assert interrupted["files"][0]["status"] == "ready"
+    assert interrupted["candidates"] == []
+
+    clock.advance(settings.import_worker_lease_seconds + 1)
+    assert process_next(factory, settings, clock.now)
+    completed = reviewer.data("GET", f"{PATH}/{job_id}")
+    assert completed["job"]["status"] == "needs_review"
+    (item,) = completed["candidates"]
+    assert item["text"] == "1. Question" and item["payload"] is None
+    assert any("答案配对建议" in warning for warning in item["warnings"])
+
+
 def test_missing_upload_audit_does_not_assume_uuid_file_order(reviewer, app, clock):
     from sqlalchemy import delete
 

@@ -21,6 +21,7 @@ class _PhotoPicker extends ImagePicker {
   final Uint8List bytes;
   int selectionSize = 1;
   bool includeCorruptPhoto = false;
+  (double?, double?, int?)? cameraOptions;
 
   @override
   Future<XFile?> pickImage({
@@ -30,7 +31,12 @@ class _PhotoPicker extends ImagePicker {
     int? imageQuality,
     CameraDevice preferredCameraDevice = CameraDevice.rear,
     bool requestFullMetadata = true,
-  }) async => XFile.fromData(bytes, name: 'paper.png', mimeType: 'image/png');
+  }) async {
+    if (source == ImageSource.camera) {
+      cameraOptions = (maxWidth, maxHeight, imageQuality);
+    }
+    return XFile.fromData(bytes, name: 'paper.png', mimeType: 'image/png');
+  }
 
   @override
   Future<List<XFile>> pickMultiImage({
@@ -346,8 +352,9 @@ void main() {
       await tester.pumpAndSettle();
       qrVisible = true;
       final add = find.text('选图添加作答页');
-      await tester.tap(add);
+      await tester.tap(find.text('拍照添加作答页'));
       await tester.pumpAndSettle();
+      expect(picker.cameraOptions, (3000.0, 3000.0, 90));
       expect(find.textContaining('不属于当前纸包'), findsOneWidget);
       expect(harness.backend.requestsTo('POST', '/scans/uploads'), isEmpty);
       rejectPage = false;

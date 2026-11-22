@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from tutor_api.services.learning_pack_pdf import (
     SolutionItem,
     render_solutions,
     render_student,
+    stamp_print_time,
 )
 
 
@@ -49,10 +51,17 @@ def test_two_pdfs_have_separate_content_and_a4_pages(font, monkeypatch):
 
 def test_long_question_flows_without_truncation(font):
     stem = ("The question continues here. " * 500) + "\nEnd of question."
-    student = PdfReader(BytesIO(render_student([PaperItem("AB123", "opaque-page", stem)], font)))
+    published = render_student([PaperItem("AB123", "opaque-page", stem)], font)
+    student = PdfReader(BytesIO(published))
     assert len(student.pages) > 1
     assert "End of question." in "".join(page.extract_text() for page in student.pages)
     assert all("AB123" in page.extract_text() for page in student.pages)
+    printed = PdfReader(BytesIO(stamp_print_time(published, datetime(2026, 11, 22, 5, tzinfo=UTC))))
+    assert len(printed.pages) == len(student.pages)
+    for original, stamped in zip(student.pages, printed.pages, strict=True):
+        assert original.mediabox == stamped.mediabox
+        assert original.extract_text().strip() in stamped.extract_text()
+        assert "2026-11-22 13:00:00" in stamped.extract_text()
 
 
 def test_incline_sketch_is_vector_and_does_not_add_solution_text(font):

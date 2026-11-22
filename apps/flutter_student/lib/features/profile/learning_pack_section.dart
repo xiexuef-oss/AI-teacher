@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:printing/printing.dart';
 import 'package:tutor_contracts/tutor_contracts.dart';
 
 import '../../core/errors.dart';
@@ -155,7 +156,7 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
       'needs_review' => '暂时没有符合条件的可打印题目，任务待人工处理。',
       'succeeded' => switch (job.packResult) {
         'published' => '学习包已生成，可以下载学生版。',
-        'awaiting_return' => '同题已有纸包等待回收，本次未生成新包。',
+        'awaiting_return' => '相关题目已有纸包等待回收，本次未生成新包。',
         'insufficient_budget' => '剩余学习时间不足，本次未生成纸包。',
         'no_learning_day' => '未设置可用学习日，请在学习安排里选择日期后重新生成。',
         'no_printable_item' => '暂时没有适合打印的题目。',
@@ -268,11 +269,18 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
     return page.ids.isEmpty ? '没有更多已发布纸包。' : '已同步 ${page.ids.length} 个纸包。';
   }
 
-  Future<String> _download(TutorApiClient api, {bool solutions = false}) async {
+  Future<String> _download(
+    TutorApiClient api, {
+    bool solutions = false,
+    bool forPrint = false,
+  }) async {
     final id = _job!;
     final pdf = solutions
         ? await api.downloadLearningPackSolutionPdf(jobId: id)
-        : await api.downloadLearningPackStudentPdf(jobId: id);
+        : await api.downloadLearningPackStudentPdf(
+            jobId: id,
+            forPrint: forPrint ? true : null,
+          );
     if (!_active) return '';
     if (pdf.contentBase64.length > 22369624) throw const FormatException();
     final bytes = base64Decode(pdf.contentBase64);
@@ -280,6 +288,14 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
         ascii.decode(bytes.sublist(0, 4), allowInvalid: true) != '%PDF' ||
         sha256.convert(bytes).toString() != pdf.sha256) {
       return 'PDF 校验失败，请重新下载。';
+    }
+    if (forPrint) {
+      final submitted = await Printing.layoutPdf(
+        name: 'learning-pack-$id-v${pdf.revision}',
+        dynamicLayout: false,
+        onLayout: (_) async => bytes,
+      );
+      return submitted ? '已提交打印。' : '打印未完成。';
     }
     return saveDataFile(
       bytes,
@@ -801,7 +817,15 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
             limit: remaining,
             requestFullMetadata: false,
           )
-        : [?await picker.pickImage(source: source, requestFullMetadata: false)];
+        : [
+            ?await picker.pickImage(
+              source: source,
+              maxWidth: 3000,
+              maxHeight: 3000,
+              imageQuality: 90,
+              requestFullMetadata: false,
+            ),
+          ];
     final messages = <String>[];
     for (final (index, photo) in photos.take(remaining).indexed) {
       if (!_active) return '';
@@ -1411,6 +1435,12 @@ class _LearningPackSectionState extends ConsumerState<LearningPackSection> {
                     ? null
                     : () => _run(_download),
                 child: const Text('下载学生版 PDF'),
+              ),
+              OutlinedButton(
+                onPressed: _busy || !_canOpenPack
+                    ? null
+                    : () => _run((api) => _download(api, forPrint: true)),
+                child: const Text('打印学生版'),
               ),
               OutlinedButton(
                 onPressed: _busy || !_canOpenPack

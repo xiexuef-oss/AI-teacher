@@ -131,7 +131,9 @@ def test_learning_mode_changes_preserve_the_published_pack(onboarded, app, clock
     ("field", "invalid"),
     [
         ("status", "draft"),
+        ("version", 2),
         ("source_type", "gaokao_licensed"),
+        ("source_name", "Unreviewed source"),
         ("source_license", "unspecified-scope"),
     ],
 )
@@ -290,6 +292,19 @@ def test_worker_publishes_both_sample_pdfs(
     pdf = onboarded.data("GET", f"{path}/student-pdf")
     assert b64decode(pdf["content_base64"]) == pack.student_pdf
     assert pdf["sha256"] == sha256(pack.student_pdf).hexdigest()
+    from io import BytesIO
+
+    from pypdf import PdfReader
+
+    for _ in range(2):
+        printing = onboarded.data("GET", f"{path}/student-pdf", params={"for_print": "true"})
+        stamped = b64decode(printing["content_base64"])
+        timestamp = (clock.now() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+        assert all(timestamp in page.extract_text() for page in PdfReader(BytesIO(stamped)).pages)
+        assert printing["sha256"] == sha256(stamped).hexdigest() != pdf["sha256"]
+        assert printing["revision"] == pdf["revision"]
+        clock.advance(1)
+    assert onboarded.data("GET", f"{path}/student-pdf") == pdf
     item = onboarded.data("GET", f"{path}/items/001")
     assert item == {
         "revision": 1,
@@ -303,6 +318,7 @@ def test_worker_publishes_both_sample_pdfs(
     assert onboarded.data("GET", "/learning/packs", params={"after": result["id"]}) == {"ids": []}
     assert other.data("GET", "/learning/packs") == {"ids": []}
     other.error("GET", f"{path}/student-pdf", expect=404)
+    other.error("GET", f"{path}/student-pdf", params={"for_print": "true"}, expect=404)
     other.error("GET", f"{path}/items/001", expect=404)
     other.error("GET", f"{path}/items", expect=404)
     token = pack.manifest_json["items"][0]["page_token"]
@@ -742,7 +758,17 @@ def test_pdf_storage_failure_keeps_pack_hidden_until_original_job_recovers(onboa
     assert onboarded.data("GET", "/learning/packs") == {"ids": [job["id"]]}
     onboarded.error("GET", f"{path}/student-pdf", expect=503)
     app.state.learning_pack_pdf_store = store
-    assert onboarded.data("GET", f"{path}/student-pdf")["revision"] == 1
+    original = onboarded.data("GET", f"{path}/student-pdf")
+    assert original["revision"] == 1
+    objects = store.objects.copy()
+    write_count = len(store.writes)
+    printed = onboarded.data("GET", f"{path}/student-pdf", params={"for_print": "true"})
+    assert printed["sha256"] == sha256(b64decode(printed["content_base64"])).hexdigest()
+    assert printed["sha256"] != original["sha256"]
+    assert printed["revision"] == original["revision"]
+    assert onboarded.data("GET", f"{path}/student-pdf") == original
+    assert store.objects == objects
+    assert len(store.writes) == write_count
     onboarded.error("GET", f"{path}/solution-pdf", expect=409)
 
 

@@ -176,6 +176,11 @@ def run(ctx: Context) -> None:
         f"解答题、实验题和证明题 {expected['written']} 份" in text and "不自动评分" in text,
     )
     check("趋势：上一周没有数据，暂时比不了", "暂时比不了" in text)
+    check(
+        "已有数字练习但没有纸笔回收时提示纸笔资料不足",
+        "本周没有回收纸包，纸笔学习资料不足" in text
+        and not any(label in text for label in ("纸笔独立作答正确率", "退步", "懒惰")),
+    )
     check("按科目", "按科目" in text)
     check("说明不是官方成绩", "不是官方成绩" in text)
     check("周报里没有题目标题（家长只看汇总）", not any(title in text for title in titles), titles)

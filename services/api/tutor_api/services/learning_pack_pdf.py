@@ -1,6 +1,7 @@
 """Render separate, printable views of a paper learning pack."""
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
@@ -17,10 +18,27 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 MARGIN = 15 * mm
 QR_SIZE = 20 * mm
+
+
+def stamp_print_time(pdf: bytes, now: datetime) -> bytes:
+    overlay = BytesIO()
+    canvas = Canvas(overlay, pagesize=A4)
+    canvas.setFont("Helvetica", 8)
+    stamp = (now + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+    canvas.drawRightString(A4[0] - MARGIN, MARGIN - 5 * mm, stamp)
+    canvas.save()
+    footer = PdfReader(overlay).pages[0]
+    writer = PdfWriter(clone_from=BytesIO(pdf))
+    for page in writer.pages:
+        page.merge_page(footer)
+    output = BytesIO()
+    writer.write(output)
+    return output.getvalue()
 
 
 @dataclass(frozen=True)
@@ -41,9 +59,7 @@ def _incline_sketch() -> Drawing:
     diagram = Drawing(150, 78)
     diagram.hAlign = "LEFT"
     diagram.add(Polygon([12, 7, 132, 7, 132, 67], fillColor=white, strokeColor=black))
-    diagram.add(
-        Polygon([68, 35, 92, 47, 84, 63, 60, 51], fillColor=white, strokeColor=black)
-    )
+    diagram.add(Polygon([68, 35, 92, 47, 84, 63, 60, 51], fillColor=white, strokeColor=black))
     return diagram
 
 

@@ -22,10 +22,38 @@ def test_answer_section_is_not_appended_to_question_stem():
     assert all(any("答案" in warning for warning in item["warnings"]) for item in result)
 
 
+def test_contiguous_pdf_number_fragments_keep_original_text_and_locations():
+    result = split_pages(
+        [
+            page(3, "10. 题面\n4 2．式中参数\n1 1．另一题\n12．\n公式续行\n13．末题"),
+            page(1, "11. 答案甲\n12. 答案乙", _file_id="answer", _answer_file=True),
+        ]
+    )
+    assert [item["text"] for item in result] == [
+        "10. 题面\n4 2．式中参数",
+        "1 1．另一题",
+        "12．\n公式续行",
+        "13．末题",
+    ]
+    assert [item["locations"][0]["block"] for item in result] == [1, 3, 4, 6]
+    for item, number in zip(result[1:3], (11, 12), strict=True):
+        assert any("题号版式" in warning for warning in item["warnings"])
+        assert any(f"题号 {number} 的答案配对建议" in warning for warning in item["warnings"])
+
+
 def test_unique_answer_number_suggests_source_location_without_filling_answer():
     result = split_pages([page(1, "1. 第一题"), page(2, "参考答案\n1. 4")])
     assert any("片段 2" in warning and "题号 1" in warning for warning in result[0]["warnings"])
     assert result[0]["payload"] is None and "4" not in result[0]["text"]
+
+
+def test_omitted_question_marker_is_visible_but_does_not_get_an_answer_hint():
+    result = split_pages([page(1, "11. 前题\n12. 略\n13. 后题"), page(2, "参考答案\n12. 答案乙")])
+    omitted = result[1]
+    assert omitted["text"] == "12. 略"
+    assert omitted["locations"] == [{"page": 1, "block": 2}]
+    assert any("省略标记" in warning for warning in omitted["warnings"])
+    assert not any("答案配对建议" in warning for warning in omitted["warnings"])
 
 
 def test_subquestion_parentheses_do_not_split_and_unknown_order_is_warned():

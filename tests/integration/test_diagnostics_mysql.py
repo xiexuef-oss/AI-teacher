@@ -27,7 +27,9 @@ def diagnostic_db(mysql_engine):  # noqa: F811
     paths = sorted(Path("migrations").glob("*.sql"))
     old = [path for path in paths if path.name < "016_"]
     apply_migrations(mysql_engine, old)
-    assert apply_migrations(mysql_engine, paths) == ["016_diagnostic_plans.sql"]
+    diagnostic = [path for path in paths if path.name <= "016_diagnostic_plans.sql"]
+    assert apply_migrations(mysql_engine, diagnostic) == ["016_diagnostic_plans.sql"]
+    assert apply_migrations(mysql_engine, paths) == [path.name for path in paths[len(diagnostic) :]]
     assert apply_migrations(mysql_engine, paths) == []
     factory = sessionmaker(mysql_engine, expire_on_commit=False)
     owner = new_id()
@@ -157,7 +159,7 @@ def test_mysql_history_keyset_with_equal_creation_times(diagnostic_db):
         assert second["next_cursor"] is None
 
 
-def test_mysql_export_uses_rr_snapshot_across_concurrent_creation(diagnostic_db):
+def test_mysql_export_uses_rr_snapshot_across_concurrent_creation(diagnostic_db, app):
     from types import SimpleNamespace
 
     from sqlalchemy import event
@@ -190,7 +192,7 @@ def test_mysql_export_uses_rr_snapshot_across_concurrent_creation(diagnostic_db)
                     settings=Settings(
                         env="staging", pseudonym_secret="self-authored-export-secret"
                     ),
-                    request=SimpleNamespace(query_params={}),
+                    request=SimpleNamespace(query_params={}, app=app),
                 )
             )
             assert output.diagnostic_runs == []
@@ -202,7 +204,7 @@ def test_mysql_export_uses_rr_snapshot_across_concurrent_creation(diagnostic_db)
         assert service.workspace(db, owner)["run"]["id"] == created[0]
 
 
-def test_mysql_parent_export_is_owned_and_uses_same_rr_snapshot(diagnostic_db):
+def test_mysql_parent_export_is_owned_and_uses_same_rr_snapshot(diagnostic_db, app):
     from datetime import timedelta
     from types import SimpleNamespace
 
@@ -277,7 +279,7 @@ def test_mysql_parent_export_is_owned_and_uses_same_rr_snapshot(diagnostic_db):
                     settings=Settings(
                         env="staging", pseudonym_secret="self-authored-export-secret"
                     ),
-                    request=SimpleNamespace(query_params={}),
+                    request=SimpleNamespace(query_params={}, app=app),
                 )
             )
             records = output.parent_access_records

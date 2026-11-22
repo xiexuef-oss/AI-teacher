@@ -2,9 +2,11 @@ from base64 import b64decode, b64encode
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+from io import BytesIO
 from threading import Barrier, Event
 
 import pytest
+from PIL import Image
 
 from support.documents import png_image, text_pdf
 from tutor_api.blob_store import FilesystemBlobStore
@@ -50,6 +52,27 @@ def test_school_material_upload_is_private_and_idempotent(
     assert student.data("PUT", upload, json=body, key="upload-school") == receipt
     clock.advance(settings.media_temporary_ttl_seconds)
     student.error("PUT", upload, json=body, expect=404)
+
+
+def test_school_image_upload_rejects_animated_png(student, media_store):
+    output = BytesIO()
+    Image.new("RGB", (16, 16), "white").save(
+        output, format="PNG", save_all=True, append_images=[Image.new("RGB", (16, 16), "black")]
+    )
+    data = output.getvalue()
+    source = student.data(
+        "POST",
+        "/school-materials/uploads",
+        json={"mime": "image/png", "size_bytes": len(data), "sha256": sha256(data).hexdigest()},
+        expect=201,
+    )
+    student.error(
+        "PUT",
+        f"/school-materials/uploads/{source['media_id']}/content",
+        json={"content_base64": b64encode(data).decode("ascii")},
+        expect=422,
+    )
+    student.error("POST", "/school-materials", json={"media_id": source["media_id"]}, expect=404)
 
 
 def test_school_pdf_checks_actual_page_count(student, settings, media_store):
@@ -115,8 +138,10 @@ def test_worker_lists_private_pdf_text_and_marks_blank_pages(
     ocr_mode,
     external_route,
     expected_calls,
+    monkeypatch,
 ):
     from tutor_api.models import SchoolMaterialCorrection, SchoolMaterialResult
+    from tutor_api.routers import school_materials
     from tutor_api.services.school_material_worker import process_one, purge_expired_results
 
     data = text_pdf("First page", "")
@@ -249,7 +274,16 @@ def test_worker_lists_private_pdf_text_and_marks_blank_pages(
     with app.state.session_factory() as session:
         assert session.get_one(SchoolMaterialResult, job["id"]).pages_json[1]["text"] == ""
         assert session.get_one(SchoolMaterialCorrection, (job["id"], 2, 1)).text == body["text"]
-    clock.advance(settings.media_temporary_ttl_seconds)
+    parse = school_materials.parse_isolated
+
+    def expire_during_preview(*args, **kwargs):
+        result = parse(*args, **kwargs)
+        clock.advance(settings.media_temporary_ttl_seconds)
+        return result
+
+    with monkeypatch.context() as patch:
+        patch.setattr(school_materials, "parse_isolated", expire_during_preview)
+        student.error("GET", preview_path, expect=404)
     student.error("GET", path, expect=404)
     student.error("GET", preview_path, expect=404)
     student.error("PUT", edit, json={**body, "expected_revision": 1}, expect=404)

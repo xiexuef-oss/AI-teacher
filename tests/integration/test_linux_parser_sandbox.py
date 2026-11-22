@@ -1,4 +1,5 @@
 import base64
+import io
 import json
 import os
 import struct
@@ -8,6 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from support.documents import docx_document, png_image, text_pdf
 from tutor_api.services.document_extract import ParseLimits
@@ -54,6 +56,29 @@ def test_real_documents_parse_without_network(sandbox, kind, data, expected):
     )
     assert result.returncode == 0, result.stderr.decode(errors="replace")
     assert expected in json.loads(result.stdout)["pages"][0]["text"]
+
+
+def test_real_sandbox_checks_jpeg_upload_format(sandbox):
+    _, prefix, command = sandbox
+    data = io.BytesIO()
+    Image.new("RGB", (16, 16)).save(data, format="JPEG")
+    request = {
+        "operation": "extract",
+        "kind": "jpeg",
+        "content": base64.b64encode(data.getvalue()).decode(),
+        "limits": asdict(ParseLimits()),
+    }
+    result = subprocess.run(
+        prefix + command, input=json.dumps(request).encode(), capture_output=True, timeout=30
+    )
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
+    assert json.loads(result.stdout)["pages"][0]["method"] == "unavailable"
+
+    request["kind"] = "png"
+    result = subprocess.run(
+        prefix + command, input=json.dumps(request).encode(), capture_output=True, timeout=30
+    )
+    assert "invalid_image" in result.stdout.decode()
 
 
 def test_real_sandbox_word_answer_text_preserves_archive_limits(sandbox):

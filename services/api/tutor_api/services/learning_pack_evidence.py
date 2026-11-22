@@ -57,16 +57,27 @@ def _single_blank_outcome(version: QuestionVersion, text: str) -> Outcome:
         return "unknown"
     key = blanks[0]["key"]
     answer = version.answer_json
-    rule = (answer.get("equivalence_rules") or {}).get(key) or {}
+    rules = answer.get("equivalence_rules")
     values = answer.get("value")
-    if not isinstance(values, dict):
+    if not isinstance(rules, dict) or not isinstance(values, dict):
         return "unknown"
+    rule = rules.get(key)
     expected = values.get(key)
-    if rule.get("type") not in ("numeric", "interval") or not isinstance(expected, str):
+    if (
+        not isinstance(rule, dict)
+        or rule.get("type") not in ("numeric", "interval")
+        or not isinstance(expected, str)
+    ):
+        return "unknown"
+    all_units = answer.get("units")
+    if all_units is not None and not isinstance(all_units, dict):
+        return "unknown"
+    units = all_units.get(key) if all_units is not None else None
+    if units is not None and not isinstance(units, dict):
         return "unknown"
     try:
-        outcome = grading.check_blank(rule, expected, (answer.get("units") or {}).get(key), text)
-    except (ValueError, ArithmeticError):
+        outcome = grading.check_blank(rule, expected, units, text)
+    except (ValueError, ArithmeticError, TypeError):
         return "unknown"
     if outcome.status == "correct":
         return "correct"

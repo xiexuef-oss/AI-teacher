@@ -57,11 +57,23 @@ def test_numeric_single_blank_paper_evidence_reuses_unit_rules(text, expected):
     assert _outcome(manifest, record, version, text) == expected
 
 
-def test_numeric_paper_evidence_abstains_when_locked_answer_has_legacy_shape():
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"value": ["5"], "equivalence_rules": {"b1": {"type": "numeric"}}},
+        {"value": {"b1": "5"}, "equivalence_rules": {"b1": "numeric"}},
+        {
+            "value": {"b1": "5"},
+            "equivalence_rules": {"b1": {"type": "numeric"}},
+            "units": {"b1": "m"},
+        },
+    ],
+)
+def test_numeric_paper_evidence_abstains_when_locked_answer_has_legacy_shape(answer):
     record = LearningPackReturn(code="001", revision=1, question_version_id="version")
     version = QuestionVersion(
         content_json={"blanks": [{"key": "b1"}]},
-        answer_json={"value": ["5"], "equivalence_rules": {"b1": {"type": "numeric"}}},
+        answer_json=answer,
     )
     manifest = {
         "revision": 1,
@@ -92,3 +104,25 @@ def test_interval_paper_evidence_requires_a_recognized_interval(text, expected):
         "items": [{"code": "001", "question_version_id": "version", "answer_mode": "fill"}],
     }
     assert _outcome(manifest, record, version, text) == expected
+
+
+@pytest.mark.parametrize(
+    ("blanks", "values", "rules", "text"),
+    [
+        (["b1"], {"b1": "x/x"}, {"b1": {"type": "expression", "variables": ["x"]}}, "1"),
+        (["b1", "b2"], {"b1": "1", "b2": "2"}, {"b1": {"type": "numeric"}}, "1, 2"),
+    ],
+)
+def test_paper_fill_abstains_when_transcript_does_not_support_reliable_grading(
+    blanks, values, rules, text
+):
+    record = LearningPackReturn(code="001", revision=1, question_version_id="version")
+    version = QuestionVersion(
+        content_json={"blanks": [{"key": key} for key in blanks]},
+        answer_json={"value": values, "equivalence_rules": rules},
+    )
+    manifest = {
+        "revision": 1,
+        "items": [{"code": "001", "question_version_id": "version", "answer_mode": "fill"}],
+    }
+    assert _outcome(manifest, record, version, text) == "unknown"

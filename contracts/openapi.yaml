@@ -516,6 +516,10 @@ paths:
       summary: 下载本人已发布学习包的学生版
       parameters:
         - {name: job_id, in: path, required: true, schema: {type: string, format: uuid}}
+        - name: for_print
+          in: query
+          schema: {type: boolean}
+          description: 为本次打印生成副本，在每页二维码下方标注请求时的北京时间。保留原页码、二维码和题目版本。
       responses:
         '200':
           description: 学生版 PDF 及校验摘要

@@ -217,10 +217,12 @@ class TutorApiClient {
   /// 下载本人已发布学习包的学生版
   Future<LearningPackPdf> downloadLearningPackStudentPdf({
     required String jobId,
+    bool? forPrint,
     String? requestId,
   }) async {
     final data = await _core.send(
       'GET', '/learning/packs/${Uri.encodeComponent(jobId)}/student-pdf',
+      query: {'for_print': forPrint?.toString()},
       requestId: requestId,
     );
     return LearningPackPdf.fromJson(data as Map<String, dynamic>);

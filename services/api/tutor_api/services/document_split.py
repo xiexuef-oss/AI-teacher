@@ -3,6 +3,8 @@
 import re
 
 NUMBER = re.compile(r"^\s*(\d{1,3})\s*[.．、](?!\d)\s*\S")
+FRAGMENTED_NUMBER = re.compile(r"^\s*(\d(?:[ \t]*\d){0,2})[ \t]*[.．、](?!\d)")
+OMITTED_QUESTION = re.compile(r"\d{1,3}\s*[.．、]\s*(?:略|省略)[。.]?")
 ANSWER_HEADING = re.compile(
     r"^\s*(?:参考答案|答案(?:与解析|及解析)?|参考解析|试题解析)\s*[:：]?\s*$"
 )
@@ -100,10 +102,19 @@ def split_pages(pages):
                 current = fresh(page, block)
                 current["warnings"].append("作答说明片段，请人工核对，无需作为题目导入。")
             match = NUMBER.match(line) if block not in instruction_blocks else None
-            if match:
+            number = int(match[1]) if match else None
+            recovered = False
+            if number is None and last_number is not None and block not in instruction_blocks:
+                fragment = FRAGMENTED_NUMBER.match(line)
+                if fragment and "".join(fragment[1].split()) == str(last_number + 1):
+                    number = last_number + 1
+                    recovered = True
+            if number is not None:
                 flush()
                 current = fresh(page, block)
-                number = int(match[1])
+                current["_number"] = number
+                if recovered:
+                    current["warnings"].append("题号版式异常，请对照原件核对题号和题目边界。")
                 question_numbers[number] = question_numbers.get(number, 0) + 1
                 if last_number is not None and number != last_number + 1:
                     current["warnings"].append("题号跳号或重复，请核对双栏阅读顺序与题目边界。")
@@ -121,6 +132,10 @@ def split_pages(pages):
     flush()
     bounded = []
     for item in results:
+        question_number = item.pop("_number", None)
+        omitted = bool(OMITTED_QUESTION.fullmatch(item["text"]))
+        if omitted:
+            item["warnings"].append("题面仅有省略标记，请对照原件补齐题面后再导入。")
         if uncertain_order:
             item["warnings"].append("文件上传顺序无法确认，不自动跨文件合并或配答，请人工核对。")
         if saw_answers:
@@ -128,13 +143,15 @@ def split_pages(pages):
                 "检测到独立答案区：请在原文中人工核对题号并配对答案，尚未自动填入。"
             )
             number = NUMBER.match(item["text"])
-            matches = answer_locations.get(int(number[1]), []) if number else []
-            duplicate = number and question_numbers.get(int(number[1]), 0) > 1
+            if question_number is None and number:
+                question_number = int(number[1])
+            matches = answer_locations.get(question_number, [])
+            duplicate = question_numbers.get(question_number, 0) > 1
             if duplicate:
                 item["warnings"].append("题面存在重复题号，无法确定答案配对，请人工核对。")
-            elif len(matches) == 1 and not uncertain_order:
+            elif len(matches) == 1 and not uncertain_order and not omitted:
                 item["warnings"].append(
-                    f"题号 {number[1]} 的答案配对建议：查看{_answer_location(matches[0])}，须人工确认，尚未填入答案。"
+                    f"题号 {question_number} 的答案配对建议：查看{_answer_location(matches[0])}，须人工确认，尚未填入答案。"
                 )
             elif len(matches) > 1:
                 refs = "；".join(_answer_location(match) for match in matches[:3])

@@ -110,6 +110,23 @@ async function restored(value: components['schemas']['DocImportJobDetail']) {
   vi.mocked(api.getImportJob).mockResolvedValue(value)
   return page()
 }
+it('区分同一页的候选来源行，并保留省略提示', async () => {
+  const detail = workspace()
+  detail.files = [{ id: 'source', filename: '物理题面.pdf', kind: 'pdf', media_type: 'application/pdf', size_bytes: 100,
+    sha256: 'hash', status: 'ready', problems: [], original_available: true, pages: [] }]
+  detail.candidates[0]!.locations = [
+    { file_id: 'source', page: 5, block: 3 },
+    { file_id: 'source', page: 5, block: 6 },
+    { file_id: 'older-source', page: 6, block: null },
+  ]
+  detail.candidates[0]!.warnings = ['题面仅有省略标记，请对照原件补齐题面后再导入。']
+  const wrapper = await restored(detail)
+  expect(wrapper.text()).toContain('物理题面.pdf / 5 / 第 3 行；物理题面.pdf / 5 / 第 6 行；older-source / 6')
+  expect(wrapper.text()).toContain('题面仅有省略标记')
+  wrapper.unmount()
+  await flushPromises()
+  localStorage.clear()
+})
 it('51题每批最多提交50题，提示继续下一批', async () => {
   vi.mocked(api.submitImportCandidates).mockRejectedValue(new Error('故意暂停'))
   const wrapper = await restored(workspace(51))
@@ -188,7 +205,7 @@ it('人工配对仅添加答案原文位置，清除确认但不向题干或答�
   const wrapper = await restored(value)
   await wrapper.get('[data-testid="answer-location"]').setValue('answers:2')
   await wrapper.get('[data-testid="pair-answer"]').trigger('click')
-  expect(wrapper.text()).toContain('answers / 2')
+  expect(wrapper.text()).toContain('原始位置：答案.pdf / 2')
   expect(wrapper.findAll('textarea')[0]!.element.value).toBe('校对题文')
   expect(wrapper.findAll('textarea')[1]!.element.value).toBe('')
   expect(wrapper.find<HTMLInputElement>('input[type=checkbox]').element.checked).toBe(false)

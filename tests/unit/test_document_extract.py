@@ -1,6 +1,7 @@
 """本地文档提取：保序、限额、不将扫描件当作已识别。"""
 
 import io
+from types import SimpleNamespace
 from zipfile import ZipFile
 
 import pytest
@@ -23,6 +24,19 @@ def test_pdf_keeps_pages_and_text_order():
     assert result[0]["text"].index("1. First") < result[0]["text"].index("A. choice")
     assert result[1]["method"] == "pdf_text"
     assert result[0]["warnings"], "阅读顺序和公式仍须人工核对"
+
+
+def test_pdf_repairs_unpaired_surrogates_and_keeps_valid_math_symbols(monkeypatch):
+    page = SimpleNamespace(extract_text=lambda: "1. x\ud835 + \ud835\udc65")
+    monkeypatch.setattr(
+        "tutor_api.services.document_extract._pdf_reader",
+        lambda *_: SimpleNamespace(pages=[page]),
+    )
+
+    (result,) = extract(b"%PDF", "pdf", ParseLimits())
+
+    assert result["text"] == "1. x\ufffd + \U0001d465"
+    assert any("无法解码" in warning for warning in result["warnings"])
 
 
 def test_scanned_pdf_is_marked_for_ocr_without_fake_text():

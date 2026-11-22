@@ -120,7 +120,11 @@ def test_real_old_publish_serializes_with_new_content_version(mysql_engine, monk
 def test_real_review_epoch_upgrade_preserves_old_question(mysql_engine):  # noqa: F811
     from sqlalchemy import text
 
-    paths = sorted(Path("migrations").glob("*.sql"))
+    paths = [
+        path
+        for path in sorted(Path("migrations").glob("*.sql"))
+        if path.name <= "012_question_review_revision.sql"
+    ]
     baseline = [p for p in paths if p.name < "012_"]
     apply_migrations(mysql_engine, baseline)
     identifier = str(uuid4())
