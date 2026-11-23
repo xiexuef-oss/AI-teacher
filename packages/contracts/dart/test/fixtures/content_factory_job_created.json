@@ -1,0 +1,21 @@
+{
+  "name": "content_factory_job_created",
+  "method": "POST",
+  "path": "/api/v1/admin/content-factory/jobs",
+  "status": 202,
+  "schema": "ContentFactoryJobState",
+  "value": {
+    "id": "156761d2-1808-419e-adea-e2c6da4b2e0e",
+    "kind": "analyze_source",
+    "status": "queued",
+    "attempts": 0
+  },
+  "body": {
+    "data": {
+      "id": "156761d2-1808-419e-adea-e2c6da4b2e0e",
+      "kind": "analyze_source",
+      "status": "queued",
+      "attempts": 0
+    }
+  }
+}

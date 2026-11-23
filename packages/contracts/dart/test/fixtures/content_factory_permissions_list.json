@@ -1,0 +1,33 @@
+{
+  "name": "content_factory_permissions_list",
+  "method": "GET",
+  "path": "/api/v1/admin/content-factory/source-permissions",
+  "status": 200,
+  "schema": "ContentFactoryPermissionList",
+  "value": {
+    "items": [
+      {
+        "operation": "internal_analysis",
+        "region_code": "CN-51",
+        "status": "active",
+        "evidence_ref": "fixture-license",
+        "valid_from": "2020-01-01T00:00:00+00:00",
+        "valid_until": "2030-01-01T00:00:00+00:00"
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "operation": "internal_analysis",
+          "region_code": "CN-51",
+          "status": "active",
+          "evidence_ref": "fixture-license",
+          "valid_from": "2020-01-01T00:00:00+00:00",
+          "valid_until": "2030-01-01T00:00:00+00:00"
+        }
+      ]
+    }
+  }
+}

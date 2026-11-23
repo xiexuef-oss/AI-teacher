@@ -14,6 +14,7 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     ForeignKey,
     ForeignKeyConstraint,
@@ -43,6 +44,94 @@ class User(Base):
     status: Mapped[str] = mapped_column(String(16), default="active")
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ContentFactoryRoleAssignment(Base):
+    __tablename__ = "cf_role_assignments"
+    __table_args__ = (
+        CheckConstraint(
+            "cf_role IN ('editor', 'reviewer', 'publisher', 'admin')", name="ck_cf_role"
+        ),
+    )
+
+    user_id: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"), primary_key=True)
+    cf_role: Mapped[str] = mapped_column(String(16), primary_key=True)
+    assigned_by: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    assigned_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ContentFactorySource(Base):
+    __tablename__ = "cf_sources"
+    __table_args__ = (
+        CheckConstraint(
+            "source_class IN ('original', 'licensed', 'open', 'public_reference')",
+            name="ck_cf_source_class",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    title: Mapped[str] = mapped_column(String(255))
+    source_class: Mapped[str] = mapped_column(String(24))
+    sha256: Mapped[str] = mapped_column(CHAR(64))
+    created_by: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ContentFactorySourcePermission(Base):
+    __tablename__ = "cf_source_permissions"
+    __table_args__ = (
+        CheckConstraint("valid_until > valid_from", name="ck_cf_source_period"),
+        CheckConstraint("length(trim(evidence_ref)) > 0", name="ck_cf_source_evidence"),
+        CheckConstraint(
+            "operation IN ('read', 'internal_analysis', 'store_original', 'transform', "
+            "'generate_variants', 'print_pdf', 'commercial_distribution', 'send_to_external_ai')",
+            name="ck_cf_source_operation",
+        ),
+    )
+
+    source_id: Mapped[str] = mapped_column(_ID, ForeignKey("cf_sources.id"), primary_key=True)
+    operation: Mapped[str] = mapped_column(String(32), primary_key=True)
+    region_code: Mapped[str] = mapped_column(CHAR(5), primary_key=True)
+    evidence_ref: Mapped[str] = mapped_column(String(512))
+    reviewed_by: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    valid_from: Mapped[datetime] = mapped_column(UTCDateTime)
+    valid_until: Mapped[datetime] = mapped_column(UTCDateTime)
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class ContentFactorySourceOriginal(Base):
+    __tablename__ = "cf_source_originals"
+    __table_args__ = (Index("ix_cf_original_expiry", "expires_at"),)
+
+    source_id: Mapped[str] = mapped_column(_ID, ForeignKey("cf_sources.id"), primary_key=True)
+    region_code: Mapped[str] = mapped_column(CHAR(5), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    content: Mapped[bytes] = mapped_column(LargeBinary().with_variant(MEDIUMBLOB(), "mysql"))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ContentFactoryJob(Base):
+    __tablename__ = "cf_generation_jobs"
+    __table_args__ = (
+        Index("ix_cf_ready", "status", "available_at", "id"),
+        Index("ix_cf_lease", "status", "lease_until", "id"),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'retry_wait', 'review_required', 'failed', 'cancelled')",
+            name="ck_cf_job_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    requested_by: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    source_id: Mapped[str | None] = mapped_column(_ID, ForeignKey("cf_sources.id"))
+    kind: Mapped[str] = mapped_column(String(32))
+    parameters_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(24))
+    attempts: Mapped[int] = mapped_column(Integer)
+    available_at: Mapped[datetime] = mapped_column(UTCDateTime)
+    lease_until: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    lease_token: Mapped[str | None] = mapped_column(_ID)
+    result_json: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True))
 
 
 class StudentProfile(Base):
@@ -255,6 +344,45 @@ class KnowledgeNode(Base):
     title: Mapped[str] = mapped_column(String(120))
     summary: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ContentFactoryQuestionType(Base):
+    __tablename__ = "cf_question_types"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'approved', 'deprecated')", name="ck_cf_question_type_status"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(_ID, primary_key=True)
+    code: Mapped[str] = mapped_column(String(90), unique=True)
+    subject: Mapped[str] = mapped_column(String(16))
+    title: Mapped[str] = mapped_column(String(200))
+    province_code: Mapped[str | None] = mapped_column(CHAR(5))
+    exam_year: Mapped[int | None] = mapped_column(SmallInteger)
+    curriculum_version: Mapped[str | None] = mapped_column(String(80))
+    specification_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    status: Mapped[str] = mapped_column(String(16))
+    created_by: Mapped[str] = mapped_column(_ID, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class ContentFactoryQuestionTypeKnowledge(Base):
+    __tablename__ = "cf_question_type_knowledge"
+    __table_args__ = (
+        CheckConstraint(
+            "relation IN ('primary', 'prerequisite', 'supporting')",
+            name="ck_cf_question_type_relation",
+        ),
+    )
+
+    question_type_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("cf_question_types.id"), primary_key=True
+    )
+    knowledge_id: Mapped[str] = mapped_column(
+        _ID, ForeignKey("knowledge_nodes.id"), primary_key=True
+    )
+    relation: Mapped[str] = mapped_column(String(16), primary_key=True)
 
 
 class KnowledgeEdge(Base):

@@ -1,7 +1,9 @@
 import pytest
 
 from ai_gateway import InputPart
+from ai_gateway.budget import estimate_input_tokens
 from support.gateway_fakes import (
+    ProviderResult,
     ScriptedProvider,
     external_provider,
     hint_ok,
@@ -10,12 +12,13 @@ from support.gateway_fakes import (
 )
 
 
-def provider(image_price):
+def provider(image_price, *, image_tokens=None):
     return external_provider(
         pricing={
             "input_per_1k_tokens_micros": 1000,
             "output_per_1k_tokens_micros": 2000,
             "image_unit_micros": image_price,
+            **({"image_input_tokens_max": image_tokens} if image_tokens is not None else {}),
         }
     )
 
@@ -92,3 +95,44 @@ def test_unpriced_candidate_is_skipped_before_a_quoted_candidate(make_gateway):
     response = h.gateway.invoke(request())
     assert response.status == "ok" and response.provider == "quoted"
     assert unknown.calls == [] and len(quoted.calls) == 1
+
+
+@pytest.mark.parametrize("entry", ["legacy", "single"])
+def test_token_billed_image_reserves_capacity_and_settles_reported_tokens(make_gateway, entry):
+    adapter = ScriptedProvider(
+        ProviderResult(output=hint_ok(), input_tokens=1100, output_tokens=25)
+    )
+    h = make_gateway({"x": provider(None, image_tokens=1024)}, ["x"], {"x": adapter})
+    req = request()
+    assert h.gateway._estimate("x", req) == (
+        estimate_input_tokens(req) + 1024 + req.constraints.max_output_tokens * 2
+    )
+    response = (
+        h.gateway.invoke(req)
+        if entry == "legacy"
+        else h.gateway.invoke_single_attempt(h.gateway.prepare_single_attempt(req))
+    )
+    assert response.status == "ok"
+    assert response.usage.image_units == 1
+    assert response.usage.estimated_cost_micros == (
+        response.usage.input_tokens + response.usage.output_tokens * 2
+    )
+
+
+@pytest.mark.parametrize("entry", ["legacy", "single"])
+def test_token_billed_image_over_budget_does_not_call_provider(make_gateway, entry):
+    adapter = ScriptedProvider(hint_ok())
+    req = request()
+    text_and_output = estimate_input_tokens(req) + req.constraints.max_output_tokens * 2
+    h = make_gateway(
+        {"x": provider(None, image_tokens=1024)},
+        ["x"],
+        {"x": adapter},
+        budgets={"per_request_max_cost_micros": text_and_output + 1023},
+    )
+    if entry == "single":
+        with pytest.raises(ValueError, match="within budget"):
+            h.gateway.prepare_single_attempt(req)
+    else:
+        assert h.gateway.invoke(req).error_code == "BUDGET_EXCEEDED"
+    assert adapter.calls == []

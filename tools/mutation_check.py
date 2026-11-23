@@ -49,6 +49,20 @@ class Mutation:
 
 MUTATIONS = [
     Mutation(
+        "V14-CF 归属：跨账号读取教研任务",
+        API / "services" / "content_factory_jobs.py",
+        "    if job is None or job.requested_by != ctx.actor_id:",
+        "    if job is None:",
+        ("tests/api/test_content_factory_permission_review.py",),
+    ),
+    Mutation(
+        "V14-CF 归属：纸包发布跳过最终题源复核",
+        API / "services" / "learning_pack_publication.py",
+        "    if recheck_source is not None and not recheck_source():\n        return False\n",
+        "",
+        ("tests/api/test_learning_pack_request.py::test_source_withdrawn_after_render_blocks_publication",),
+    ),
+    Mutation(
         "V14-R03 学校材料预览过期仍返回内容",
         API / "routers" / "school_materials.py",
         '    if min(result.expires_at, blob.expires_at) <= ctx.now():\n        raise not_found()\n',

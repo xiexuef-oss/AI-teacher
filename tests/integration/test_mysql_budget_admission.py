@@ -53,9 +53,11 @@ def test_mysql_cost_pair_concurrency_and_rollback(mysql_engine, monkeypatch):  #
 
 
 @pytest.mark.parametrize("limited", ["student", "platform"])
-def test_mysql_eight_way_last_slot_and_no_partial_consumption(mysql_engine, limited):  # noqa: F811
+@pytest.mark.parametrize("namespace", [None, "content_factory"])
+def test_mysql_eight_way_last_slot_and_no_partial_consumption(mysql_engine, limited, namespace):  # noqa: F811
     apply_migrations(mysql_engine, sorted(Path("migrations").glob("*.sql")))
-    store = DbBudgetStore(sessionmaker(mysql_engine), lambda: datetime.now(UTC))
+    factory = sessionmaker(mysql_engine)
+    store = DbBudgetStore(factory, lambda: datetime.now(UTC), namespace=namespace)
     day = datetime.now(UTC).date()
     barrier = Barrier(8)
 
@@ -71,6 +73,10 @@ def test_mysql_eight_way_last_slot_and_no_partial_consumption(mysql_engine, limi
     with ThreadPoolExecutor(max_workers=8) as pool:
         assert sum(pool.map(consume, range(8))) == 1
     assert store.get_requests("platform", "platform", day) == 1
+    if namespace is not None:
+        learning = DbBudgetStore(factory, lambda: datetime.now(UTC))
+        assert learning.get_requests("platform", "platform", day) == 0
+        assert learning.try_consume_request("shared", day, student_limit=1, platform_limit=1)
     if limited == "platform":
         assert sum(store.get_requests("student", f"student-{i}", day) for i in range(8)) == 1
     else:

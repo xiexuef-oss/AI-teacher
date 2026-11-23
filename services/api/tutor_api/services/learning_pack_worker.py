@@ -58,14 +58,19 @@ DUE_ONLY_SAMPLES = {
 }
 
 
+def _printable_sample(question):
+    return (
+        question is not None
+        and question.status == "published"
+        and question.version == 1
+        and question.source_name == ENGINEERING_SAMPLE_NAME
+        and is_engineering_sample(question)
+    )
+
+
 def _sample_question(db, key):
     question = db.get(Question, seed_uuid("question", key))
-    if question is None or (
-        question.status != "published"
-        or question.version != 1
-        or question.source_name != ENGINEERING_SAMPLE_NAME
-        or not is_engineering_sample(question)
-    ):
+    if not _printable_sample(question):
         return None
     version = db.get(QuestionVersion, seed_uuid("question_version", f"{key}:1"))
     solution = db.get(Solution, seed_uuid("solution", f"{key}:1:standard"))
@@ -342,11 +347,33 @@ def prepare_one(
                 plan = refreshed
                 return same_item
 
+            def recheck_source():
+                nonlocal plan
+                question = db.scalar(
+                    select(Question)
+                    .join(QuestionVersion, QuestionVersion.question_id == Question.id)
+                    .where(QuestionVersion.id == plan[0].question_version_id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+                if _printable_sample(question):
+                    return True
+                plan = _plan_pack(db, student_id, inputs, sample_font, plan_at)
+                return False
+
             while True:
                 item, minutes, deferred, reviews = plan
                 done = (
                     publish(
-                        db, job_id, token, [item], sample_font, clock, save_checkpoint, pdf_store
+                        db,
+                        job_id,
+                        token,
+                        [item],
+                        sample_font,
+                        clock,
+                        save_checkpoint,
+                        pdf_store,
+                        recheck_source=recheck_source,
                     )
                     if item is not None and sample_font is not None
                     else finish(

@@ -22,6 +22,19 @@ from support.contract import (
 )
 
 IMPLEMENTED = {
+    "uploadContentFactoryOriginal",
+    "cancelContentFactoryJob",
+    "createContentFactoryJob",
+    "getContentFactoryJob",
+    "reviewContentFactoryQuestionType",
+    "createContentFactoryQuestionType",
+    "getMyContentFactoryRoles",
+    "getContentFactoryQuestionType",
+    "listContentFactoryKnowledgeNodes",
+    "listContentFactorySourcePermissions",
+    "registerContentFactorySource",
+    "reviewContentFactorySourcePermission",
+    "setContentFactoryRoleAssignment",
     "requestLearningPackPhotoOcr",
     "getLearningPackPhotoOcr",
     "getScanUploadContent",
@@ -138,6 +151,14 @@ IMPLEMENTED |= {"createDraftCopy", "listQuestionDrafts", "getSessionQuestion"}
 PLANNED = DOCUMENT_IMPORT_OPERATIONS - DOCUMENT_IMPORT_IMPLEMENTED
 # docs/05：提交、评分触发、草稿同步、教学下一步等非幂等动作必须带 Idempotency-Key
 MUST_REQUIRE_IDEMPOTENCY_KEY = {
+    "uploadContentFactoryOriginal",
+    "cancelContentFactoryJob",
+    "createContentFactoryJob",
+    "reviewContentFactoryQuestionType",
+    "createContentFactoryQuestionType",
+    "registerContentFactorySource",
+    "reviewContentFactorySourcePermission",
+    "setContentFactoryRoleAssignment",
     "retryLearningPack",
     "requestLearningPackPhotoOcr",
     "correctLearningPackReturn",

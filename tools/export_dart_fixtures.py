@@ -415,6 +415,166 @@ def export(directory: Path = OUTPUT_DIR) -> int:
                 f"/learning/jobs/{review_job['id']}",
             )
             rec("learning_pack_shortages", reviewer, "GET", "/admin/learning-pack-shortages")
+            rec("my_content_factory_roles", reviewer, "GET", "/admin/content-factory/roles/me")
+            cf_admin_identity = ApiClient(raw).data(
+                "POST", "/dev/local-identities", params={"role": "admin"}, expect=201, key=False
+            )
+            cf_admin = ApiClient(
+                raw, token=cf_admin_identity["access_token"], user_id=cf_admin_identity["user_id"]
+            )
+            rec(
+                "content_factory_role_assignment",
+                cf_admin,
+                "POST",
+                "/admin/content-factory/role-assignments",
+                json={"user_id": reviewer.user_id, "role": "editor", "enabled": True},
+            )
+            from base64 import b64encode
+            from hashlib import sha256
+
+            cf_original = b"%PDF-1.4\nfixture"
+            cf_source = rec(
+                "content_factory_source_registered",
+                reviewer,
+                "POST",
+                "/admin/content-factory/sources",
+                expect=201,
+                json={
+                    "title": "教研工程样张",
+                    "source_class": "original",
+                    "sha256": sha256(cf_original).hexdigest(),
+                },
+            )
+            catalog = rec(
+                "content_factory_knowledge_catalog",
+                reviewer,
+                "GET",
+                "/admin/content-factory/knowledge-nodes",
+                params={"subject": "math"},
+            )
+            cf_question_type = rec(
+                "content_factory_question_type_created",
+                reviewer,
+                "POST",
+                "/admin/content-factory/question-types",
+                expect=201,
+                json={
+                    "code": "math.fixture",
+                    "title": "工程题型",
+                    "subject": "math",
+                    "specification": {"format": "fill"},
+                    "knowledge": [
+                        {"knowledge_id": catalog["items"][0]["id"], "relation": "primary"}
+                    ],
+                },
+            )
+            rec(
+                "content_factory_question_type_detail",
+                reviewer,
+                "GET",
+                f"/admin/content-factory/question-types/{cf_question_type['id']}",
+            )
+            cf_admin.data(
+                "POST",
+                "/admin/content-factory/role-assignments",
+                json={"user_id": other_reviewer.user_id, "role": "reviewer", "enabled": True},
+            )
+            rec(
+                "content_factory_question_type_reviewed",
+                other_reviewer,
+                "POST",
+                f"/admin/content-factory/question-types/{cf_question_type['id']}/review",
+                json={"decision": "approve", "notes": "已核对工程题型规格"},
+            )
+            rec(
+                "content_factory_permission_reviewed",
+                other_reviewer,
+                "POST",
+                "/admin/content-factory/source-permissions",
+                json={
+                    "source_id": cf_source["id"],
+                    "operation": "internal_analysis",
+                    "region_code": "CN-51",
+                    "decision": "grant",
+                    "evidence_ref": "fixture-license",
+                    "valid_from": "2020-01-01T00:00:00Z",
+                    "valid_until": "2030-01-01T00:00:00Z",
+                },
+            )
+            rec(
+                "content_factory_permissions_list",
+                other_reviewer,
+                "GET",
+                "/admin/content-factory/source-permissions",
+                params={"source_id": cf_source["id"]},
+            )
+            other_reviewer.data(
+                "POST",
+                "/admin/content-factory/source-permissions",
+                json={
+                    "source_id": cf_source["id"],
+                    "operation": "store_original",
+                    "region_code": "CN-51",
+                    "decision": "grant",
+                    "evidence_ref": "fixture-license",
+                    "valid_from": "2020-01-01T00:00:00Z",
+                    "valid_until": "2030-01-01T00:00:00Z",
+                },
+            )
+            rec(
+                "content_factory_original_uploaded",
+                reviewer,
+                "POST",
+                f"/admin/content-factory/sources/{cf_source['id']}/original",
+                json={
+                    "filename": "fixture.pdf",
+                    "content_base64": b64encode(cf_original).decode(),
+                    "region_code": "CN-51",
+                },
+            )
+            cf_job = rec(
+                "content_factory_job_created",
+                reviewer,
+                "POST",
+                "/admin/content-factory/jobs",
+                expect=202,
+                json={
+                    "kind": "analyze_source",
+                    "source_id": cf_source["id"],
+                    "region_code": "CN-51",
+                },
+            )
+            rec(
+                "content_factory_job_state",
+                reviewer,
+                "GET",
+                f"/admin/content-factory/jobs/{cf_job['id']}",
+            )
+            rec(
+                "content_factory_job_cancelled",
+                reviewer,
+                "POST",
+                f"/admin/content-factory/jobs/{cf_job['id']}/cancel",
+            )
+            from tutor_api.services.content_factory_jobs import process_one as process_cf_job
+
+            analyzed_job = reviewer.data(
+                "POST",
+                "/admin/content-factory/jobs",
+                expect=202,
+                json={
+                    "kind": "analyze_source",
+                    "source_id": cf_source["id"],
+                    "region_code": "CN-51",
+                },
+            )
+            assert process_cf_job(app.state.session_factory, clock.now, job_id=analyzed_job["id"])
+            rec(
+                "content_factory_job_result",
+                reviewer,
+                "GET",
+                f"/admin/content-factory/jobs/{analyzed_job['id']}",
+            )
             paper_student.save_profile(
                 json={
                     "region_code": "CN-51",

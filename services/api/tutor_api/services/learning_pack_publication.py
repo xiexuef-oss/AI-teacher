@@ -73,6 +73,8 @@ def publish(
     clock,
     save_checkpoint=None,
     pdf_store=None,
+    *,
+    recheck_source=None,
 ) -> bool:
     """Stage both PDFs and the status update in the caller's transaction."""
     if not questions or any(not q.stem.strip() or not q.solution.strip() for q in questions):
@@ -124,6 +126,8 @@ def publish(
                 raise BlobStorageUnavailable("Staged paper PDF checksum mismatch")
             objects[variant] = key
         student = solutions = b""
+    if recheck_source is not None and not recheck_source():
+        return False
     if not finish(db, job_id, lease, clock(), success=True):
         return False
     db.add(

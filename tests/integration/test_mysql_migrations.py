@@ -204,10 +204,10 @@ def test_real_concurrent_workers_publish_only_one_unreturned_pack(
     real_publish = worker.publish
     real_claim = worker.claim
 
-    def publish(*args):
+    def publish(*args, **kwargs):
         publishing.set()
         assert second_claimed.wait(timeout=10)
-        return real_publish(*args)
+        return real_publish(*args, **kwargs)
 
     def claim(*args):
         token = real_claim(*args)
@@ -221,7 +221,9 @@ def test_real_concurrent_workers_publish_only_one_unreturned_pack(
     font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
     with ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(worker.prepare_one, sessions, lambda: now, font)
-        assert publishing.wait(timeout=10)
+        if not publishing.wait(timeout=10):
+            first.result(timeout=1)
+            pytest.fail("Worker did not reach publication")
         second = pool.submit(worker.prepare_one, sessions, lambda: now, font)
         assert first.result(timeout=15)
         assert second.result(timeout=15)
@@ -268,6 +270,206 @@ def test_mysql_cancel_committed_during_render_blocks_publication(mysql_engine, m
         assert not publication.publish(session, job, token, items, font, lambda: now)
     with sessions() as session:
         assert session.get_one(LearningJob, job).status == "cancelled"
+        assert session.get(LearningPackPublication, job) is None
+
+
+@pytest.mark.parametrize("kind", [None, "pdf", "png"])
+def test_content_factory_worker_processes_authorized_source_in_mysql(mysql_engine, kind):
+    import subprocess
+    import sys
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy.orm import sessionmaker
+
+    from support.documents import png_image, text_pdf
+    from tutor_api.gateway_io import DbBudgetStore
+    from tutor_api.models import (
+        ContentFactoryJob,
+        ContentFactorySource,
+        ContentFactorySourceOriginal,
+        ContentFactorySourcePermission,
+        KnowledgeNode,
+        User,
+    )
+
+    apply_migrations(mysql_engine, sorted(Path("migrations").glob("*.sql")))
+    sessions = sessionmaker(mysql_engine)
+    now = datetime.now(UTC).replace(microsecond=0)
+    owner, source_id, job_id = (str(uuid4()) for _ in range(3))
+    node_id = str(uuid4())
+    content = png_image() if kind == "png" else text_pdf("Quadratic functions")
+    with sessions.begin() as db:
+        db.add(User(id=owner, role="reviewer", created_at=now, updated_at=now))
+        db.flush()
+        db.add(
+            ContentFactorySource(
+                id=source_id,
+                title="工程样本",
+                source_class="original",
+                sha256=hashlib.sha256(content).hexdigest(),
+                created_by=owner,
+                created_at=now,
+            )
+        )
+        db.flush()
+        if kind is not None:
+            db.add(
+                KnowledgeNode(
+                    id=node_id,
+                    subject="math",
+                    code="math.fixture",
+                    title="Quadratic functions",
+                    created_at=now,
+                )
+            )
+            db.add(
+                ContentFactorySourceOriginal(
+                    source_id=source_id,
+                    region_code="CN-51",
+                    kind=kind,
+                    content=content,
+                    expires_at=now + timedelta(hours=1),
+                )
+            )
+            db.add_all(
+                ContentFactorySourcePermission(
+                    source_id=source_id,
+                    operation=operation,
+                    region_code="CN-51",
+                    evidence_ref="integration-license",
+                    reviewed_by=owner,
+                    valid_from=now,
+                    valid_until=now + timedelta(hours=1),
+                )
+                for operation in ("read", "store_original")
+            )
+        db.add_all(
+            (
+                ContentFactorySourcePermission(
+                    source_id=source_id,
+                    operation="internal_analysis",
+                    region_code="CN-51",
+                    evidence_ref="integration-license",
+                    reviewed_by=owner,
+                    valid_from=now,
+                    valid_until=now + timedelta(hours=1),
+                ),
+                ContentFactoryJob(
+                    id=job_id,
+                    source_id=source_id,
+                    requested_by=owner,
+                    kind="analyze_source",
+                    parameters_json={"region_code": "CN-51"},
+                    status="queued",
+                    attempts=0,
+                    available_at=now,
+                ),
+            )
+        )
+    run = subprocess.run(
+        [
+            sys.executable,
+            "tools/run_content_factory_worker.py",
+            "--once",
+            *(["--mock-ocr"] if kind == "png" else []),
+        ],
+        env={
+            **os.environ,
+            "TUTOR_ENV": "dev",
+            "TUTOR_PSEUDONYM_SECRET": uuid4().hex,
+            "TUTOR_DATABASE_URL": mysql_engine.url.render_as_string(hide_password=False),
+        },
+        capture_output=True,
+        timeout=30,
+    )
+    assert run.returncode == 0
+    with sessions() as db:
+        job = db.get_one(ContentFactoryJob, job_id)
+        assert (job.status, job.attempts) == ("review_required", 1)
+        assert job.result_json["level"] == "metadata"
+        if kind == "pdf":
+            assert job.result_json["document"] == {
+                "pages": 1,
+                "text_chars": len("Quadratic functions"),
+                "needs_ocr_pages": 0,
+                "knowledge_suggestions": [
+                    {
+                        "knowledge_id": node_id,
+                        "title": "Quadratic functions",
+                        "subject": "math",
+                        "matched_pages": [1],
+                    }
+                ],
+            }
+        elif kind == "png":
+            assert job.result_json["document"] == {
+                "pages": 1,
+                "text_chars": 0,
+                "needs_ocr_pages": 1,
+                "knowledge_suggestions": [],
+            }
+        else:
+            assert "document" not in job.result_json
+    learning = DbBudgetStore(sessions, lambda: now)
+    research = DbBudgetStore(sessions, lambda: now, namespace="content_factory")
+    assert learning.get_requests("platform", "platform", now.date()) == 0
+    assert research.get_requests("platform", "platform", now.date()) == (1 if kind == "png" else 0)
+
+
+def test_mysql_withdraws_paper_source_in_separate_transaction(mysql_engine, monkeypatch):
+    from datetime import UTC, datetime
+
+    from reportlab import __file__ as reportlab_path
+    from sqlalchemy.orm import sessionmaker
+
+    from tutor_api.models import (
+        LearningJob,
+        LearningPackCommand,
+        LearningPackPublication,
+        Question,
+        User,
+    )
+    from tutor_api.services import learning_pack_publication as publication
+    from tutor_api.services.content_seed import seed_if_empty, seed_uuid
+    from tutor_api.services.learning_jobs import enqueue
+    from tutor_api.services.learning_pack_worker import prepare_one
+
+    apply_migrations(mysql_engine, sorted(Path("migrations").glob("*.sql")))
+    sessions = sessionmaker(mysql_engine)
+    now = datetime(2026, 11, 18, tzinfo=UTC)
+    owner = str(uuid4())
+    with sessions.begin() as session:
+        seed_if_empty(session, now)
+        second = session.get_one(Question, seed_uuid("question", "chem-conservation-co2"))
+        second.status = "withdrawn"
+        session.add(User(id=owner, role="student", created_at=now, updated_at=now))
+        session.flush()
+        job = enqueue(session, owner, "withdraw-source", now)
+        session.add(
+            LearningPackCommand(
+                job_id=job,
+                input_json={
+                    "settings": {"weekly_minutes": 10, "weekdays": [1]},
+                    "subjects": ["chemistry"],
+                    "school_minutes": 0,
+                },
+            )
+        )
+
+    render = publication.render_solutions
+
+    def render_then_withdraw(*args, **kwargs):
+        pdf = render(*args, **kwargs)
+        with sessions.begin() as session:
+            source = session.get_one(Question, seed_uuid("question", "chem-process-reading"))
+            source.source_license = "withdrawn-for-test"
+        return pdf
+
+    monkeypatch.setattr(publication, "render_solutions", render_then_withdraw)
+    font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+    assert prepare_one(sessions, lambda: now, font, queued_id=job)
+    with sessions() as session:
+        assert session.get_one(LearningJob, job).status == "needs_review"
         assert session.get(LearningPackPublication, job) is None
 
 

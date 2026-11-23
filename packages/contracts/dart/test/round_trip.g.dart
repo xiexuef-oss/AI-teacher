@@ -9,6 +9,27 @@ typedef RoundTrip = Map<String, dynamic> Function(Map<String, dynamic> json);
 
 /// schema 名 → 把一段 JSON 解析成对应类型再序列化回来。
 final Map<String, RoundTrip> roundTrips = {
+  'ContentFactoryOriginalUpload': (json) => ContentFactoryOriginalUpload.fromJson(json).toJson(),
+  'ContentFactoryOriginalReceipt': (json) => ContentFactoryOriginalReceipt.fromJson(json).toJson(),
+  'ContentFactoryJobRequest': (json) => ContentFactoryJobRequest.fromJson(json).toJson(),
+  'ContentFactoryJobState': (json) => ContentFactoryJobState.fromJson(json).toJson(),
+  'ContentFactorySourceAnalysisResult': (json) => ContentFactorySourceAnalysisResult.fromJson(json).toJson(),
+  'ContentFactoryDocumentAnalysis': (json) => ContentFactoryDocumentAnalysis.fromJson(json).toJson(),
+  'ContentFactoryKnowledgeSuggestion': (json) => ContentFactoryKnowledgeSuggestion.fromJson(json).toJson(),
+  'ContentFactoryKnowledgeCatalog': (json) => ContentFactoryKnowledgeCatalog.fromJson(json).toJson(),
+  'ContentFactoryKnowledgeNode': (json) => ContentFactoryKnowledgeNode.fromJson(json).toJson(),
+  'ContentFactoryQuestionTypeDraft': (json) => ContentFactoryQuestionTypeDraft.fromJson(json).toJson(),
+  'ContentFactoryQuestionTypeDetail': (json) => ContentFactoryQuestionTypeDetail.fromJson(json).toJson(),
+  'ContentFactoryQuestionTypeReview': (json) => ContentFactoryQuestionTypeReview.fromJson(json).toJson(),
+  'ContentFactoryQuestionTypeKnowledge': (json) => ContentFactoryQuestionTypeKnowledge.fromJson(json).toJson(),
+  'ContentFactoryQuestionTypeReceipt': (json) => ContentFactoryQuestionTypeReceipt.fromJson(json).toJson(),
+  'ContentFactoryPermissionList': (json) => ContentFactoryPermissionList.fromJson(json).toJson(),
+  'ContentFactoryPermissionState': (json) => ContentFactoryPermissionState.fromJson(json).toJson(),
+  'ContentFactoryPermissionReview': (json) => ContentFactoryPermissionReview.fromJson(json).toJson(),
+  'ContentFactorySourceReceipt': (json) => ContentFactorySourceReceipt.fromJson(json).toJson(),
+  'ContentFactorySourceRegistration': (json) => ContentFactorySourceRegistration.fromJson(json).toJson(),
+  'ContentFactoryRoleAssignmentCommand': (json) => ContentFactoryRoleAssignmentCommand.fromJson(json).toJson(),
+  'ContentFactoryRoles': (json) => ContentFactoryRoles.fromJson(json).toJson(),
   'ErrorEnvelope': (json) => ErrorEnvelope.fromJson(json).toJson(),
   'ErrorBody': (json) => ErrorBody.fromJson(json).toJson(),
   'DiagnosticRevision': (json) => DiagnosticRevision.fromJson(json).toJson(),
@@ -220,6 +241,129 @@ final Map<String, RoundTrip> roundTrips = {
 
 /// 仅允许按契约省略 optional nullable null；嵌套自由 JSON 保持原样。
 const Map<String, dynamic> roundTripMetadata = {
+  "ContentFactoryOriginalUpload": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryOriginalReceipt": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryJobRequest": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryJobState": {
+    "nullable": [],
+    "objects": {
+      "result": "ContentFactorySourceAnalysisResult"
+    },
+    "arrays": {}
+  },
+  "ContentFactorySourceAnalysisResult": {
+    "nullable": [],
+    "objects": {
+      "document": "ContentFactoryDocumentAnalysis"
+    },
+    "arrays": {}
+  },
+  "ContentFactoryDocumentAnalysis": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {
+      "knowledge_suggestions": "ContentFactoryKnowledgeSuggestion"
+    }
+  },
+  "ContentFactoryKnowledgeSuggestion": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryKnowledgeCatalog": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {
+      "items": "ContentFactoryKnowledgeNode"
+    }
+  },
+  "ContentFactoryKnowledgeNode": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryQuestionTypeDraft": {
+    "nullable": [
+      "province_code",
+      "exam_year",
+      "curriculum_version"
+    ],
+    "objects": {},
+    "arrays": {
+      "knowledge": "ContentFactoryQuestionTypeKnowledge"
+    }
+  },
+  "ContentFactoryQuestionTypeDetail": {
+    "nullable": [],
+    "objects": {
+      "definition": "ContentFactoryQuestionTypeDraft"
+    },
+    "arrays": {}
+  },
+  "ContentFactoryQuestionTypeReview": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryQuestionTypeKnowledge": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryQuestionTypeReceipt": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryPermissionList": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {
+      "items": "ContentFactoryPermissionState"
+    }
+  },
+  "ContentFactoryPermissionState": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryPermissionReview": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactorySourceReceipt": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactorySourceRegistration": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryRoleAssignmentCommand": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
+  "ContentFactoryRoles": {
+    "nullable": [],
+    "objects": {},
+    "arrays": {}
+  },
   "ErrorEnvelope": {
     "nullable": [],
     "objects": {

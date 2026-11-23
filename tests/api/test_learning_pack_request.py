@@ -681,8 +681,8 @@ def test_worker_rolls_back_staged_pdfs_and_retries_same_job(onboarded, app, cloc
     font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
     publish = worker.publish
 
-    def interrupt_after_staging(*args):
-        assert publish(*args)
+    def interrupt_after_staging(*args, **kwargs):
+        assert publish(*args, **kwargs)
         raise OSError("injected publication interruption")
 
     with monkeypatch.context() as patch:
@@ -797,11 +797,13 @@ def test_worker_recovers_paper_pack_after_claimant_exits(onboarded, app, clock):
     assert not prepare_one(sessions, clock.now, font)
 
 
-def test_solution_render_retry_reuses_student_pdf(onboarded, app, clock, monkeypatch):
-    import pytest
-
-    from tutor_api.models import LearningPackRenderCheckpoint
+@pytest.mark.parametrize("withdraw_source", [False, True])
+def test_solution_render_retry_checks_source_before_reusing_student_pdf(
+    onboarded, app, clock, monkeypatch, withdraw_source, only_original_chemistry_sample
+):
+    from tutor_api.models import LearningPackRenderCheckpoint, Question
     from tutor_api.services import learning_pack_publication as publication
+    from tutor_api.services.content_seed import seed_uuid
     from tutor_api.services.learning_jobs import RETRY_DELAY
 
     onboarded.save_profile(
@@ -828,12 +830,64 @@ def test_solution_render_retry_reuses_student_pdf(onboarded, app, clock, monkeyp
         assert session.get(LearningPackPublication, job["id"]) is None
 
     monkeypatch.setattr(publication, "render_student", fail)
+    if withdraw_source:
+        with sessions.begin() as session:
+            question = session.get_one(Question, seed_uuid("question", "chem-process-reading"))
+            question.source_license = "withdrawn-for-test"
+
     clock.advance(RETRY_DELAY.total_seconds())
     assert prepare_one(sessions, clock.now, font)
+    if withdraw_source:
+        status = onboarded.data("GET", f"/learning/jobs/{job['id']}")
+        assert status["pack_result"] == "no_printable_item"
+        assert onboarded.data("GET", "/learning/packs") == {"ids": []}
+        onboarded.error("GET", f"/learning/packs/{job['id']}/student-pdf", expect=404)
+        return
+
     with sessions() as session:
         pack = session.get_one(LearningPackPublication, job["id"])
         assert (pack.student_pdf, pack.manifest_json["items"]) == expected
         assert session.get(LearningPackRenderCheckpoint, job["id"]) is None
+
+
+def test_source_withdrawn_after_render_blocks_publication(
+    onboarded, app, clock, monkeypatch, only_original_chemistry_sample
+):
+    from tutor_api.models import Question
+    from tutor_api.services import learning_pack_worker as worker
+    from tutor_api.services.content_seed import seed_uuid
+
+    onboarded.save_profile(
+        json={
+            "region_code": "CN-51",
+            "subjects": ["chemistry"],
+            "learning_settings": {"mode": "boarding", "weekly_minutes": 10, "weekdays": [1]},
+        }
+    )
+    job = onboarded.data("POST", "/learning/packs", expect=202, json={"school_minutes": 0})["id"]
+    original = worker.publish
+
+    def publish_with_withdrawal(session, *args, **kwargs):
+        from tutor_api.services import learning_pack_publication as publication
+
+        render = publication.render_solutions
+
+        def render_then_withdraw(*args, **kwargs):
+            pdf = render(*args, **kwargs)
+            question = session.get_one(Question, seed_uuid("question", "chem-process-reading"))
+            question.source_license = "withdrawn-for-test"
+            session.flush()
+            return pdf
+
+        with monkeypatch.context() as patch:
+            patch.setattr(publication, "render_solutions", render_then_withdraw)
+            return original(session, *args, **kwargs)
+
+    monkeypatch.setattr(worker, "publish", publish_with_withdrawal)
+    font = Path(reportlab_path).parent / "fonts" / "Vera.ttf"
+    assert prepare_one(app.state.session_factory, clock.now, font)
+    assert onboarded.data("GET", f"/learning/jobs/{job}")["pack_result"] == "no_printable_item"
+    onboarded.error("GET", f"/learning/packs/{job}/student-pdf", expect=404)
 
 
 def test_expired_worker_reuses_committed_student_pdf(onboarded, app, clock, monkeypatch):
@@ -1007,6 +1061,7 @@ def test_paper_math_inequality_review_switches_from_numeric_fill_to_choice(onboa
     local_font = os.environ.get("TUTOR_LEARNING_PACK_SAMPLE_FONT")
     font = Path(local_font) if local_font else Path(reportlab_path).parent / "fonts" / "Vera.ttf"
 
+    printed_locations = []
     for index, (mode, stem, transcript) in enumerate(
         (("fill", "x+y=8", "16"), ("single_choice", "25 m^2", "C"))
     ):
@@ -1026,9 +1081,22 @@ def test_paper_math_inequality_review_switches_from_numeric_fill_to_choice(onboa
             assert ("((x+y)/2)^2" if index else "sqrt(xy)") in solution
             if local_font:
                 assert "最大值" in text
+        location = onboarded.data(
+            "GET", "/learning/packs/page", params={"token": item["page_token"]}
+        )
+        assert location == {
+            "job_id": job,
+            "item": {
+                "revision": 1,
+                "code": "001",
+                "question_version_id": item["question_version_id"],
+            },
+        }
+        printed_locations.append((item["page_token"], location))
+        code = location["item"]["code"]
         onboarded.data(
             "POST",
-            f"/learning/packs/{job}/items/001/returns",
+            f"/learning/packs/{job}/items/{code}/returns",
             expect=201,
             json={"transcript": transcript, "independence": "independent"},
         )
@@ -1039,6 +1107,15 @@ def test_paper_math_inequality_review_switches_from_numeric_fill_to_choice(onboa
         if index == 0:
             clock.advance(days=3)
 
+    (first_token, first), (_, variant) = printed_locations
+    assert first["item"]["question_version_id"] != variant["item"]["question_version_id"]
+    assert onboarded.data("GET", "/learning/packs/page", params={"token": first_token}) == first
+    onboarded.error(
+        "GET",
+        f"/learning/packs/{variant['job_id']}/page",
+        params={"token": first_token},
+        expect=404,
+    )
     (review,) = onboarded.data("GET", "/learning/review-schedule")["items"]
     assert review["stage"] == 1
 

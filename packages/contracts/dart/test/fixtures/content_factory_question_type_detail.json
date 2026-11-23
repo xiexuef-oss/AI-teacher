@@ -1,0 +1,51 @@
+{
+  "name": "content_factory_question_type_detail",
+  "method": "GET",
+  "path": "/api/v1/admin/content-factory/question-types/2e7d2c43-0662-4e30-967b-93b5c831ebc2",
+  "status": 200,
+  "schema": "ContentFactoryQuestionTypeDetail",
+  "value": {
+    "id": "2e7d2c43-0662-4e30-967b-93b5c831ebc2",
+    "status": "draft",
+    "definition": {
+      "code": "math.fixture",
+      "title": "工程题型",
+      "subject": "math",
+      "province_code": null,
+      "exam_year": null,
+      "curriculum_version": null,
+      "specification": {
+        "format": "fill"
+      },
+      "knowledge": [
+        {
+          "knowledge_id": "80dea622-89c8-5fec-82f4-021b970c9fa7",
+          "relation": "primary"
+        }
+      ]
+    }
+  },
+  "body": {
+    "data": {
+      "id": "2e7d2c43-0662-4e30-967b-93b5c831ebc2",
+      "status": "draft",
+      "definition": {
+        "code": "math.fixture",
+        "title": "工程题型",
+        "subject": "math",
+        "province_code": null,
+        "exam_year": null,
+        "curriculum_version": null,
+        "specification": {
+          "format": "fill"
+        },
+        "knowledge": [
+          {
+            "knowledge_id": "80dea622-89c8-5fec-82f4-021b970c9fa7",
+            "relation": "primary"
+          }
+        ]
+      }
+    }
+  }
+}

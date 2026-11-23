@@ -49,11 +49,17 @@ a {
 
 .topbar {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
   justify-content: space-between;
   align-items: center;
   padding: 0.6rem 1.2rem;
   background: #16342d;
   color: #fff;
+}
+
+.topbar nav a {
+  color: inherit;
 }
 
 .topbar .who {

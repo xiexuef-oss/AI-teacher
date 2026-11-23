@@ -1,0 +1,77 @@
+{
+  "name": "content_factory_knowledge_catalog",
+  "method": "GET",
+  "path": "/api/v1/admin/content-factory/knowledge-nodes",
+  "status": 200,
+  "schema": "ContentFactoryKnowledgeCatalog",
+  "value": {
+    "items": [
+      {
+        "id": "80dea622-89c8-5fec-82f4-021b970c9fa7",
+        "code": "math.function.concept",
+        "title": "函数的概念与定义域"
+      },
+      {
+        "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+        "code": "math.function.monotonicity",
+        "title": "函数的单调性"
+      },
+      {
+        "id": "754612bb-bd06-5cf0-8bc7-c665cc078b51",
+        "code": "math.geometry.coordinate",
+        "title": "平面坐标与线段长度"
+      },
+      {
+        "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+        "code": "math.inequality.basic",
+        "title": "基本不等式"
+      },
+      {
+        "id": "b4d1e34e-7e4d-5523-9b72-7257e43f0f62",
+        "code": "math.inequality.properties",
+        "title": "不等式的基本性质"
+      },
+      {
+        "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+        "code": "math.quadratic.graph",
+        "title": "二次函数的图像与对称轴"
+      }
+    ]
+  },
+  "body": {
+    "data": {
+      "items": [
+        {
+          "id": "80dea622-89c8-5fec-82f4-021b970c9fa7",
+          "code": "math.function.concept",
+          "title": "函数的概念与定义域"
+        },
+        {
+          "id": "129748fc-2a3c-5d38-870c-0e2f1d46e6e4",
+          "code": "math.function.monotonicity",
+          "title": "函数的单调性"
+        },
+        {
+          "id": "754612bb-bd06-5cf0-8bc7-c665cc078b51",
+          "code": "math.geometry.coordinate",
+          "title": "平面坐标与线段长度"
+        },
+        {
+          "id": "9789eb03-da64-5705-9201-59a89dadc00b",
+          "code": "math.inequality.basic",
+          "title": "基本不等式"
+        },
+        {
+          "id": "b4d1e34e-7e4d-5523-9b72-7257e43f0f62",
+          "code": "math.inequality.properties",
+          "title": "不等式的基本性质"
+        },
+        {
+          "id": "d5481c2c-10fe-5dbe-be46-fe9573673a6e",
+          "code": "math.quadratic.graph",
+          "title": "二次函数的图像与对称轴"
+        }
+      ]
+    }
+  }
+}

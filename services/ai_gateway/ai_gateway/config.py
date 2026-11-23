@@ -47,6 +47,13 @@ class Pricing(_Strict):
     input_per_1k_tokens_micros: int | None = Field(default=None, ge=0)
     output_per_1k_tokens_micros: int | None = Field(default=None, ge=0)
     image_unit_micros: int | None = Field(default=None, ge=0)
+    image_input_tokens_max: int | None = Field(default=None, gt=0, strict=True)
+
+    @model_validator(mode="after")
+    def _check_image_pricing(self) -> Self:
+        if self.image_unit_micros is not None and self.image_input_tokens_max is not None:
+            raise ValueError("configure only one image billing method")
+        return self
 
     @property
     def verified(self) -> bool:

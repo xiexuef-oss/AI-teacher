@@ -325,6 +325,211 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/content-factory/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 提交题源分析任务 */
+        post: operations["createContentFactoryJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询本人教研任务 */
+        get: operations["getContentFactoryJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 取消本人尚未完成的教研任务 */
+        post: operations["cancelContentFactoryJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/knowledge-nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询指定学科的现有知识点 */
+        get: operations["listContentFactoryKnowledgeNodes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/question-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 创建关联现有知识点的教研题型草稿 */
+        post: operations["createContentFactoryQuestionType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/question-types/{question_type_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询教研题型详情 */
+        get: operations["getContentFactoryQuestionType"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/question-types/{question_type_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 独立审核员核准或停用教研题型 */
+        post: operations["reviewContentFactoryQuestionType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/source-permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询题源的地区与用途许可状态 */
+        get: operations["listContentFactorySourcePermissions"];
+        put?: never;
+        /** 审校或撤回题源的地区与用途许可 */
+        post: operations["reviewContentFactorySourcePermission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/sources/{source_id}/original": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 暂存符合地区留存许可的题源原件 */
+        post: operations["uploadContentFactoryOriginal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 由教研编辑登记题源元数据 */
+        post: operations["registerContentFactorySource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/role-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 平台管理员分配或撤销教研岗位 */
+        post: operations["setContentFactoryRoleAssignment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/content-factory/roles/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查询当前后台账号的教研岗位 */
+        get: operations["getMyContentFactoryRoles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/learning-pack-shortages": {
         parameters: {
             query?: never;
@@ -1886,6 +2091,163 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ContentFactoryOriginalUpload: {
+            filename: string;
+            content_base64: string;
+            /** @enum {string} */
+            region_code: "CN-51" | "CN-50";
+        };
+        ContentFactoryOriginalReceipt: {
+            /** Format: uuid */
+            source_id: string;
+            /** @enum {string} */
+            region_code: "CN-51" | "CN-50";
+            /** Format: date-time */
+            expires_at: string;
+        };
+        ContentFactoryJobRequest: {
+            /** @enum {string} */
+            kind: "analyze_source";
+            /** Format: uuid */
+            source_id: string;
+            /** @enum {string} */
+            region_code: "CN-51" | "CN-50";
+        };
+        ContentFactoryJobState: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "analyze_source";
+            /** @enum {string} */
+            status: "queued" | "running" | "retry_wait" | "review_required" | "failed" | "cancelled";
+            attempts: number;
+            result?: components["schemas"]["ContentFactorySourceAnalysisResult"];
+        };
+        ContentFactorySourceAnalysisResult: {
+            /** @enum {string} */
+            level: "metadata";
+            /** Format: uuid */
+            source_id: string;
+            title: string;
+            /** @enum {string} */
+            source_class: "original" | "licensed" | "open" | "public_reference";
+            sha256: string;
+            /** @enum {string} */
+            region_code: "CN-51" | "CN-50";
+            document?: components["schemas"]["ContentFactoryDocumentAnalysis"];
+        };
+        ContentFactoryDocumentAnalysis: {
+            pages: number;
+            text_chars: number;
+            needs_ocr_pages: number;
+            knowledge_suggestions?: components["schemas"]["ContentFactoryKnowledgeSuggestion"][];
+        };
+        ContentFactoryKnowledgeSuggestion: {
+            /** Format: uuid */
+            knowledge_id: string;
+            title: string;
+            /** @enum {string} */
+            subject: "math" | "physics" | "chemistry";
+            matched_pages: number[];
+        };
+        ContentFactoryKnowledgeCatalog: {
+            items: components["schemas"]["ContentFactoryKnowledgeNode"][];
+        };
+        ContentFactoryKnowledgeNode: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            title: string;
+        };
+        ContentFactoryQuestionTypeDraft: {
+            code: string;
+            title: string;
+            /** @enum {string} */
+            subject: "math" | "physics" | "chemistry";
+            /** @enum {string|null} */
+            province_code?: "CN-51" | "CN-50" | null;
+            exam_year?: number | null;
+            curriculum_version?: string | null;
+            specification: {
+                [key: string]: unknown;
+            };
+            knowledge: components["schemas"]["ContentFactoryQuestionTypeKnowledge"][];
+        };
+        ContentFactoryQuestionTypeDetail: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "draft" | "approved" | "deprecated";
+            definition: components["schemas"]["ContentFactoryQuestionTypeDraft"];
+        };
+        ContentFactoryQuestionTypeReview: {
+            /** @enum {string} */
+            decision: "approve" | "deprecate";
+            notes: string;
+        };
+        ContentFactoryQuestionTypeKnowledge: {
+            /** Format: uuid */
+            knowledge_id: string;
+            /** @enum {string} */
+            relation: "primary" | "prerequisite" | "supporting";
+        };
+        ContentFactoryQuestionTypeReceipt: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "draft";
+        };
+        ContentFactoryPermissionList: {
+            items: components["schemas"]["ContentFactoryPermissionState"][];
+        };
+        ContentFactoryPermissionState: {
+            /** @enum {string} */
+            operation: "read" | "internal_analysis" | "store_original" | "transform" | "generate_variants" | "print_pdf" | "commercial_distribution" | "send_to_external_ai";
+            /** @enum {string} */
+            region_code: "CN-51" | "CN-50";
+            /** @enum {string} */
+            status: "scheduled" | "active" | "expired" | "revoked";
+            evidence_ref: string;
+            /** Format: date-time */
+            valid_from: string;
+            /** Format: date-time */
+            valid_until: string;
+        };
+        ContentFactoryPermissionReview: {
+            /** Format: uuid */
+            source_id: string;
+            /** @enum {string} */
+            operation: "read" | "internal_analysis" | "store_original" | "transform" | "generate_variants" | "print_pdf" | "commercial_distribution" | "send_to_external_ai";
+            /** @enum {string} */
+            region_code: "CN-51" | "CN-50";
+            /** @enum {string} */
+            decision: "grant" | "revoke";
+            evidence_ref?: string;
+            /** Format: date-time */
+            valid_from?: string;
+            /** Format: date-time */
+            valid_until?: string;
+        };
+        ContentFactorySourceReceipt: {
+            /** Format: uuid */
+            id: string;
+        };
+        ContentFactorySourceRegistration: {
+            title: string;
+            /** @enum {string} */
+            source_class: "original" | "licensed" | "open" | "public_reference";
+            sha256: string;
+        };
+        ContentFactoryRoleAssignmentCommand: {
+            /** Format: uuid */
+            user_id: string;
+            /** @enum {string} */
+            role: "editor" | "reviewer" | "publisher" | "admin";
+            enabled: boolean;
+        };
+        ContentFactoryRoles: {
+            roles: ("editor" | "reviewer" | "publisher" | "admin")[];
+        };
         ErrorEnvelope: {
             error: components["schemas"]["ErrorBody"];
         };
@@ -4737,6 +5099,434 @@ export interface operations {
             413: components["responses"]["PayloadTooLarge"];
             422: components["responses"]["Unprocessable"];
             429: components["responses"]["HttpRateLimited"];
+        };
+    };
+    createContentFactoryJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentFactoryJobRequest"];
+            };
+        };
+        responses: {
+            /** @description 任务已入队 */
+            202: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryJobState"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    getContentFactoryJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 任务状态 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryJobState"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    cancelContentFactoryJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 已取消的任务 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryJobState"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    listContentFactoryKnowledgeNodes: {
+        parameters: {
+            query: {
+                subject: "math" | "physics" | "chemistry";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 学科知识点目录 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryKnowledgeCatalog"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    createContentFactoryQuestionType: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentFactoryQuestionTypeDraft"];
+            };
+        };
+        responses: {
+            /** @description 已创建草稿 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryQuestionTypeReceipt"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    getContentFactoryQuestionType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                question_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 题型状态、规格和知识点关联 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryQuestionTypeDetail"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    reviewContentFactoryQuestionType: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                question_type_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentFactoryQuestionTypeReview"];
+            };
+        };
+        responses: {
+            /** @description 审校后的题型详情 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryQuestionTypeDetail"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    listContentFactorySourcePermissions: {
+        parameters: {
+            query: {
+                source_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前题源的许可记录 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryPermissionList"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    reviewContentFactorySourcePermission: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentFactoryPermissionReview"];
+            };
+        };
+        responses: {
+            /** @description 已保存许可决定 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactorySourceReceipt"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    uploadContentFactoryOriginal: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentFactoryOriginalUpload"];
+            };
+        };
+        responses: {
+            /** @description 原件暂存期限 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryOriginalReceipt"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    registerContentFactorySource: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentFactorySourceRegistration"];
+            };
+        };
+        responses: {
+            /** @description 已登记题源，许可须另行审校 */
+            201: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactorySourceReceipt"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    setContentFactoryRoleAssignment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 每次用户动作固定一个键，重试时复用。 */
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentFactoryRoleAssignmentCommand"];
+            };
+        };
+        responses: {
+            /** @description 操作后的岗位列表 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryRoles"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["Unprocessable"];
+        };
+    };
+    getMyContentFactoryRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 当前账号明确获授的岗位 */
+            200: {
+                headers: {
+                    "X-Request-Id": components["headers"]["RequestId"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ContentFactoryRoles"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listLearningPackShortages: {

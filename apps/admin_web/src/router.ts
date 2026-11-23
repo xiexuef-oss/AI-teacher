@@ -7,6 +7,7 @@ import QuestionView from './views/QuestionView.vue'
 import BatchReviewView from './views/BatchReviewView.vue'
 import ImportView from './views/ImportView.vue'
 import DocumentImportView from './views/DocumentImportView.vue'
+import ContentFactoryView from './views/ContentFactoryView.vue'
 
 export const router = createRouter({
   // 哈希路由：静态托管、vite preview 都不需要额外的重写规则
@@ -17,6 +18,7 @@ export const router = createRouter({
     { path: '/batch-review', name: 'batch-review', component: BatchReviewView },
     { path: '/import', name: 'import', component: ImportView },
     { path: '/document-import', name: 'document-import', component: DocumentImportView },
+    { path: '/content-factory', name: 'content-factory', component: ContentFactoryView },
     { path: '/questions/:id', name: 'question', component: QuestionView },
     { path: '/questions/:id/compare', name: 'compare', component: QuestionCompareView },
   ],

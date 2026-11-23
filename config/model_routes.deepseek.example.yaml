@@ -30,6 +30,8 @@ providers:
       input_per_1k_tokens_micros: null
       output_per_1k_tokens_micros: null
       image_unit_micros: null
+      # Flash Vision reports image tokens as part of prompt_tokens.
+      image_input_tokens_max: 1024
 routes:
   ocr_extract:
     min_confidence: 0.85

@@ -53,9 +53,22 @@ class DbAuditSink:
 class DbBudgetStore:
     """每学生每日、平台每日的模型用量（model_budget_usage）。"""
 
-    def __init__(self, session_factory: sessionmaker[Session], now: Callable[[], datetime]) -> None:
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session],
+        now: Callable[[], datetime],
+        *,
+        namespace: str | None = None,
+    ) -> None:
         self._session_factory = session_factory
         self._now = now
+        self._namespace = namespace
+
+    def _scope_key(self, key: str) -> str:
+        if self._namespace is None:
+            return key
+        digest = hashlib.sha256(repr((self._namespace, key)).encode("utf-8")).hexdigest()
+        return "ns:" + digest[:61]
 
     @staticmethod
     def _query(scope: str, key: str, day: date):
@@ -67,7 +80,7 @@ class DbBudgetStore:
 
     def get_requests(self, scope: str, key: str, day: date) -> int:
         with self._session_factory() as db:
-            row = db.scalar(self._query(scope, key, day))
+            row = db.scalar(self._query(scope, self._scope_key(key), day))
             return row.request_count if row else 0
 
     def record_cost(self, student_key: str, day: date, *, cost_micros: int) -> None:
@@ -76,6 +89,7 @@ class DbBudgetStore:
         with self._session_factory() as db:
             dialect = db.get_bind().dialect.name
             for scope, key in ((PLATFORM_SCOPE, PLATFORM_KEY), (STUDENT_SCOPE, student_key)):
+                key = self._scope_key(key)
                 values = dict(
                     id=new_id(),
                     scope=scope,
@@ -122,6 +136,7 @@ class DbBudgetStore:
             rows = []
             dialect = db.get_bind().dialect.name
             for scope, key, limit in slots:
+                key = self._scope_key(key)
                 values = dict(
                     id=new_id(),
                     scope=scope,
@@ -158,6 +173,7 @@ class DbBudgetStore:
             return True
 
     def add(self, scope: str, key: str, day: date, *, requests: int, cost_micros: int) -> None:
+        key = self._scope_key(key)
         with self._session_factory() as db:
             if db.get_bind().dialect.name == "mysql":
                 statement = (

@@ -1,0 +1,17 @@
+{
+  "name": "content_factory_question_type_created",
+  "method": "POST",
+  "path": "/api/v1/admin/content-factory/question-types",
+  "status": 201,
+  "schema": "ContentFactoryQuestionTypeReceipt",
+  "value": {
+    "id": "2e7d2c43-0662-4e30-967b-93b5c831ebc2",
+    "status": "draft"
+  },
+  "body": {
+    "data": {
+      "id": "2e7d2c43-0662-4e30-967b-93b5c831ebc2",
+      "status": "draft"
+    }
+  }
+}

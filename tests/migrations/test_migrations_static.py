@@ -98,6 +98,11 @@ def test_migration_files_are_numbered_and_ordered():
         "032_learning_pack_photo_ocr.sql",
         "033_learning_pack_photo_ocr_progress.sql",
         "034_learning_pack_correction_solution_access.sql",
+        "035_content_factory_roles.sql",
+        "036_content_factory_sources.sql",
+        "037_content_factory_question_types.sql",
+        "038_content_factory_jobs.sql",
+        "039_content_factory_originals.sql",
     ]
 
 

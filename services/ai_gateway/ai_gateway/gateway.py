@@ -214,6 +214,7 @@ class ModelGateway:
             request is None
             or not count_image_units(request)
             or pricing.image_unit_micros is not None
+            or pricing.image_input_tokens_max is not None
         )
 
     def _resolve(

@@ -1,0 +1,15 @@
+{
+  "name": "my_content_factory_roles",
+  "method": "GET",
+  "path": "/api/v1/admin/content-factory/roles/me",
+  "status": 200,
+  "schema": "ContentFactoryRoles",
+  "value": {
+    "roles": []
+  },
+  "body": {
+    "data": {
+      "roles": []
+    }
+  }
+}

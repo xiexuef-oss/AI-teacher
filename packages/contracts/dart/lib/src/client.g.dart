@@ -266,6 +266,188 @@ class TutorApiClient {
     return LearningPackItems.fromJson(data as Map<String, dynamic>);
   }
 
+  /// 提交题源分析任务
+  Future<ContentFactoryJobState> createContentFactoryJob({
+    required ContentFactoryJobRequest body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/content-factory/jobs',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ContentFactoryJobState.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查询本人教研任务
+  Future<ContentFactoryJobState> getContentFactoryJob({
+    required String jobId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/content-factory/jobs/${Uri.encodeComponent(jobId)}',
+      requestId: requestId,
+    );
+    return ContentFactoryJobState.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 取消本人尚未完成的教研任务
+  Future<ContentFactoryJobState> cancelContentFactoryJob({
+    required String jobId,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/content-factory/jobs/${Uri.encodeComponent(jobId)}/cancel',
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ContentFactoryJobState.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查询指定学科的现有知识点
+  Future<ContentFactoryKnowledgeCatalog> listContentFactoryKnowledgeNodes({
+    String? subject,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/content-factory/knowledge-nodes',
+      query: {'subject': subject},
+      requestId: requestId,
+    );
+    return ContentFactoryKnowledgeCatalog.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 创建关联现有知识点的教研题型草稿
+  Future<ContentFactoryQuestionTypeReceipt> createContentFactoryQuestionType({
+    required ContentFactoryQuestionTypeDraft body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/content-factory/question-types',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ContentFactoryQuestionTypeReceipt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查询教研题型详情
+  Future<ContentFactoryQuestionTypeDetail> getContentFactoryQuestionType({
+    required String questionTypeId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/content-factory/question-types/${Uri.encodeComponent(questionTypeId)}',
+      requestId: requestId,
+    );
+    return ContentFactoryQuestionTypeDetail.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 独立审核员核准或停用教研题型
+  Future<ContentFactoryQuestionTypeDetail> reviewContentFactoryQuestionType({
+    required String questionTypeId,
+    required ContentFactoryQuestionTypeReview body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/content-factory/question-types/${Uri.encodeComponent(questionTypeId)}/review',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ContentFactoryQuestionTypeDetail.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查询题源的地区与用途许可状态
+  Future<ContentFactoryPermissionList> listContentFactorySourcePermissions({
+    String? sourceId,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/content-factory/source-permissions',
+      query: {'source_id': sourceId},
+      requestId: requestId,
+    );
+    return ContentFactoryPermissionList.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 审校或撤回题源的地区与用途许可
+  Future<ContentFactorySourceReceipt> reviewContentFactorySourcePermission({
+    required ContentFactoryPermissionReview body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/content-factory/source-permissions',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ContentFactorySourceReceipt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 暂存符合地区留存许可的题源原件
+  Future<ContentFactoryOriginalReceipt> uploadContentFactoryOriginal({
+    required String sourceId,
+    required ContentFactoryOriginalUpload body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/content-factory/sources/${Uri.encodeComponent(sourceId)}/original',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ContentFactoryOriginalReceipt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 由教研编辑登记题源元数据
+  Future<ContentFactorySourceReceipt> registerContentFactorySource({
+    required ContentFactorySourceRegistration body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/content-factory/sources',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ContentFactorySourceReceipt.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 平台管理员分配或撤销教研岗位
+  Future<ContentFactoryRoles> setContentFactoryRoleAssignment({
+    required ContentFactoryRoleAssignmentCommand body,
+    required String idempotencyKey,
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'POST', '/admin/content-factory/role-assignments',
+      body: body.toJson(),
+      idempotencyKey: idempotencyKey,
+      requestId: requestId,
+    );
+    return ContentFactoryRoles.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// 查询当前后台账号的教研岗位
+  Future<ContentFactoryRoles> getMyContentFactoryRoles({
+    String? requestId,
+  }) async {
+    final data = await _core.send(
+      'GET', '/admin/content-factory/roles/me',
+      requestId: requestId,
+    );
+    return ContentFactoryRoles.fromJson(data as Map<String, dynamic>);
+  }
+
   /// 汇总待人工处理的纸包题源缺口
   Future<LearningPackShortages> listLearningPackShortages({
     String? requestId,

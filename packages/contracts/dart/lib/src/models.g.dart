@@ -3,6 +3,546 @@
 // dart format off
 // ignore_for_file: type=lint
 
+class ContentFactoryOriginalUpload {
+  const ContentFactoryOriginalUpload({
+    required this.filename,
+    required this.contentBase64,
+    required this.regionCode,
+  });
+
+  final String filename;
+  final String contentBase64;
+  final String regionCode;
+
+  factory ContentFactoryOriginalUpload.fromJson(Map<String, dynamic> json) => ContentFactoryOriginalUpload(
+        filename: json['filename'] as String,
+        contentBase64: json['content_base64'] as String,
+        regionCode: json['region_code'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'filename': filename,
+        'content_base64': contentBase64,
+        'region_code': regionCode,
+      };
+}
+
+class ContentFactoryOriginalReceipt {
+  const ContentFactoryOriginalReceipt({
+    required this.sourceId,
+    required this.regionCode,
+    required this.expiresAt,
+  });
+
+  final String sourceId;
+  final String regionCode;
+  final DateTime expiresAt;
+
+  factory ContentFactoryOriginalReceipt.fromJson(Map<String, dynamic> json) => ContentFactoryOriginalReceipt(
+        sourceId: json['source_id'] as String,
+        regionCode: json['region_code'] as String,
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'source_id': sourceId,
+        'region_code': regionCode,
+        'expires_at': expiresAt.toUtc().toIso8601String(),
+      };
+}
+
+class ContentFactoryJobRequest {
+  const ContentFactoryJobRequest({
+    required this.kind,
+    required this.sourceId,
+    required this.regionCode,
+  });
+
+  final String kind;
+  final String sourceId;
+  final String regionCode;
+
+  factory ContentFactoryJobRequest.fromJson(Map<String, dynamic> json) => ContentFactoryJobRequest(
+        kind: json['kind'] as String,
+        sourceId: json['source_id'] as String,
+        regionCode: json['region_code'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        'source_id': sourceId,
+        'region_code': regionCode,
+      };
+}
+
+class ContentFactoryJobState {
+  const ContentFactoryJobState({
+    required this.id,
+    required this.kind,
+    required this.status,
+    required this.attempts,
+    this.result,
+  });
+
+  final String id;
+  final String kind;
+  final String status;
+  final int attempts;
+  final ContentFactorySourceAnalysisResult? result;
+
+  factory ContentFactoryJobState.fromJson(Map<String, dynamic> json) => ContentFactoryJobState(
+        id: json['id'] as String,
+        kind: json['kind'] as String,
+        status: json['status'] as String,
+        attempts: (json['attempts'] as num).toInt(),
+        result: json['result'] == null ? null : ContentFactorySourceAnalysisResult.fromJson(json['result'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kind': kind,
+        'status': status,
+        'attempts': attempts,
+        if (result != null) 'result': result?.toJson(),
+      };
+}
+
+class ContentFactorySourceAnalysisResult {
+  const ContentFactorySourceAnalysisResult({
+    required this.level,
+    required this.sourceId,
+    required this.title,
+    required this.sourceClass,
+    required this.sha256,
+    required this.regionCode,
+    this.document,
+  });
+
+  final String level;
+  final String sourceId;
+  final String title;
+  final String sourceClass;
+  final String sha256;
+  final String regionCode;
+  final ContentFactoryDocumentAnalysis? document;
+
+  factory ContentFactorySourceAnalysisResult.fromJson(Map<String, dynamic> json) => ContentFactorySourceAnalysisResult(
+        level: json['level'] as String,
+        sourceId: json['source_id'] as String,
+        title: json['title'] as String,
+        sourceClass: json['source_class'] as String,
+        sha256: json['sha256'] as String,
+        regionCode: json['region_code'] as String,
+        document: json['document'] == null ? null : ContentFactoryDocumentAnalysis.fromJson(json['document'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'level': level,
+        'source_id': sourceId,
+        'title': title,
+        'source_class': sourceClass,
+        'sha256': sha256,
+        'region_code': regionCode,
+        if (document != null) 'document': document?.toJson(),
+      };
+}
+
+class ContentFactoryDocumentAnalysis {
+  const ContentFactoryDocumentAnalysis({
+    required this.pages,
+    required this.textChars,
+    required this.needsOcrPages,
+    this.knowledgeSuggestions,
+  });
+
+  final int pages;
+  final int textChars;
+  final int needsOcrPages;
+  final List<ContentFactoryKnowledgeSuggestion>? knowledgeSuggestions;
+
+  factory ContentFactoryDocumentAnalysis.fromJson(Map<String, dynamic> json) => ContentFactoryDocumentAnalysis(
+        pages: (json['pages'] as num).toInt(),
+        textChars: (json['text_chars'] as num).toInt(),
+        needsOcrPages: (json['needs_ocr_pages'] as num).toInt(),
+        knowledgeSuggestions: json['knowledge_suggestions'] == null ? null : (json['knowledge_suggestions'] as List<dynamic>).map((e) => ContentFactoryKnowledgeSuggestion.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'pages': pages,
+        'text_chars': textChars,
+        'needs_ocr_pages': needsOcrPages,
+        if (knowledgeSuggestions != null) 'knowledge_suggestions': knowledgeSuggestions?.map((e) => e.toJson()).toList(),
+      };
+}
+
+class ContentFactoryKnowledgeSuggestion {
+  const ContentFactoryKnowledgeSuggestion({
+    required this.knowledgeId,
+    required this.title,
+    required this.subject,
+    required this.matchedPages,
+  });
+
+  final String knowledgeId;
+  final String title;
+  final String subject;
+  final List<int> matchedPages;
+
+  factory ContentFactoryKnowledgeSuggestion.fromJson(Map<String, dynamic> json) => ContentFactoryKnowledgeSuggestion(
+        knowledgeId: json['knowledge_id'] as String,
+        title: json['title'] as String,
+        subject: json['subject'] as String,
+        matchedPages: (json['matched_pages'] as List<dynamic>).map((e) => (e as num).toInt()).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'knowledge_id': knowledgeId,
+        'title': title,
+        'subject': subject,
+        'matched_pages': matchedPages,
+      };
+}
+
+class ContentFactoryKnowledgeCatalog {
+  const ContentFactoryKnowledgeCatalog({
+    required this.items,
+  });
+
+  final List<ContentFactoryKnowledgeNode> items;
+
+  factory ContentFactoryKnowledgeCatalog.fromJson(Map<String, dynamic> json) => ContentFactoryKnowledgeCatalog(
+        items: (json['items'] as List<dynamic>).map((e) => ContentFactoryKnowledgeNode.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class ContentFactoryKnowledgeNode {
+  const ContentFactoryKnowledgeNode({
+    required this.id,
+    required this.code,
+    required this.title,
+  });
+
+  final String id;
+  final String code;
+  final String title;
+
+  factory ContentFactoryKnowledgeNode.fromJson(Map<String, dynamic> json) => ContentFactoryKnowledgeNode(
+        id: json['id'] as String,
+        code: json['code'] as String,
+        title: json['title'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'title': title,
+      };
+}
+
+class ContentFactoryQuestionTypeDraft {
+  const ContentFactoryQuestionTypeDraft({
+    required this.code,
+    required this.title,
+    required this.subject,
+    this.provinceCode,
+    this.examYear,
+    this.curriculumVersion,
+    required this.specification,
+    required this.knowledge,
+  });
+
+  final String code;
+  final String title;
+  final String subject;
+  final String? provinceCode;
+  final int? examYear;
+  final String? curriculumVersion;
+  final Map<String, dynamic> specification;
+  final List<ContentFactoryQuestionTypeKnowledge> knowledge;
+
+  factory ContentFactoryQuestionTypeDraft.fromJson(Map<String, dynamic> json) => ContentFactoryQuestionTypeDraft(
+        code: json['code'] as String,
+        title: json['title'] as String,
+        subject: json['subject'] as String,
+        provinceCode: json['province_code'] == null ? null : json['province_code'] as String,
+        examYear: json['exam_year'] == null ? null : (json['exam_year'] as num).toInt(),
+        curriculumVersion: json['curriculum_version'] == null ? null : json['curriculum_version'] as String,
+        specification: Map<String, dynamic>.from(json['specification'] as Map),
+        knowledge: (json['knowledge'] as List<dynamic>).map((e) => ContentFactoryQuestionTypeKnowledge.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'title': title,
+        'subject': subject,
+        if (provinceCode != null) 'province_code': provinceCode,
+        if (examYear != null) 'exam_year': examYear,
+        if (curriculumVersion != null) 'curriculum_version': curriculumVersion,
+        'specification': specification,
+        'knowledge': knowledge.map((e) => e.toJson()).toList(),
+      };
+}
+
+class ContentFactoryQuestionTypeDetail {
+  const ContentFactoryQuestionTypeDetail({
+    required this.id,
+    required this.status,
+    required this.definition,
+  });
+
+  final String id;
+  final String status;
+  final ContentFactoryQuestionTypeDraft definition;
+
+  factory ContentFactoryQuestionTypeDetail.fromJson(Map<String, dynamic> json) => ContentFactoryQuestionTypeDetail(
+        id: json['id'] as String,
+        status: json['status'] as String,
+        definition: ContentFactoryQuestionTypeDraft.fromJson(json['definition'] as Map<String, dynamic>),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'status': status,
+        'definition': definition.toJson(),
+      };
+}
+
+class ContentFactoryQuestionTypeReview {
+  const ContentFactoryQuestionTypeReview({
+    required this.decision,
+    required this.notes,
+  });
+
+  final String decision;
+  final String notes;
+
+  factory ContentFactoryQuestionTypeReview.fromJson(Map<String, dynamic> json) => ContentFactoryQuestionTypeReview(
+        decision: json['decision'] as String,
+        notes: json['notes'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'decision': decision,
+        'notes': notes,
+      };
+}
+
+class ContentFactoryQuestionTypeKnowledge {
+  const ContentFactoryQuestionTypeKnowledge({
+    required this.knowledgeId,
+    required this.relation,
+  });
+
+  final String knowledgeId;
+  final String relation;
+
+  factory ContentFactoryQuestionTypeKnowledge.fromJson(Map<String, dynamic> json) => ContentFactoryQuestionTypeKnowledge(
+        knowledgeId: json['knowledge_id'] as String,
+        relation: json['relation'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'knowledge_id': knowledgeId,
+        'relation': relation,
+      };
+}
+
+class ContentFactoryQuestionTypeReceipt {
+  const ContentFactoryQuestionTypeReceipt({
+    required this.id,
+    required this.status,
+  });
+
+  final String id;
+  final String status;
+
+  factory ContentFactoryQuestionTypeReceipt.fromJson(Map<String, dynamic> json) => ContentFactoryQuestionTypeReceipt(
+        id: json['id'] as String,
+        status: json['status'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'status': status,
+      };
+}
+
+class ContentFactoryPermissionList {
+  const ContentFactoryPermissionList({
+    required this.items,
+  });
+
+  final List<ContentFactoryPermissionState> items;
+
+  factory ContentFactoryPermissionList.fromJson(Map<String, dynamic> json) => ContentFactoryPermissionList(
+        items: (json['items'] as List<dynamic>).map((e) => ContentFactoryPermissionState.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+      };
+}
+
+class ContentFactoryPermissionState {
+  const ContentFactoryPermissionState({
+    required this.operation,
+    required this.regionCode,
+    required this.status,
+    required this.evidenceRef,
+    required this.validFrom,
+    required this.validUntil,
+  });
+
+  final String operation;
+  final String regionCode;
+  final String status;
+  final String evidenceRef;
+  final DateTime validFrom;
+  final DateTime validUntil;
+
+  factory ContentFactoryPermissionState.fromJson(Map<String, dynamic> json) => ContentFactoryPermissionState(
+        operation: json['operation'] as String,
+        regionCode: json['region_code'] as String,
+        status: json['status'] as String,
+        evidenceRef: json['evidence_ref'] as String,
+        validFrom: DateTime.parse(json['valid_from'] as String),
+        validUntil: DateTime.parse(json['valid_until'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'operation': operation,
+        'region_code': regionCode,
+        'status': status,
+        'evidence_ref': evidenceRef,
+        'valid_from': validFrom.toUtc().toIso8601String(),
+        'valid_until': validUntil.toUtc().toIso8601String(),
+      };
+}
+
+class ContentFactoryPermissionReview {
+  const ContentFactoryPermissionReview({
+    required this.sourceId,
+    required this.operation,
+    required this.regionCode,
+    required this.decision,
+    this.evidenceRef,
+    this.validFrom,
+    this.validUntil,
+  });
+
+  final String sourceId;
+  final String operation;
+  final String regionCode;
+  final String decision;
+  final String? evidenceRef;
+  final DateTime? validFrom;
+  final DateTime? validUntil;
+
+  factory ContentFactoryPermissionReview.fromJson(Map<String, dynamic> json) => ContentFactoryPermissionReview(
+        sourceId: json['source_id'] as String,
+        operation: json['operation'] as String,
+        regionCode: json['region_code'] as String,
+        decision: json['decision'] as String,
+        evidenceRef: json['evidence_ref'] == null ? null : json['evidence_ref'] as String,
+        validFrom: json['valid_from'] == null ? null : DateTime.parse(json['valid_from'] as String),
+        validUntil: json['valid_until'] == null ? null : DateTime.parse(json['valid_until'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'source_id': sourceId,
+        'operation': operation,
+        'region_code': regionCode,
+        'decision': decision,
+        if (evidenceRef != null) 'evidence_ref': evidenceRef,
+        if (validFrom != null) 'valid_from': validFrom?.toUtc().toIso8601String(),
+        if (validUntil != null) 'valid_until': validUntil?.toUtc().toIso8601String(),
+      };
+}
+
+class ContentFactorySourceReceipt {
+  const ContentFactorySourceReceipt({
+    required this.id,
+  });
+
+  final String id;
+
+  factory ContentFactorySourceReceipt.fromJson(Map<String, dynamic> json) => ContentFactorySourceReceipt(
+        id: json['id'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+      };
+}
+
+class ContentFactorySourceRegistration {
+  const ContentFactorySourceRegistration({
+    required this.title,
+    required this.sourceClass,
+    required this.sha256,
+  });
+
+  final String title;
+  final String sourceClass;
+  final String sha256;
+
+  factory ContentFactorySourceRegistration.fromJson(Map<String, dynamic> json) => ContentFactorySourceRegistration(
+        title: json['title'] as String,
+        sourceClass: json['source_class'] as String,
+        sha256: json['sha256'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'source_class': sourceClass,
+        'sha256': sha256,
+      };
+}
+
+class ContentFactoryRoleAssignmentCommand {
+  const ContentFactoryRoleAssignmentCommand({
+    required this.userId,
+    required this.role,
+    required this.enabled,
+  });
+
+  final String userId;
+  final String role;
+  final bool enabled;
+
+  factory ContentFactoryRoleAssignmentCommand.fromJson(Map<String, dynamic> json) => ContentFactoryRoleAssignmentCommand(
+        userId: json['user_id'] as String,
+        role: json['role'] as String,
+        enabled: json['enabled'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'user_id': userId,
+        'role': role,
+        'enabled': enabled,
+      };
+}
+
+class ContentFactoryRoles {
+  const ContentFactoryRoles({
+    required this.roles,
+  });
+
+  final List<String> roles;
+
+  factory ContentFactoryRoles.fromJson(Map<String, dynamic> json) => ContentFactoryRoles(
+        roles: (json['roles'] as List<dynamic>).map((e) => e as String).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'roles': roles,
+      };
+}
+
 class ErrorEnvelope {
   const ErrorEnvelope({
     required this.error,

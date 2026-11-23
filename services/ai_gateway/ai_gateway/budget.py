@@ -78,8 +78,7 @@ def estimate_input_tokens(request: GatewayRequest) -> int:
     """Use complete message text UTF-8 bytes as conservative estimation units.
 
     Includes system instructions, JSON framing and the authorized reference
-    catalog. Inline image bytes are image billing units, not text tokens. This
-    estimate is not a vendor tokenizer result or an actual invoice.
+    catalog. Image cost is estimated separately from serialized text.
     """
     messages = build_messages(request)
     for message in messages:
@@ -112,9 +111,13 @@ def cost_micros(
 
 def estimate_request_cost_micros(pricing: Pricing | None, request: GatewayRequest) -> int:
     """调用前成本预估：完整文本消息、输出上限及配置的图像计费单位。"""
+    image_units = count_image_units(request)
+    input_tokens = estimate_input_tokens(request)
+    if pricing is not None and pricing.image_input_tokens_max is not None:
+        input_tokens += image_units * pricing.image_input_tokens_max
     return cost_micros(
         pricing,
-        input_tokens=estimate_input_tokens(request),
+        input_tokens=input_tokens,
         output_tokens=request.constraints.max_output_tokens,
-        image_units=count_image_units(request),
+        image_units=image_units,
     )
