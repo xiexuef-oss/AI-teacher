@@ -134,7 +134,7 @@ def run(ctx: Context) -> None:
     page.reload()
     page.locator(".candidate").first.wait_for()
     ctx.check("刷新后恢复同一任务", job["title"] in page.inner_text("body"))
-    pdf = page.locator("details").filter(has_text="sample.pdf")
+    pdf = page.get_by_role("region", name="当前导入任务").locator("details").filter(has_text="sample.pdf")
     pdf.locator("summary").click()
     pdf.get_by_role("button", name="查看 PNG 原文", exact=True).first.click()
     page.get_by_alt_text("原文 PNG 预览").wait_for()

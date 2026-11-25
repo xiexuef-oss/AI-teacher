@@ -14,7 +14,13 @@ import QuestionEditor from '../components/QuestionEditor.vue'
 import type { EditorDetail, EditorForm } from '../editing'
 import { formFromDetail } from '../editing'
 import { expireImportRecovery } from '../import-recovery'
+import { MODE_LABEL } from '../labels'
 type S = components['schemas']
+const jobLabels: Record<S['DocImportJobStatus'], string> = {
+  uploading: '待上传', queued: '等待提取', processing: '提取中', needs_review: '待校对',
+  completed: '已完成', partial_failure: '部分失败', failed: '处理失败', cancelled: '已取消',
+}
+const megabytes = (bytes: number) => new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(bytes / 1048576)
 const session = useSession()
 const options = ref<S['DocImportOptions']>()
 const jobs = ref<S['DocImportJobSummary'][]>([])
@@ -273,40 +279,51 @@ onUnmounted(() => { documentMounted=false; if (timer) clearInterval(timer) })
   <main class="page">
     <RouterLink to="/">返回审核队列</RouterLink> · <RouterLink to="/import">单题 JSON 导入</RouterLink>
     <h1>文档导入工作台</h1><p v-if="isolatedNotice" role="alert">原身份最新输入尚未落盘，仅在隔离内存保留；不要关闭页面，可切回原身份明确恢复。</p><button v-for="[key,draft] in restorableIsolated" :key="key" data-testid="doc-restore-isolated" @click="restoreIsolated(key)">明确恢复原身份隔离内存输入 · {{ draft.workspace }}</button><p v-if="documentSourceConflict" role="alert">旧本机草稿与当前任务来源不同，原文保留；请比较后明确选择。</p><details v-if="documentSourceConflict"><summary>比较本机来源 {{ editBaseRevision??'未知' }} 与当前任务来源 {{ detail?.job.revision }}</summary><h3>本机输入</h3><pre>{{ JSON.stringify(editors,null,2) }}</pre><h3>当前服务端候选（只读观察）</h3><pre>{{ JSON.stringify(detail?.candidates,null,2) }}</pre><button data-testid="document-use-current" @click="useCurrentCandidates">备份本机并明确载入当前服务端候选</button></details><button v-if="documentSourceConflict" data-testid="document-adopt-source" @click="adoptDocumentSource">备份旧来源并明确采用当前任务草稿</button>
-    <p>仅使用自编或明确授权材料；保存为待审草稿后，须由另一位审校员审核，不能自动发布。</p>
-    <p v-if="options?.ocr_mode === 'disabled'">OCR 当前禁用，扫描件和图片需要人工录入。</p>
-    <p v-else-if="options?.ocr_mode === 'mock'">OCR 当前为 Mock，仅测试流程，不代表真实识别。</p>
-    <p v-if="options && !options.doc_converter_available">DOC 转换器不可用，请另存为 DOCX。</p>
-    <p v-if="options">最多 {{ options.max_files }} 文件；单文件 {{ options.max_file_bytes }} 字节；任务 {{ options.max_job_bytes }} 字节；{{ options.max_pages }} 页；临时保存 {{ options.temporary_ttl_minutes }} 分钟。</p>
-    <fieldset :disabled="!recovery"><legend>新建导入任务</legend>
+    <p class="muted">导入自编或已授权的材料，校对后提交给另一位审校员。</p>
+    <ol class="import-steps" aria-label="导入步骤"><li>建立任务</li><li>上传与提取</li><li>校对并送审</li></ol>
+    <details class="card import-limits">
+      <summary>支持格式与上传限制</summary>
+      <p>PDF、Word、图片、JSON</p>
+      <p v-if="options?.ocr_mode === 'disabled'">OCR 当前禁用，扫描件和图片需人工录入。</p>
+      <p v-else-if="options?.ocr_mode === 'mock'">图片识别为演示模式，扫描件需人工录入。</p>
+      <p v-if="options && !options.doc_converter_available">旧版 DOC 请先另存为 DOCX。</p>
+      <p v-if="options">最多 {{ options.max_files }} 个文件、{{ options.max_pages }} 页。单文件 {{ megabytes(options.max_file_bytes) }} MB，单任务 {{ megabytes(options.max_job_bytes) }} MB。临时保存 {{ options.temporary_ttl_minutes }} 分钟。</p>
+    </details>
+    <section v-if="jobs.length" class="card import-jobs">
+      <h2>已有导入任务</h2>
+      <ul>
+        <li v-for="job in jobs" :key="job.id">
+          <span><strong>{{ job.title }}</strong> <span class="muted">{{ jobLabels[job.status] }}</span></span>
+          <button type="button" :disabled="busy" :aria-current="detail?.job.id === job.id ? 'true' : undefined" :title="job.title" @click="open(job.id)">{{ job.status === 'uploading' ? '继续上传' : job.status === 'needs_review' ? '继续校对' : '查看任务' }}</button>
+        </li>
+      </ul>
+    </section>
+    <details v-show="!detail" class="card" open>
+      <summary>新建导入任务</summary>
+    <fieldset class="import-form" :disabled="!recovery" aria-label="新建导入任务">
       <label>任务名称 <input v-model="title" /></label>
       <label>来源 <input v-model="sourceName" /></label>
       <label>使用依据 / 授权编号 <input v-model="license" /></label>
       <label>来源类型 <select v-model="sourceType"><option value="self_authored">自编</option><option value="textbook_licensed">教材授权</option><option value="public_license">公开许可</option><option value="gaokao_licensed">试题授权</option></select></label>
       <label>分类 <select v-model="category"><option value="foundation">基础母题</option><option value="mock_exam">模拟题</option><option value="gaokao_real">高考真题（须授权核验）</option></select></label>
-      <label>年份 <input v-model.number="sourceYear" type="number" /></label><label>来源网址 <input v-model="sourceUrl" /></label>
       <label>学科 <select v-model="subject"><option value="math">数学</option><option value="physics">物理</option><option value="chemistry">化学</option></select></label>
-      <label>作答方式 <select v-model="mode"><option v-for="m in ['single_choice','multiple_choice','fill','written','experiment','proof']" :key="m" :value="m">{{ m }}</option></select></label>
-      <button :disabled="busy" data-testid="create-job" @click="create">建立任务</button>
+      <label>作答方式 <select v-model="mode"><option v-for="(label, value) in MODE_LABEL" :key="value" :value="value">{{ label }}</option></select></label>
+      <details class="import-source-extra" :open="sourceType === 'gaokao_licensed'">
+        <summary>补充来源信息</summary>
+        <label>年份 <input v-model.number="sourceYear" type="number" /></label>
+        <label>来源网址 <input v-model="sourceUrl" /></label>
+      </details>
+      <div class="import-form-actions"><button class="primary" :disabled="busy" data-testid="create-job" @click="create">建立任务</button></div>
     </fieldset>
-    <p data-testid="doc-draft-state">{{ draftState }}</p><button v-if="editorInputSerial>durableSerial" data-testid="doc-save-local" @click="retryLocalDraft">重试本机保存最新输入</button><p v-if="localState">原固定留存截止 {{ new Date(localState.expiresAt).toISOString() }}</p><button v-for="w in workspaces" :key="w.workspace" :disabled="busy" data-testid="doc-workspace" @click="chooseWorkspace(w.workspace)">查看原工作区 {{ w.jobId??w.workspace }} {{ w.expired?'已过期':'' }}</button>
+    </details>
+    <p data-testid="doc-draft-state">{{ draftState }}</p><button v-if="editorInputSerial>durableSerial" data-testid="doc-save-local" @click="retryLocalDraft">重试本机保存最新输入</button>
     <p v-if="recovery?.legacyNotice" role="alert">{{ recovery.legacyNotice }}</p>
-    <section aria-label="本机操作历史"><h2>本机操作历史</h2><p>刷新不会自动发送；当前任务观察与历史回执分开。停止重试不表示服务端取消。</p>
-      <article v-for="c in history" :key="c.key"><pre>{{ c.method }} {{ c.path }} · {{ c.phase }} · {{ c.key }}
-{{ JSON.stringify(c.body) }}</pre>
-       <template v-if="!localState?.released.some(t=>t.snapshot===c.snapshot)">
-        <button v-if="['prepared','unavailable'].includes(c.phase)&&!c.file" data-testid="doc-retry" :disabled="busy" @click="retry(c)">恢复原操作（原body/key）</button>
-        <label v-if="['prepared','unavailable'].includes(c.phase)&&c.file">重选原字节文件<input data-testid="doc-reselect" type="file" :disabled="busy" @change="retryFile(c,$event)" /></label>
-        <button v-if="c.phase==='result_known'" data-testid="doc-ack" :disabled="busy" @click="acknowledge(c)">确认已保存的历史结果（仅本机）</button>
-        <button v-if="['prepared','unavailable'].includes(c.phase)" data-testid="doc-stop" :disabled="busy" @click="stop(c)">保留未知记录并停止本机重试</button>
-       </template>
-      </article><p v-for="t in localState?.tombstones" :key="t.key">已过期：{{ t.path }} · {{ t.phase }} · {{ t.key }}<button v-if="t.phase==='result_known'" @click="acknowledge(t)">确认过期历史结果（仅本机）</button></p>
-      <details v-for="branch in localState?.branches" :key="branch.id"><summary>独立分支 {{ branch.id }} · 来源 {{ branch.baseRevision??'未知' }}</summary><button data-testid="doc-branch-load" @click="loadBranch(branch.id)">比较分支与当前主草稿</button><button data-testid="doc-branch-adopt" @click="adoptBranch(branch.id)">备份主草稿并明确采用此分支</button></details><pre data-testid="doc-head-preview">{{ headPreview }}</pre><pre data-testid="doc-branch-preview">{{ branchPreview }}</pre>
-    </section>
-    <button data-testid="doc-new-workspace" :disabled="busy" @click="newWorkspace">保留历史并明确建立新创建窗口</button><h2>恢复任务</h2><button v-for="job in jobs" :key="job.id" :disabled="busy" @click="open(job.id)">{{ job.title }} · {{ job.status }}</button>
     <p v-if="error" role="alert" class="notice error">{{ error }}</p><p role="status">{{ notice }}</p>
-    <section v-if="detail">
-      <h2>{{ detail.job.title }} · {{ detail.job.status }}</h2>
+    <section v-if="detail" class="card import-detail" aria-label="当前导入任务">
+      <div class="page-head">
+        <h2>{{ detail.job.title }} · {{ jobLabels[detail.job.status] }}</h2>
+        <button data-testid="doc-new-workspace" :disabled="busy" @click="newWorkspace">新建导入任务</button>
+      </div>
       <p>文件 {{ detail.job.processed_files }}/{{ detail.job.file_count }}；候选 {{ detail.job.candidate_count }}；确认 {{ detail.job.confirmed_count }}；草稿 {{ detail.job.imported_count }}；失败 {{ detail.job.failed_count }}。{{ detail.job.message }}</p>
       <p>每次最多50题，完成后请继续创建剩余已确认草稿。</p><p>刷新可恢复任务、校对内容及未完成提交。并发冲突时请刷新任务后重新核对。</p>
       <input aria-label="上传多个文件" type="file" multiple accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.json" :disabled="busy || detail.job.status !== 'uploading'" @change="upload" />
@@ -352,9 +369,35 @@ onUnmounted(() => { documentMounted=false; if (timer) clearInterval(timer) })
       <button :disabled="busy" @click="save">保存校对与确认</button><button :disabled="busy" @click="submit()">批量创建已保存的确认草稿 / 重试未完成批次</button>
       <section v-if="batch"><h3>批次结果</h3><p v-for="item in batch.items" :key="item.candidate_id">{{ item.candidate_id }}：{{ item.status }} {{ item.error?.message }}</p><button :disabled="busy" @click="submit(true)">仅重试失败项</button></section>
     </section>
+    <section v-show="!recovery || history.length || workspaces.length || localState?.tombstones.length || localState?.branches.length" class="card import-history" aria-label="本机操作历史"><h2>恢复与操作记录</h2><p class="muted">需要续办未完成的操作时，可在这里恢复。</p>
+      <button v-for="w in workspaces" :key="w.workspace" :disabled="busy" data-testid="doc-workspace" @click="chooseWorkspace(w.workspace)">查看原工作区 {{ w.jobId??w.workspace }} {{ w.expired?'已过期':'' }}</button>
+      <article v-for="c in history" :key="c.key"><details><summary>查看操作详情</summary><pre>{{ c.method }} {{ c.path }} · {{ c.phase }} · {{ c.key }}
+{{ JSON.stringify(c.body) }}</pre></details>
+       <template v-if="!localState?.released.some(t=>t.snapshot===c.snapshot)">
+        <button v-if="['prepared','unavailable'].includes(c.phase)&&!c.file" data-testid="doc-retry" :disabled="busy" @click="retry(c)">恢复原操作（原body/key）</button>
+        <label v-if="['prepared','unavailable'].includes(c.phase)&&c.file">重选原字节文件<input data-testid="doc-reselect" type="file" :disabled="busy" @change="retryFile(c,$event)" /></label>
+        <button v-if="c.phase==='result_known'" data-testid="doc-ack" :disabled="busy" @click="acknowledge(c)">确认已保存的历史结果（仅本机）</button>
+        <button v-if="['prepared','unavailable'].includes(c.phase)" data-testid="doc-stop" :disabled="busy" @click="stop(c)">保留未知记录并停止本机重试</button>
+       </template>
+      </article><p v-for="t in localState?.tombstones" :key="t.key">已过期：{{ t.path }} · {{ t.phase }} · {{ t.key }}<button v-if="t.phase==='result_known'" @click="acknowledge(t)">确认过期历史结果（仅本机）</button></p>
+      <details v-for="branch in localState?.branches" :key="branch.id"><summary>独立分支 {{ branch.id }} · 来源 {{ branch.baseRevision??'未知' }}</summary><button data-testid="doc-branch-load" @click="loadBranch(branch.id)">比较分支与当前主草稿</button><button data-testid="doc-branch-adopt" @click="adoptBranch(branch.id)">备份主草稿并明确采用此分支</button></details><pre data-testid="doc-head-preview">{{ headPreview }}</pre><pre data-testid="doc-branch-preview">{{ branchPreview }}</pre>
+    <p v-if="localState" class="muted">本机记录留存至 {{ new Date(localState.expiresAt).toLocaleString('zh-CN') }}</p>
+    <button v-if="!detail && (!recovery || history.length || workspaces.length)" data-testid="doc-new-workspace" :disabled="busy" @click="newWorkspace">保留记录并新建导入</button>
+    </section>
   </main>
 </template>
 <style scoped>
+.import-steps { display: flex; flex-wrap: wrap; gap: .6rem 2rem; color: var(--primary); padding-left: 1.2rem; }
+.card > summary { font-weight: 700; cursor: pointer; }
+.import-limits p { margin: .45rem 0; }
+.import-form { border: 0; padding: 0; margin: .7rem 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem 1.25rem; }
+.import-form input, .import-form select { display: block; width: 100%; min-height: 2.6rem; margin-top: .25rem; }
+.import-form input, .import-form select { border: 1px solid var(--line); border-radius: 6px; padding: .4rem .65rem; background: white; color: var(--text); }
+.import-history pre:empty { display: none; }
+.import-form-actions, .import-source-extra { grid-column: 1 / -1; }
+.import-jobs ul { list-style: none; margin: 0; padding: 0; }
+.import-jobs li { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding: .3rem 0; }
+@media (max-width: 640px) { .import-form { grid-template-columns: minmax(0, 1fr); } }
 label { display: block; margin: .6rem 0; } textarea { display: block; width: 100%; box-sizing: border-box; font-family: monospace; } pre { white-space: pre-wrap; overflow-wrap: anywhere; } img { max-width: 100%; } .candidate { margin: 1rem 0; } .candidate input:not([type=checkbox]) { width: 100%; box-sizing: border-box; } button { margin: .3rem; }
 </style>
 
